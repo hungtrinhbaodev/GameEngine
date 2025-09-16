@@ -6,10 +6,10 @@
 #include <utility/glm_utils.h>
 
 int main() {
-    glm::mat3 m(1);
-    Utility::GlmUtils::LOG_MAT(m);
-    glm::vec3 v(3);
-    Utility::GlmUtils::LOG_VEC(v);
-    Utility::GlmUtils::LOG_VEC(m * v);
+    glm::mat3 m(2);
+    std::cout << m << std:: endl;
+    glm::vec3 v(2);
+    std::cout << v << std:: endl;
+    std::cout << m * v << std::endl;
     return 0;
 }
