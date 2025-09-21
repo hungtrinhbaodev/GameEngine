@@ -1,6 +1,7 @@
 #include <graphic/common/texture.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#include <graphic/common/texture_system.h>
 
 Graphic::Texture::Texture() {
 
@@ -26,23 +27,34 @@ std::string& Graphic::Texture::get_path() {
     return path_tex;
 }
 
-void Graphic::Texture::set_loaded_state(TextureLoadedState state) {
+void Graphic::Texture::set_loaded_state(Texture_Loaded_State state) {
     this->state = state;
 }
 
-Graphic::TextureLoadedState Graphic::Texture::get_loaded_state() {
+Graphic::Texture_Loaded_State Graphic::Texture::get_loaded_state() {
     return state;
 }
 
-void Graphic::Texture::load_texture(std::string &path) {
+void Graphic::Texture::load_texture(std::string path) {
     path_tex = path;
-    pixels = stbi_load(
-        path.data(),
-        &width,
-        &height,
-        &channels,
-        STBI_rgb_alpha
-    );
+    state = Texture_Loaded_State::LOADING;
+    Texture_System::get()->load_texture(path, [this](Texture* tex) {
+        update_info_after_loaded(
+            tex->pixels,
+            tex->width,
+            tex->height,
+            tex->channels
+        );
+        set_loaded_state(Texture_Loaded_State::LOADED);
+        std::cout << "Load texture success: " << path_tex << " " << get_texture_memory_size() << std::endl;
+    });
+}
+
+void Graphic::Texture::update_info_after_loaded(stbi_uc* pixels, int width, int height, int channels) {
+    this->pixels = pixels;
+    this->channels = channels;
+    this->width = width;
+    this->height = height;
 }
 
 size_t Graphic::Texture::get_texture_memory_size() {

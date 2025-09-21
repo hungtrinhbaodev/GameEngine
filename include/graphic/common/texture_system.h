@@ -10,9 +10,11 @@ namespace Graphic {
 
     using Callback = std::function<void(Texture*)>;
 
-    class TextureSystem {
+    class Texture_System {
 
         private:
+
+        static Texture_System* instance;
 
         std::mutex storage_lock;
 
@@ -22,11 +24,13 @@ namespace Graphic {
 
         std::map<std::string, std::vector<Callback>> texture_callback;
 
-        static void load_texture_threads(TextureSystem* texture_sys, Texture* loading_texture, std::string path);
+        static void load_texture_threads(Texture_System* texture_sys, Texture* loading_texture, std::string path);
 
         public:
 
-        TextureSystem();
+        Texture_System();
+
+        static Texture_System* get();
 
         void do_callback(std::string path, Texture* texture);
 
@@ -34,7 +38,7 @@ namespace Graphic {
 
         void load_texture(std::string path, Callback callback = nullptr);
 
-        ~TextureSystem();
+        ~Texture_System();
     };
 
 }

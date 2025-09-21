@@ -1,10 +1,12 @@
 #include <graphic/common/texture_system.h>
 
-Graphic::TextureSystem::TextureSystem() {
+Graphic::Texture_System* Graphic::Texture_System::instance = nullptr;
+
+Graphic::Texture_System::Texture_System() {
 
 }
 
-void Graphic::TextureSystem::add_callback(std::string path, Callback callback) {
+void Graphic::Texture_System::add_callback(std::string path, Callback callback) {
     if (callback == nullptr) return;
 
     callback_lock.lock();
@@ -24,13 +26,26 @@ void Graphic::TextureSystem::add_callback(std::string path, Callback callback) {
     callback_lock.unlock();
 }
 
-void Graphic::TextureSystem::load_texture_threads(TextureSystem* texture_sys, Texture* loading_texture, std::string path) {
-    loading_texture->load_texture(path);
-    loading_texture->set_loaded_state(TextureLoadedState::LOADED);
+void Graphic::Texture_System::load_texture_threads(Texture_System* texture_sys, Texture* loading_texture, std::string path) {
+    int width, height, channels;
+    stbi_uc *pixels = stbi_load(
+        path.data(),
+        &width,
+        &height,
+        &channels,
+        STBI_rgb_alpha
+    );
+    loading_texture->update_info_after_loaded(
+        pixels,
+        width,
+        height,
+        channels
+    );
+    loading_texture->set_loaded_state(Texture_Loaded_State::LOADED);
     texture_sys->do_callback(path, loading_texture);
 }
 
-void Graphic::TextureSystem::do_callback(std::string path, Texture* texture) {
+void Graphic::Texture_System::do_callback(std::string path, Texture* texture) {
     callback_lock.lock();
     
     for (auto& callback : texture_callback[path]) {
@@ -43,7 +58,7 @@ void Graphic::TextureSystem::do_callback(std::string path, Texture* texture) {
     callback_lock.unlock();
 }
 
-void Graphic::TextureSystem::load_texture(std::string path, Callback callback) {
+void Graphic::Texture_System::load_texture(std::string path, Callback callback) {
 
     storage_lock.lock();
 
@@ -54,14 +69,14 @@ void Graphic::TextureSystem::load_texture(std::string path, Callback callback) {
 
     Texture *texture = texture_storage[path];
     switch (texture->get_loaded_state()) {
-        case TextureLoadedState::UNLOADED: {
+        case Texture_Loaded_State::UNLOADED: {
             add_callback(path, callback);
-            texture->set_loaded_state(TextureLoadedState::LOADING);
+            texture->set_loaded_state(Texture_Loaded_State::LOADING);
             std::thread t(load_texture_threads, this, texture, path);
             t.detach();
             break;
         }
-        case TextureLoadedState::LOADING: {
+        case Texture_Loaded_State::LOADING: {
             add_callback(path, callback);
             break;
         }
@@ -74,9 +89,21 @@ void Graphic::TextureSystem::load_texture(std::string path, Callback callback) {
     storage_lock.unlock();
 }
 
-Graphic::TextureSystem::~TextureSystem() {
-    storage_lock.lock();
+Graphic::Texture_System* Graphic::Texture_System::get() {
+    static std::mutex instance_lock;
+    instance_lock.lock();
+
+    if (instance == nullptr) {
+        instance = new Texture_System();
+    }
     
+    instance_lock.unlock();
+    return instance;
+}
+
+Graphic::Texture_System::~Texture_System() {
+    storage_lock.lock();
+
     for (auto& item : texture_storage) {
         delete(item.second);
     }

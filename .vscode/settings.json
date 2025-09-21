@@ -67,6 +67,14 @@
         "format": "cpp",
         "stop_token": "cpp",
         "text_encoding": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "__hash_table": "cpp",
+        "__node_handle": "cpp",
+        "__split_buffer": "cpp",
+        "__tree": "cpp",
+        "complex": "cpp",
+        "execution": "cpp",
+        "map": "cpp",
+        "cinttypes": "cpp"
     }
 }
