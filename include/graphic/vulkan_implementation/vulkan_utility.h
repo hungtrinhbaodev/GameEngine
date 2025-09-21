@@ -1,3 +1,4 @@
+#pragma once
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_beta.h>
 #include <GLFW/glfw3.h>
@@ -23,7 +24,5 @@ namespace Graphic {
         static std::vector<const char*> query_instance_layer_enabled();
 
         static bool is_validation_layer_enabled();
-
-        
     };
 }

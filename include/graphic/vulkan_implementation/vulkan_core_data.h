@@ -1,5 +1,7 @@
-#include <vulkan/vulkan_beta.h>
+#pragma once
+#define GLFW_INCLUDE_VULKAN
 #include <vulkan/vulkan.h>
+#include <vulkan/vulkan_beta.h>
 
 #include <iostream>
 

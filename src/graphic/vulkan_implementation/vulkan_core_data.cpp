@@ -15,6 +15,12 @@ void Graphic::Vulkan_Core_Data::init_data() {
 
 }
 
+void Graphic::Vulkan_Core_Data::clear_data() {
+    
+    // destroy vulkan instance
+    _instance->destroy();
+}
+
 Graphic::Vulkan_Instance* Graphic::Vulkan_Core_Data::get_instance() {
     return _instance;
 }
