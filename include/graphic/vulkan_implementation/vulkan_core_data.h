@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_beta.h>
 
 #include <iostream>
+#include <mutex>
 
 #include <graphic/vulkan_implementation/vulkan_constants.h>
 #include <graphic/vulkan_implementation/vulkan_utility.h>
@@ -18,8 +19,10 @@ namespace Graphic {
     class Vulkan_Core_Data {
 
         private:
+
+        static Vulkan_Core_Data* _instance;
         
-        Vulkan_Instance* _instance;
+        Vulkan_Instance* _vk_instance;
 
         public:
 
@@ -32,6 +35,8 @@ namespace Graphic {
         ~Vulkan_Core_Data();
 
         Vulkan_Instance* get_instance();
+
+        static Vulkan_Core_Data* get();
     };
 
 }

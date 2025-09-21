@@ -5,7 +5,7 @@
 
 const std::string DEFAULT_PATH = "/Users/lap13994/Documents/hungtrinhbaodev/GameEngine/res/texture/";
 int main() {
-    Graphic::Vulkan_Core_Data * vk_data = new Graphic::Vulkan_Core_Data();
+    auto vk_data = Graphic::Vulkan_Core_Data::get();
     vk_data->init_data();
     return 0;
 }
