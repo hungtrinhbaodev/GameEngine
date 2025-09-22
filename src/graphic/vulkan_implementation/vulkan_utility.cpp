@@ -176,3 +176,20 @@ bool Graphic::Vulkan_Utility::is_suitable_physical_device(VkPhysicalDevice vk_ph
 
     return swap_chain_adequate && is_device_support_require_extension && indices.is_complete() && features.samplerAnisotropy; 
 }
+
+std::vector<const char*> Graphic::Vulkan_Utility::query_physical_device_layers_enabled(VkPhysicalDevice vk_physical_device) {
+    uint32_t number_layer = 0;
+    vkEnumerateDeviceLayerProperties(vk_physical_device, &number_layer, nullptr);
+
+    std::vector<VkLayerProperties> layer_enables(number_layer);
+    vkEnumerateDeviceLayerProperties(vk_physical_device, &number_layer, layer_enables.data());
+
+    std::vector<const char*> layer_names;
+    for(auto &layer_enable : layer_enables){
+        if(Vulkan_Constants::IS_ENABLED_VALIDATION_LAYER && strcmp(layer_enable.layerName, Vulkan_Constants::VALIDATION_LAYER_NAME)){
+            layer_names.push_back(Vulkan_Constants::VALIDATION_LAYER_NAME);
+        }
+    }
+
+    return layer_names;
+}

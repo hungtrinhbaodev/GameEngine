@@ -8,12 +8,16 @@ Graphic::Vulkan_Core_Data::Vulkan_Core_Data() {
     _vk_instance = new Vulkan_Instance();
     _vk_surface = new Vulkan_Surface_KHR();
     _vk_physical_device = new Vulkan_Physical_Device();
+    _vk_device = new Vulkan_Device();
+    _vk_queues = new Vulkan_Queues();
 }
 
 Graphic::Vulkan_Core_Data::~Vulkan_Core_Data() {
     delete(_vk_instance);
     delete(_vk_surface);
     delete(_vk_physical_device);
+    delete(_vk_device);
+    delete(_vk_queues);
 }
 
 void Graphic::Vulkan_Core_Data::init_data(Window *window) {
@@ -28,9 +32,18 @@ void Graphic::Vulkan_Core_Data::init_data(Window *window) {
 
     // init vulkan physical device
     _vk_physical_device->init(_vk_instance->get(), _vk_surface->get());
+
+    // init vulkan device
+    _vk_device->init(_vk_physical_device->get(), _vk_surface->get());
+
+    // init vulkan queues from device
+    _vk_queues->init_queues(_vk_physical_device->get(), _vk_surface->get(), _vk_device->get());
 }
 
 void Graphic::Vulkan_Core_Data::clear_data() {
+
+    // destroy vulkan logical device
+    _vk_device->destroy();
 
     // destroy vulkan surface KHR
     _vk_surface->destroy(_vk_instance->get());
@@ -41,6 +54,17 @@ void Graphic::Vulkan_Core_Data::clear_data() {
 
 Graphic::Vulkan_Instance* Graphic::Vulkan_Core_Data::get_instance() {
     return _vk_instance;
+}
+
+Graphic::Vulkan_Raw_Data Graphic::Vulkan_Core_Data::get_raw_data() {
+    return {
+        _vk_instance->get(),
+        _vk_surface->get(),
+        _vk_physical_device->get(),
+        _vk_device->get(),
+        _vk_queues->get_graphics_queue(),
+        _vk_queues->get_present_queue()
+    };
 }
 
 Graphic::Vulkan_Core_Data* Graphic::Vulkan_Core_Data::get() {

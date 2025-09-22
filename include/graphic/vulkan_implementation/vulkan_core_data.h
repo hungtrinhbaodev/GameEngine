@@ -11,6 +11,8 @@
 #include <graphic/vulkan_implementation/vulkan_instance.h>
 #include <graphic/vulkan_implementation/vulkan_physical_device.h>
 #include <graphic/vulkan_implementation/vulkan_surface_khr.h>
+#include <graphic/vulkan_implementation/vulkan_device.h>
+#include <graphic/vulkan_implementation/vulkan_queues.h>
 #include <graphic/common/window.h>
 
 namespace Graphic {
@@ -18,6 +20,21 @@ namespace Graphic {
     using Vk_Utils = Vulkan_Utility;
      
     using Vk_Const = Vulkan_Constants;
+
+    struct Vulkan_Raw_Data {
+        
+        VkInstance instance = VK_NULL_HANDLE;
+
+        VkSurfaceKHR surface = VK_NULL_HANDLE;
+
+        VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+
+        VkDevice device = VK_NULL_HANDLE;
+
+        VkQueue graphics_queue = VK_NULL_HANDLE;
+
+        VkQueue present_queue = VK_NULL_HANDLE;
+    };
 
     class Vulkan_Core_Data {
 
@@ -35,6 +52,10 @@ namespace Graphic {
 
         Vulkan_Physical_Device* _vk_physical_device;
 
+        Vulkan_Device* _vk_device;
+
+        Vulkan_Queues* _vk_queues;
+
         public:
 
         void init_data(Window *window);
@@ -50,6 +71,8 @@ namespace Graphic {
         Vulkan_Physical_Device* get_physical_device();
 
         static Vulkan_Core_Data* get();
+
+        Vulkan_Raw_Data get_raw_data();
 
         static void clean_up();
     };

@@ -21,6 +21,7 @@ int main() {
     auto data = Graphic::Vulkan_Core_Data::get();
     data->init_data(window);
 
+    // main loop of game engine
     while(window->is_running()) {
         glfwPollEvents();
     }

@@ -2,6 +2,4 @@
 
 void Graphic::Vulkan_Swapchain_Support_Detail::log_info() {
     Utility::Log::get()->log_info("Info swap chain of device: ", "\nformat size: ", formats.size(), "\npresent_modes_size: ", present_modes.size());
-    // Utility::Log::get()->log_info("Swapchain formats", formats);
-    // Utility::Log::get()->log_info("Swapchain precent mode", present_modes);
 }
