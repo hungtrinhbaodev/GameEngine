@@ -2,6 +2,7 @@
 #include <chrono>
 #include <graphic/common/texture_system.h>
 #include <graphic/vulkan_implementation/vulkan_core_data.h>
+#include <utility/log_utils.h>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -10,7 +11,7 @@
 
 const std::string DEFAULT_PATH = "/Users/lap13994/Documents/hungtrinhbaodev/GameEngine/res/texture/";
 int main() {
-    auto vk_data = Graphic::Vulkan_Core_Data::get();
-    vk_data->init_data();
+    Utility::Log::get()->log_info("Hi Iam Hung", 1, 5.0, 0.5, glm::mat4(1.0f), glm::vec3(2.0f));
+    // std::cout << glm::mat4(1.0f) << std::endl;
     return 0;
 }
