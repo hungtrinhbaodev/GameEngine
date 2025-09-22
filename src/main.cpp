@@ -11,7 +11,8 @@
 
 const std::string DEFAULT_PATH = "/Users/lap13994/Documents/hungtrinhbaodev/GameEngine/res/texture/";
 int main() {
-    Utility::Log::get()->log_info("Hi Iam Hung", 1, 5.0, 0.5, glm::mat4(1.0f), glm::vec3(2.0f));
-    // std::cout << glm::mat4(1.0f) << std::endl;
+    auto data = Graphic::Vulkan_Core_Data::get();
+    data->init_data();
+    data->clear_data();
     return 0;
 }

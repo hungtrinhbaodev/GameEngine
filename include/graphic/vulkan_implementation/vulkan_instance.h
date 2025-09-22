@@ -3,6 +3,7 @@
 
 #include <graphic/vulkan_implementation/vulkan_constants.h>
 #include <graphic/vulkan_implementation/vulkan_utility.h>
+#include <utility/log_utils.h>
 
 namespace Graphic {
 

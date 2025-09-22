@@ -3,8 +3,54 @@
 #include <string>
 #include <type_traits>
 #include <mutex>
+#include <vector>
+#include <glm/glm.hpp>
 
 #include <utility/glm_utils.h>
+
+template<glm::length_t C, glm::length_t R, typename T, glm::qualifier Q>
+std::ostream& operator<<(std::ostream& os, const glm::mat<C, R, T, Q>& matrix) {
+    os << std::endl;
+    for (glm::length_t i = 0; i < R; ++i) {
+        for (glm::length_t j = 0; j < R; ++j) {
+            os << matrix[j][i] << " ";
+        }
+        if (i < R - 1) {
+            os << std::endl;
+        }
+    }
+    return os;
+}
+
+template<glm::length_t C, typename T, glm::qualifier Q>
+std::ostream& operator<<(std::ostream& os, const glm::vec<C, T, Q>& vec) {
+    os << std::endl;
+    for (glm::length_t i = 0;i < C; i++) {
+        os << vec[i];
+        if (i < C - 1) {
+            os << std::endl;
+        }
+    }
+    return os;
+}
+
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
+    os << '{';
+    if constexpr (std::is_convertible_v<decltype(std::cout << std::declval<T>()), std::ostream&>) {
+        for (size_t i = 0;i < vec.size(); i++) {
+            os << vec[i];
+            if (i < vec.size() - 1) {
+                os << ", ";
+            }
+        }
+    }
+    else {
+        os << "<unprintable type>";
+    }
+    os << '}';
+    return os;
+}
 
 namespace Utility {
 

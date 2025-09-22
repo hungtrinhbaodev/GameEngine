@@ -91,11 +91,13 @@ void Graphic::Vulkan_Instance::init() {
             create_info.flags |= VK_KHR_portability_enumeration;
         }
     }
+    Utility::Log::get()->log_info("List instance extension:", extensions);
     create_info.enabledExtensionCount = extensions.size();
     create_info.ppEnabledExtensionNames = extensions.data();
 
     // add layer instance info
     std::vector<const char*> layerEnableds = Vulkan_Utility::query_instance_layer_enabled();
+    Utility::Log::get()->log_info("List instance layer:", layerEnableds);
     create_info.enabledLayerCount = layerEnableds.size();
     create_info.ppEnabledLayerNames = layerEnableds.data();
 
@@ -111,10 +113,13 @@ void Graphic::Vulkan_Instance::init() {
         vkCreateInstance(&create_info, nullptr, &_vk_instance),
         "failed to create instance!"
     );
+
+    Utility::Log::get()->log_info("Create instance success!");
 }
 
 void Graphic::Vulkan_Instance::destroy() {
     vkDestroyInstance(_vk_instance, nullptr);
+    Utility::Log::get()->log_info("Destroy instance success!");
 }
 
 VkInstance Graphic::Vulkan_Instance::get() {
