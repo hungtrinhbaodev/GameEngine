@@ -10,8 +10,10 @@ Graphic::Vulkan_Core_Data::~Vulkan_Core_Data() {
     delete(_vk_instance);
 }
 
-void Graphic::Vulkan_Core_Data::init_data() {
-
+void Graphic::Vulkan_Core_Data::init_data(Window *window) {
+    // set window into data
+    this->window = window;
+    
     // init vulkan instance
     _vk_instance->init();
 

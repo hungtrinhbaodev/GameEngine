@@ -9,6 +9,7 @@
 #include <graphic/vulkan_implementation/vulkan_constants.h>
 #include <graphic/vulkan_implementation/vulkan_utility.h>
 #include <graphic/vulkan_implementation/vulkan_instance.h>
+#include <graphic/common/window.h>
 
 namespace Graphic {
 
@@ -20,13 +21,15 @@ namespace Graphic {
 
         private:
 
+        Window* window;
+
         static Vulkan_Core_Data* _instance;
         
         Vulkan_Instance* _vk_instance;
 
         public:
 
-        void init_data();
+        void init_data(Window *window);
 
         void clear_data();
 
