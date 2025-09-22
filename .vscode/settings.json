@@ -76,5 +76,12 @@
         "execution": "cpp",
         "map": "cpp",
         "cinttypes": "cpp"
-    }
+    },
+    "python-envs.pythonProjects": [
+        {
+            "path": "include",
+            "envManager": "ms-python.python:venv",
+            "packageManager": "ms-python.python:pip"
+        }
+    ]
 }
