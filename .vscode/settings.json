@@ -68,6 +68,7 @@
         "stop_token": "cpp",
         "text_encoding": "cpp",
         "thread": "cpp",
+<<<<<<< HEAD
         "__hash_table": "cpp",
         "__node_handle": "cpp",
         "__split_buffer": "cpp",
@@ -84,4 +85,8 @@
             "packageManager": "ms-python.python:pip"
         }
     ]
+=======
+        "__config": "cpp"
+    }
+>>>>>>> test/glm
 }
