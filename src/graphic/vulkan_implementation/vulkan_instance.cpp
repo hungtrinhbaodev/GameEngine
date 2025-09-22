@@ -59,6 +59,7 @@ void Graphic::Vulkan_Instance::_set_up_vulkan_debuger_messenger(
         ),
         "failed to set up debug messenger!"
     );
+    Utility::Log::get()->log_info("Set up vulkan debuger messenger success!");
 }
 
 void Graphic::Vulkan_Instance::init() {
@@ -113,11 +114,26 @@ void Graphic::Vulkan_Instance::init() {
         vkCreateInstance(&create_info, nullptr, &_vk_instance),
         "failed to create instance!"
     );
-
     Utility::Log::get()->log_info("Create instance success!");
+
+    if (Vulkan_Constants::IS_ENABLED_VALIDATION_LAYER) {
+        _set_up_vulkan_debuger_messenger(_vk_instance, nullptr, &_debug_messenger);
+    }
 }
 
 void Graphic::Vulkan_Instance::destroy() {
+
+    // clean debug messenger
+    if (Vulkan_Constants::IS_ENABLED_VALIDATION_LAYER) {
+        _destroy_debug_messeger_ext(
+            _vk_instance,
+            _debug_messenger,
+            nullptr
+        );
+        Utility::Log::get()->log_info("Destroy vulkan debug messeger success!");
+    }
+
+    // clean vulkan instance
     vkDestroyInstance(_vk_instance, nullptr);
     Utility::Log::get()->log_info("Destroy instance success!");
 }

@@ -14,7 +14,9 @@ namespace Graphic {
     class Vulkan_Instance {
         private:
 
-        VkInstance _vk_instance;
+        VkDebugUtilsMessengerEXT _debug_messenger = VK_NULL_HANDLE;
+
+        VkInstance _vk_instance = VK_NULL_HANDLE;
 
         static VkResult _create_debug_messeger_ext(
             VkInstance instance, 
