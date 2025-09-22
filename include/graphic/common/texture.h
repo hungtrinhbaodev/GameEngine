@@ -1,6 +1,7 @@
 #pragma once
-#include <string>
 #include <stb_image.h>
+
+#include <string>
 #include <iostream>
 
 namespace Graphic {

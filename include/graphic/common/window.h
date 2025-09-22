@@ -35,5 +35,7 @@ namespace Graphic {
         void clear_window();
 
         static Window* get();
+
+        static void clean_up();
     };
 }

@@ -79,3 +79,100 @@ bool Graphic::Vulkan_Utility::is_validation_layer_enabled() {
 
     return false;
 }
+
+std::vector<const char *> Graphic::Vulkan_Utility::query_physical_device_support_required_extensions(
+    VkPhysicalDevice vk_physical_device
+) {
+    uint32_t number_extension = 0;
+    vkEnumerateDeviceExtensionProperties(vk_physical_device, nullptr, &number_extension, nullptr);
+    std::vector<VkExtensionProperties> extension_properties(number_extension);
+
+    vkEnumerateDeviceExtensionProperties(vk_physical_device, nullptr, &number_extension, extension_properties.data());
+    std::vector<const char *> extension_names;
+
+    for(auto &extension_property : extension_properties){
+        for(auto &extension_require : Vulkan_Constants::REQUIRED_PHYSICAL_DEVICE_EXTENSIONS){
+            if(strcmp(extension_require, extension_property.extensionName) == 0){
+                extension_names.push_back(extension_require);
+            }
+        }
+    }
+
+    return extension_names;
+}
+
+Graphic::Vulkan_Queue_Family_Indices Graphic::Vulkan_Utility::query_suitable_queue_family_indices(VkPhysicalDevice vk_physical_device, VkSurfaceKHR vk_surface) {
+    uint32_t number_queue_family = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(vk_physical_device, &number_queue_family, nullptr);
+
+    std::vector<VkQueueFamilyProperties> family_queues(number_queue_family);
+    vkGetPhysicalDeviceQueueFamilyProperties(vk_physical_device, &number_queue_family, family_queues.data());
+
+    Vulkan_Queue_Family_Indices indices;
+    for(int i = 0;i < family_queues.size();i++){
+        VkQueueFamilyProperties *property = &family_queues[i];
+        if (property->queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            indices.graphic_family = i;
+        }
+
+        VkBool32 present_support = VK_FALSE;
+        vkGetPhysicalDeviceSurfaceSupportKHR(vk_physical_device, i, vk_surface, &present_support);
+        if(present_support){
+            indices.present_family = i;
+        }
+
+        if(indices.is_complete()){
+            break;
+        }
+    }
+    return indices;
+}
+
+Graphic::Vulkan_Swapchain_Support_Detail Graphic::Vulkan_Utility::query_swapchain_support_detail(
+    VkPhysicalDevice vk_physical_device, 
+    VkSurfaceKHR vk_surface
+) {
+    Vulkan_Swapchain_Support_Detail details;
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_physical_device, vk_surface, &details.capabilities);
+
+    uint32_t format_count = 0;
+    vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physical_device, vk_surface, &format_count, nullptr);
+    if(format_count > 0){
+        details.formats.resize(format_count);
+        vkGetPhysicalDeviceSurfaceFormatsKHR(vk_physical_device, vk_surface, &format_count, details.formats.data());
+    }
+
+    uint32_t present_modes_count = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physical_device, vk_surface, &present_modes_count, nullptr);
+    if(present_modes_count > 0){
+        details.present_modes.resize(present_modes_count);
+        vkGetPhysicalDeviceSurfacePresentModesKHR(vk_physical_device, vk_surface, &present_modes_count, details.present_modes.data());
+    }
+
+    return details;
+}
+
+bool Graphic::Vulkan_Utility::is_suitable_physical_device(VkPhysicalDevice vk_physical_device, VkSurfaceKHR vk_surface) {
+    // find queue suitable in device
+    Vulkan_Queue_Family_Indices indices = query_suitable_queue_family_indices(vk_physical_device, vk_surface);
+
+    // check device is pass require all list require extension is defined before
+    const auto& list_extensions = query_physical_device_support_required_extensions(vk_physical_device);
+    bool is_device_support_require_extension = list_extensions.size() >= Vulkan_Constants::REQUIRED_PHYSICAL_DEVICE_EXTENSIONS.size();
+
+    // query capabilities of swap chain info in device
+    bool swap_chain_adequate = false;
+    if (is_device_support_require_extension) {
+        Vulkan_Swapchain_Support_Detail details = query_swapchain_support_detail(
+            vk_physical_device,
+            vk_surface
+        );
+        swap_chain_adequate = !details.formats.empty() && !details.present_modes.empty();
+        details.log_info();
+    }
+
+    VkPhysicalDeviceFeatures features{};
+    vkGetPhysicalDeviceFeatures(vk_physical_device, &features);
+
+    return swap_chain_adequate && is_device_support_require_extension && indices.is_complete() && features.samplerAnisotropy; 
+}

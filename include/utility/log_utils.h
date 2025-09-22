@@ -37,16 +37,16 @@ std::ostream& operator<<(std::ostream& os, const glm::vec<C, T, Q>& vec) {
 template<typename T>
 std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
     os << '{';
-    if constexpr (std::is_convertible_v<decltype(std::cout << std::declval<T>()), std::ostream&>) {
+    if constexpr (!std::is_convertible_v<decltype(os << std::declval<T>()), std::ostream&>) {
+        os << "<unprintable type>";
+    }
+    else {
         for (size_t i = 0;i < vec.size(); i++) {
             os << vec[i];
             if (i < vec.size() - 1) {
                 os << ", ";
             }
         }
-    }
-    else {
-        os << "<unprintable type>";
     }
     os << '}';
     return os;
@@ -66,11 +66,11 @@ namespace Utility {
 
         template<typename T>
         void _log_arg(const T& arg) {
-            if constexpr (std::is_convertible_v<decltype(std::cout << std::declval<T>()), std::ostream&>) {
-                std::cout << arg;
+            if constexpr (!std::is_convertible_v<decltype(std::cout << std::declval<T>()), std::ostream&>) {
+                std::cout << "<unprintable type>";
             }
             else {
-                std::cout << "<unprintable type>";
+                std::cout << arg;
             }
         }
 

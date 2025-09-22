@@ -29,5 +29,9 @@ int main() {
     data->clear_data();
     window->clear_window();
 
+    // clean up delete instance
+    Graphic::Vulkan_Core_Data::clean_up();
+    Graphic::Window::clean_up();
+
     return 0;
 }

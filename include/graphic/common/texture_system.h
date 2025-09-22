@@ -1,5 +1,6 @@
 #pragma once
 #include <graphic/common/texture.h>
+
 #include <thread>
 #include <map>
 #include <mutex>

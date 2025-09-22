@@ -55,3 +55,12 @@ Graphic::Window* Graphic::Window::get() {
 
     return _instance;
 }
+
+void Graphic::Window::clean_up() {
+    _instance_lock.lock();
+
+    delete(_instance);
+    _instance = nullptr;
+
+    _instance_lock.unlock();
+}
