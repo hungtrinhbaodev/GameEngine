@@ -15,6 +15,7 @@
 #include <graphic/vulkan_implementation/vulkan_queues.h>
 #include <graphic/vulkan_implementation/vulkan_swapchain.h>
 #include <graphic/vulkan_implementation/vulkan_render_pass.h>
+#include <graphic/vulkan_implementation/vulkan_frame_buffers.h>
 #include <graphic/common/window.h>
 
 namespace Graphic {
@@ -42,6 +43,8 @@ namespace Graphic {
         Vulkan_Swapchain* wp_swapchain = nullptr;
 
         Vulkan_Render_Pass* wp_render_pass = nullptr;
+
+        Vulkan_Frame_Buffers* wp_frame_buffers = nullptr;
     };
 
     /**
@@ -64,6 +67,8 @@ namespace Graphic {
         VkSwapchainKHR swapchain = VK_NULL_HANDLE;
 
         VkRenderPass render_pass = VK_NULL_HANDLE;
+
+        const std::vector<VkFramebuffer>& frame_buffers;
     };
 
     class Vulkan_Core_Data {
@@ -89,6 +94,8 @@ namespace Graphic {
         Vulkan_Swapchain* _vk_swapchain;
 
         Vulkan_Render_Pass* _vk_render_pass;
+
+        Vulkan_Frame_Buffers* _vk_frame_buffers;
 
         public:
 

@@ -1195,4 +1195,5 @@ CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_core_data.cpp.o: \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__tree \
   /Users/lap13994/Documents/hungtrinhbaodev/GameEngine/include/graphic/vulkan_implementation/vulkan_queues.h \
   /Users/lap13994/Documents/hungtrinhbaodev/GameEngine/include/graphic/vulkan_implementation/vulkan_swapchain.h \
-  /Users/lap13994/Documents/hungtrinhbaodev/GameEngine/include/graphic/vulkan_implementation/vulkan_render_pass.h
+  /Users/lap13994/Documents/hungtrinhbaodev/GameEngine/include/graphic/vulkan_implementation/vulkan_render_pass.h \
+  /Users/lap13994/Documents/hungtrinhbaodev/GameEngine/include/graphic/vulkan_implementation/vulkan_frame_buffers.h

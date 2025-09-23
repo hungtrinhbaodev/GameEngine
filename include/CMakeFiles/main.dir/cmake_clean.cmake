@@ -11,6 +11,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_core_data.cpp.o.d"
   "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_device.cpp.o"
   "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_device.cpp.o.d"
+  "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.o"
+  "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.o.d"
   "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_instance.cpp.o"
   "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_instance.cpp.o.d"
   "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_physical_device.cpp.o"

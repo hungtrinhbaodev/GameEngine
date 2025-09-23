@@ -273,6 +273,30 @@ src/graphic/vulkan_implementation/vulkan_device.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_device.cpp.s
 .PHONY : src/graphic/vulkan_implementation/vulkan_device.cpp.s
 
+src/graphic/vulkan_implementation/vulkan_frame_buffers.o: src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_frame_buffers.o
+
+# target to build an object file
+src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.o
+
+src/graphic/vulkan_implementation/vulkan_frame_buffers.i: src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_frame_buffers.i
+
+# target to preprocess a source file
+src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.i
+
+src/graphic/vulkan_implementation/vulkan_frame_buffers.s: src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_frame_buffers.s
+
+# target to generate assembly for a file
+src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.s
+
 src/graphic/vulkan_implementation/vulkan_instance.o: src/graphic/vulkan_implementation/vulkan_instance.cpp.o
 .PHONY : src/graphic/vulkan_implementation/vulkan_instance.o
 
@@ -588,6 +612,9 @@ help:
 	@echo "... src/graphic/vulkan_implementation/vulkan_device.o"
 	@echo "... src/graphic/vulkan_implementation/vulkan_device.i"
 	@echo "... src/graphic/vulkan_implementation/vulkan_device.s"
+	@echo "... src/graphic/vulkan_implementation/vulkan_frame_buffers.o"
+	@echo "... src/graphic/vulkan_implementation/vulkan_frame_buffers.i"
+	@echo "... src/graphic/vulkan_implementation/vulkan_frame_buffers.s"
 	@echo "... src/graphic/vulkan_implementation/vulkan_instance.o"
 	@echo "... src/graphic/vulkan_implementation/vulkan_instance.i"
 	@echo "... src/graphic/vulkan_implementation/vulkan_instance.s"
