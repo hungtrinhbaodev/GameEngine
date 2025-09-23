@@ -19,6 +19,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_queue_family_indices.cpp.o.d"
   "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_queues.cpp.o"
   "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_queues.cpp.o.d"
+  "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_render_pass.cpp.o"
+  "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_render_pass.cpp.o.d"
   "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_surface_khr.cpp.o"
   "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_surface_khr.cpp.o.d"
   "CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_swapchain.cpp.o"

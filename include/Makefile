@@ -369,6 +369,30 @@ src/graphic/vulkan_implementation/vulkan_queues.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_queues.cpp.s
 .PHONY : src/graphic/vulkan_implementation/vulkan_queues.cpp.s
 
+src/graphic/vulkan_implementation/vulkan_render_pass.o: src/graphic/vulkan_implementation/vulkan_render_pass.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_render_pass.o
+
+# target to build an object file
+src/graphic/vulkan_implementation/vulkan_render_pass.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_render_pass.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_render_pass.cpp.o
+
+src/graphic/vulkan_implementation/vulkan_render_pass.i: src/graphic/vulkan_implementation/vulkan_render_pass.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_render_pass.i
+
+# target to preprocess a source file
+src/graphic/vulkan_implementation/vulkan_render_pass.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_render_pass.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_render_pass.cpp.i
+
+src/graphic/vulkan_implementation/vulkan_render_pass.s: src/graphic/vulkan_implementation/vulkan_render_pass.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_render_pass.s
+
+# target to generate assembly for a file
+src/graphic/vulkan_implementation/vulkan_render_pass.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_render_pass.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_render_pass.cpp.s
+
 src/graphic/vulkan_implementation/vulkan_surface_khr.o: src/graphic/vulkan_implementation/vulkan_surface_khr.cpp.o
 .PHONY : src/graphic/vulkan_implementation/vulkan_surface_khr.o
 
@@ -576,6 +600,9 @@ help:
 	@echo "... src/graphic/vulkan_implementation/vulkan_queues.o"
 	@echo "... src/graphic/vulkan_implementation/vulkan_queues.i"
 	@echo "... src/graphic/vulkan_implementation/vulkan_queues.s"
+	@echo "... src/graphic/vulkan_implementation/vulkan_render_pass.o"
+	@echo "... src/graphic/vulkan_implementation/vulkan_render_pass.i"
+	@echo "... src/graphic/vulkan_implementation/vulkan_render_pass.s"
 	@echo "... src/graphic/vulkan_implementation/vulkan_surface_khr.o"
 	@echo "... src/graphic/vulkan_implementation/vulkan_surface_khr.i"
 	@echo "... src/graphic/vulkan_implementation/vulkan_surface_khr.s"

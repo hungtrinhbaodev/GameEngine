@@ -11,6 +11,7 @@ Graphic::Vulkan_Core_Data::Vulkan_Core_Data() {
     _vk_device = new Vulkan_Device();
     _vk_queues = new Vulkan_Queues();
     _vk_swapchain = new Vulkan_Swapchain();
+    _vk_render_pass = new Vulkan_Render_Pass();
 }
 
 Graphic::Vulkan_Core_Data::~Vulkan_Core_Data() {
@@ -20,9 +21,11 @@ Graphic::Vulkan_Core_Data::~Vulkan_Core_Data() {
     delete(_vk_device);
     delete(_vk_queues);
     delete(_vk_swapchain);
+    delete(_vk_render_pass);
 }
 
 void Graphic::Vulkan_Core_Data::init_data(Window *window) {
+
     // set window into data
     _window = window;
     
@@ -43,9 +46,16 @@ void Graphic::Vulkan_Core_Data::init_data(Window *window) {
 
     // init vulkan swapchain
     _vk_swapchain->init(_vk_physical_device->get(), _vk_surface->get(), _vk_device->get(), _window->get_window());
+
+    // init vulkan render pass
+    _vk_render_pass->init(_vk_device->get(), _vk_swapchain->get_format());
 }
 
 void Graphic::Vulkan_Core_Data::clear_data() {
+
+    // destroy render pass
+    _vk_render_pass->destroy(_vk_device->get());
+
     // destroy vulkan swapchain
     _vk_swapchain->destroy(_vk_device->get());
 
@@ -70,7 +80,8 @@ Graphic::Vulkan_Wrapper_Data Graphic::Vulkan_Core_Data::get_wrapper_data() {
         _vk_physical_device,
         _vk_device,
         _vk_queues,
-        _vk_swapchain
+        _vk_swapchain,
+        _vk_render_pass
     };
 }
 
@@ -82,7 +93,8 @@ Graphic::Vulkan_Raw_Data Graphic::Vulkan_Core_Data::get_raw_data() {
         _vk_device->get(),
         _vk_queues->get_graphics_queue(),
         _vk_queues->get_present_queue(),
-        _vk_swapchain->get()
+        _vk_swapchain->get(),
+        _vk_render_pass->get()
     };
 }
 
