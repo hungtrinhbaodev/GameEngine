@@ -36,5 +36,7 @@ namespace Graphic {
         static bool is_suitable_physical_device(VkPhysicalDevice vk_physical_device, VkSurfaceKHR vk_surface);
 
         static std::vector<const char*> query_physical_device_layers_enabled(VkPhysicalDevice vk_physical_device);
+
+        static VkImageView create_imageview_from_image(VkImage vk_image, const VkFormat& vk_format, VkDevice vk_device = VK_NULL_HANDLE);
     };
 }

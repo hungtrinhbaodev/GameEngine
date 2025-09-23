@@ -1,4 +1,5 @@
 #include <graphic/vulkan_implementation/vulkan_utility.h>
+#include <graphic/vulkan_implementation/vulkan_core_data.h>
 
 void Graphic::Vulkan_Utility::vk_check_action(VkResult result, std::string crash_message) {
     if (result != VK_SUCCESS) {
@@ -168,7 +169,6 @@ bool Graphic::Vulkan_Utility::is_suitable_physical_device(VkPhysicalDevice vk_ph
             vk_surface
         );
         swap_chain_adequate = !details.formats.empty() && !details.present_modes.empty();
-        details.log_info();
     }
 
     VkPhysicalDeviceFeatures features{};
@@ -192,4 +192,40 @@ std::vector<const char*> Graphic::Vulkan_Utility::query_physical_device_layers_e
     }
 
     return layer_names;
+}
+
+VkImageView Graphic::Vulkan_Utility::create_imageview_from_image(VkImage vk_image, const VkFormat& vk_format, VkDevice vk_device) {
+
+    // if device is NULL HANDLE try to get default device
+    if (vk_device == VK_NULL_HANDLE) {
+        const auto& vk_data = Vulkan_Core_Data::get()->get_raw_data();
+        vk_device = vk_data.device;
+    }
+
+    // if device still null check init core data to create device
+    if (vk_device == VK_NULL_HANDLE) {
+        Vulkan_Utility::vk_check_action(
+            VK_INCOMPLETE,
+            "Can't find device to create image view from image!"
+        );
+    }
+
+    VkImageViewCreateInfo create_info{};
+    create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    create_info.image = vk_image;
+    create_info.format = vk_format;
+    create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    create_info.subresourceRange.baseMipLevel = 0;
+    create_info.subresourceRange.baseArrayLayer = 0;
+    create_info.subresourceRange.layerCount = 1;
+    create_info.subresourceRange.levelCount = 1;
+
+    VkImageView image_view;
+    Vulkan_Utility::vk_check_action(
+        vkCreateImageView(vk_device, &create_info, nullptr, &image_view),
+        "Fail to create image view!"
+    );
+
+    return image_view;
 }

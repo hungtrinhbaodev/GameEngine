@@ -13,6 +13,7 @@
 #include <graphic/vulkan_implementation/vulkan_surface_khr.h>
 #include <graphic/vulkan_implementation/vulkan_device.h>
 #include <graphic/vulkan_implementation/vulkan_queues.h>
+#include <graphic/vulkan_implementation/vulkan_swapchain.h>
 #include <graphic/common/window.h>
 
 namespace Graphic {
@@ -20,7 +21,29 @@ namespace Graphic {
     using Vk_Utils = Vulkan_Utility;
      
     using Vk_Const = Vulkan_Constants;
+    
+    /**
+     * All vulkan elements is wrapper,
+     * wp is alias of wrapper
+     */
+    struct Vulkan_Wrapper_Data {
+        
+        Vulkan_Instance* wp_instance = nullptr;
 
+        Vulkan_Surface_KHR* wp_surface = nullptr;
+
+        Vulkan_Physical_Device* wp_physical_device = nullptr;
+
+        Vulkan_Device* wp_device = nullptr;
+
+        Vulkan_Queues* wp_queues = nullptr;
+
+        Vulkan_Swapchain* wp_swapchain = nullptr;
+    };
+
+    /**
+     * All vulkan element with raw handle
+     */
     struct Vulkan_Raw_Data {
         
         VkInstance instance = VK_NULL_HANDLE;
@@ -34,6 +57,8 @@ namespace Graphic {
         VkQueue graphics_queue = VK_NULL_HANDLE;
 
         VkQueue present_queue = VK_NULL_HANDLE;
+
+        VkSwapchainKHR swapchain = VK_NULL_HANDLE;
     };
 
     class Vulkan_Core_Data {
@@ -56,6 +81,8 @@ namespace Graphic {
 
         Vulkan_Queues* _vk_queues;
 
+        Vulkan_Swapchain* _vk_swapchain;
+
         public:
 
         void init_data(Window *window);
@@ -73,6 +100,8 @@ namespace Graphic {
         static Vulkan_Core_Data* get();
 
         Vulkan_Raw_Data get_raw_data();
+
+        Vulkan_Wrapper_Data get_wrapper_data();
 
         static void clean_up();
     };
