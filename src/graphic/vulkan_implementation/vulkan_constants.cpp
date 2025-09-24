@@ -10,3 +10,12 @@ std::vector<const char*> Graphic::Vulkan_Constants::REQUIRED_PHYSICAL_DEVICE_EXT
 };
 
 int Graphic::Vulkan_Constants::MAX_FRAMES_IN_FLIGHT = 2;
+
+std::vector<VkDynamicState> Graphic::Vulkan_Constants::PIPELINE_DYNAMIC_STATES = {
+    VK_DYNAMIC_STATE_VIEWPORT,
+    VK_DYNAMIC_STATE_SCISSOR
+};
+
+std::string Graphic::Vulkan_Constants::DEFAULT_PATH_SHADER_DRAW_DEFAULT = "res/shader/draw_default/";
+
+std::string Graphic::Vulkan_Constants::DEFAULT_PATH_SHADER_DRAW_WITH_TEXTURE = "res/shader/draw_with_texture/";

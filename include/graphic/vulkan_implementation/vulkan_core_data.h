@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <mutex>
+#include <map>
 
 #include <graphic/vulkan_implementation/vulkan_constants.h>
 #include <graphic/vulkan_implementation/vulkan_utility.h>
@@ -16,7 +17,12 @@
 #include <graphic/vulkan_implementation/vulkan_swapchain.h>
 #include <graphic/vulkan_implementation/vulkan_render_pass.h>
 #include <graphic/vulkan_implementation/vulkan_frame_buffers.h>
+#include <graphic/vulkan_implementation/vulkan_pipeline.h>
+#include <graphic/vulkan_implementation/vulkan_descriptor.h>
+#include <graphic/vulkan_implementation/vulkan_vertex.h>
+#include <graphic/vulkan_implementation/vulkan_buffer.h>
 #include <graphic/common/window.h>
+#include <graphic/common/uniform.h>
 
 namespace Graphic {
 
@@ -45,6 +51,10 @@ namespace Graphic {
         Vulkan_Render_Pass* wp_render_pass = nullptr;
 
         Vulkan_Frame_Buffers* wp_frame_buffers = nullptr;
+
+        const std::map<Vulkan_Draw_ID, Vulkan_Descriptor*>& wp_descritpors;
+
+        const std::map<Vulkan_Draw_ID, Vulkan_Pipeline*>& wp_pipelines;
     };
 
     /**
@@ -97,6 +107,26 @@ namespace Graphic {
 
         Vulkan_Frame_Buffers* _vk_frame_buffers;
 
+        // draw meterial switch by draw ID
+
+        std::map<Vulkan_Draw_ID, Vulkan_Descriptor*> _descriptors; 
+
+        std::map<Vulkan_Draw_ID, Vulkan_Pipeline*> _pipelines;
+
+        std::vector<Vulkan_Buffer> _vk_uniform_buffers;
+
+        void _init_uniform_buffers();
+
+        /**
+         * descriptor and pipeline will be initalization here
+         */
+        void _init_objects_draw_stage();
+
+        /**
+         * descriptor and pipeline will be clear here
+         */
+        void _clear_objects_draw_stage();
+
         public:
 
         void init_data(Window *window);
@@ -106,10 +136,6 @@ namespace Graphic {
         Vulkan_Core_Data();
 
         ~Vulkan_Core_Data();
-
-        Vulkan_Instance* get_instance();
-
-        Vulkan_Physical_Device* get_physical_device();
 
         static Vulkan_Core_Data* get();
 

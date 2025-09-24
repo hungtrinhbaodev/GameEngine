@@ -229,3 +229,33 @@ VkImageView Graphic::Vulkan_Utility::create_imageview_from_image(VkImage vk_imag
 
     return image_view;
 }
+
+uint32_t Graphic::Vulkan_Utility::find_buffer_memory_type_index(
+    uint32_t type_filter,
+    VkMemoryAllocateFlags properties,
+    VkPhysicalDevice vk_physical_device
+) {
+
+    if (vk_physical_device == VK_NULL_HANDLE) {
+        const auto& vk_data = Vulkan_Core_Data::get()->get_raw_data();
+        vk_physical_device = vk_data.physical_device;
+    }
+
+    if (vk_physical_device == VK_NULL_HANDLE) {
+        Vulkan_Utility::vk_check_action(
+            VK_INCOMPLETE,
+            "Can't find physical device to find memory type!"
+        );
+    }
+
+    VkPhysicalDeviceMemoryProperties memory_properties;
+    vkGetPhysicalDeviceMemoryProperties(vk_physical_device, &memory_properties);
+
+    for(int i = 0;i < memory_properties.memoryTypeCount;i++){
+        if((type_filter & (i << 1)) && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties){
+            return i;
+        }
+    }
+
+    throw std::runtime_error("failed to find suitable memory type!");
+}

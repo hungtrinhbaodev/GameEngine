@@ -6,6 +6,14 @@
 
 namespace Graphic {
 
+    enum Vulkan_Draw_ID {
+
+        OBJECT_DEFAULT = 0, // draw 2D, 3D object without texture
+
+        OBJECT_WITH_TEXTURE = 1 // draw 2D, 3D object with texture
+
+    };
+
     class Vulkan_Constants {
 
         public:
@@ -19,6 +27,12 @@ namespace Graphic {
         static std::vector<const char *> REQUIRED_PHYSICAL_DEVICE_EXTENSIONS;
         
         static int MAX_FRAMES_IN_FLIGHT;
+
+        static std::vector<VkDynamicState> PIPELINE_DYNAMIC_STATES;
+
+        static std::string DEFAULT_PATH_SHADER_DRAW_DEFAULT;
+
+        static std::string DEFAULT_PATH_SHADER_DRAW_WITH_TEXTURE;
     };
 
 }
