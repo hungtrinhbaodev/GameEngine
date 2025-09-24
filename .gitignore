@@ -1,3 +1,4 @@
 build/*
 include/vulkan/*
 .vscode/*
+res/shader/glslc
