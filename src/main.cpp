@@ -6,33 +6,37 @@
 #include <thread>
 
 #include <graphic/common/texture_system.h>
-#include <graphic/vulkan_implementation/vulkan_core_data.h>
-#include <utility/log_utils.h>
-#include <utility/glm_utils.h>
 #include <graphic/common/window.h>
+#include <graphic/common/graphic.h>
 
 const std::string DEFAULT_PATH = "/Users/lap13994/Documents/hungtrinhbaodev/GameEngine/res/texture/";
-int main() {
-    // init window singleton
-    auto window = Graphic::Window::get();
-    window->init_window("GameEngine", 1200, 720);
 
-    // init vulkan data singleton
-    auto data = Graphic::Vulkan_Core_Data::get();
-    data->init_data(window);
+int main() {
+
+    // init window singleton
+    Graphic::Window* window = Graphic::Window::get();
+    window->init_window("GameEngine", 1200, 720);
+    
+    // init graphic with window
+    Graphic::Graphic::init(window);
+
+    // enter main thread of graphic
+    Graphic::Graphic::main(window);
 
     // main loop of game engine
-    while(window->is_running()) {
+    while(Graphic::Graphic::is_running()) {
+        
+        // pool user events
         glfwPollEvents();
-    }
-    
-    // clear data singleton 
-    data->clear_data();
-    window->clear_window();
 
-    // clean up delete instance
-    Graphic::Vulkan_Core_Data::clean_up();
+    }
+
+    // clear data and clean up window
+    window->clear_window();
     Graphic::Window::clean_up();
+
+    // log to finish app
+    Utility::Log::get()->log_info("App is closed successfully!");
 
     return 0;
 }

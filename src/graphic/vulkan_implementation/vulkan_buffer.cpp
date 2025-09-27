@@ -63,7 +63,7 @@ void Graphic::Vulkan_Buffer::map_memory() {
         _vk_device_memory, 
         0, 
         _size, 
-        0, 
+        0,
         &_map_ptr
     );
 }
@@ -72,16 +72,16 @@ void Graphic::Vulkan_Buffer::unmap_memory() {
     vkUnmapMemory(_vk_device, _vk_device_memory);
 }
 
-void Graphic::Vulkan_Buffer::copy(void * data_src, size_t size) {
+void Graphic::Vulkan_Buffer::copy_data(void * data_src, size_t size) {
     memcpy(this->_map_ptr, data_src, size);
 }
 
-void Graphic::Vulkan_Buffer::map_and_copy(void * data_src, size_t size) {
+void Graphic::Vulkan_Buffer::map_and_copy_data(void * data_src, size_t size) {
     if ((VkDeviceSize) size != this->_size) {
         throw std::runtime_error("fail to copy data to buffer!");
     }
     map_memory();
-        copy(data_src, size);
+        copy_data(data_src, size);
     unmap_memory();
 }
 
@@ -98,4 +98,66 @@ void Graphic::Vulkan_Buffer::destroy() {
     vkDestroyBuffer(_vk_device, _vk_buffer, nullptr);
 
     vkFreeMemory(_vk_device, _vk_device_memory, nullptr);
+
+}
+
+void Graphic::Vulkan_Buffer::copy_buffer(
+    Vulkan_Commands_Mode commands_mode,
+    Vulkan_Buffer& src,
+    Vulkan_Buffer& dst,
+    const std::vector<VkBufferCopy>& copy_regions,
+    void* user_data,
+    CommandCallback callback,
+    Vulkan_Command_Pool* vk_command_pool,
+    Vulkan_Queues* vk_queues
+) {
+
+    if (vk_command_pool == nullptr) {
+        const auto& wp_data = Vulkan_Core_Data::get()->get_wrapper_data();
+        vk_command_pool = wp_data.wp_command_pool;
+    }
+
+    if(vk_command_pool == nullptr) {
+        Vulkan_Utility::vk_check_action(
+            VK_INCOMPLETE,
+            "Fail to copy buffer: not found any Vulkan_Command_Pool!"
+        );
+        return;
+    }
+
+    vk_command_pool->record_single_commands(
+        commands_mode,
+        [&](VkCommandBuffer vk_command_buffer) {
+            vkCmdCopyBuffer(vk_command_buffer, src.get(), dst.get(), copy_regions.size(), copy_regions.data());
+        },
+        user_data,
+        callback,
+        vk_queues
+    );
+}
+
+void Graphic::Vulkan_Buffer::copy_buffer(
+    Vulkan_Commands_Mode commands_mode,
+    Vulkan_Buffer& src, 
+    Vulkan_Buffer& dst,
+    void* user_data,
+    CommandCallback callback,
+    Vulkan_Command_Pool* vk_command_pool,
+    Vulkan_Queues* vk_queues
+) {
+
+    if (src.get_size() != dst.get_size()) {
+        throw std::runtime_error("fail to copy buffer to buffer!");
+    }
+
+    copy_buffer(
+        commands_mode,
+        src,
+        dst,
+        {{ 0, 0, dst.get_size()}},
+        user_data,
+        callback,
+        vk_command_pool,
+        vk_queues
+    );
 }

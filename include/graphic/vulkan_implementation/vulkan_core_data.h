@@ -21,6 +21,8 @@
 #include <graphic/vulkan_implementation/vulkan_descriptor.h>
 #include <graphic/vulkan_implementation/vulkan_vertex.h>
 #include <graphic/vulkan_implementation/vulkan_buffer.h>
+#include <graphic/vulkan_implementation/vulkan_fences.h>
+#include <graphic/vulkan_implementation/vulkan_command_pool.h>
 #include <graphic/common/window.h>
 #include <graphic/common/uniform.h>
 
@@ -55,6 +57,10 @@ namespace Graphic {
         const std::map<Vulkan_Draw_ID, Vulkan_Descriptor*>& wp_descritpors;
 
         const std::map<Vulkan_Draw_ID, Vulkan_Pipeline*>& wp_pipelines;
+
+        Vulkan_Fences* wp_fences = nullptr;
+
+        Vulkan_Command_Pool* wp_command_pool = nullptr;
     };
 
     /**
@@ -115,6 +121,10 @@ namespace Graphic {
 
         std::vector<Vulkan_Buffer> _vk_uniform_buffers;
 
+        Vulkan_Fences* _vk_fences;
+
+        Vulkan_Command_Pool* _vk_command_pool;
+
         void _init_uniform_buffers();
 
         /**
@@ -130,6 +140,8 @@ namespace Graphic {
         public:
 
         void init_data(Window *window);
+
+        void update_data();
 
         void clear_data();
 

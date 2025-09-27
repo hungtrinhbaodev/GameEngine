@@ -13,6 +13,8 @@ Graphic::Vulkan_Core_Data::Vulkan_Core_Data() {
     _vk_swapchain = new Vulkan_Swapchain();
     _vk_render_pass = new Vulkan_Render_Pass();
     _vk_frame_buffers = new Vulkan_Frame_Buffers();
+    _vk_fences = new Vulkan_Fences();
+    _vk_command_pool = new Vulkan_Command_Pool();
 }
 
 Graphic::Vulkan_Core_Data::~Vulkan_Core_Data() {
@@ -24,6 +26,8 @@ Graphic::Vulkan_Core_Data::~Vulkan_Core_Data() {
     delete(_vk_swapchain);
     delete(_vk_render_pass);
     delete(_vk_frame_buffers);
+    delete(_vk_fences);
+    delete(_vk_command_pool);
 }
 
 void Graphic::Vulkan_Core_Data::_init_uniform_buffers() {
@@ -158,8 +162,23 @@ void Graphic::Vulkan_Core_Data::init_data(Window *window) {
     // init vulkan device
     _vk_device->init(_vk_physical_device->get(), _vk_surface->get());
 
+    // init fences manager
+    _vk_fences->init(_vk_device->get());
+
     // init vulkan queues from device
-    _vk_queues->init_queues(_vk_physical_device->get(), _vk_surface->get(), _vk_device->get());
+    _vk_queues->init_queues(
+        _vk_physical_device->get(), 
+        _vk_surface->get(), 
+        _vk_device->get(),
+        _vk_fences
+    );
+
+    // init vulkan command pool
+    _vk_command_pool->init(
+        _vk_physical_device->get(),
+        _vk_device->get(),
+        _vk_surface->get()
+    );
 
     // init vulkan swapchain
     _vk_swapchain->init(_vk_physical_device->get(), _vk_surface->get(), _vk_device->get(), _window->get_window());
@@ -183,7 +202,18 @@ void Graphic::Vulkan_Core_Data::init_data(Window *window) {
     _init_objects_draw_stage();
 }
 
+void Graphic::Vulkan_Core_Data::update_data() {
+
+    // update all using fence to do callback
+    // when gpu finish job
+    _vk_fences->update_data();
+    
+}
+
 void Graphic::Vulkan_Core_Data::clear_data() {
+
+    // destroy all fence is requested
+    _vk_fences->destroy();
 
     // destroy descriptors and pipelines in map draw ID
     _clear_objects_draw_stage();
@@ -201,6 +231,9 @@ void Graphic::Vulkan_Core_Data::clear_data() {
 
     // destroy vulkan swapchain
     _vk_swapchain->destroy(_vk_device->get());
+
+    // destroy vulkan command pools
+    _vk_command_pool->destroy();
 
     // destroy vulkan logical device
     _vk_device->destroy();
@@ -223,7 +256,9 @@ Graphic::Vulkan_Wrapper_Data Graphic::Vulkan_Core_Data::get_wrapper_data() {
         _vk_render_pass,
         _vk_frame_buffers,
         _descriptors,
-        _pipelines
+        _pipelines,
+        _vk_fences,
+        _vk_command_pool
     };
 }
 
