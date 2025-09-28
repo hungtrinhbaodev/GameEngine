@@ -5,7 +5,7 @@
 #include <chrono>
 #include <thread>
 
-#include <graphic/common/texture_system.h>
+#include <graphic/common/texture.h>
 #include <graphic/common/window.h>
 #include <graphic/common/graphic.h>
 
@@ -23,9 +23,16 @@ int main() {
     // enter main thread of graphic
     Graphic::Graphic::main(window);
 
+    // test graphic
+    const auto& vk_data = Graphic::Vulkan_Core_Data::get();
+    const auto& vk_assets_mgr = vk_data->get_wrapper_data().wp_assets_mgr;
+    vk_assets_mgr->load_vk_texture(
+        DEFAULT_PATH + "texture1.png"
+    );
+
     // main loop of game engine
     while(Graphic::Graphic::is_running()) {
-        
+
         // pool user events
         glfwPollEvents();
 

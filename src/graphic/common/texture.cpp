@@ -1,68 +1,64 @@
 #include <graphic/common/texture.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-#include <graphic/common/texture_system.h>
+
+/**
+ * Texture field
+ */
 
 Graphic::Texture::Texture() {
 
 }
 
-Graphic::Texture::Texture(const std::string &path_tex) {
-    this->path_tex = path_tex;
-}
+void Graphic::Texture::load_texture(std::string path) {
 
-Graphic::Texture::Texture(const char *path_tex) {
-    this->path_tex = std::string(path_tex);
-}
+    Utility::Log::get()->log_info("texture path 1", _tex_path);
 
-Graphic::Texture::Texture(const Texture &tex) {
-    state = tex.state;
-    path_tex = tex.path_tex;
-    width = tex.width;
-    height = tex.height;
-    pixels = tex.pixels;
+    _tex_path = path;
+
+    Utility::Log::get()->log_info("texture path 2", _tex_path);
+
+    _pixels = stbi_load(
+        path.data(),
+        &_width,
+        &_height,
+        &_channels,
+        STBI_rgb_alpha
+    );
+
+    if (!_pixels) {
+        throw std::runtime_error("Fail to load texture!");
+    }
 }
 
 std::string& Graphic::Texture::get_path() {
-    return path_tex;
-}
-
-void Graphic::Texture::set_loaded_state(Texture_Loaded_State state) {
-    this->state = state;
-}
-
-Graphic::Texture_Loaded_State Graphic::Texture::get_loaded_state() {
-    return state;
-}
-
-void Graphic::Texture::load_texture(std::string path) {
-    path_tex = path;
-    state = Texture_Loaded_State::LOADING;
-    Texture_System::get()->load_texture(path, [this](Texture* tex) {
-        update_info_after_loaded(
-            tex->pixels,
-            tex->width,
-            tex->height,
-            tex->channels
-        );
-        set_loaded_state(Texture_Loaded_State::LOADED);
-        std::cout << "Load texture success: " << path_tex << " " << get_texture_memory_size() << std::endl;
-    });
-}
-
-void Graphic::Texture::update_info_after_loaded(stbi_uc* pixels, int width, int height, int channels) {
-    this->pixels = pixels;
-    this->channels = channels;
-    this->width = width;
-    this->height = height;
+    return _tex_path;
 }
 
 size_t Graphic::Texture::get_texture_memory_size() {
-    return static_cast<size_t>(width) * height * channels;
+    return static_cast<size_t>(_width) * _height * _channels;
+}
+
+Graphic::Texture_View_Info Graphic::Texture::get_texture_info() {
+    return {
+        _pixels,
+        _width,
+        _height,
+        _channels
+    };
 }
 
 Graphic::Texture::~Texture() {
     
 }
 
+/**
+ * Texture_Storage field
+ */
 
+void Graphic::Texture_Storage::_load_resource(
+    Texture* texture, 
+    const Texture_Load_Description& description
+) {
+    texture->load_texture(description.tex_path);
+}

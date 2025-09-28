@@ -23,6 +23,7 @@
 #include <graphic/vulkan_implementation/vulkan_buffer.h>
 #include <graphic/vulkan_implementation/vulkan_fences.h>
 #include <graphic/vulkan_implementation/vulkan_command_pool.h>
+#include <graphic/vulkan_implementation/vulkan_assets_manager.h>
 #include <graphic/common/window.h>
 #include <graphic/common/uniform.h>
 
@@ -61,6 +62,8 @@ namespace Graphic {
         Vulkan_Fences* wp_fences = nullptr;
 
         Vulkan_Command_Pool* wp_command_pool = nullptr;
+
+        Vulkan_Assets_Manager* wp_assets_mgr = nullptr;
     };
 
     /**
@@ -124,6 +127,8 @@ namespace Graphic {
         Vulkan_Fences* _vk_fences;
 
         Vulkan_Command_Pool* _vk_command_pool;
+
+        Vulkan_Assets_Manager* _vk_assets_mgr;
 
         void _init_uniform_buffers();
 

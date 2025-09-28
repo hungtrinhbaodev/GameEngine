@@ -4,15 +4,17 @@
 #include <vector>
 #include <map>
 #include <mutex>
+#include <thread>
 
 #include <core/concurent_pool.hpp>
-#include <graphic/vulkan_implementation/vulkan_utility.h>
 #include <graphic/vulkan_implementation/vulkan_constants.h>
 #include <utility/log_utils.h>
 
 namespace Graphic {
 
     using Fence_Success_Callback = std::function<void(void*)>;
+
+    using Using_Fence = std::function<void(VkFence)>;
 
     class Vulkan_Fences : public Core::Concurent_Pool<VkFence> {
 
@@ -36,8 +38,11 @@ namespace Graphic {
             VkDevice vk_device
         );
 
-        VkFence& request_item_with_callback(
+        void pooling_item(const VkFence& item);
+
+        void using_fence_with_callback(
             void* user_data,
+            Using_Fence using_fence,
             Fence_Success_Callback callback
         );
 

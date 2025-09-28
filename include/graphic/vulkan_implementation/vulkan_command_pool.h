@@ -5,7 +5,6 @@
 
 #include <core/concurent_pool.hpp>
 #include <graphic/vulkan_implementation/vulkan_constants.h>
-#include <graphic/vulkan_implementation/vulkan_utility.h>
 #include <graphic/vulkan_implementation/vulkan_queues.h>
 #include <graphic/vulkan_implementation/vulkan_queue_family_indices.h>
 

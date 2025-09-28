@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <mutex>
+#include <utility/log_utils.h>
 
 namespace Core {
     
@@ -28,6 +29,8 @@ namespace Core {
         T& request_item() {
 
             _lock_pool.lock();
+            
+            // Utility::Log::get()->log_info("request_item", _pool.size());
 
             if (_pool.size() <= 0) {
                 T item = _create_item();
@@ -48,6 +51,8 @@ namespace Core {
             _lock_pool.lock();
 
             _pool.push_back(item);
+            
+            // Utility::Log::get()->log_info("pooling_item", _pool.size());
 
             _lock_pool.unlock();
         }

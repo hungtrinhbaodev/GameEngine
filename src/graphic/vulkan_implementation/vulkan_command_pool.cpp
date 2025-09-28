@@ -1,15 +1,23 @@
 #include <graphic/vulkan_implementation/vulkan_command_pool.h>
 #include <graphic/vulkan_implementation/vulkan_core_data.h>
+#include <graphic/vulkan_implementation/vulkan_utility.h>
 
 VkCommandBuffer Graphic::Vulkan_Command_Pool::_create_item() {
+
+    Utility::Log::get()->log_info("Vulkan_Command_Pool::_create_item 1");
+
     VkCommandBufferAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocate_info.commandPool = _vk_command_pool;
     allocate_info.commandBufferCount = 1;
 
+    Utility::Log::get()->log_info("Vulkan_Command_Pool::_create_item 2");
+
     VkCommandBuffer command_buffer{};
     vkAllocateCommandBuffers(_vk_device, &allocate_info, &command_buffer);
+
+    Utility::Log::get()->log_info("Vulkan_Command_Pool::_create_item 3");
     
     return command_buffer;
 }
@@ -60,6 +68,8 @@ void Graphic::Vulkan_Command_Pool::record_single_commands(
     Graphic::CommandCallback callback,
     Graphic::Vulkan_Queues* queues
 ) {
+
+    Utility::Log::get()->log_info("record_single_commands 1");
     if (queues == nullptr) {
         const auto& wp_data = Vulkan_Core_Data::get()->get_wrapper_data();
         queues = wp_data.wp_queues;
@@ -72,8 +82,11 @@ void Graphic::Vulkan_Command_Pool::record_single_commands(
         );
         return;
     }
+    Utility::Log::get()->log_info("record_single_commands 2");
 
-    VkCommandBuffer command_buffer = request_item();
+    VkCommandBuffer& command_buffer = request_item();
+
+    Utility::Log::get()->log_info("record_single_commands 3");
 
     VkCommandBufferBeginInfo begin_info{};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -83,6 +96,8 @@ void Graphic::Vulkan_Command_Pool::record_single_commands(
         record(command_buffer);
     vkEndCommandBuffer(command_buffer);
 
+    Utility::Log::get()->log_info("record_single_commands 4", commands_mode == Vulkan_Commands_Mode::COMMANDS_MODE_SYNC ? "sync" : "async");
+
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.commandBufferCount = 1;
@@ -90,6 +105,7 @@ void Graphic::Vulkan_Command_Pool::record_single_commands(
 
     switch(commands_mode) {
         case Vulkan_Commands_Mode::COMMANDS_MODE_SYNC: {
+            Utility::Log::get()->log_info("record_single_commands 5");
             queues->submit_single_commands(
                 Vulkan_Queue_Submit_Mode::SUBMIT_MODE_SYNC,
                 command_buffer
@@ -101,13 +117,19 @@ void Graphic::Vulkan_Command_Pool::record_single_commands(
                 Vulkan_Queue_Submit_Mode::SUBMIT_MODE_ASYNC,
                 command_buffer,
                 user_data,
-                callback
+                [&, callback] (void* user_data){
+                    Utility::Log::get()->log_info("record_single_commands 6");    
+                    pooling_item(command_buffer);
+                    Utility::Log::get()->log_info("record_single_commands 7");   
+                    if(callback != nullptr) {
+                        callback(user_data);
+                    }
+                    Utility::Log::get()->log_info("record_single_commands 8");   
+                }
             );
             break;
         }
     }
-    
-    pooling_item(command_buffer);
 }
 
 void Graphic::Vulkan_Command_Pool::destroy() {   

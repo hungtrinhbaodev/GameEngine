@@ -15,6 +15,7 @@ Graphic::Vulkan_Core_Data::Vulkan_Core_Data() {
     _vk_frame_buffers = new Vulkan_Frame_Buffers();
     _vk_fences = new Vulkan_Fences();
     _vk_command_pool = new Vulkan_Command_Pool();
+    _vk_assets_mgr = new Vulkan_Assets_Manager();
 }
 
 Graphic::Vulkan_Core_Data::~Vulkan_Core_Data() {
@@ -28,6 +29,7 @@ Graphic::Vulkan_Core_Data::~Vulkan_Core_Data() {
     delete(_vk_frame_buffers);
     delete(_vk_fences);
     delete(_vk_command_pool);
+    delete(_vk_assets_mgr);
 }
 
 void Graphic::Vulkan_Core_Data::_init_uniform_buffers() {
@@ -200,6 +202,9 @@ void Graphic::Vulkan_Core_Data::init_data(Window *window) {
     // init descriptor set and 
     // pipeline by draw ID
     _init_objects_draw_stage();
+
+    // init vulkan asset manager to storage resource
+    _vk_assets_mgr->init_data();
 }
 
 void Graphic::Vulkan_Core_Data::update_data() {
@@ -211,6 +216,9 @@ void Graphic::Vulkan_Core_Data::update_data() {
 }
 
 void Graphic::Vulkan_Core_Data::clear_data() {
+
+    // destroy all assets vulkan use
+    _vk_assets_mgr->destroy_data();
 
     // destroy all fence is requested
     _vk_fences->destroy();
@@ -258,7 +266,8 @@ Graphic::Vulkan_Wrapper_Data Graphic::Vulkan_Core_Data::get_wrapper_data() {
         _descriptors,
         _pipelines,
         _vk_fences,
-        _vk_command_pool
+        _vk_command_pool,
+        _vk_assets_mgr
     };
 }
 

@@ -2,8 +2,8 @@
 #include <vulkan/vulkan.h>
 
 #include <functional>
+#include <mutex>
 
-#include <graphic/vulkan_implementation/vulkan_utility.h>
 #include <graphic/vulkan_implementation/vulkan_queue_family_indices.h>
 #include <graphic/vulkan_implementation/vulkan_fences.h>
 
@@ -17,9 +17,13 @@ namespace Graphic {
 
         Vulkan_Fences* _vk_fences;
 
+        VkDevice _vk_device;
+
         VkQueue _vk_present_queue = VK_NULL_HANDLE;
 
         VkQueue _vk_graphics_queue = VK_NULL_HANDLE;
+
+        std::mutex _sumit_mutex;
 
         public:
 

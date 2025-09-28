@@ -9,19 +9,9 @@ void Graphic::Vulkan_Buffer::make(
     VkDevice vk_device
 ) {
 
-    if (vk_physical_device == VK_NULL_HANDLE || vk_device == VK_NULL_HANDLE) {
-        const auto& data = Vulkan_Core_Data::get()->get_raw_data();
-        vk_device = data.device;
-        vk_physical_device = data.physical_device;
-    }
-
-    if (vk_physical_device == VK_NULL_HANDLE || vk_device == VK_NULL_HANDLE) {
-        Vulkan_Utility::vk_check_action(
-            VK_INCOMPLETE,
-            "fail to create vulkan buffer: not found device, physcal device!"
-        );
-        return;
-    }
+    const auto& vk_default_data = Vulkan_Utility::get_or_default_device(vk_device, vk_physical_device);
+    vk_physical_device = vk_default_data.vk_physical_device;
+    vk_device = vk_default_data.vk_device;
 
     _vk_device = vk_device;
     _size = size;
@@ -112,18 +102,9 @@ void Graphic::Vulkan_Buffer::copy_buffer(
     Vulkan_Queues* vk_queues
 ) {
 
-    if (vk_command_pool == nullptr) {
-        const auto& wp_data = Vulkan_Core_Data::get()->get_wrapper_data();
-        vk_command_pool = wp_data.wp_command_pool;
-    }
-
-    if(vk_command_pool == nullptr) {
-        Vulkan_Utility::vk_check_action(
-            VK_INCOMPLETE,
-            "Fail to copy buffer: not found any Vulkan_Command_Pool!"
-        );
-        return;
-    }
+    const auto& vk_default_wp = Vulkan_Utility::get_or_default_submit(vk_queues, vk_command_pool);
+    vk_queues = vk_default_wp.queues;
+    vk_command_pool = vk_default_wp.command_pool;
 
     vk_command_pool->record_single_commands(
         commands_mode,

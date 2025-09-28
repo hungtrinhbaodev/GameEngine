@@ -1,6 +1,7 @@
 #include <graphic/vulkan_implementation/vulkan_utility.h>
 #include <graphic/vulkan_implementation/vulkan_core_data.h>
 
+
 void Graphic::Vulkan_Utility::vk_check_action(VkResult result, std::string crash_message) {
     if (result != VK_SUCCESS) {
         throw std::runtime_error(crash_message.data());
@@ -236,17 +237,8 @@ uint32_t Graphic::Vulkan_Utility::find_buffer_memory_type_index(
     VkPhysicalDevice vk_physical_device
 ) {
 
-    if (vk_physical_device == VK_NULL_HANDLE) {
-        const auto& vk_data = Vulkan_Core_Data::get()->get_raw_data();
-        vk_physical_device = vk_data.physical_device;
-    }
-
-    if (vk_physical_device == VK_NULL_HANDLE) {
-        Vulkan_Utility::vk_check_action(
-            VK_INCOMPLETE,
-            "Can't find physical device to find memory type!"
-        );
-    }
+    const auto& vk_default_data = get_or_default_device(VK_NULL_HANDLE, vk_physical_device);
+    vk_physical_device = vk_default_data.vk_physical_device;
 
     VkPhysicalDeviceMemoryProperties memory_properties;
     vkGetPhysicalDeviceMemoryProperties(vk_physical_device, &memory_properties);
@@ -258,4 +250,44 @@ uint32_t Graphic::Vulkan_Utility::find_buffer_memory_type_index(
     }
 
     throw std::runtime_error("failed to find suitable memory type!");
+}
+
+Graphic::Vulkan_Device_Default_Data Graphic::Vulkan_Utility::get_or_default_device(VkDevice vk_device, VkPhysicalDevice vk_physical_device) {
+    if (vk_physical_device == VK_NULL_HANDLE || vk_device == VK_NULL_HANDLE) {
+        const auto& vk_data = Vulkan_Core_Data::get()->get_raw_data();
+        vk_physical_device = vk_data.physical_device;
+        vk_device = vk_data.device;
+    }
+
+    if (vk_physical_device == VK_NULL_HANDLE || vk_device == VK_NULL_HANDLE) {
+        Vulkan_Utility::vk_check_action(
+            VK_INCOMPLETE,
+            "Can't find default device or physical device"
+        );
+    }
+
+    return {
+        vk_device,
+        vk_physical_device
+    };
+}
+
+Graphic::Vulkan_Submit_Default_Data Graphic::Vulkan_Utility::get_or_default_submit(Vulkan_Queues* wp_queues, Vulkan_Command_Pool* wp_command_pool) {
+    if (wp_queues == nullptr || wp_command_pool == nullptr) {
+        const auto& wp_data = Vulkan_Core_Data::get()->get_wrapper_data();
+        wp_queues = wp_data.wp_queues;
+        wp_command_pool = wp_data.wp_command_pool;
+    }
+
+    if (wp_queues == nullptr || wp_command_pool == nullptr) {
+        Vulkan_Utility::vk_check_action(
+            VK_INCOMPLETE,
+            "Can't find default wp queues or wp command pool"
+        );
+    }
+
+    return {
+        wp_queues,
+        wp_command_pool
+    };
 }

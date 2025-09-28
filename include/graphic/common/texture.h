@@ -4,52 +4,64 @@
 #include <string>
 #include <iostream>
 
+#include <core/resource.hpp>
+#include <core/resource_storage.hpp>
+#include <utility/log_utils.h>
+
 namespace Graphic {
 
-    enum Texture_Loaded_State {
-        UNLOADED = 0,
-        LOADING = 1,
-        LOADED = 2
+    struct Texture_Load_Description {
+        std::string tex_path = "";
     };
 
-    class Texture {
+    struct Texture_View_Info {
+        stbi_uc* pixels;
+        int width;
+        int height;
+        int channels;
+    };
+
+    class Texture : public Core::Resource {
+
+        using Texture_Loaded_Callback = std::function<void(Texture *)>;
 
         private:
-
-        Texture_Loaded_State state = Texture_Loaded_State::UNLOADED;
         
-        std::string path_tex;
+        std::string _tex_path;
 
-        int width;
+        int _width;
         
-        int height;
+        int _height;
 
-        int channels;
+        int _channels;
 
-        stbi_uc* pixels = nullptr;
+        stbi_uc* _pixels = nullptr;
 
         public:
 
         Texture();
 
-        Texture(const std::string& path_tex);
-
-        Texture(const char *path_tex);
-
-        Texture(const Texture &tex);
+        void load_texture(std::string path);
 
         std::string& get_path();
 
-        void load_texture(std::string path);
-
-        void set_loaded_state(Texture_Loaded_State state);
-
-        void update_info_after_loaded(stbi_uc* pixels, int width, int height, int channels);
-
         size_t get_texture_memory_size();
 
-        Texture_Loaded_State get_loaded_state();
+        Texture_View_Info get_texture_info();
 
         ~Texture();
+
+        friend class Texture_Loader;
+    };
+
+    class Texture_Storage : public Core::Resource_Storage<std::string, Texture, Texture_Load_Description, Texture_Storage> {
+
+        public:
+
+        void _load_resource (
+            Texture* texture,
+            const Texture_Load_Description& description
+        );
+
     };
 };
