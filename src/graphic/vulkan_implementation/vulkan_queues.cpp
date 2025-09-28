@@ -50,7 +50,7 @@ void Graphic::Vulkan_Queues::submit_single_commands(
             Utility::Log::get()->log_info("submit_single_commands 3");
             _vk_fences->using_fence_with_callback(
                 user_data,
-                [&](VkFence vk_fence) {
+                [this, submit_info](VkFence vk_fence) {
                     Utility::Log::get()->log_info("submit_single_commands 4", vk_fence);
                     vkQueueSubmit(_vk_graphics_queue, 1, &submit_info, vk_fence);
                     Utility::Log::get()->log_info("submit_single_commands 5", vkGetFenceStatus(_vk_device, vk_fence));

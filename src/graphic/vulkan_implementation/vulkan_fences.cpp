@@ -44,7 +44,7 @@ void Graphic::Vulkan_Fences::using_fence_with_callback(
 
     _callback_lock.lock();
 
-    if(_vk_fence_callbacks.find(vk_fence) != _vk_fence_callbacks.end()) {
+    if (_vk_fence_callbacks.find(vk_fence) != _vk_fence_callbacks.end()) {
         Vulkan_Utility::vk_check_action(
             VK_INCOMPLETE,
             "Fence request with callback is using before!"

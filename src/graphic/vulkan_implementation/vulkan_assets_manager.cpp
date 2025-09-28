@@ -13,8 +13,9 @@ void Graphic::Vulkan_Assets_Manager::init_data() {
     Assets_Manager::init_data();
 }
 
-void Graphic::Vulkan_Assets_Manager::destroy_data() {
+void Graphic::Vulkan_Assets_Manager::destroy_data(VkDevice vk_device) {
     Assets_Manager::destroy_data();
+    _vk_texs_stroage->destroy_resources(vk_device);
 }
 
 Graphic::Vulkan_Texture* Graphic::Vulkan_Assets_Manager::load_vk_texture(
@@ -25,23 +26,22 @@ Graphic::Vulkan_Texture* Graphic::Vulkan_Assets_Manager::load_vk_texture(
     Vulkan_Command_Pool* vk_command_pool
 ) {
     Utility::Log::get()->log_info("load_vk_texture 1", vk_command_pool, vk_queues);
-    Vulkan_Texture *ret_tex = new Vulkan_Texture();
+    Vulkan_Texture* tmp_tex = _vk_texs_stroage->get_template_resource(path);
     _texs_storage->load_resource(
         Core::Resource_Load_Mode::ASYNC,
         path,
         {path},
-        [&, vk_physical_device, vk_device, vk_command_pool, vk_queues] (Texture *tex) {
+        [this, vk_physical_device, vk_device, vk_command_pool, vk_queues, path] (Texture *tex) {
             Utility::Log::get()->log_info("Vulkan_Assets_Manager::Vulkan_Assets_Manager 1", vk_physical_device, vk_device, vk_queues, vk_command_pool);
             _vk_texs_stroage->load_resource(
                 Core::Resource_Load_Mode::ASYNC,
                 path,
                 {tex, vk_physical_device, vk_device, vk_queues, vk_command_pool},
-                [&] (Vulkan_Texture* vk_tex) {
-                    delete(ret_tex);
-                    ret_tex = vk_tex;
+                [path] (Vulkan_Texture* tex) {
+                    Utility::Log::get()->log_info("Load texture finish", path, tex);
                 }
             );
         }
     );
-    return ret_tex;
+    return tmp_tex;
 }

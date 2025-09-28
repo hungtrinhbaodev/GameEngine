@@ -32,6 +32,10 @@ namespace Core {
             set_loaded_state(Resource_Loaded_State::LOADED);
         }
 
+        void destroy() {
+            
+        }
+
     };
 
 }

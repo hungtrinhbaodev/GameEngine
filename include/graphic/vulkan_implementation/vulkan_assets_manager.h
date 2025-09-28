@@ -29,7 +29,7 @@ namespace Graphic {
             Vulkan_Command_Pool* vk_command_pool = nullptr
         );
 
-        void destroy_data();
+        void destroy_data(VkDevice vk_device);
 
         ~Vulkan_Assets_Manager();
 

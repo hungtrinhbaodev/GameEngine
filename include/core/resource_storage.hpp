@@ -32,11 +32,11 @@ namespace Core {
 
         using Resource_Loaded_Callback = std::function<void(RE*)>;
 
-        private:
+        protected:
 
         std::mutex _load_lock;
 
-        std::map<K, RE*> _resoruces;
+        std::map<K, RE*> _resources;
 
         std::map<K, std::vector<Resource_Loaded_Callback>> _callbacks;
 
@@ -46,7 +46,7 @@ namespace Core {
             if (_callbacks.find(key) != _callbacks.end()) {
                 for (const auto& callback : _callbacks[key]) {
                     if (callback != nullptr)
-                        callback(_resoruces[key]);
+                        callback(_resources[key]);
                 }
             }
             _callbacks.erase(key);
@@ -76,14 +76,14 @@ namespace Core {
             _load_lock.lock();
 
             // in case resource is unload before
-            if (_resoruces.find(key) == _resoruces.end()) {
+            if (_resources.find(key) == _resources.end()) {
                 RE* resoruce = new RE();
-                _resoruces[key] = resoruce;
+                _resources[key] = resoruce;
                 _callbacks[key] = {};
             }
 
             // check state and do resource load callback
-            RE* resource = _resoruces[key];
+            RE* resource = _resources[key];
             switch(resource->get_loaded_state()) {
                 case Resource_Loaded_State::UN_LOAD: {
                     switch(load_mode) {
@@ -130,6 +130,42 @@ namespace Core {
             _load_lock.unlock();
 
             return resource;
+        }
+
+        RE* get_template_resource(const K key) {
+
+            _load_lock.lock();
+
+            if (_resources.find(key) != _resources.end()) {
+                _load_lock.unlock();
+                return _resources[key];
+            }
+
+            _resources[key] = new RE();
+            if (_callbacks.find(key) == _callbacks.end()) {
+                _callbacks[key] = {}; 
+            }
+
+            _load_lock.unlock();
+
+            return _resources[key];
+        }
+
+        void destroy_resources() {
+
+            _load_lock.lock();
+
+            _callbacks.clear();
+
+            for (const auto& [key, resource] : _resources) {
+                resource->destroy();
+                delete(resource);
+            }
+
+            _resources.clear();
+
+            _load_lock.unlock();
+
         }
 
         virtual ~Resource_Storage() = default;

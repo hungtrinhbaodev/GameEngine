@@ -56,7 +56,7 @@ void Graphic::Vulkan_Texture::load_vk_texture(const Vulkan_Texture_Load_Descript
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         nullptr,
-        [&, des, texture_info](void*) {
+        [this, des, texture_info](void*) {
 
             Utility::Log::get()->log_info("load_vk_texture 2");
 
@@ -82,9 +82,10 @@ void Graphic::Vulkan_Texture::load_vk_texture(const Vulkan_Texture_Load_Descript
             _vk_image.copy_buffer_to_image(
                 texture_info.width,
                 texture_info.height,
-                *staging_buffer,
+                staging_buffer,
                 nullptr,
-                [&, des, staging_buffer](void*) {
+                [this, des, staging_buffer](void*) {
+
                     // destroy buffer staging when copy finish
                     staging_buffer->destroy();
                     delete(staging_buffer);
@@ -95,7 +96,7 @@ void Graphic::Vulkan_Texture::load_vk_texture(const Vulkan_Texture_Load_Descript
                         VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                         nullptr,
-                        [&, des, staging_buffer](void*) {
+                        [this, des](void*) {
                             _make_vk_sampler(des.vk_device, des.vk_physical_device);
                             set_loaded_state(Core::Resource_Loaded_State::LOADED);
                         },
@@ -112,6 +113,14 @@ void Graphic::Vulkan_Texture::load_vk_texture(const Vulkan_Texture_Load_Descript
     );
 }
 
+void Graphic::Vulkan_Texture::destroy(VkDevice vk_device) {
+    _vk_image.destroy(vk_device);
+
+    if (_vk_sampler != VK_NULL_HANDLE) {
+        vkDestroySampler(vk_device, _vk_sampler, nullptr);
+    }
+}
+
 /**
  * Vulkan_Texture_Storage field
  */
@@ -120,7 +129,21 @@ void Graphic::Vulkan_Texture_Storage::_load_resource(
     Vulkan_Texture* vk_texture,
     const Vulkan_Texture_Load_Description& description
 ) {
-
     Utility::Log::get()->log_info("Vulkan_Assets_Manager _load_resource 2", description.texture->get_path());
     vk_texture->load_vk_texture(description);
+}
+
+void Graphic::Vulkan_Texture_Storage::destroy_resources(VkDevice vk_device) {
+    _load_lock.lock();
+
+    _callbacks.clear();
+
+    for (const auto& [key, resource] : _resources) {
+        resource->destroy(vk_device);
+        delete(resource);
+    }
+
+    _resources.clear();
+
+    _load_lock.unlock();
 }

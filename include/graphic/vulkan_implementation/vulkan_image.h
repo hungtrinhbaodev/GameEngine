@@ -48,7 +48,7 @@ namespace Graphic {
         void copy_buffer_to_image(
             int width,
             int height,
-            Vulkan_Buffer &staging_buffer,
+            Vulkan_Buffer* staging_buffer,
             void* user_data = nullptr,
             Image_Callback callback = nullptr,
             Vulkan_Command_Pool* vk_command_pool = nullptr,
@@ -58,6 +58,8 @@ namespace Graphic {
         VkImage get_image();
 
         VkImageView get_imageview();
+
+        void destroy(VkDevice vk_device);
     };
 
 }

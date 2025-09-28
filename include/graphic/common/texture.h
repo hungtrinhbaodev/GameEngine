@@ -49,6 +49,8 @@ namespace Graphic {
 
         Texture_View_Info get_texture_info();
 
+        void destroy();
+
         ~Texture();
 
         friend class Texture_Loader;

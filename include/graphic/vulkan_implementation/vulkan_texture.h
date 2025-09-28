@@ -40,6 +40,8 @@ namespace Graphic {
 
         void on_resource_loaded_finish();
 
+        void destroy(VkDevice vk_device);
+
     };
 
     class Vulkan_Texture_Storage : public Core::Resource_Storage<std::string, Vulkan_Texture, Vulkan_Texture_Load_Description, Vulkan_Texture_Storage> {
@@ -50,6 +52,8 @@ namespace Graphic {
             Vulkan_Texture* vk_texture,
             const Vulkan_Texture_Load_Description& description
         );
+
+        void destroy_resources(VkDevice vk_device);
 
     };
 

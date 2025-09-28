@@ -218,7 +218,7 @@ void Graphic::Vulkan_Core_Data::update_data() {
 void Graphic::Vulkan_Core_Data::clear_data() {
 
     // destroy all assets vulkan use
-    _vk_assets_mgr->destroy_data();
+    _vk_assets_mgr->destroy_data(_vk_device->get());
 
     // destroy all fence is requested
     _vk_fences->destroy();

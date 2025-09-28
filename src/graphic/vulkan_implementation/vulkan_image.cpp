@@ -135,7 +135,7 @@ void Graphic::Vulkan_Image::transition_image_layout(
 void Graphic::Vulkan_Image::copy_buffer_to_image(
     int width,
     int height,
-    Vulkan_Buffer& vk_staging_buffer,
+    Vulkan_Buffer* vk_staging_buffer,
     void* user_data,
     Image_Callback callback,
     Vulkan_Command_Pool* vk_command_pool,
@@ -150,7 +150,7 @@ void Graphic::Vulkan_Image::copy_buffer_to_image(
 
     vk_command_pool->record_single_commands(
         Vulkan_Commands_Mode::COMMANDS_MODE_ASYNC,
-        [&] (VkCommandBuffer command_buffer) {
+        [this, vk_staging_buffer, width, height] (VkCommandBuffer command_buffer) {
 
             VkBufferImageCopy region{};
             region.bufferOffset = 0;
@@ -167,7 +167,7 @@ void Graphic::Vulkan_Image::copy_buffer_to_image(
                 1
             };
 
-            vkCmdCopyBufferToImage(command_buffer, vk_staging_buffer.get(), _vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+            vkCmdCopyBufferToImage(command_buffer, vk_staging_buffer->get(), _vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
         },
         user_data,
         callback,
@@ -181,4 +181,19 @@ VkImage Graphic::Vulkan_Image::get_image() {
 
 VkImageView Graphic::Vulkan_Image::get_imageview() {
     return _vk_imageview;
+}
+
+void Graphic::Vulkan_Image::destroy(VkDevice vk_device) {
+
+    if (_vk_imageview != VK_NULL_HANDLE) {
+        vkDestroyImageView(vk_device, _vk_imageview, nullptr);
+    }
+
+    if (_vk_image_memory != VK_NULL_HANDLE) {
+        vkFreeMemory(vk_device, _vk_image_memory, nullptr);
+    }
+
+    if (_vk_image != VK_NULL_HANDLE) {
+        vkDestroyImage(vk_device, _vk_image, nullptr);
+    }
 }

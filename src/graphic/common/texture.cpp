@@ -48,6 +48,10 @@ Graphic::Texture_View_Info Graphic::Texture::get_texture_info() {
     };
 }
 
+void Graphic::Texture::destroy() {
+    delete(_pixels);
+}
+
 Graphic::Texture::~Texture() {
     
 }

@@ -86,6 +86,8 @@ void Graphic::Vulkan_Command_Pool::record_single_commands(
 
     VkCommandBuffer& command_buffer = request_item();
 
+    vkResetCommandBuffer(command_buffer, 0);
+
     Utility::Log::get()->log_info("record_single_commands 3");
 
     VkCommandBufferBeginInfo begin_info{};
@@ -117,7 +119,7 @@ void Graphic::Vulkan_Command_Pool::record_single_commands(
                 Vulkan_Queue_Submit_Mode::SUBMIT_MODE_ASYNC,
                 command_buffer,
                 user_data,
-                [&, callback] (void* user_data){
+                [this, callback, command_buffer] (void* user_data){
                     Utility::Log::get()->log_info("record_single_commands 6");    
                     pooling_item(command_buffer);
                     Utility::Log::get()->log_info("record_single_commands 7");   

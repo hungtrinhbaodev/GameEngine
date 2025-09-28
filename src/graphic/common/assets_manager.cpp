@@ -19,7 +19,7 @@ Graphic::Texture* Graphic::Assets_Manager::load_texture(std::string path, Textur
 }
 
 void Graphic::Assets_Manager::destroy_data() {
-    
+    _texs_storage->destroy_resources();
 }
 
 
