@@ -52,6 +52,7 @@ void Graphic::Vulkan_Texture::load_vk_texture(const Vulkan_Texture_Load_Descript
     Utility::Log::get()->log_info("load_vk_texture 1.2", des.wp_command_pool, des.wp_queues);
 
     _vk_image.transition_image_layout(
+        Vulkan_Utility::get_command_mode_by_load_resource_mode(des.load_mode),
         VK_FORMAT_R8G8B8A8_SRGB,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -62,7 +63,7 @@ void Graphic::Vulkan_Texture::load_vk_texture(const Vulkan_Texture_Load_Descript
 
             VkDeviceSize image_size = texture_info.width * texture_info.height * 4;
 
-            Vulkan_Buffer *staging_buffer = new Vulkan_Buffer();
+            auto staging_buffer = std::make_shared<Vulkan_Buffer>();
 
             Utility::Log::get()->log_info("load_vk_texture 2.1");
 
@@ -78,8 +79,11 @@ void Graphic::Vulkan_Texture::load_vk_texture(const Vulkan_Texture_Load_Descript
                 texture_info.pixels,
                 image_size
             );
+
+            Utility::Log::get()->log_info("load_vk_texture 2.2");
             
             _vk_image.copy_buffer_to_image(
+                Vulkan_Utility::get_command_mode_by_load_resource_mode(des.load_mode),
                 texture_info.width,
                 texture_info.height,
                 staging_buffer,
@@ -88,10 +92,10 @@ void Graphic::Vulkan_Texture::load_vk_texture(const Vulkan_Texture_Load_Descript
 
                     // destroy buffer staging when copy finish
                     staging_buffer->destroy();
-                    delete(staging_buffer);
 
                     Utility::Log::get()->log_info("load_vk_texture 3");
                     _vk_image.transition_image_layout(
+                        Vulkan_Utility::get_command_mode_by_load_resource_mode(des.load_mode),
                         VK_FORMAT_R8G8B8A8_SRGB,
                         VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -99,6 +103,7 @@ void Graphic::Vulkan_Texture::load_vk_texture(const Vulkan_Texture_Load_Descript
                         [this, des](void*) {
                             _make_vk_sampler(des.vk_device, des.vk_physical_device);
                             set_loaded_state(Core::Resource_Loaded_State::LOADED);
+                            Utility::Log::get()->log_info("Loaded Vulkan Texture finish: ", des.texture->get_path());
                         },
                         des.wp_command_pool,
                         des.wp_queues

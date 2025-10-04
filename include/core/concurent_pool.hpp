@@ -51,8 +51,6 @@ namespace Core {
             _lock_pool.lock();
 
             _pool.push_back(item);
-            
-            // Utility::Log::get()->log_info("pooling_item", _pool.size());
 
             _lock_pool.unlock();
         }

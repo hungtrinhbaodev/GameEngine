@@ -26,33 +26,36 @@ int main() {
     // test graphic
     const auto& vk_data = Graphic::Vulkan_Core_Data::get();
     const auto& vk_assets_mgr = vk_data->get_wrapper_data().wp_assets_mgr;
-    Graphic::Vulkan_Texture* vk_tex = vk_assets_mgr->load_vk_texture(
-        DEFAULT_PATH + "texture1.png"
-    );
-    Graphic::Vulkan_Texture* vk_tex2 = vk_assets_mgr->load_vk_texture(
-        DEFAULT_PATH + "texture1.png"
-    );
-    Graphic::Vulkan_Texture* vk_tex3 = vk_assets_mgr->load_vk_texture(
-        DEFAULT_PATH + "texture2.png"
-    );
-
-    static bool is_log_unload = false, is_log_loaded = false;
+    Core::Resource_Load_Mode mode = Core::Resource_Load_Mode::SYNC;
+    Core::Resource_Load_Mode mode2 = Core::Resource_Load_Mode::ASYNC;
+    for (int i = 0;i < 1000; i++) {
+        Graphic::Vulkan_Texture* vk_tex = vk_assets_mgr->load_vk_texture(
+            mode2,
+            DEFAULT_PATH + "texture1.png"
+        );
+        Graphic::Vulkan_Texture* vk_tex2 = vk_assets_mgr->load_vk_texture(
+            mode,
+            DEFAULT_PATH + "texture2.png"
+        );
+        Graphic::Vulkan_Texture* vk_tex3 = vk_assets_mgr->load_vk_texture(
+            (i % 2) ? mode2 : mode,
+            DEFAULT_PATH + "texture3.png"
+        );
+        Graphic::Vulkan_Texture* vk_tex4 = vk_assets_mgr->load_vk_texture(
+            mode,
+            DEFAULT_PATH + "texture4.png"
+        );
+        Graphic::Vulkan_Texture* vk_tex5 = vk_assets_mgr->load_vk_texture(
+            mode,
+            DEFAULT_PATH + "texture1.png"
+        );
+    }
 
     // main loop of game engine
     while(Graphic::Graphic::is_running()) {
 
         // pool user events
         glfwPollEvents();
-
-        if (vk_tex->get_loaded_state() != Core::Resource_Loaded_State::LOADED && !is_log_unload) {
-            Utility::Log::get()->log_info("Vulkan Texture is loading", vk_tex->get_loaded_state());
-            is_log_unload = true;
-        }
-
-        if (vk_tex->get_loaded_state() == Core::Resource_Loaded_State::LOADED && !is_log_loaded) {
-            Utility::Log::get()->log_info("Vulkan Texture is loaded", vk_tex->get_loaded_state());
-            is_log_loaded = true;
-        }
     }
 
     // clear data and clean up window

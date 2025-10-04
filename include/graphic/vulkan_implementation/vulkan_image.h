@@ -36,6 +36,7 @@ namespace Graphic {
         );
 
         void transition_image_layout(
+            Vulkan_Commands_Mode command_mode,
             VkFormat format,
             VkImageLayout old_layout,
             VkImageLayout new_layout,
@@ -46,9 +47,10 @@ namespace Graphic {
         );
 
         void copy_buffer_to_image(
+            Vulkan_Commands_Mode command_mode,
             int width,
             int height,
-            Vulkan_Buffer* staging_buffer,
+            std::shared_ptr<Vulkan_Buffer> staging_buffer,
             void* user_data = nullptr,
             Image_Callback callback = nullptr,
             Vulkan_Command_Pool* vk_command_pool = nullptr,

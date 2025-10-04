@@ -129,6 +129,78 @@ main/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/build
 .PHONY : main/fast
 
+src/graphic/common/assets_manager.o: src/graphic/common/assets_manager.cpp.o
+.PHONY : src/graphic/common/assets_manager.o
+
+# target to build an object file
+src/graphic/common/assets_manager.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/assets_manager.cpp.o
+.PHONY : src/graphic/common/assets_manager.cpp.o
+
+src/graphic/common/assets_manager.i: src/graphic/common/assets_manager.cpp.i
+.PHONY : src/graphic/common/assets_manager.i
+
+# target to preprocess a source file
+src/graphic/common/assets_manager.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/assets_manager.cpp.i
+.PHONY : src/graphic/common/assets_manager.cpp.i
+
+src/graphic/common/assets_manager.s: src/graphic/common/assets_manager.cpp.s
+.PHONY : src/graphic/common/assets_manager.s
+
+# target to generate assembly for a file
+src/graphic/common/assets_manager.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/assets_manager.cpp.s
+.PHONY : src/graphic/common/assets_manager.cpp.s
+
+src/graphic/common/graphic.o: src/graphic/common/graphic.cpp.o
+.PHONY : src/graphic/common/graphic.o
+
+# target to build an object file
+src/graphic/common/graphic.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/graphic.cpp.o
+.PHONY : src/graphic/common/graphic.cpp.o
+
+src/graphic/common/graphic.i: src/graphic/common/graphic.cpp.i
+.PHONY : src/graphic/common/graphic.i
+
+# target to preprocess a source file
+src/graphic/common/graphic.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/graphic.cpp.i
+.PHONY : src/graphic/common/graphic.cpp.i
+
+src/graphic/common/graphic.s: src/graphic/common/graphic.cpp.s
+.PHONY : src/graphic/common/graphic.s
+
+# target to generate assembly for a file
+src/graphic/common/graphic.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/graphic.cpp.s
+.PHONY : src/graphic/common/graphic.cpp.s
+
+src/graphic/common/graphic_constants.o: src/graphic/common/graphic_constants.cpp.o
+.PHONY : src/graphic/common/graphic_constants.o
+
+# target to build an object file
+src/graphic/common/graphic_constants.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/graphic_constants.cpp.o
+.PHONY : src/graphic/common/graphic_constants.cpp.o
+
+src/graphic/common/graphic_constants.i: src/graphic/common/graphic_constants.cpp.i
+.PHONY : src/graphic/common/graphic_constants.i
+
+# target to preprocess a source file
+src/graphic/common/graphic_constants.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/graphic_constants.cpp.i
+.PHONY : src/graphic/common/graphic_constants.cpp.i
+
+src/graphic/common/graphic_constants.s: src/graphic/common/graphic_constants.cpp.s
+.PHONY : src/graphic/common/graphic_constants.s
+
+# target to generate assembly for a file
+src/graphic/common/graphic_constants.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/graphic_constants.cpp.s
+.PHONY : src/graphic/common/graphic_constants.cpp.s
+
 src/graphic/common/texture.o: src/graphic/common/texture.cpp.o
 .PHONY : src/graphic/common/texture.o
 
@@ -153,30 +225,6 @@ src/graphic/common/texture.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/texture.cpp.s
 .PHONY : src/graphic/common/texture.cpp.s
 
-src/graphic/common/texture_system.o: src/graphic/common/texture_system.cpp.o
-.PHONY : src/graphic/common/texture_system.o
-
-# target to build an object file
-src/graphic/common/texture_system.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/texture_system.cpp.o
-.PHONY : src/graphic/common/texture_system.cpp.o
-
-src/graphic/common/texture_system.i: src/graphic/common/texture_system.cpp.i
-.PHONY : src/graphic/common/texture_system.i
-
-# target to preprocess a source file
-src/graphic/common/texture_system.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/texture_system.cpp.i
-.PHONY : src/graphic/common/texture_system.cpp.i
-
-src/graphic/common/texture_system.s: src/graphic/common/texture_system.cpp.s
-.PHONY : src/graphic/common/texture_system.s
-
-# target to generate assembly for a file
-src/graphic/common/texture_system.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/texture_system.cpp.s
-.PHONY : src/graphic/common/texture_system.cpp.s
-
 src/graphic/common/window.o: src/graphic/common/window.cpp.o
 .PHONY : src/graphic/common/window.o
 
@@ -200,6 +248,78 @@ src/graphic/common/window.s: src/graphic/common/window.cpp.s
 src/graphic/common/window.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/common/window.cpp.s
 .PHONY : src/graphic/common/window.cpp.s
+
+src/graphic/vulkan_implementation/vulkan_assets_manager.o: src/graphic/vulkan_implementation/vulkan_assets_manager.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_assets_manager.o
+
+# target to build an object file
+src/graphic/vulkan_implementation/vulkan_assets_manager.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_assets_manager.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_assets_manager.cpp.o
+
+src/graphic/vulkan_implementation/vulkan_assets_manager.i: src/graphic/vulkan_implementation/vulkan_assets_manager.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_assets_manager.i
+
+# target to preprocess a source file
+src/graphic/vulkan_implementation/vulkan_assets_manager.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_assets_manager.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_assets_manager.cpp.i
+
+src/graphic/vulkan_implementation/vulkan_assets_manager.s: src/graphic/vulkan_implementation/vulkan_assets_manager.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_assets_manager.s
+
+# target to generate assembly for a file
+src/graphic/vulkan_implementation/vulkan_assets_manager.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_assets_manager.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_assets_manager.cpp.s
+
+src/graphic/vulkan_implementation/vulkan_buffer.o: src/graphic/vulkan_implementation/vulkan_buffer.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_buffer.o
+
+# target to build an object file
+src/graphic/vulkan_implementation/vulkan_buffer.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_buffer.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_buffer.cpp.o
+
+src/graphic/vulkan_implementation/vulkan_buffer.i: src/graphic/vulkan_implementation/vulkan_buffer.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_buffer.i
+
+# target to preprocess a source file
+src/graphic/vulkan_implementation/vulkan_buffer.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_buffer.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_buffer.cpp.i
+
+src/graphic/vulkan_implementation/vulkan_buffer.s: src/graphic/vulkan_implementation/vulkan_buffer.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_buffer.s
+
+# target to generate assembly for a file
+src/graphic/vulkan_implementation/vulkan_buffer.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_buffer.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_buffer.cpp.s
+
+src/graphic/vulkan_implementation/vulkan_command_pool.o: src/graphic/vulkan_implementation/vulkan_command_pool.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_command_pool.o
+
+# target to build an object file
+src/graphic/vulkan_implementation/vulkan_command_pool.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_command_pool.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_command_pool.cpp.o
+
+src/graphic/vulkan_implementation/vulkan_command_pool.i: src/graphic/vulkan_implementation/vulkan_command_pool.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_command_pool.i
+
+# target to preprocess a source file
+src/graphic/vulkan_implementation/vulkan_command_pool.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_command_pool.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_command_pool.cpp.i
+
+src/graphic/vulkan_implementation/vulkan_command_pool.s: src/graphic/vulkan_implementation/vulkan_command_pool.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_command_pool.s
+
+# target to generate assembly for a file
+src/graphic/vulkan_implementation/vulkan_command_pool.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_command_pool.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_command_pool.cpp.s
 
 src/graphic/vulkan_implementation/vulkan_constants.o: src/graphic/vulkan_implementation/vulkan_constants.cpp.o
 .PHONY : src/graphic/vulkan_implementation/vulkan_constants.o
@@ -249,6 +369,30 @@ src/graphic/vulkan_implementation/vulkan_core_data.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_core_data.cpp.s
 .PHONY : src/graphic/vulkan_implementation/vulkan_core_data.cpp.s
 
+src/graphic/vulkan_implementation/vulkan_descriptor.o: src/graphic/vulkan_implementation/vulkan_descriptor.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_descriptor.o
+
+# target to build an object file
+src/graphic/vulkan_implementation/vulkan_descriptor.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_descriptor.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_descriptor.cpp.o
+
+src/graphic/vulkan_implementation/vulkan_descriptor.i: src/graphic/vulkan_implementation/vulkan_descriptor.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_descriptor.i
+
+# target to preprocess a source file
+src/graphic/vulkan_implementation/vulkan_descriptor.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_descriptor.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_descriptor.cpp.i
+
+src/graphic/vulkan_implementation/vulkan_descriptor.s: src/graphic/vulkan_implementation/vulkan_descriptor.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_descriptor.s
+
+# target to generate assembly for a file
+src/graphic/vulkan_implementation/vulkan_descriptor.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_descriptor.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_descriptor.cpp.s
+
 src/graphic/vulkan_implementation/vulkan_device.o: src/graphic/vulkan_implementation/vulkan_device.cpp.o
 .PHONY : src/graphic/vulkan_implementation/vulkan_device.o
 
@@ -273,6 +417,30 @@ src/graphic/vulkan_implementation/vulkan_device.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_device.cpp.s
 .PHONY : src/graphic/vulkan_implementation/vulkan_device.cpp.s
 
+src/graphic/vulkan_implementation/vulkan_fences.o: src/graphic/vulkan_implementation/vulkan_fences.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_fences.o
+
+# target to build an object file
+src/graphic/vulkan_implementation/vulkan_fences.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_fences.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_fences.cpp.o
+
+src/graphic/vulkan_implementation/vulkan_fences.i: src/graphic/vulkan_implementation/vulkan_fences.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_fences.i
+
+# target to preprocess a source file
+src/graphic/vulkan_implementation/vulkan_fences.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_fences.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_fences.cpp.i
+
+src/graphic/vulkan_implementation/vulkan_fences.s: src/graphic/vulkan_implementation/vulkan_fences.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_fences.s
+
+# target to generate assembly for a file
+src/graphic/vulkan_implementation/vulkan_fences.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_fences.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_fences.cpp.s
+
 src/graphic/vulkan_implementation/vulkan_frame_buffers.o: src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.o
 .PHONY : src/graphic/vulkan_implementation/vulkan_frame_buffers.o
 
@@ -296,6 +464,30 @@ src/graphic/vulkan_implementation/vulkan_frame_buffers.s: src/graphic/vulkan_imp
 src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.s
 .PHONY : src/graphic/vulkan_implementation/vulkan_frame_buffers.cpp.s
+
+src/graphic/vulkan_implementation/vulkan_image.o: src/graphic/vulkan_implementation/vulkan_image.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_image.o
+
+# target to build an object file
+src/graphic/vulkan_implementation/vulkan_image.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_image.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_image.cpp.o
+
+src/graphic/vulkan_implementation/vulkan_image.i: src/graphic/vulkan_implementation/vulkan_image.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_image.i
+
+# target to preprocess a source file
+src/graphic/vulkan_implementation/vulkan_image.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_image.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_image.cpp.i
+
+src/graphic/vulkan_implementation/vulkan_image.s: src/graphic/vulkan_implementation/vulkan_image.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_image.s
+
+# target to generate assembly for a file
+src/graphic/vulkan_implementation/vulkan_image.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_image.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_image.cpp.s
 
 src/graphic/vulkan_implementation/vulkan_instance.o: src/graphic/vulkan_implementation/vulkan_instance.cpp.o
 .PHONY : src/graphic/vulkan_implementation/vulkan_instance.o
@@ -344,6 +536,30 @@ src/graphic/vulkan_implementation/vulkan_physical_device.s: src/graphic/vulkan_i
 src/graphic/vulkan_implementation/vulkan_physical_device.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_physical_device.cpp.s
 .PHONY : src/graphic/vulkan_implementation/vulkan_physical_device.cpp.s
+
+src/graphic/vulkan_implementation/vulkan_pipeline.o: src/graphic/vulkan_implementation/vulkan_pipeline.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_pipeline.o
+
+# target to build an object file
+src/graphic/vulkan_implementation/vulkan_pipeline.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_pipeline.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_pipeline.cpp.o
+
+src/graphic/vulkan_implementation/vulkan_pipeline.i: src/graphic/vulkan_implementation/vulkan_pipeline.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_pipeline.i
+
+# target to preprocess a source file
+src/graphic/vulkan_implementation/vulkan_pipeline.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_pipeline.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_pipeline.cpp.i
+
+src/graphic/vulkan_implementation/vulkan_pipeline.s: src/graphic/vulkan_implementation/vulkan_pipeline.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_pipeline.s
+
+# target to generate assembly for a file
+src/graphic/vulkan_implementation/vulkan_pipeline.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_pipeline.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_pipeline.cpp.s
 
 src/graphic/vulkan_implementation/vulkan_queue_family_indices.o: src/graphic/vulkan_implementation/vulkan_queue_family_indices.cpp.o
 .PHONY : src/graphic/vulkan_implementation/vulkan_queue_family_indices.o
@@ -489,6 +705,30 @@ src/graphic/vulkan_implementation/vulkan_swapchain_support_detail.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_swapchain_support_detail.cpp.s
 .PHONY : src/graphic/vulkan_implementation/vulkan_swapchain_support_detail.cpp.s
 
+src/graphic/vulkan_implementation/vulkan_texture.o: src/graphic/vulkan_implementation/vulkan_texture.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_texture.o
+
+# target to build an object file
+src/graphic/vulkan_implementation/vulkan_texture.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_texture.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_texture.cpp.o
+
+src/graphic/vulkan_implementation/vulkan_texture.i: src/graphic/vulkan_implementation/vulkan_texture.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_texture.i
+
+# target to preprocess a source file
+src/graphic/vulkan_implementation/vulkan_texture.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_texture.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_texture.cpp.i
+
+src/graphic/vulkan_implementation/vulkan_texture.s: src/graphic/vulkan_implementation/vulkan_texture.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_texture.s
+
+# target to generate assembly for a file
+src/graphic/vulkan_implementation/vulkan_texture.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_texture.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_texture.cpp.s
+
 src/graphic/vulkan_implementation/vulkan_utility.o: src/graphic/vulkan_implementation/vulkan_utility.cpp.o
 .PHONY : src/graphic/vulkan_implementation/vulkan_utility.o
 
@@ -513,6 +753,30 @@ src/graphic/vulkan_implementation/vulkan_utility.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_utility.cpp.s
 .PHONY : src/graphic/vulkan_implementation/vulkan_utility.cpp.s
 
+src/graphic/vulkan_implementation/vulkan_vertex.o: src/graphic/vulkan_implementation/vulkan_vertex.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_vertex.o
+
+# target to build an object file
+src/graphic/vulkan_implementation/vulkan_vertex.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_vertex.cpp.o
+.PHONY : src/graphic/vulkan_implementation/vulkan_vertex.cpp.o
+
+src/graphic/vulkan_implementation/vulkan_vertex.i: src/graphic/vulkan_implementation/vulkan_vertex.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_vertex.i
+
+# target to preprocess a source file
+src/graphic/vulkan_implementation/vulkan_vertex.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_vertex.cpp.i
+.PHONY : src/graphic/vulkan_implementation/vulkan_vertex.cpp.i
+
+src/graphic/vulkan_implementation/vulkan_vertex.s: src/graphic/vulkan_implementation/vulkan_vertex.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_vertex.s
+
+# target to generate assembly for a file
+src/graphic/vulkan_implementation/vulkan_vertex.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/graphic/vulkan_implementation/vulkan_vertex.cpp.s
+.PHONY : src/graphic/vulkan_implementation/vulkan_vertex.cpp.s
+
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
 
@@ -536,6 +800,30 @@ src/main.s: src/main.cpp.s
 src/main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
+
+src/utility/file_utils.o: src/utility/file_utils.cpp.o
+.PHONY : src/utility/file_utils.o
+
+# target to build an object file
+src/utility/file_utils.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/utility/file_utils.cpp.o
+.PHONY : src/utility/file_utils.cpp.o
+
+src/utility/file_utils.i: src/utility/file_utils.cpp.i
+.PHONY : src/utility/file_utils.i
+
+# target to preprocess a source file
+src/utility/file_utils.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/utility/file_utils.cpp.i
+.PHONY : src/utility/file_utils.cpp.i
+
+src/utility/file_utils.s: src/utility/file_utils.cpp.s
+.PHONY : src/utility/file_utils.s
+
+# target to generate assembly for a file
+src/utility/file_utils.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/src/utility/file_utils.cpp.s
+.PHONY : src/utility/file_utils.cpp.s
 
 src/utility/glm_utils.o: src/utility/glm_utils.cpp.o
 .PHONY : src/utility/glm_utils.o
@@ -594,33 +882,60 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... main"
+	@echo "... src/graphic/common/assets_manager.o"
+	@echo "... src/graphic/common/assets_manager.i"
+	@echo "... src/graphic/common/assets_manager.s"
+	@echo "... src/graphic/common/graphic.o"
+	@echo "... src/graphic/common/graphic.i"
+	@echo "... src/graphic/common/graphic.s"
+	@echo "... src/graphic/common/graphic_constants.o"
+	@echo "... src/graphic/common/graphic_constants.i"
+	@echo "... src/graphic/common/graphic_constants.s"
 	@echo "... src/graphic/common/texture.o"
 	@echo "... src/graphic/common/texture.i"
 	@echo "... src/graphic/common/texture.s"
-	@echo "... src/graphic/common/texture_system.o"
-	@echo "... src/graphic/common/texture_system.i"
-	@echo "... src/graphic/common/texture_system.s"
 	@echo "... src/graphic/common/window.o"
 	@echo "... src/graphic/common/window.i"
 	@echo "... src/graphic/common/window.s"
+	@echo "... src/graphic/vulkan_implementation/vulkan_assets_manager.o"
+	@echo "... src/graphic/vulkan_implementation/vulkan_assets_manager.i"
+	@echo "... src/graphic/vulkan_implementation/vulkan_assets_manager.s"
+	@echo "... src/graphic/vulkan_implementation/vulkan_buffer.o"
+	@echo "... src/graphic/vulkan_implementation/vulkan_buffer.i"
+	@echo "... src/graphic/vulkan_implementation/vulkan_buffer.s"
+	@echo "... src/graphic/vulkan_implementation/vulkan_command_pool.o"
+	@echo "... src/graphic/vulkan_implementation/vulkan_command_pool.i"
+	@echo "... src/graphic/vulkan_implementation/vulkan_command_pool.s"
 	@echo "... src/graphic/vulkan_implementation/vulkan_constants.o"
 	@echo "... src/graphic/vulkan_implementation/vulkan_constants.i"
 	@echo "... src/graphic/vulkan_implementation/vulkan_constants.s"
 	@echo "... src/graphic/vulkan_implementation/vulkan_core_data.o"
 	@echo "... src/graphic/vulkan_implementation/vulkan_core_data.i"
 	@echo "... src/graphic/vulkan_implementation/vulkan_core_data.s"
+	@echo "... src/graphic/vulkan_implementation/vulkan_descriptor.o"
+	@echo "... src/graphic/vulkan_implementation/vulkan_descriptor.i"
+	@echo "... src/graphic/vulkan_implementation/vulkan_descriptor.s"
 	@echo "... src/graphic/vulkan_implementation/vulkan_device.o"
 	@echo "... src/graphic/vulkan_implementation/vulkan_device.i"
 	@echo "... src/graphic/vulkan_implementation/vulkan_device.s"
+	@echo "... src/graphic/vulkan_implementation/vulkan_fences.o"
+	@echo "... src/graphic/vulkan_implementation/vulkan_fences.i"
+	@echo "... src/graphic/vulkan_implementation/vulkan_fences.s"
 	@echo "... src/graphic/vulkan_implementation/vulkan_frame_buffers.o"
 	@echo "... src/graphic/vulkan_implementation/vulkan_frame_buffers.i"
 	@echo "... src/graphic/vulkan_implementation/vulkan_frame_buffers.s"
+	@echo "... src/graphic/vulkan_implementation/vulkan_image.o"
+	@echo "... src/graphic/vulkan_implementation/vulkan_image.i"
+	@echo "... src/graphic/vulkan_implementation/vulkan_image.s"
 	@echo "... src/graphic/vulkan_implementation/vulkan_instance.o"
 	@echo "... src/graphic/vulkan_implementation/vulkan_instance.i"
 	@echo "... src/graphic/vulkan_implementation/vulkan_instance.s"
 	@echo "... src/graphic/vulkan_implementation/vulkan_physical_device.o"
 	@echo "... src/graphic/vulkan_implementation/vulkan_physical_device.i"
 	@echo "... src/graphic/vulkan_implementation/vulkan_physical_device.s"
+	@echo "... src/graphic/vulkan_implementation/vulkan_pipeline.o"
+	@echo "... src/graphic/vulkan_implementation/vulkan_pipeline.i"
+	@echo "... src/graphic/vulkan_implementation/vulkan_pipeline.s"
 	@echo "... src/graphic/vulkan_implementation/vulkan_queue_family_indices.o"
 	@echo "... src/graphic/vulkan_implementation/vulkan_queue_family_indices.i"
 	@echo "... src/graphic/vulkan_implementation/vulkan_queue_family_indices.s"
@@ -639,12 +954,21 @@ help:
 	@echo "... src/graphic/vulkan_implementation/vulkan_swapchain_support_detail.o"
 	@echo "... src/graphic/vulkan_implementation/vulkan_swapchain_support_detail.i"
 	@echo "... src/graphic/vulkan_implementation/vulkan_swapchain_support_detail.s"
+	@echo "... src/graphic/vulkan_implementation/vulkan_texture.o"
+	@echo "... src/graphic/vulkan_implementation/vulkan_texture.i"
+	@echo "... src/graphic/vulkan_implementation/vulkan_texture.s"
 	@echo "... src/graphic/vulkan_implementation/vulkan_utility.o"
 	@echo "... src/graphic/vulkan_implementation/vulkan_utility.i"
 	@echo "... src/graphic/vulkan_implementation/vulkan_utility.s"
+	@echo "... src/graphic/vulkan_implementation/vulkan_vertex.o"
+	@echo "... src/graphic/vulkan_implementation/vulkan_vertex.i"
+	@echo "... src/graphic/vulkan_implementation/vulkan_vertex.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
+	@echo "... src/utility/file_utils.o"
+	@echo "... src/utility/file_utils.i"
+	@echo "... src/utility/file_utils.s"
 	@echo "... src/utility/glm_utils.o"
 	@echo "... src/utility/glm_utils.i"
 	@echo "... src/utility/glm_utils.s"

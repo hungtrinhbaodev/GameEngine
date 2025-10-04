@@ -22,6 +22,7 @@ namespace Graphic {
         void init_data();
 
         Vulkan_Texture* load_vk_texture(
+            Core::Resource_Load_Mode load_mode,
             std::string path,
             VkDevice vk_device = VK_NULL_HANDLE,
             VkPhysicalDevice vk_physical_device = VK_NULL_HANDLE,

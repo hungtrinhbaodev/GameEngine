@@ -54,7 +54,7 @@ namespace Graphic {
             Vulkan_Buffer& dst,
             const std::vector<VkBufferCopy>& copy_regions,
             void* user_data = nullptr,
-            CommandCallback callback = nullptr,
+            Vulkan_Command_Callback callback = nullptr,
             Vulkan_Command_Pool* vk_command_pool = nullptr,
             Vulkan_Queues* vk_queues = nullptr
         );
@@ -64,7 +64,7 @@ namespace Graphic {
             Vulkan_Buffer& src, 
             Vulkan_Buffer& dst,
             void* user_data = nullptr,
-            CommandCallback callback = nullptr,
+            Vulkan_Command_Callback callback = nullptr,
             Vulkan_Command_Pool* vk_command_pool = nullptr,
             Vulkan_Queues* vk_queues = nullptr
         );

@@ -7,6 +7,7 @@
 #include <string>
 #include <stdexcept>
 
+#include <core/resource_storage.hpp>
 #include <graphic/vulkan_implementation/vulkan_constants.h>
 #include <graphic/vulkan_implementation/vulkan_queue_family_indices.h>
 #include <graphic/vulkan_implementation/vulkan_swapchain_support_detail.h>
@@ -60,6 +61,8 @@ namespace Graphic {
         static Vulkan_Device_Default_Data get_or_default_device(VkDevice vk_device = VK_NULL_HANDLE, VkPhysicalDevice vk_physical_device = VK_NULL_HANDLE);
 
         static Vulkan_Submit_Default_Data get_or_default_submit(Vulkan_Queues* wp_queues = nullptr, Vulkan_Command_Pool* wp_command_pool= nullptr);
+
+        static Vulkan_Commands_Mode get_command_mode_by_load_resource_mode(Core::Resource_Load_Mode resource_mode);
 
     };
 }

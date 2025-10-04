@@ -17,10 +17,10 @@ void Graphic::Vulkan_Queues::init_queues(
     );
 
     vkGetDeviceQueue(vk_device, indices.graphic_family.value(), 0, &_vk_graphics_queue);
-    Utility::Log::get()->log_info("Get device graphic queue at index",  indices.graphic_family.value(), "success!");
+    Utility::Log::get()->log_info("Get device graphic queue at index",  indices.graphic_family.value(), _vk_graphics_queue, "success!");
 
     vkGetDeviceQueue(vk_device, indices.present_family.value(), 0, &_vk_present_queue);
-    Utility::Log::get()->log_info("Get device present queue at index", indices.present_family.value(), "success!");
+    Utility::Log::get()->log_info("Get device present queue at index", indices.present_family.value(), _vk_present_queue, "success!");
 }
 
 void Graphic::Vulkan_Queues::submit_single_commands(
@@ -37,31 +37,39 @@ void Graphic::Vulkan_Queues::submit_single_commands(
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &command_buffer;
 
-    Utility::Log::get()->log_info("submit_single_commands 1");
+    Utility::Log::get()->log_info("submit_single_commands 1", "command buffer:", command_buffer);
 
     switch(submit_mode) {
         case Vulkan_Queue_Submit_Mode::SUBMIT_MODE_SYNC: {
-            Utility::Log::get()->log_info("submit_single_commands 2");
+            Utility::Log::get()->log_info("submit_single_commands 2", "command buffer:", command_buffer, "graphic queue: ", _vk_graphics_queue);
             vkQueueSubmit(_vk_graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+            Utility::Log::get()->log_info("submit_single_commands 2.1", "graphic queue: ", _vk_graphics_queue);
             vkQueueWaitIdle(_vk_graphics_queue);
+            
+            Utility::Log::get()->log_info("submit_single_commands 3");
+            _sumit_mutex.unlock();
+
+            if(callback != nullptr) {
+                callback(user_data);
+            }
+            Utility::Log::get()->log_info("submit_single_commands 4");
             break;
         }
         default: {
-            Utility::Log::get()->log_info("submit_single_commands 3");
+            // Utility::Log::get()->log_info("submit_single_commands 3");
             _vk_fences->using_fence_with_callback(
                 user_data,
                 [this, submit_info](VkFence vk_fence) {
-                    Utility::Log::get()->log_info("submit_single_commands 4", vk_fence);
+                    // Utility::Log::get()->log_info("submit_single_commands 4", vk_fence);
                     vkQueueSubmit(_vk_graphics_queue, 1, &submit_info, vk_fence);
-                    Utility::Log::get()->log_info("submit_single_commands 5", vkGetFenceStatus(_vk_device, vk_fence));
+                    // Utility::Log::get()->log_info("submit_single_commands 5", vkGetFenceStatus(_vk_device, vk_fence));
                 },
                 callback
             );
+            _sumit_mutex.unlock();
             break;
         }
     }
-
-    _sumit_mutex.unlock();
 }
 
 VkQueue Graphic::Vulkan_Queues::get_graphics_queue() {

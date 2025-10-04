@@ -20,9 +20,9 @@ VkFence Graphic::Vulkan_Fences::_create_item() {
 }
 
 void Graphic::Vulkan_Fences::pooling_item(const VkFence& item) {
-    Utility::Log::get()->log_info("pooling_item fence", item);
+    // Utility::Log::get()->log_info("pooling_item fence", item);
     vkResetFences(_vk_device, 1, &item);
-    Utility::Log::get()->log_info("pooling_item reset fence", item);
+    // Utility::Log::get()->log_info("pooling_item reset fence", item);
     Core::Concurent_Pool<VkFence>::pooling_item(item);
 }
 
@@ -36,13 +36,23 @@ void Graphic::Vulkan_Fences::using_fence_with_callback(
     Graphic::Fence_Success_Callback callback
 ) {
 
-    Utility::Log::get()->log_info("using_fence_with_callback 1", _pool.size());
+    _callback_lock.lock();
+
+    // Utility::Log::get()->log_info("using_fence_with_callback 1", "all fence: ", _all_items_created.size(), "fence in pool", _pool.size());
+
+    // _lock_pool.lock();
+
+    // for(int i = 0; i < _pool.size();i++) {
+    //     Utility::Log::get()->log_info("fence in pool at index", i, ":", _pool[i]);
+    // }
+
+    // _lock_pool.unlock();
 
     VkFence& vk_fence = request_item();
 
-    // Utility::Log::get()->log_info("request_item_with_callback 2", _pool.size());
+    // Utility::Log::get()->log_info("using_fence_with_callback 2", "fence:", vk_fence);
 
-    _callback_lock.lock();
+    // Utility::Log::get()->log_info("using_fence_with_callback 3", "fence:", vk_fence, "_callback size:", _vk_fence_callbacks.size());
 
     if (_vk_fence_callbacks.find(vk_fence) != _vk_fence_callbacks.end()) {
         Vulkan_Utility::vk_check_action(
@@ -53,11 +63,15 @@ void Graphic::Vulkan_Fences::using_fence_with_callback(
     _vk_fence_callbacks[vk_fence] = callback;
     _user_data_callbacks[vk_fence] = user_data;
 
-    Utility::Log::get()->log_info("using_fence_with_callback 2", vk_fence, vkGetFenceStatus(_vk_device, vk_fence));
+    // Utility::Log::get()->log_info("using_fence_with_callback 4", vk_fence, vkGetFenceStatus(_vk_device, vk_fence));
     
     vkResetFences(_vk_device, 1, &vk_fence);
 
+    // Utility::Log::get()->log_info("using_fence_with_callback 5", vk_fence, vkGetFenceStatus(_vk_device, vk_fence));
+
     using_fence(vk_fence);
+
+    // Utility::Log::get()->log_info("using_fence_with_callback 6", vk_fence, vkGetFenceStatus(_vk_device, vk_fence));
 
     // Utility::Log::get()->log_info("request_item_with_callback 3", _vk_fence_callbacks.size());
 
@@ -71,6 +85,7 @@ void Graphic::Vulkan_Fences::update_data() {
     if (_vk_fence_callbacks.size() > 0) {
         // Utility::Log::get()->log_info("Vulkan_Fences::update_data 1", _vk_fence_callbacks.size());
     }
+
     for (const auto& [vk_fence, callback] : _vk_fence_callbacks) {
         if (_vk_fence_callbacks.size() > 0) {
             // Utility::Log::get()->log_info("Vulkan_Fences::update_data 2", _vk_fence_callbacks.size(), vkGetFenceStatus(_vk_device, vk_fence) == VK_SUCCESS ? "true" : "false");
@@ -87,10 +102,9 @@ void Graphic::Vulkan_Fences::update_data() {
             remove_fences.push_back(vk_fence);
         }
     }
-    if (remove_fences.size() > 0) {
-        Utility::Log::get()->log_info("Vulkan_Fences::update_data 4", remove_fences.size());
-    }
+
     for (const auto& vk_fence : remove_fences) {
+        // Utility::Log::get()->log_info("remove fence: ", vk_fence);
         _vk_fence_callbacks.erase(vk_fence);
         _user_data_callbacks.erase(vk_fence);
         pooling_item(vk_fence);

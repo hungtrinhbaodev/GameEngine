@@ -19,26 +19,44 @@ void Graphic::Vulkan_Assets_Manager::destroy_data(VkDevice vk_device) {
 }
 
 Graphic::Vulkan_Texture* Graphic::Vulkan_Assets_Manager::load_vk_texture(
+    Core::Resource_Load_Mode load_mode,
     std::string path,
     VkDevice vk_device,
     VkPhysicalDevice vk_physical_device,
     Vulkan_Queues* vk_queues,
     Vulkan_Command_Pool* vk_command_pool
 ) {
-    Utility::Log::get()->log_info("load_vk_texture 1", vk_command_pool, vk_queues);
+    // Utility::Log::get()->log_info("load_vk_texture 1", vk_command_pool, vk_queues);
     Vulkan_Texture* tmp_tex = _vk_texs_stroage->get_template_resource(path);
     _texs_storage->load_resource(
-        Core::Resource_Load_Mode::ASYNC,
+        load_mode,
         path,
-        {path},
-        [this, vk_physical_device, vk_device, vk_command_pool, vk_queues, path] (Texture *tex) {
+        Texture_Load_Description{
+            path
+        },
+        [
+            this, 
+            vk_physical_device, 
+            vk_device, 
+            vk_command_pool, 
+            vk_queues, path, 
+            load_mode
+        ] 
+        (Texture *tex) {
             Utility::Log::get()->log_info("Vulkan_Assets_Manager::Vulkan_Assets_Manager 1", vk_physical_device, vk_device, vk_queues, vk_command_pool);
             _vk_texs_stroage->load_resource(
-                Core::Resource_Load_Mode::ASYNC,
+                load_mode,
                 path,
-                {tex, vk_physical_device, vk_device, vk_queues, vk_command_pool},
+                Vulkan_Texture_Load_Description {
+                    load_mode,
+                    tex, 
+                    vk_physical_device, 
+                    vk_device, 
+                    vk_queues, 
+                    vk_command_pool
+                },
                 [path] (Vulkan_Texture* tex) {
-                    Utility::Log::get()->log_info("Load texture finish", path, tex);
+                    // Utility::Log::get()->log_info("Load texture finish", path, tex);
                 }
             );
         }

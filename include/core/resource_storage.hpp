@@ -40,8 +40,10 @@ namespace Core {
 
         std::map<K, std::vector<Resource_Loaded_Callback>> _callbacks;
 
-        void _do_callbacks(const K& key) {
-            _load_lock.lock();
+        void _do_callbacks(const K& key, bool is_lock = true) {
+            if (is_lock) {
+                _load_lock.lock();
+            }
 
             if (_callbacks.find(key) != _callbacks.end()) {
                 for (const auto& callback : _callbacks[key]) {
@@ -51,7 +53,9 @@ namespace Core {
             }
             _callbacks.erase(key);
 
-            _load_lock.unlock();
+            if(is_lock) {
+                _load_lock.unlock();
+            }
         }
 
         public:
@@ -73,10 +77,12 @@ namespace Core {
             Resource_Loaded_Callback callback = nullptr
         ) {
 
+            Utility::Log::get()->log_info("go here load 0", key);
             _load_lock.lock();
 
             // in case resource is unload before
             if (_resources.find(key) == _resources.end()) {
+                Utility::Log::get()->log_info("go here load 0.1", key);
                 RE* resoruce = new RE();
                 _resources[key] = resoruce;
                 _callbacks[key] = {};
@@ -84,42 +90,61 @@ namespace Core {
 
             // check state and do resource load callback
             RE* resource = _resources[key];
+            Utility::Log::get()->log_info("go here load 1", key, resource->get_loaded_state());
             switch(resource->get_loaded_state()) {
                 case Resource_Loaded_State::UN_LOAD: {
+                    Utility::Log::get()->log_info("go here load 2", key);
+                    _callbacks[key].push_back(callback);
+                    resource->set_loaded_state(Resource_Loaded_State::LOADING);
                     switch(load_mode) {
                         case Resource_Load_Mode::ASYNC: {
-                            resource->set_loaded_state(Resource_Loaded_State::LOADING);
-                            _callbacks[key].push_back(callback);
-                            std::thread t([&, key, resource, load_params]() {
-                                SE& storage = static_cast<SE&>(*this);
-                                storage._load_resource(
-                                    resource,
-                                    load_params
-                                );
-                                resource->on_resource_loaded_finish();
-                                _do_callbacks(key);
-                            });
+                            std::thread t {
+                                [this, key, resource, load_params]() {
+                                    SE& storage = static_cast<SE&>(*this);
+                                    storage._load_resource(
+                                        resource,
+                                        load_params
+                                    );
+                                    resource->on_resource_loaded_finish();
+                                    _do_callbacks(key);
+                                }
+                            };
                             t.detach();
                             break;
                         }
                         default: {
+                            Utility::Log::get()->log_info("go here load 3", key);
                             _load_resource(
                                 resource,
                                 load_params
                             );
                             resource->on_resource_loaded_finish();
-                            callback(resource);
+                            Utility::Log::get()->log_info("go here do callback 1", _callbacks[key].size());
+                            _do_callbacks(key, false);
+                            Utility::Log::get()->log_info("go here do callback 2");
                             break;
                         }
                     }
                     break;
                 }
                 case Resource_Loaded_State::LOADING: {
-                    _callbacks[key].push_back(callback);
+                    switch (load_mode) {
+                        case Resource_Load_Mode::ASYNC: {
+                            _callbacks[key].push_back(callback);
+                            break;
+                        }
+                        case Resource_Load_Mode::SYNC: {
+                            _callbacks[key].push_back(callback);
+                            while (resource->get_loaded_state() != Resource_Loaded_State::LOADED) {}
+                            break;
+                        }
+                    }
                     break;
                 }
                 case Resource_Loaded_State::LOADED: {
-                    callback(resource);
+                    if (callback != nullptr) {
+                        callback(resource);
+                    } 
                     break;
                 }
                 default: {

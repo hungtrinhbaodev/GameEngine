@@ -12,6 +12,8 @@ namespace Graphic {
 
     struct Vulkan_Texture_Load_Description {
 
+        Core::Resource_Load_Mode load_mode = Core::Resource_Load_Mode::SYNC;
+
         Texture *texture = nullptr;
 
         VkPhysicalDevice vk_physical_device = VK_NULL_HANDLE;

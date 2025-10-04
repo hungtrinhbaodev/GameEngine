@@ -97,7 +97,7 @@ void Graphic::Vulkan_Buffer::copy_buffer(
     Vulkan_Buffer& dst,
     const std::vector<VkBufferCopy>& copy_regions,
     void* user_data,
-    CommandCallback callback,
+    Vulkan_Command_Callback callback,
     Vulkan_Command_Pool* vk_command_pool,
     Vulkan_Queues* vk_queues
 ) {
@@ -122,7 +122,7 @@ void Graphic::Vulkan_Buffer::copy_buffer(
     Vulkan_Buffer& src, 
     Vulkan_Buffer& dst,
     void* user_data,
-    CommandCallback callback,
+    Vulkan_Command_Callback callback,
     Vulkan_Command_Pool* vk_command_pool,
     Vulkan_Queues* vk_queues
 ) {

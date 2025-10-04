@@ -2,40 +2,51 @@
 #include <graphic/vulkan_implementation/vulkan_core_data.h>
 #include <graphic/vulkan_implementation/vulkan_utility.h>
 
-VkCommandBuffer Graphic::Vulkan_Command_Pool::_create_item() {
+/**
+ * Vulkan_Command_Buffer_Pool field
+ */
 
-    Utility::Log::get()->log_info("Vulkan_Command_Pool::_create_item 1");
-
+VkCommandBuffer Graphic::Vulkan_Command_Buffer_Pool::_create_item() {
+    VkCommandBuffer vk_command_buffer = VK_NULL_HANDLE;
     VkCommandBufferAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocate_info.commandPool = _vk_command_pool;
     allocate_info.commandBufferCount = 1;
 
-    Utility::Log::get()->log_info("Vulkan_Command_Pool::_create_item 2");
-
-    VkCommandBuffer command_buffer{};
-    vkAllocateCommandBuffers(_vk_device, &allocate_info, &command_buffer);
-
-    Utility::Log::get()->log_info("Vulkan_Command_Pool::_create_item 3");
-    
-    return command_buffer;
+    vkAllocateCommandBuffers(_vk_device, &allocate_info, &vk_command_buffer);
+    return vk_command_buffer;
 }
 
-void Graphic::Vulkan_Command_Pool::pooling_item(const VkCommandBuffer& command_buffer) {
-    vkResetCommandBuffer(command_buffer, 0);
-    Core::Concurent_Pool<VkCommandBuffer>::pooling_item(command_buffer);
+void Graphic::Vulkan_Command_Buffer_Pool::_delete_item(VkCommandBuffer& item) {
+    // free command buffer in thread
+    vkFreeCommandBuffers(_vk_device, _vk_command_pool, 1, &item);
 }
 
-void Graphic::Vulkan_Command_Pool::_destroy_item(VkCommandBuffer &command_buffer) {
-    vkFreeCommandBuffers(_vk_device, _vk_command_pool, 1, &command_buffer);
-}
-
-void Graphic::Vulkan_Command_Pool::init(
-    VkPhysicalDevice vk_physical_device, 
-    VkDevice vk_device, 
-    VkSurfaceKHR vk_surface
+void Graphic::Vulkan_Command_Buffer_Pool::init(
+    VkDevice vk_device,
+    VkCommandPool vk_command_pool
 ) {
+    _vk_device = vk_device;
+    _vk_command_pool = vk_command_pool;
+}
+
+void Graphic::Vulkan_Command_Buffer_Pool::pooling_item(const VkCommandBuffer& item) {
+    vkResetCommandBuffer(item, 0);
+}
+
+/**
+ * Command_Thread_Item field
+ */
+
+void Graphic::Vulkan_Command_Thread_Item::init(
+    VkPhysicalDevice vk_physical_device,
+    VkDevice vk_device, 
+    VkSurfaceKHR vk_surface, 
+    Vulkan_Queues* wp_queues
+) {
+
+    _wp_queues = wp_queues;
     _vk_device = vk_device;
 
     Vulkan_Queue_Family_Indices indices = Vulkan_Utility::query_suitable_queue_family_indices(
@@ -55,78 +66,81 @@ void Graphic::Vulkan_Command_Pool::init(
     );
     Utility::Log::get()->log_info("Create command pool successfully!");
 
-    // init vulkan draw commands
-    for (int i = 0; i < Vulkan_Constants::MAX_FRAMES_IN_FLIGHT; i++) {
-        _vk_draw_command_buffers.push_back(request_item());
-    }
+    _wp_command_buffer_pool.init(
+        _vk_device,
+        _vk_command_pool
+    );
 }
 
-void Graphic::Vulkan_Command_Pool::record_single_commands(
-    Vulkan_Commands_Mode commands_mode,
-    Graphic::CommandRecord record,
-    void* user_data,
-    Graphic::CommandCallback callback,
-    Graphic::Vulkan_Queues* queues
-) {
+void Graphic::Vulkan_Command_Thread_Item::destroy() {
 
-    Utility::Log::get()->log_info("record_single_commands 1");
-    if (queues == nullptr) {
+    // destroy all command buffer is request in thread
+    _wp_command_buffer_pool.destroy();
+
+    // destroy command pool in thread
+    vkDestroyCommandPool(_vk_device, _vk_command_pool, nullptr);
+    // Utility::Log::get()->log_info("Destroy command pool success!");
+
+}
+
+Graphic::Vulkan_Command_Thread_Item::~Vulkan_Command_Thread_Item() {
+
+}
+
+void Graphic::Vulkan_Command_Thread_Item::do_task(Vulkan_Command_Task_Info task_info) {
+    Utility::Log::get()->log_info("record_single_commands 4", task_info.commands_mode);
+    if (_wp_queues == nullptr) {
         const auto& wp_data = Vulkan_Core_Data::get()->get_wrapper_data();
-        queues = wp_data.wp_queues;
+        _wp_queues = wp_data.wp_queues;
     }
 
-    if (queues == nullptr) {
+    if (_wp_queues == nullptr) {
         Vulkan_Utility::vk_check_action(
             VK_INCOMPLETE,
             "Fail to send command: not found any Vulkan_Queues!"
         );
         return;
     }
-    Utility::Log::get()->log_info("record_single_commands 2");
 
-    VkCommandBuffer& command_buffer = request_item();
+    Utility::Log::get()->log_info("record_single_commands 5");
 
-    vkResetCommandBuffer(command_buffer, 0);
+    VkCommandBuffer command_buffer = _wp_command_buffer_pool.request_item();
 
-    Utility::Log::get()->log_info("record_single_commands 3");
+    Utility::Log::get()->log_info("record_single_commands 6", "command buffer:", command_buffer);
 
     VkCommandBufferBeginInfo begin_info{};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
     vkBeginCommandBuffer(command_buffer, &begin_info);
-        record(command_buffer);
+        Utility::Log::get()->log_info("record_single_commands 7", "record", (void*)(&task_info.record));
+        task_info.record(command_buffer);
+        Utility::Log::get()->log_info("record_single_commands 8", "command buffer:", command_buffer);
     vkEndCommandBuffer(command_buffer);
 
-    Utility::Log::get()->log_info("record_single_commands 4", commands_mode == Vulkan_Commands_Mode::COMMANDS_MODE_SYNC ? "sync" : "async");
-
-    VkSubmitInfo submit_info{};
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffer;
-
-    switch(commands_mode) {
+    Utility::Log::get()->log_info("record_single_commands 9");
+    switch(task_info.commands_mode) {
         case Vulkan_Commands_Mode::COMMANDS_MODE_SYNC: {
-            Utility::Log::get()->log_info("record_single_commands 5");
-            queues->submit_single_commands(
+            Utility::Log::get()->log_info("record_single_commands 10");
+            _wp_queues->submit_single_commands(
                 Vulkan_Queue_Submit_Mode::SUBMIT_MODE_SYNC,
-                command_buffer
+                command_buffer,
+                task_info.user_data,
+                task_info.callback
             );
             break;
         }
         default: {
-            queues->submit_single_commands(
+            Utility::Log::get()->log_info("record_single_commands 11");
+            _wp_queues->submit_single_commands(
                 Vulkan_Queue_Submit_Mode::SUBMIT_MODE_ASYNC,
                 command_buffer,
-                user_data,
-                [this, callback, command_buffer] (void* user_data){
-                    Utility::Log::get()->log_info("record_single_commands 6");    
-                    pooling_item(command_buffer);
-                    Utility::Log::get()->log_info("record_single_commands 7");   
-                    if(callback != nullptr) {
-                        callback(user_data);
+                task_info.user_data,
+                [this, task_info, command_buffer] (void* user_data){  
+                    if(task_info.callback != nullptr) {
+                        task_info.callback(user_data);
                     }
-                    Utility::Log::get()->log_info("record_single_commands 8");   
+                    _wp_command_buffer_pool.pooling_item(command_buffer);
                 }
             );
             break;
@@ -134,12 +148,86 @@ void Graphic::Vulkan_Command_Pool::record_single_commands(
     }
 }
 
-void Graphic::Vulkan_Command_Pool::destroy() {   
+Graphic::Vulkan_Command_Thread_Pool::Vulkan_Command_Thread_Pool(
+    VkPhysicalDevice vk_physical_device,
+    VkDevice vk_device, 
+    VkSurfaceKHR vk_surface, 
+    Vulkan_Queues* wp_queues
+) {
+    _vk_physical_device = vk_physical_device;
+    _vk_device = vk_device;
+    _vk_surface = vk_surface;
+    _wp_queues = wp_queues;
+}
 
-    // destroy all command buffer is created
-    Core::Concurent_Pool<VkCommandBuffer>::destroy();
+void Graphic::Vulkan_Command_Thread_Pool::init_item(Vulkan_Command_Thread_Item* command_thread_item) {
+    command_thread_item->init(
+        _vk_physical_device,
+        _vk_device,
+        _vk_surface,
+        _wp_queues  
+    );
+}
 
-    // destroy command pool
-    vkDestroyCommandPool(_vk_device, _vk_command_pool, nullptr);
-    Utility::Log::get()->log_info("Destroy command pool success!");
+void Graphic::Vulkan_Command_Thread_Pool::destroy_item(Vulkan_Command_Thread_Item* command_thread_item) {
+    command_thread_item->destroy();
+}
+
+void Graphic::Vulkan_Command_Pool::init(
+    VkPhysicalDevice vk_physical_device, 
+    VkDevice vk_device, 
+    VkSurfaceKHR vk_surface,
+    Vulkan_Queues* wp_queues
+) {
+    _vk_commands_thread_pool = new Vulkan_Command_Thread_Pool(
+        vk_physical_device,
+        vk_device,
+        vk_surface,
+        wp_queues
+    );
+
+    _vk_commands_thread_pool->start_running(10);
+}
+
+/**
+ * Vulkan_Command_Pool field
+ */
+
+void Graphic::Vulkan_Command_Pool::record_single_commands(
+    Vulkan_Commands_Mode commands_mode,
+    Vulkan_Command_Record record,
+    void* user_data,
+    Vulkan_Command_Callback callback,
+    Graphic::Vulkan_Queues* queues
+) {
+    Utility::Log::get()->log_info("record_single_command 1", "commands_mode", commands_mode);
+    Vulkan_Command_Task_Info task_info {
+        record,
+        commands_mode,
+        user_data,
+        callback
+    };
+    switch (commands_mode) {
+        case Vulkan_Commands_Mode::COMMANDS_MODE_SYNC: {
+            Utility::Log::get()->log_info("record_single_command 2");
+            long task_id = _vk_commands_thread_pool->push_task(task_info);
+            Utility::Log::get()->log_info("record_single_command 2.1", "task_id: ", task_id);
+            _vk_commands_thread_pool->wait_to_task_end(task_id);
+            Utility::Log::get()->log_info("record_single_command 2.2", "task_id: ", task_id);
+            Utility::Log::get()->log_info("record_single_command 3", "task_id: ", task_id);
+            break;
+        }
+        case Vulkan_Commands_Mode::COMMANDS_MODE_ASYNC: {
+            Utility::Log::get()->log_info("record_single_command 4", "record", (void*)(&task_info.record));
+            _vk_commands_thread_pool->push_task(task_info);
+            break;
+        }
+    }
+}
+
+void Graphic::Vulkan_Command_Pool::destroy() {
+
+    _vk_commands_thread_pool->destroy();
+
+    delete(_vk_commands_thread_pool);
 }

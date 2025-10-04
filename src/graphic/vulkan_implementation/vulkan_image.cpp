@@ -59,6 +59,7 @@ void Graphic::Vulkan_Image::make(
 }
 
 void Graphic::Vulkan_Image::transition_image_layout(
+    Vulkan_Commands_Mode command_mode,
     VkFormat format,
     VkImageLayout old_layout,
     VkImageLayout new_layout,
@@ -67,7 +68,6 @@ void Graphic::Vulkan_Image::transition_image_layout(
     Vulkan_Command_Pool* vk_command_pool,
     Vulkan_Queues* vk_queues
 ) {
-    Utility::Log::get()->log_info("transition_image_layout 1", vk_command_pool, vk_queues);
     const auto& vk_default_submit = Vulkan_Utility::get_or_default_submit(
         vk_queues,
         vk_command_pool
@@ -77,8 +77,8 @@ void Graphic::Vulkan_Image::transition_image_layout(
     Utility::Log::get()->log_info("transition_image_layout 1");
 
     vk_command_pool->record_single_commands(
-        Vulkan_Commands_Mode::COMMANDS_MODE_ASYNC,
-        [&] (VkCommandBuffer command_buffer) {
+        command_mode,
+        [this, old_layout, new_layout] (VkCommandBuffer command_buffer) {
             Utility::Log::get()->log_info("transition_image_layout 2");
 
             VkImageMemoryBarrier barrier_info{};
@@ -124,23 +124,25 @@ void Graphic::Vulkan_Image::transition_image_layout(
                 0, nullptr,
                 1, &barrier_info
             );
-            Utility::Log::get()->log_info("transition_image_layout 3");
+            // Utility::Log::get()->log_info("transition_image_layout 3");
         },
-        user_data,
+        user_data, 
         callback,
         vk_queues
     );
 }
 
 void Graphic::Vulkan_Image::copy_buffer_to_image(
+    Vulkan_Commands_Mode command_mode,
     int width,
     int height,
-    Vulkan_Buffer* vk_staging_buffer,
+    const std::shared_ptr<Vulkan_Buffer> vk_staging_buffer,
     void* user_data,
     Image_Callback callback,
     Vulkan_Command_Pool* vk_command_pool,
     Vulkan_Queues* vk_queues
 ) {
+    // Utility::Log::get()->log_info("copy_buffer_to_image 1");
     const auto& vk_default_submit = Vulkan_Utility::get_or_default_submit(
         vk_queues,
         vk_command_pool
@@ -148,9 +150,11 @@ void Graphic::Vulkan_Image::copy_buffer_to_image(
     vk_queues = vk_default_submit.queues;
     vk_command_pool = vk_default_submit.command_pool;
 
+    // Utility::Log::get()->log_info("copy_buffer_to_image 2");
     vk_command_pool->record_single_commands(
-        Vulkan_Commands_Mode::COMMANDS_MODE_ASYNC,
+        command_mode,
         [this, vk_staging_buffer, width, height] (VkCommandBuffer command_buffer) {
+            // Utility::Log::get()->log_info("copy_buffer_to_image 3");
 
             VkBufferImageCopy region{};
             region.bufferOffset = 0;
@@ -166,6 +170,7 @@ void Graphic::Vulkan_Image::copy_buffer_to_image(
                 (uint32_t) height,
                 1
             };
+            // Utility::Log::get()->log_info("copy_buffer_to_image 4");
 
             vkCmdCopyBufferToImage(command_buffer, vk_staging_buffer->get(), _vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
         },
@@ -173,6 +178,8 @@ void Graphic::Vulkan_Image::copy_buffer_to_image(
         callback,
         vk_queues
     );
+
+    // Utility::Log::get()->log_info("copy_buffer_to_image 5");
 } 
 
 VkImage Graphic::Vulkan_Image::get_image() {

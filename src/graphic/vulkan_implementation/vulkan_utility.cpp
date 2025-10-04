@@ -291,3 +291,14 @@ Graphic::Vulkan_Submit_Default_Data Graphic::Vulkan_Utility::get_or_default_subm
         wp_command_pool
     };
 }
+
+Graphic::Vulkan_Commands_Mode Graphic::Vulkan_Utility::get_command_mode_by_load_resource_mode(Core::Resource_Load_Mode resource_mode) {
+    switch(resource_mode) {
+        case Core::Resource_Load_Mode::SYNC: {
+            return Vulkan_Commands_Mode::COMMANDS_MODE_SYNC;
+        }
+        default: {
+            return Vulkan_Commands_Mode::COMMANDS_MODE_ASYNC;
+        }
+    }
+}

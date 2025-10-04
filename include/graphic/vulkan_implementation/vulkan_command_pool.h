@@ -4,6 +4,7 @@
 #include <functional>
 
 #include <core/concurent_pool.hpp>
+#include <core/thread_pool.hpp>
 #include <graphic/vulkan_implementation/vulkan_constants.h>
 #include <graphic/vulkan_implementation/vulkan_queues.h>
 #include <graphic/vulkan_implementation/vulkan_queue_family_indices.h>
@@ -11,11 +12,22 @@
 
 namespace Graphic {
 
-    using CommandCallback = std::function<void(void*)>;
+    using Vulkan_Command_Record = std::function<void(VkCommandBuffer)>;
 
-    using CommandRecord = std::function<void(VkCommandBuffer)>;
+    using Vulkan_Command_Callback = std::function<void(void*)>;
 
-    class Vulkan_Command_Pool : public Core::Concurent_Pool<VkCommandBuffer> {
+    struct Vulkan_Command_Task_Info {
+
+        Vulkan_Command_Record record;
+
+        Vulkan_Commands_Mode commands_mode;
+
+        void* user_data;
+
+        Vulkan_Command_Callback callback;
+    };
+    
+    class Vulkan_Command_Buffer_Pool : public Core::Concurent_Pool<VkCommandBuffer> {
 
         private:
 
@@ -23,23 +35,99 @@ namespace Graphic {
 
         VkCommandPool _vk_command_pool;
 
-        std::vector<VkCommandBuffer> _vk_draw_command_buffers;
-
         VkCommandBuffer _create_item();
 
-        void _destroy_item(VkCommandBuffer& command_buffer);
+        void _delete_item(VkCommandBuffer& item);
 
         public:
 
-        void init(VkPhysicalDevice vk_physical_device, VkDevice vk_device, VkSurfaceKHR vk_surface);
+        void init(
+            VkDevice vk_device,
+            VkCommandPool vk_command_pool
+        );
 
-        void pooling_item(const VkCommandBuffer& command_buffer);
+        void pooling_item(const VkCommandBuffer& item);
+
+    };
+
+    class Vulkan_Command_Thread_Item : public Core::Thread_Item<Vulkan_Command_Task_Info> {
+
+        private:
+
+        VkCommandPool _vk_command_pool;
+
+        VkDevice _vk_device;
+
+        Vulkan_Queues* _wp_queues;
+
+        Vulkan_Command_Buffer_Pool _wp_command_buffer_pool;
+
+        public:
+
+        void init(
+            VkPhysicalDevice vk_physical_device,
+            VkDevice _vk_device, 
+            VkSurfaceKHR vk_surface, 
+            Vulkan_Queues* wp_queues
+        );
+
+        void destroy();
+
+        void do_task(Vulkan_Command_Task_Info task);
+
+        ~Vulkan_Command_Thread_Item();
+
+    };
+
+    class Vulkan_Command_Thread_Pool : public Core::Thread_Pool<Vulkan_Command_Thread_Item, Vulkan_Command_Task_Info> {
+        
+        private:
+
+        VkPhysicalDevice _vk_physical_device;
+
+        VkDevice _vk_device;
+
+        VkSurfaceKHR _vk_surface;
+
+        Vulkan_Queues* _wp_queues;
+
+        public:
+
+        Vulkan_Command_Thread_Pool(
+            VkPhysicalDevice vk_physical_device,
+            VkDevice vk_device, 
+            VkSurfaceKHR vk_surface, 
+            Vulkan_Queues* queues
+        );
+
+        void init_item(Vulkan_Command_Thread_Item* command_thread_item);
+
+        void destroy_item(Vulkan_Command_Thread_Item* command_thread_item);
+
+    };
+
+    class Vulkan_Command_Pool {
+
+        private:
+
+        VkDevice _vk_device;
+
+        Vulkan_Command_Thread_Pool* _vk_commands_thread_pool;
+
+        public:
+
+        void init(
+            VkPhysicalDevice vk_physical_device, 
+            VkDevice vk_device,
+            VkSurfaceKHR vk_surface,
+            Vulkan_Queues* wp_queues
+        );
 
         void record_single_commands(
             Vulkan_Commands_Mode commands_mode,
-            CommandRecord record,
+            Vulkan_Command_Record record,
             void* user_data = nullptr,
-            CommandCallback callback = nullptr,
+            Vulkan_Command_Callback callback = nullptr,
             Vulkan_Queues* queues = nullptr
         );
 

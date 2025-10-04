@@ -175,15 +175,16 @@ void Graphic::Vulkan_Core_Data::init_data(Window *window) {
         _vk_fences
     );
 
+    // init vulkan swapchain
+    _vk_swapchain->init(_vk_physical_device->get(), _vk_surface->get(), _vk_device->get(), _window->get_window());
+
     // init vulkan command pool
     _vk_command_pool->init(
         _vk_physical_device->get(),
         _vk_device->get(),
-        _vk_surface->get()
+        _vk_surface->get(),
+        _vk_queues
     );
-
-    // init vulkan swapchain
-    _vk_swapchain->init(_vk_physical_device->get(), _vk_surface->get(), _vk_device->get(), _window->get_window());
 
     // init vulkan render pass
     _vk_render_pass->init(_vk_device->get(), _vk_swapchain->get_format());
