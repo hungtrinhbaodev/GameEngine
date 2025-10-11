@@ -14,15 +14,13 @@ namespace Graphic {
 
     using Vulkan_Command_Record = std::function<void(VkCommandBuffer)>;
 
-    using Vulkan_Command_Callback = std::function<void(void*)>;
+    using Vulkan_Command_Callback = std::function<void()>;
 
     struct Vulkan_Command_Task_Info {
 
         Vulkan_Command_Record record;
 
         Vulkan_Commands_Mode commands_mode;
-
-        void* user_data;
 
         Vulkan_Command_Callback callback;
     };
@@ -66,7 +64,7 @@ namespace Graphic {
 
         void init(
             VkPhysicalDevice vk_physical_device,
-            VkDevice _vk_device, 
+            VkDevice vk_device, 
             VkSurfaceKHR vk_surface, 
             Vulkan_Queues* wp_queues
         );
@@ -110,8 +108,6 @@ namespace Graphic {
 
         private:
 
-        VkDevice _vk_device;
-
         Vulkan_Command_Thread_Pool* _vk_commands_thread_pool;
 
         public:
@@ -126,12 +122,8 @@ namespace Graphic {
         void record_single_commands(
             Vulkan_Commands_Mode commands_mode,
             Vulkan_Command_Record record,
-            void* user_data = nullptr,
-            Vulkan_Command_Callback callback = nullptr,
-            Vulkan_Queues* queues = nullptr
+            Vulkan_Command_Callback callback = nullptr
         );
-
-        VkCommandBuffer get_draw_command_buffer(int frame_id);
 
         void destroy();
     };

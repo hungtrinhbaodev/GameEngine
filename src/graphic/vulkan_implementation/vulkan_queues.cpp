@@ -26,11 +26,10 @@ void Graphic::Vulkan_Queues::init_queues(
 void Graphic::Vulkan_Queues::submit_single_commands(
     Graphic::Vulkan_Queue_Submit_Mode submit_mode, 
     VkCommandBuffer command_buffer,
-    void* user_data,
     Graphic::Submit_Callback callback
 ) {
 
-    _sumit_mutex.lock();
+    std::unique_lock<std::mutex> lock(_sumit_lock);
 
     VkSubmitInfo submit_info{};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -47,10 +46,10 @@ void Graphic::Vulkan_Queues::submit_single_commands(
             vkQueueWaitIdle(_vk_graphics_queue);
             
             Utility::Log::get()->log_info("submit_single_commands 3");
-            _sumit_mutex.unlock();
+            lock.unlock();
 
             if(callback != nullptr) {
-                callback(user_data);
+                callback();
             }
             Utility::Log::get()->log_info("submit_single_commands 4");
             break;
@@ -58,7 +57,6 @@ void Graphic::Vulkan_Queues::submit_single_commands(
         default: {
             // Utility::Log::get()->log_info("submit_single_commands 3");
             _vk_fences->using_fence_with_callback(
-                user_data,
                 [this, submit_info](VkFence vk_fence) {
                     // Utility::Log::get()->log_info("submit_single_commands 4", vk_fence);
                     vkQueueSubmit(_vk_graphics_queue, 1, &submit_info, vk_fence);
@@ -66,7 +64,6 @@ void Graphic::Vulkan_Queues::submit_single_commands(
                 },
                 callback
             );
-            _sumit_mutex.unlock();
             break;
         }
     }

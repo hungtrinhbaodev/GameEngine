@@ -4,14 +4,12 @@
 void Graphic::Vulkan_Buffer::make(
     VkDeviceSize size,
     VkBufferUsageFlags usage,
-    VkMemoryPropertyFlags property_flags,
-    VkPhysicalDevice vk_physical_device,
-    VkDevice vk_device
+    VkMemoryPropertyFlags property_flags
 ) {
 
-    const auto& vk_default_data = Vulkan_Utility::get_or_default_device(vk_device, vk_physical_device);
-    vk_physical_device = vk_default_data.vk_physical_device;
-    vk_device = vk_default_data.vk_device;
+    const auto& vk_default_data = Vulkan_Utility::get_or_default_device(VK_NULL_HANDLE, VK_NULL_HANDLE);
+    VkPhysicalDevice vk_physical_device = vk_default_data.vk_physical_device;
+    VkDevice vk_device = vk_default_data.vk_device;
 
     _vk_device = vk_device;
     _size = size;
@@ -96,24 +94,17 @@ void Graphic::Vulkan_Buffer::copy_buffer(
     Vulkan_Buffer& src,
     Vulkan_Buffer& dst,
     const std::vector<VkBufferCopy>& copy_regions,
-    void* user_data,
-    Vulkan_Command_Callback callback,
-    Vulkan_Command_Pool* vk_command_pool,
-    Vulkan_Queues* vk_queues
+    Vulkan_Command_Callback callback
 ) {
 
-    const auto& vk_default_wp = Vulkan_Utility::get_or_default_submit(vk_queues, vk_command_pool);
-    vk_queues = vk_default_wp.queues;
-    vk_command_pool = vk_default_wp.command_pool;
+    const auto& vk_default_wp = Vulkan_Utility::get_or_default_submit(nullptr, nullptr);
 
-    vk_command_pool->record_single_commands(
+    vk_default_wp.command_pool->record_single_commands(
         commands_mode,
         [&](VkCommandBuffer vk_command_buffer) {
             vkCmdCopyBuffer(vk_command_buffer, src.get(), dst.get(), copy_regions.size(), copy_regions.data());
         },
-        user_data,
-        callback,
-        vk_queues
+        callback
     );
 }
 
@@ -121,10 +112,7 @@ void Graphic::Vulkan_Buffer::copy_buffer(
     Vulkan_Commands_Mode commands_mode,
     Vulkan_Buffer& src, 
     Vulkan_Buffer& dst,
-    void* user_data,
-    Vulkan_Command_Callback callback,
-    Vulkan_Command_Pool* vk_command_pool,
-    Vulkan_Queues* vk_queues
+    Vulkan_Command_Callback callback
 ) {
 
     if (src.get_size() != dst.get_size()) {
@@ -136,9 +124,6 @@ void Graphic::Vulkan_Buffer::copy_buffer(
         src,
         dst,
         {{ 0, 0, dst.get_size()}},
-        user_data,
-        callback,
-        vk_command_pool,
-        vk_queues
+        callback
     );
 }

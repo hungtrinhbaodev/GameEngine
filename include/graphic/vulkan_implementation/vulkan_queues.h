@@ -9,7 +9,7 @@
 
 namespace Graphic {
 
-    using Submit_Callback = std::function<void(void*)>;
+    using Submit_Callback = std::function<void()>;
 
     class Vulkan_Queues {
 
@@ -23,7 +23,7 @@ namespace Graphic {
 
         VkQueue _vk_graphics_queue = VK_NULL_HANDLE;
 
-        std::mutex _sumit_mutex;
+        std::mutex _sumit_lock;
 
         public:
 
@@ -37,7 +37,6 @@ namespace Graphic {
         void submit_single_commands(
             Vulkan_Queue_Submit_Mode submit_mode, 
             VkCommandBuffer command_buffer,
-            void* user_data = nullptr, 
             Submit_Callback callback = nullptr
         );
 

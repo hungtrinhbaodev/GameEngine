@@ -326,6 +326,10 @@ namespace Core {
             return resource;
         }
 
+        size_t get_number_resource() {
+            return _resources.size();
+        }
+
         template<typename ...Args>
         void destroy_resources(const Args&... args) {
 

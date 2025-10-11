@@ -6,13 +6,9 @@ void Graphic::Vulkan_Image::make(
     VkFormat format,
     VkImageTiling tiling,
     VkImageUsageFlags usage,
-    VkMemoryPropertyFlags properties,
-    VkDevice vk_device,
-    VkPhysicalDevice vk_physical_device
+    VkMemoryPropertyFlags properties
 ) {
-    const auto& vk_default_data = Vulkan_Utility::get_or_default_device(vk_device, vk_physical_device);
-    vk_physical_device = vk_default_data.vk_physical_device;
-    vk_device = vk_default_data.vk_device;
+    const auto& vk_default_data = Vulkan_Utility::get_or_default_device(VK_NULL_HANDLE, VK_NULL_HANDLE);
 
     VkImageCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -29,12 +25,12 @@ void Graphic::Vulkan_Image::make(
     create_info.samples = VK_SAMPLE_COUNT_1_BIT;
     create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    if(vkCreateImage(vk_device, &create_info, nullptr, &_vk_image) != VK_SUCCESS){
+    if(vkCreateImage(vk_default_data.vk_device, &create_info, nullptr, &_vk_image) != VK_SUCCESS){
         throw std::runtime_error("Fail to create image!");
     }
 
     VkMemoryRequirements memory_requirements{};
-    vkGetImageMemoryRequirements(vk_device, _vk_image, &memory_requirements);
+    vkGetImageMemoryRequirements(vk_default_data.vk_device, _vk_image, &memory_requirements);
 
     VkMemoryAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -45,16 +41,16 @@ void Graphic::Vulkan_Image::make(
     );
 
     Vulkan_Utility::vk_check_action(
-        vkAllocateMemory(vk_device, &allocate_info, nullptr, &_vk_image_memory),
+        vkAllocateMemory(vk_default_data.vk_device, &allocate_info, nullptr, &_vk_image_memory),
         "Fail to allocate image memory!"
     );
 
-    vkBindImageMemory(vk_device, _vk_image, _vk_image_memory, 0);
+    vkBindImageMemory(vk_default_data.vk_device, _vk_image, _vk_image_memory, 0);
 
     _vk_imageview = Vulkan_Utility::create_imageview_from_image(
         _vk_image,
         format,
-        vk_device
+        vk_default_data.vk_device
     );
 }
 
@@ -63,20 +59,15 @@ void Graphic::Vulkan_Image::transition_image_layout(
     VkFormat format,
     VkImageLayout old_layout,
     VkImageLayout new_layout,
-    void* user_data,
-    Image_Callback callback,
-    Vulkan_Command_Pool* vk_command_pool,
-    Vulkan_Queues* vk_queues
+    Vulkan_Command_Callback callback
 ) {
     const auto& vk_default_submit = Vulkan_Utility::get_or_default_submit(
-        vk_queues,
-        vk_command_pool
+        nullptr,
+        nullptr
     );
-    vk_queues = vk_default_submit.queues;
-    vk_command_pool = vk_default_submit.command_pool;
     Utility::Log::get()->log_info("transition_image_layout 1");
 
-    vk_command_pool->record_single_commands(
+    vk_default_submit.command_pool->record_single_commands(
         command_mode,
         [this, old_layout, new_layout] (VkCommandBuffer command_buffer) {
             Utility::Log::get()->log_info("transition_image_layout 2");
@@ -126,9 +117,7 @@ void Graphic::Vulkan_Image::transition_image_layout(
             );
             // Utility::Log::get()->log_info("transition_image_layout 3");
         },
-        user_data, 
-        callback,
-        vk_queues
+        callback
     );
 }
 
@@ -137,21 +126,16 @@ void Graphic::Vulkan_Image::copy_buffer_to_image(
     int width,
     int height,
     const std::shared_ptr<Vulkan_Buffer> vk_staging_buffer,
-    void* user_data,
-    Image_Callback callback,
-    Vulkan_Command_Pool* vk_command_pool,
-    Vulkan_Queues* vk_queues
+    Vulkan_Command_Callback callback
 ) {
     // Utility::Log::get()->log_info("copy_buffer_to_image 1");
     const auto& vk_default_submit = Vulkan_Utility::get_or_default_submit(
-        vk_queues,
-        vk_command_pool
+        nullptr,
+        nullptr
     );
-    vk_queues = vk_default_submit.queues;
-    vk_command_pool = vk_default_submit.command_pool;
 
     // Utility::Log::get()->log_info("copy_buffer_to_image 2");
-    vk_command_pool->record_single_commands(
+    vk_default_submit.command_pool->record_single_commands(
         command_mode,
         [this, vk_staging_buffer, width, height] (VkCommandBuffer command_buffer) {
             // Utility::Log::get()->log_info("copy_buffer_to_image 3");
@@ -174,9 +158,7 @@ void Graphic::Vulkan_Image::copy_buffer_to_image(
 
             vkCmdCopyBufferToImage(command_buffer, vk_staging_buffer->get(), _vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
         },
-        user_data,
-        callback,
-        vk_queues
+        callback
     );
 
     // Utility::Log::get()->log_info("copy_buffer_to_image 5");

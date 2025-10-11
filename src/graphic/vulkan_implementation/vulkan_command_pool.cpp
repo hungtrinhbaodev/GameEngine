@@ -125,7 +125,6 @@ void Graphic::Vulkan_Command_Thread_Item::do_task(Vulkan_Command_Task_Info task_
             _wp_queues->submit_single_commands(
                 Vulkan_Queue_Submit_Mode::SUBMIT_MODE_SYNC,
                 command_buffer,
-                task_info.user_data,
                 task_info.callback
             );
             break;
@@ -135,10 +134,9 @@ void Graphic::Vulkan_Command_Thread_Item::do_task(Vulkan_Command_Task_Info task_
             _wp_queues->submit_single_commands(
                 Vulkan_Queue_Submit_Mode::SUBMIT_MODE_ASYNC,
                 command_buffer,
-                task_info.user_data,
-                [this, task_info, command_buffer] (void* user_data){  
+                [this, task_info, command_buffer] (){  
                     if(task_info.callback != nullptr) {
-                        task_info.callback(user_data);
+                        task_info.callback();
                     }
                     _wp_command_buffer_pool.pooling_item(command_buffer);
                 }
@@ -196,15 +194,12 @@ void Graphic::Vulkan_Command_Pool::init(
 void Graphic::Vulkan_Command_Pool::record_single_commands(
     Vulkan_Commands_Mode commands_mode,
     Vulkan_Command_Record record,
-    void* user_data,
-    Vulkan_Command_Callback callback,
-    Graphic::Vulkan_Queues* queues
+    Vulkan_Command_Callback callback
 ) {
     Utility::Log::get()->log_info("record_single_command 1", "commands_mode", commands_mode);
     Vulkan_Command_Task_Info task_info {
         record,
         commands_mode,
-        user_data,
         callback
     };
     switch (commands_mode) {

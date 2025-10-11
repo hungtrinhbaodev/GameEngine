@@ -29,9 +29,7 @@ namespace Graphic {
         void make(
             VkDeviceSize size,
             VkBufferUsageFlags usage,
-            VkMemoryPropertyFlags property_flags,
-            VkPhysicalDevice vk_physical_device = VK_NULL_HANDLE,
-            VkDevice vk_device = VK_NULL_HANDLE
+            VkMemoryPropertyFlags property_flags
         );
 
         void map_memory();
@@ -53,20 +51,14 @@ namespace Graphic {
             Vulkan_Buffer& src,
             Vulkan_Buffer& dst,
             const std::vector<VkBufferCopy>& copy_regions,
-            void* user_data = nullptr,
-            Vulkan_Command_Callback callback = nullptr,
-            Vulkan_Command_Pool* vk_command_pool = nullptr,
-            Vulkan_Queues* vk_queues = nullptr
+            Vulkan_Command_Callback callback = nullptr
         );
 
         static void copy_buffer(
             Vulkan_Commands_Mode commands_mode,
             Vulkan_Buffer& src, 
             Vulkan_Buffer& dst,
-            void* user_data = nullptr,
-            Vulkan_Command_Callback callback = nullptr,
-            Vulkan_Command_Pool* vk_command_pool = nullptr,
-            Vulkan_Queues* vk_queues = nullptr
+            Vulkan_Command_Callback callback = nullptr
         );
 
     };

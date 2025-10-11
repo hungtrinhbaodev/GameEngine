@@ -5,7 +5,7 @@
  */
 
 void Graphic::Vulkan_Texture::on_finish_load() {
-    
+
 }
 
 void Graphic::Vulkan_Texture::_make_vk_sampler(VkDevice vk_device, VkPhysicalDevice vk_physical_device) {
@@ -49,15 +49,23 @@ void Graphic::Vulkan_Texture::on_load(const Vulkan_Texture_Load_Description& des
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
     );
 
-    Utility::Log::get()->log_info("load_vk_texture 1.2", des.wp_command_pool, des.wp_queues);
+    auto vk_device_default = Vulkan_Utility::get_or_default_device(
+        VK_NULL_HANDLE,
+        VK_NULL_HANDLE
+    );
+
+    auto wp_sumit_default = Vulkan_Utility::get_or_default_submit(
+        nullptr,
+        nullptr
+    );
+    Utility::Log::get()->log_info("load_vk_texture 1.2", wp_sumit_default.command_pool, wp_sumit_default.queues);
 
     _vk_image.transition_image_layout(
         Vulkan_Utility::get_command_mode_by_load_resource_mode(des.load_mode),
         VK_FORMAT_R8G8B8A8_SRGB,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        nullptr,
-        [this, des, texture_info](void*) {
+        [this, des, texture_info, vk_device_default]() {
 
             Utility::Log::get()->log_info("load_vk_texture 2");
 
@@ -70,9 +78,7 @@ void Graphic::Vulkan_Texture::on_load(const Vulkan_Texture_Load_Description& des
             staging_buffer->make(
                 image_size,
                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                des.vk_physical_device,
-                des.vk_device
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
             );
 
             staging_buffer->map_and_copy_data(
@@ -87,8 +93,7 @@ void Graphic::Vulkan_Texture::on_load(const Vulkan_Texture_Load_Description& des
                 texture_info.width,
                 texture_info.height,
                 staging_buffer,
-                nullptr,
-                [this, des, staging_buffer](void*) {
+                [this, des, staging_buffer, vk_device_default]() {
 
                     // destroy buffer staging when copy finish
                     staging_buffer->destroy();
@@ -99,26 +104,20 @@ void Graphic::Vulkan_Texture::on_load(const Vulkan_Texture_Load_Description& des
                         VK_FORMAT_R8G8B8A8_SRGB,
                         VK_IMAGE_LAYOUT_UNDEFINED,
                         VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        nullptr,
-                        [this, des](void*) {
-                            _make_vk_sampler(des.vk_device, des.vk_physical_device);
+                        [this, des, vk_device_default]() {
+                            _make_vk_sampler(vk_device_default.vk_device, vk_device_default.vk_physical_device);
                             set_loaded_state(Core::Resource_Loaded_State::LOADED);
                             Utility::Log::get()->log_info("Loaded Vulkan Texture finish: ", des.texture->get_path());
-                        },
-                        des.wp_command_pool,
-                        des.wp_queues
+                        }
                     );
-                },
-                des.wp_command_pool,
-                des.wp_queues
+                }
             );
-        },
-        des.wp_command_pool,
-        des.wp_queues
+        }
     );
 }
 
 void Graphic::Vulkan_Texture::destroy(VkDevice vk_device) {
+    
     _vk_image.destroy(vk_device);
 
     if (_vk_sampler != VK_NULL_HANDLE) {

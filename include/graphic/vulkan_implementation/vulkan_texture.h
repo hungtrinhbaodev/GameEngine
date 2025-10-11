@@ -15,14 +15,6 @@ namespace Graphic {
 
         std::shared_ptr<Texture> texture = nullptr;
 
-        VkPhysicalDevice vk_physical_device = VK_NULL_HANDLE;
-
-        VkDevice vk_device = VK_NULL_HANDLE;
-
-        Vulkan_Queues* wp_queues = nullptr;
-
-        Vulkan_Command_Pool* wp_command_pool = nullptr;
-
     };
 
     class Vulkan_Texture : public Core::Resource<Vulkan_Texture_Load_Description> {
