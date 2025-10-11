@@ -13,7 +13,7 @@ namespace Graphic {
 
         private:
 
-        Vulkan_Texture_Storage* _vk_texs_stroage;
+        Core::Resource_Storage<std::string, Vulkan_Texture, Vulkan_Texture_Load_Description>* _vk_texs_stroage;
 
         public:
 
@@ -21,7 +21,7 @@ namespace Graphic {
 
         void init_data();
 
-        Vulkan_Texture* load_vk_texture(
+        std::shared_ptr<Vulkan_Texture> load_vk_texture(
             Core::Resource_Load_Mode load_mode,
             std::string path,
             VkDevice vk_device = VK_NULL_HANDLE,
@@ -33,7 +33,6 @@ namespace Graphic {
         void destroy_data(VkDevice vk_device);
 
         ~Vulkan_Assets_Manager();
-
     };
 
 }

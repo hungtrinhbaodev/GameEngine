@@ -23,7 +23,7 @@ namespace Core {
         public:
 
         ID gen_id() {
-            _gen_lock.lock();
+            std::unique_lock<std::mutex> lock(_gen_lock);
             ID _id;
             if (_un_used_ids.size() > 0) {
                 _id = _un_used_ids.front();
@@ -33,14 +33,12 @@ namespace Core {
                 _id = _counter;
                 _counter = _inscrease_id(_counter);
             }
-            _gen_lock.unlock();
             return _id;
         }
 
         void free_id(const ID& id) {
-            _gen_lock.lock();
+            std::unique_lock<std::mutex> lock(_gen_lock);
             _un_used_ids.push(id);
-            _gen_lock.unlock();
         }
 
         virtual ~Objects_ID_Generated() {

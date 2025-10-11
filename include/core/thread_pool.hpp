@@ -7,10 +7,16 @@
 #include <exception>
 #include <map>
 #include <core/objects_id_generated.hpp>
+#include <condition_variable>
 #include <utility/log_utils.h>
 
 namespace Core {
 
+    /**
+     * Contain all data using internal thread
+     * and wapper the the task when it need
+     * more job in do_task function
+     */
     template<typename Task_Info>
     class Thread_Item {
 
@@ -34,11 +40,6 @@ namespace Core {
 
     };
 
-    enum Thread_Task_Description {
-        EMPTY,
-        HAS_TASK
-    };
-
     enum Thread_Task_State {
         NONE,
         WATIING,
@@ -53,10 +54,34 @@ namespace Core {
     template<typename Thread_Item_Extend, typename Task_Info>
     class Thread_Pool {
 
+        static_assert(
+            std::is_base_of<Thread_Item<Task_Info>, Thread_Item_Extend>::value, 
+            "Error: Thread_Pool<Thread_Item_Extend, Task_Info> requires Thread_Item_Extend<Task_Info> to inherit from Thread_Item."
+        );
+
+        /**
+         * Wrapper struct is using
+         * to add task id to Task_Info
+         */
         struct Task_Data {
             long task_id;
-            Thread_Task_Description task_description;
             Task_Info task;
+        };
+
+        /**
+         * Support struct to keep tracking
+         * task when it is processing
+         */
+        struct Task_Tracking_Data {
+
+            Thread_Task_State task_state;
+            std::mutex* task_mutex = nullptr;
+            std::condition_variable* task_condition = nullptr;
+            
+            void destroy() {
+                delete(task_mutex);
+                delete(task_condition);
+            }
         };
 
         private:
@@ -71,150 +96,231 @@ namespace Core {
 
         std::queue<Task_Data> _queues_task;
 
+        std::condition_variable _queue_condition;
+
         std::vector<Thread_Item_Extend*> _threads_items;
 
-        std::map<long, Thread_Task_State> _processing_tasks;
+        std::vector<std::thread> _workers;
 
-        bool _is_has_task = false;
+        std::map<long, Task_Tracking_Data> _processing_tasks;
 
         bool _is_running = true;
 
-        void _add_task_tracking(long task_id, Thread_Task_State task_state) {
-            _task_tracking_lock.lock();
-            _processing_tasks[task_id] = task_state;
-            _task_tracking_lock.unlock();
+        /**
+         * Add state of task to task tracking data to keep track
+         */
+        void _add_task_tracking(const long& task_id, Thread_Task_State task_state) {
+            std::unique_lock<std::mutex> lock(_task_tracking_lock);
+            if (_processing_tasks.find(task_id) == _processing_tasks.end()) {
+                _processing_tasks[task_id] = Task_Tracking_Data {
+                    task_state,
+                    new std::mutex(),
+                    new std::condition_variable()
+                };
+            }
+            else {
+                _processing_tasks[task_id].task_state = task_state;
+            }
         }
 
-        Thread_Task_State _get_task_state(long task_id) {
-            _task_tracking_lock.lock();
+        /**
+         * Query task tracking data by task id to keep track
+         */
+        Task_Tracking_Data _get_task_tracking_data(long task_id) {
+
             if (_processing_tasks.find(task_id) == _processing_tasks.end()) {
-                _task_tracking_lock.unlock();
-                return Thread_Task_State::NONE;
+                return Task_Tracking_Data {
+                    Thread_Task_State::NONE,
+                    nullptr,
+                    nullptr
+                };
             }
-            // std::cout << "_get_task_state: " << task_id << " " << _processing_tasks.size() << std::endl;
-            Thread_Task_State task_state = _processing_tasks[task_id];
-            _task_tracking_lock.unlock();
-            return task_state;
+
+            return _processing_tasks[task_id];
+        }
+
+        protected:
+
+        /**
+         * Init the item data is using internal task
+         */
+        virtual void init_item(Thread_Item_Extend* thread_item) {
+
+        }
+
+        /**
+         * Destroy the item data is using internal task
+         */
+        virtual void destroy_item(Thread_Item_Extend* thread_item) {
+
         }
 
         public:
-
-        Task_Data get_task() {
-
-            Task_Data task {
-                Thread_Task_Description::EMPTY
-            };
-
-            _queue_lock.lock();
-
-            if (_queues_task.size() > 0) {
-                task = _queues_task.front();
-                _queues_task.pop();
-            }
-
-            if (_queues_task.size() <= 0) {
-                _is_has_task = false;
-            }
-
-            _queue_lock.unlock();
-
-            return task;
-        }
-
-        long push_task(Task_Info task) {
-
-            long task_id = -1;
-
-            _queue_lock.lock();
-
-            _queues_task.push({
-                _task_id_generated.gen_id(),
-                Thread_Task_Description::HAS_TASK,
-                task
-            });
-
-            task_id = _queues_task.front().task_id;
-
-            _add_task_tracking(task_id, Thread_Task_State::WATIING);
-
-            _is_has_task = true;
-
-            _queue_lock.unlock();
-
-            return task_id;
-        }
 
         bool is_running() {
             return _is_running;
         }
 
-        bool is_has_task() {
-            return _is_has_task;
-        }
-
+        /**
+         * Thread pool will start running here with
+         * number thread is using
+         */
         void start_running(int number_thread) {
+            
+            // Reserve the number thread and data internal is needed
+            _workers.reserve(number_thread);
+            _threads_items.reserve(number_thread);
+
             for (int i = 0;i < number_thread;i++) {
                 Thread_Item_Extend* thread_item = new Thread_Item_Extend();
-                std::thread t([this, thread_item] {
+                // Make worker to do task in multi thread
+                _workers.emplace_back([this, thread_item] {
                     
-                    _init_item_lock.lock();
-                    init_item(thread_item);
-                    _init_item_lock.unlock();
+                    // Init internal data will be using in thread
+                    {
+                        std::unique_lock<std::mutex> lock(_init_item_lock);
+                        init_item(thread_item);
+                    }
+                    
+                    for (;;) {
+                        // Query a remain task data in queue to process
+                        Task_Data task_data;
+                        {
+                            // Sleep the thread until queue has task
+                            std::unique_lock<std::mutex> lock(_queue_lock);
+                            this->_queue_condition.wait(lock, [this] () {
+                                return !this->is_running() || !this->_queues_task.empty();
+                            });
 
-                    while (is_running()) {
-                        if (is_has_task()) {
-                            Task_Data task_data = get_task();
-                            if (task_data.task_description != Thread_Task_Description::EMPTY) {
-                                _add_task_tracking(task_data.task_id, Thread_Task_State::PROCESSING);
-                                thread_item->do_task(task_data.task);
-                                _add_task_tracking(task_data.task_id, Thread_Task_State::ENDING);
+                            if (!this->is_running() && this->_queues_task.empty()) {
+                                return;
+                            }
+
+                            task_data = std::move(_queues_task.front());
+                            _queues_task.pop();
+                        }
+
+                        // Add tracking task to phase processing
+                        _add_task_tracking(task_data.task_id, Thread_Task_State::PROCESSING);
+
+                        // Do task here
+                        thread_item->do_task(task_data.task);
+
+                        // Add tracking task to phase end
+                        _add_task_tracking(task_data.task_id, Thread_Task_State::ENDING);
+                        
+                        // Notify the thread block until task finish if has
+                        Task_Tracking_Data task_tracking_data = this->_get_task_tracking_data(task_data.task_id);
+                        {
+                            switch (task_tracking_data.task_state) {
+                                case Thread_Task_State::NONE:
+                                    break;
+                                
+                                default:
+                                    std::unique_lock<std::mutex> lock(*task_tracking_data.task_mutex);
+                                    task_tracking_data.task_condition->notify_one();
+                                    break;
                             }
                         }
                     }
                 });
-                t.detach();
 
-                _threads_items.push_back(thread_item);
+                _threads_items.emplace_back(thread_item);
             }
         }
 
+        /**
+         * Task will be push here and return a task id
+         * to tracking processing of task
+         */
+        long push_task(Task_Info task) {
+
+            long task_id = -1;
+
+            // Make a struct Task_Data to wrapper
+            // Task_Info class with task id to tracking
+            {
+                std::unique_lock<std::mutex> lock(_queue_lock);
+                _queues_task.push({
+                    _task_id_generated.gen_id(),
+                    task
+                });
+
+                task_id = _queues_task.front().task_id;
+            }
+
+            // Add state of task to tracking future
+            _add_task_tracking(task_id, Thread_Task_State::WATIING);
+
+            // Notify for some thread is sleep to do task
+            _queue_condition.notify_one();
+
+            // Return task id to tracking task
+            return task_id;
+        }
+
         void stop_running() {
-            _is_running = false;
+            // Mark our thread pool as stop running
+            {
+                std::unique_lock<std::mutex> lock(_queue_lock);
+                _is_running = false;
+            }
+
+            // Notify all thread to stop when finish all thier task
+            _queue_condition.notify_all();
+            for (std::thread& worker : _workers) {
+                worker.join();
+            }
+
+            // Delete data of tracking task is using
+            {
+                std::unique_lock<std::mutex> lock(_task_tracking_lock);
+                for (auto& [_, task_tracking_data] : _processing_tasks) {
+                    task_tracking_data.destroy();
+                }
+            }
         }
 
         void wait_to_task_end(const long& task_id) {
-            Thread_Task_State task_state = _get_task_state(task_id);
-            // Utility::Log::get()->log_info("task state", task_id, task_state);
-            switch (task_state) {
+            // Find task state in task tracking  data
+            Task_Tracking_Data task_tracking_data = _get_task_tracking_data(task_id);
+
+            // If none we throw exception to tracking invalid task
+            switch (task_tracking_data.task_state) {
                 case Thread_Task_State::NONE: {
                     Utility::Log::get()->log_info("Waiting task with state none", task_id);
                     throw std::runtime_error("fail to wait task");
                     return;
                 }
+                // If already ending we just return
                 case Thread_Task_State::ENDING: {
                     return;
                 }
                 default: {
-                    while (_get_task_state(task_id) != Thread_Task_State::ENDING) {}
-                    _task_tracking_lock.lock();
-                    _processing_tasks.erase(task_id);
-                    _task_tracking_lock.unlock();
                     break;
                 }
             }
+
+            // In other state waiting and loading we need sleep current thread
+            // and wait until it's processed finish
+            std::unique_lock<std::mutex> lock(*task_tracking_data.task_mutex);
+            task_tracking_data.task_condition->wait(lock, [this, task_id]() {
+                Task_Tracking_Data task_tracking_data = _get_task_tracking_data(task_id);
+                return !this->is_running() || task_tracking_data.task_state == Thread_Task_State::ENDING || task_tracking_data.task_state == Thread_Task_State::NONE;
+            });
         }
 
-        virtual void init_item(Thread_Item_Extend* thread_item) {
-
-        }
-
-        virtual void destroy_item(Thread_Item_Extend* thread_item) {
-
-        }
-
+        /**
+         * Thread pool will stop running and clear
+         * all data is using when call destroy
+         */
         void destroy() {
-            _is_running = false;
-            for (auto& thread_item :_threads_items) {
+
+            // do stop running phase
+            stop_running();
+
+            // clear all data item is using internal thread 
+            for (auto& thread_item : _threads_items) {
                 destroy_item(thread_item);
             }
         }
@@ -224,6 +330,7 @@ namespace Core {
         }
 
         virtual ~Thread_Pool() {
+            // Destroy all pointer of data is using internal thread
             for (auto& thread_item :_threads_items) {
                 delete(thread_item);
             }

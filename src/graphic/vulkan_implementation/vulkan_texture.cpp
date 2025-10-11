@@ -4,8 +4,8 @@
  * Vulkan_Texture field
  */
 
-void Graphic::Vulkan_Texture::on_resource_loaded_finish() {
-
+void Graphic::Vulkan_Texture::on_finish_load() {
+    
 }
 
 void Graphic::Vulkan_Texture::_make_vk_sampler(VkDevice vk_device, VkPhysicalDevice vk_physical_device) {
@@ -36,7 +36,7 @@ void Graphic::Vulkan_Texture::_make_vk_sampler(VkDevice vk_device, VkPhysicalDev
     }
 }
 
-void Graphic::Vulkan_Texture::load_vk_texture(const Vulkan_Texture_Load_Description& des) {
+void Graphic::Vulkan_Texture::on_load(const Vulkan_Texture_Load_Description& des) {
     const auto& texture_info = des.texture->get_texture_info();
     Utility::Log::get()->log_info("load_vk_texture 1");
 
@@ -124,31 +124,4 @@ void Graphic::Vulkan_Texture::destroy(VkDevice vk_device) {
     if (_vk_sampler != VK_NULL_HANDLE) {
         vkDestroySampler(vk_device, _vk_sampler, nullptr);
     }
-}
-
-/**
- * Vulkan_Texture_Storage field
- */
-
-void Graphic::Vulkan_Texture_Storage::_load_resource(
-    Vulkan_Texture* vk_texture,
-    const Vulkan_Texture_Load_Description& description
-) {
-    Utility::Log::get()->log_info("Vulkan_Assets_Manager _load_resource 2", description.texture->get_path());
-    vk_texture->load_vk_texture(description);
-}
-
-void Graphic::Vulkan_Texture_Storage::destroy_resources(VkDevice vk_device) {
-    _load_lock.lock();
-
-    _callbacks.clear();
-
-    for (const auto& [key, resource] : _resources) {
-        resource->destroy(vk_device);
-        delete(resource);
-    }
-
-    _resources.clear();
-
-    _load_lock.unlock();
 }

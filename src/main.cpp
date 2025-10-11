@@ -29,23 +29,23 @@ int main() {
     Core::Resource_Load_Mode mode = Core::Resource_Load_Mode::SYNC;
     Core::Resource_Load_Mode mode2 = Core::Resource_Load_Mode::ASYNC;
     for (int i = 0;i < 1000; i++) {
-        Graphic::Vulkan_Texture* vk_tex = vk_assets_mgr->load_vk_texture(
+        std::shared_ptr<Graphic::Vulkan_Texture> vk_tex = vk_assets_mgr->load_vk_texture(
             mode2,
             DEFAULT_PATH + "texture1.png"
         );
-        Graphic::Vulkan_Texture* vk_tex2 = vk_assets_mgr->load_vk_texture(
+        std::shared_ptr<Graphic::Vulkan_Texture> vk_tex2 = vk_assets_mgr->load_vk_texture(
             mode,
             DEFAULT_PATH + "texture2.png"
         );
-        Graphic::Vulkan_Texture* vk_tex3 = vk_assets_mgr->load_vk_texture(
+        std::shared_ptr<Graphic::Vulkan_Texture> vk_tex3 = vk_assets_mgr->load_vk_texture(
             (i % 2) ? mode2 : mode,
             DEFAULT_PATH + "texture3.png"
         );
-        Graphic::Vulkan_Texture* vk_tex4 = vk_assets_mgr->load_vk_texture(
+        std::shared_ptr<Graphic::Vulkan_Texture> vk_tex4 = vk_assets_mgr->load_vk_texture(
             mode,
             DEFAULT_PATH + "texture4.png"
         );
-        Graphic::Vulkan_Texture* vk_tex5 = vk_assets_mgr->load_vk_texture(
+        std::shared_ptr<Graphic::Vulkan_Texture> vk_tex5 = vk_assets_mgr->load_vk_texture(
             mode,
             DEFAULT_PATH + "texture1.png"
         );

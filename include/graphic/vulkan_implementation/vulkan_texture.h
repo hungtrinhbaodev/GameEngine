@@ -2,7 +2,6 @@
 #include <vulkan/vulkan.h>
 
 #include <core/resource.hpp>
-#include <core/resource_storage.hpp>
 #include <graphic/common/texture.h>
 #include <graphic/vulkan_implementation/vulkan_image.h>
 #include <graphic/vulkan_implementation/vulkan_queues.h>
@@ -14,7 +13,7 @@ namespace Graphic {
 
         Core::Resource_Load_Mode load_mode = Core::Resource_Load_Mode::SYNC;
 
-        Texture *texture = nullptr;
+        std::shared_ptr<Texture> texture = nullptr;
 
         VkPhysicalDevice vk_physical_device = VK_NULL_HANDLE;
 
@@ -26,7 +25,7 @@ namespace Graphic {
 
     };
 
-    class Vulkan_Texture : public Core::Resource {
+    class Vulkan_Texture : public Core::Resource<Vulkan_Texture_Load_Description> {
 
         private:
 
@@ -38,24 +37,11 @@ namespace Graphic {
 
         public:
 
-        void load_vk_texture(const Vulkan_Texture_Load_Description& des);
+        void on_load(const Vulkan_Texture_Load_Description& des);
 
-        void on_resource_loaded_finish();
+        void on_finish_load();
 
         void destroy(VkDevice vk_device);
-
-    };
-
-    class Vulkan_Texture_Storage : public Core::Resource_Storage<std::string, Vulkan_Texture, Vulkan_Texture_Load_Description, Vulkan_Texture_Storage> {
-
-        public:
-
-        void _load_resource(
-            Vulkan_Texture* vk_texture,
-            const Vulkan_Texture_Load_Description& description
-        );
-
-        void destroy_resources(VkDevice vk_device);
 
     };
 

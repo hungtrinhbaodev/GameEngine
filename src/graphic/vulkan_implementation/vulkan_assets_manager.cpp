@@ -1,7 +1,7 @@
 #include <graphic/vulkan_implementation/vulkan_assets_manager.h>
 
 Graphic::Vulkan_Assets_Manager::Vulkan_Assets_Manager() {
-    _vk_texs_stroage = new Vulkan_Texture_Storage();
+    _vk_texs_stroage = new Core::Resource_Storage<std::string, Vulkan_Texture, Vulkan_Texture_Load_Description>();
 }
 
 Graphic::Vulkan_Assets_Manager::~Vulkan_Assets_Manager() {
@@ -18,7 +18,7 @@ void Graphic::Vulkan_Assets_Manager::destroy_data(VkDevice vk_device) {
     _vk_texs_stroage->destroy_resources(vk_device);
 }
 
-Graphic::Vulkan_Texture* Graphic::Vulkan_Assets_Manager::load_vk_texture(
+std::shared_ptr<Graphic::Vulkan_Texture> Graphic::Vulkan_Assets_Manager::load_vk_texture(
     Core::Resource_Load_Mode load_mode,
     std::string path,
     VkDevice vk_device,
@@ -27,11 +27,11 @@ Graphic::Vulkan_Texture* Graphic::Vulkan_Assets_Manager::load_vk_texture(
     Vulkan_Command_Pool* vk_command_pool
 ) {
     // Utility::Log::get()->log_info("load_vk_texture 1", vk_command_pool, vk_queues);
-    Vulkan_Texture* tmp_tex = _vk_texs_stroage->get_template_resource(path);
+    std::shared_ptr<Vulkan_Texture> tmp_tex = _vk_texs_stroage->get_template_resource(path);
     _texs_storage->load_resource(
         load_mode,
         path,
-        Texture_Load_Description{
+        Texture_Load_Description {
             path
         },
         [
@@ -42,7 +42,7 @@ Graphic::Vulkan_Texture* Graphic::Vulkan_Assets_Manager::load_vk_texture(
             vk_queues, path, 
             load_mode
         ] 
-        (Texture *tex) {
+        (std::shared_ptr<Texture> tex) {
             Utility::Log::get()->log_info("Vulkan_Assets_Manager::Vulkan_Assets_Manager 1", vk_physical_device, vk_device, vk_queues, vk_command_pool);
             _vk_texs_stroage->load_resource(
                 load_mode,
@@ -55,7 +55,7 @@ Graphic::Vulkan_Texture* Graphic::Vulkan_Assets_Manager::load_vk_texture(
                     vk_queues, 
                     vk_command_pool
                 },
-                [path] (Vulkan_Texture* tex) {
+                [path] (std::shared_ptr<Vulkan_Texture> tex) {
                     // Utility::Log::get()->log_info("Load texture finish", path, tex);
                 }
             );

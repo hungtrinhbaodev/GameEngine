@@ -7,7 +7,7 @@
 #include <string>
 #include <stdexcept>
 
-#include <core/resource_storage.hpp>
+#include <core/resource.hpp>
 #include <graphic/vulkan_implementation/vulkan_constants.h>
 #include <graphic/vulkan_implementation/vulkan_queue_family_indices.h>
 #include <graphic/vulkan_implementation/vulkan_swapchain_support_detail.h>

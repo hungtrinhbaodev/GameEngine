@@ -10,16 +10,16 @@ Graphic::Texture::Texture() {
 
 }
 
-void Graphic::Texture::load_texture(std::string path) {
+void Graphic::Texture::on_load(const Texture_Load_Description& load_params) {
 
     Utility::Log::get()->log_info("texture path 1", _tex_path);
 
-    _tex_path = path;
+    _tex_path = load_params.tex_path;
 
     Utility::Log::get()->log_info("texture path 2", _tex_path);
 
     _pixels = stbi_load(
-        path.data(),
+        load_params.tex_path.data(),
         &_width,
         &_height,
         &_channels,
@@ -54,15 +54,4 @@ void Graphic::Texture::destroy() {
 
 Graphic::Texture::~Texture() {
     
-}
-
-/**
- * Texture_Storage field
- */
-
-void Graphic::Texture_Storage::_load_resource(
-    Texture* texture, 
-    const Texture_Load_Description& description
-) {
-    texture->load_texture(description.tex_path);
 }

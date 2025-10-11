@@ -5,13 +5,13 @@
 
 namespace Graphic {
 
-    using Texture_Loaded_Callback = std::function<void(Texture*)>;
+    using Texture_Loaded_Callback = std::function<void(std::shared_ptr<Texture>)>;
     
     class Assets_Manager {
 
         protected:
 
-        Texture_Storage* _texs_storage;
+        Core::Resource_Storage<std::string, Texture, Texture_Load_Description>* _texs_storage;
 
         public:
 
@@ -19,7 +19,7 @@ namespace Graphic {
 
         void init_data();
 
-        Texture* load_texture(
+        std::shared_ptr<Texture> load_texture(
             std::string path_texture,
             Texture_Loaded_Callback callback = nullptr
         );

@@ -5,7 +5,6 @@
 #include <iostream>
 
 #include <core/resource.hpp>
-#include <core/resource_storage.hpp>
 #include <utility/log_utils.h>
 
 namespace Graphic {
@@ -21,7 +20,7 @@ namespace Graphic {
         int channels;
     };
 
-    class Texture : public Core::Resource {
+    class Texture : public Core::Resource<Texture_Load_Description> {
 
         using Texture_Loaded_Callback = std::function<void(Texture *)>;
 
@@ -41,7 +40,7 @@ namespace Graphic {
 
         Texture();
 
-        void load_texture(std::string path);
+        void on_load(const Texture_Load_Description& load_params);
 
         std::string& get_path();
 
@@ -56,14 +55,4 @@ namespace Graphic {
         friend class Texture_Loader;
     };
 
-    class Texture_Storage : public Core::Resource_Storage<std::string, Texture, Texture_Load_Description, Texture_Storage> {
-
-        public:
-
-        void _load_resource (
-            Texture* texture,
-            const Texture_Load_Description& description
-        );
-
-    };
 };
