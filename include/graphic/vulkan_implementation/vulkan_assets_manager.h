@@ -23,11 +23,7 @@ namespace Graphic {
 
         std::shared_ptr<Vulkan_Texture> load_vk_texture(
             Core::Resource_Load_Mode load_mode,
-            std::string path,
-            VkDevice vk_device = VK_NULL_HANDLE,
-            VkPhysicalDevice vk_physical_device = VK_NULL_HANDLE,
-            Vulkan_Queues* vk_queues = nullptr,
-            Vulkan_Command_Pool* vk_command_pool = nullptr
+            std::string path
         );
 
         void destroy_data(VkDevice vk_device);

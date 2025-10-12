@@ -232,10 +232,9 @@ namespace Core {
             std::unique_lock<std::mutex> lock(_load_lock);
             switch (resource->get_loaded_state()) {
 
-                resource->on_start_load();
-                resource->set_loaded_state(Resource_Loaded_State::LOADING);
-
                 case Resource_Loaded_State::UN_LOAD: {
+                    resource->on_start_load();
+                    resource->set_loaded_state(Resource_Loaded_State::LOADING);
                     // Make a task data is using in task pool
                     Load_Resource_Task_Info task_info {
                         key,

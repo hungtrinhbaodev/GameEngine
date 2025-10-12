@@ -59,6 +59,7 @@ void Graphic::Vulkan_Fences::using_fence_with_callback(
             "Fence request with callback is using before!"
         );
     }
+    
     _vk_fence_callbacks[vk_fence] = callback;
     
     vkResetFences(_vk_device, 1, &vk_fence);

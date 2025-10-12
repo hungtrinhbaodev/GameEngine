@@ -213,13 +213,18 @@ namespace Core {
                         Task_Tracking_Data task_tracking_data = this->_get_task_tracking_data(task_data.task_id);
                         {
                             switch (task_tracking_data.task_state) {
-                                case Thread_Task_State::NONE:
+                                case Thread_Task_State::NONE: {
+
                                     break;
+                                }
                                 
-                                default:
+                                default: {
+
                                     std::unique_lock<std::mutex> lock(*task_tracking_data.task_mutex);
                                     task_tracking_data.task_condition->notify_one();
+                                    this->_processing_tasks.erase(task_data.task_id);
                                     break;
+                                }
                             }
                         }
                     }

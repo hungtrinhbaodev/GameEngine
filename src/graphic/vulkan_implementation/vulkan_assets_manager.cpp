@@ -20,11 +20,7 @@ void Graphic::Vulkan_Assets_Manager::destroy_data(VkDevice vk_device) {
 
 std::shared_ptr<Graphic::Vulkan_Texture> Graphic::Vulkan_Assets_Manager::load_vk_texture(
     Core::Resource_Load_Mode load_mode,
-    std::string path,
-    VkDevice vk_device,
-    VkPhysicalDevice vk_physical_device,
-    Vulkan_Queues* vk_queues,
-    Vulkan_Command_Pool* vk_command_pool
+    std::string path
 ) {
     // Utility::Log::get()->log_info("load_vk_texture 1", vk_command_pool, vk_queues);
     std::shared_ptr<Vulkan_Texture> tmp_tex = _vk_texs_stroage->get_template_resource(path);
@@ -36,7 +32,7 @@ std::shared_ptr<Graphic::Vulkan_Texture> Graphic::Vulkan_Assets_Manager::load_vk
         },
         [this, path, load_mode] 
         (std::shared_ptr<Texture> tex) {
-            Utility::Log::get()->log_info("Vulkan_Assets_Manager::Vulkan_Assets_Manager 1", _vk_texs_stroage->get_number_resource());
+            // Utility::Log::get()->log_info("Vulkan_Assets_Manager::Vulkan_Assets_Manager 1", _vk_texs_stroage->get_number_resource());
             _vk_texs_stroage->load_resource(
                 load_mode,
                 path,
@@ -45,7 +41,7 @@ std::shared_ptr<Graphic::Vulkan_Texture> Graphic::Vulkan_Assets_Manager::load_vk
                     tex
                 },
                 [path] (std::shared_ptr<Vulkan_Texture> tex) {
-                    // Utility::Log::get()->log_info("Load texture finish", path, tex);
+                    Utility::Log::get()->log_info("Loaded Vulkan Texture finish: ", path);
                 }
             );
         }

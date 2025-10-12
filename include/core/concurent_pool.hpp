@@ -10,7 +10,7 @@ namespace Core {
         
         protected:
 
-        std::mutex _lock_pool;
+        std::mutex _pool_lock;
 
         std::vector<T> _all_items_created;
 
@@ -28,7 +28,7 @@ namespace Core {
 
         T& request_item() {
 
-            _lock_pool.lock();
+            std::unique_lock<std::mutex> lock(_pool_lock);
             
             // Utility::Log::get()->log_info("request_item", _pool.size());
 
@@ -41,18 +41,14 @@ namespace Core {
             T& item = _pool.back();
             _pool.pop_back();
 
-            _lock_pool.unlock();
-
             return item;
         }
 
         void pooling_item(const T& item) {
             
-            _lock_pool.lock();
+            std::unique_lock<std::mutex> lock(_pool_lock);
 
             _pool.push_back(item);
-
-            _lock_pool.unlock();
         }
 
         void destroy() {

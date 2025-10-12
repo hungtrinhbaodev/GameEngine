@@ -22,8 +22,6 @@ namespace Graphic {
 
     class Texture : public Core::Resource<Texture_Load_Description> {
 
-        using Texture_Loaded_Callback = std::function<void(Texture *)>;
-
         private:
         
         std::string _tex_path;
@@ -51,8 +49,6 @@ namespace Graphic {
         void destroy();
 
         ~Texture();
-
-        friend class Texture_Loader;
     };
 
 };

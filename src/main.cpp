@@ -27,8 +27,8 @@ int main() {
     const auto& vk_data = Graphic::Vulkan_Core_Data::get();
     const auto& vk_assets_mgr = vk_data->get_wrapper_data().wp_assets_mgr;
     Core::Resource_Load_Mode mode = Core::Resource_Load_Mode::SYNC;
-    Core::Resource_Load_Mode mode2 = Core::Resource_Load_Mode::ASYNC;
-    for (int i = 0;i < 1000; i++) {
+    Core::Resource_Load_Mode mode2 = Core::Resource_Load_Mode::SYNC;
+    for (int i = 0;i < 2; i++) {
         std::shared_ptr<Graphic::Vulkan_Texture> vk_tex = vk_assets_mgr->load_vk_texture(
             mode2,
             DEFAULT_PATH + "texture1.png"
