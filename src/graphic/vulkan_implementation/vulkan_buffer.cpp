@@ -2,7 +2,7 @@
 #include <graphic/vulkan_implementation/vulkan_core_data.h>
 
 void Graphic::Vulkan_Buffer::make(
-    VkDeviceSize size,
+    uint32_t size,
     VkBufferUsageFlags usage,
     VkMemoryPropertyFlags property_flags
 ) {
@@ -10,14 +10,17 @@ void Graphic::Vulkan_Buffer::make(
     const auto& vk_default_data = Vulkan_Utility::get_or_default_device(VK_NULL_HANDLE, VK_NULL_HANDLE);
     VkPhysicalDevice vk_physical_device = vk_default_data.vk_physical_device;
     VkDevice vk_device = vk_default_data.vk_device;
+    Utility::Log::get()->log_info("Graphic::Vulkan_Buffer::make 1", vk_device);
 
     _vk_device = vk_device;
+    _usage = usage;
+    _property_flags = property_flags;
     _size = size;
 
     VkBufferCreateInfo buffer_info{};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     buffer_info.usage = usage;
-    buffer_info.size = size;
+    buffer_info.size = static_cast<VkDeviceSize>(size);
     buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     Vulkan_Utility::vk_check_action(
@@ -30,7 +33,7 @@ void Graphic::Vulkan_Buffer::make(
 
     VkMemoryAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocate_info.allocationSize = size;
+    allocate_info.allocationSize = static_cast<VkDeviceSize>(size);
     allocate_info.memoryTypeIndex = Vulkan_Utility::find_buffer_memory_type_index(
         memory_requirement.memoryTypeBits, 
         property_flags,
@@ -50,7 +53,7 @@ void Graphic::Vulkan_Buffer::map_memory() {
         _vk_device, 
         _vk_device_memory, 
         0, 
-        _size, 
+        static_cast<VkDeviceSize>(_size), 
         0,
         &_map_ptr
     );
@@ -60,17 +63,30 @@ void Graphic::Vulkan_Buffer::unmap_memory() {
     vkUnmapMemory(_vk_device, _vk_device_memory);
 }
 
-void Graphic::Vulkan_Buffer::copy_data(void * data_src, size_t size) {
-    memcpy(this->_map_ptr, data_src, size);
+void Graphic::Vulkan_Buffer::copy_data(void * data_src, uint32_t size) {
+    Utility::Log::get()->log_info("copy_data 1", size);
+    memcpy(this->_map_ptr, data_src, static_cast<size_t>(size));
+    Utility::Log::get()->log_info("copy_data 2", size);
+    size = 5;
+    Utility::Log::get()->log_info("copy_data 3", size);
 }
 
-void Graphic::Vulkan_Buffer::map_and_copy_data(void * data_src, size_t size) {
+void Graphic::Vulkan_Buffer::map_and_copy_data(void * data_src, uint32_t size) {
     if ((VkDeviceSize) size != this->_size) {
         throw std::runtime_error("fail to copy data to buffer!");
     }
     map_memory();
         copy_data(data_src, size);
     unmap_memory();
+}
+
+void Graphic::Vulkan_Buffer::swap_with_other(Vulkan_Buffer& other) {
+    Utility::Func_Utils::swap(_vk_buffer, other._vk_buffer);
+    Utility::Func_Utils::swap(_size, other._size);
+    Utility::Func_Utils::swap(_map_ptr, other._map_ptr);
+    Utility::Func_Utils::swap(_vk_device_memory, other._vk_device_memory);
+    Utility::Func_Utils::swap(_usage, other._usage);
+    Utility::Func_Utils::swap(_property_flags, other._property_flags);
 }
 
 VkBuffer Graphic::Vulkan_Buffer::get() {
@@ -81,8 +97,12 @@ VkDeviceSize Graphic::Vulkan_Buffer::get_size() {
     return _size;
 }
 
+VkDeviceMemory& Graphic::Vulkan_Buffer::get_vk_device_memory() {
+    return _vk_device_memory;
+}
+
 void Graphic::Vulkan_Buffer::destroy() {
-    
+    Utility::Log::get()->log_info("Graphic::Vulkan_Buffer::destroy", _vk_device);
     vkDestroyBuffer(_vk_device, _vk_buffer, nullptr);
 
     vkFreeMemory(_vk_device, _vk_device_memory, nullptr);
@@ -91,8 +111,8 @@ void Graphic::Vulkan_Buffer::destroy() {
 
 void Graphic::Vulkan_Buffer::copy_buffer(
     Vulkan_Commands_Mode commands_mode,
-    Vulkan_Buffer& src,
-    Vulkan_Buffer& dst,
+    Vulkan_Buffer* src,
+    Vulkan_Buffer* dst,
     const std::vector<VkBufferCopy>& copy_regions,
     Vulkan_Command_Callback callback
 ) {
@@ -101,8 +121,8 @@ void Graphic::Vulkan_Buffer::copy_buffer(
 
     vk_default_wp.command_pool->record_single_commands(
         commands_mode,
-        [&](VkCommandBuffer vk_command_buffer) {
-            vkCmdCopyBuffer(vk_command_buffer, src.get(), dst.get(), copy_regions.size(), copy_regions.data());
+        [copy_regions, src, dst](VkCommandBuffer vk_command_buffer) {
+            vkCmdCopyBuffer(vk_command_buffer, src->get(), dst->get(), copy_regions.size(), copy_regions.data());
         },
         callback
     );
@@ -110,12 +130,12 @@ void Graphic::Vulkan_Buffer::copy_buffer(
 
 void Graphic::Vulkan_Buffer::copy_buffer(
     Vulkan_Commands_Mode commands_mode,
-    Vulkan_Buffer& src, 
-    Vulkan_Buffer& dst,
+    Vulkan_Buffer* src, 
+    Vulkan_Buffer* dst,
     Vulkan_Command_Callback callback
 ) {
 
-    if (src.get_size() != dst.get_size()) {
+    if (src->get_size() != dst->get_size()) {
         throw std::runtime_error("fail to copy buffer to buffer!");
     }
 
@@ -123,7 +143,7 @@ void Graphic::Vulkan_Buffer::copy_buffer(
         commands_mode,
         src,
         dst,
-        {{ 0, 0, dst.get_size()}},
+        {{ 0, 0, dst->get_size()}},
         callback
     );
 }

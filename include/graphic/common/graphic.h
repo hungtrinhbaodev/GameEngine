@@ -2,6 +2,7 @@
 
 #include <mutex>
 #include <thread>
+#include <vector>
 
 #include <graphic/common/graphic_constants.h>
 #include <graphic/vulkan_implementation/vulkan_core_data.h>
@@ -21,6 +22,8 @@ namespace Graphic {
 
         static const Graphic_State& _get_graphic_state();
 
+        static std::vector<std::thread> threads;
+
         public: 
 
         static void init(Window* window);
@@ -32,6 +35,8 @@ namespace Graphic {
         static void destroy();
 
         static bool is_running();
+
+        static void terminate();
 
     };
 

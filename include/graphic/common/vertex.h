@@ -1,5 +1,6 @@
 #pragma once
 #include <glm/glm.hpp>
+#include <utility/log_utils.h>
 
 namespace Graphic {
 
@@ -14,6 +15,11 @@ namespace Graphic {
         glm::vec3 normal;
 
         glm::vec3 color;
+
+        friend std::ostream& operator<<(std::ostream& os, const Vertex& vec) {
+            os << "position: " << vec.position << ", tex_coor: " << vec.tex_coor << ", normal: " << vec.normal <<  ", color: " << vec.color << std::endl;
+            return os;
+        };
     };
     
 }

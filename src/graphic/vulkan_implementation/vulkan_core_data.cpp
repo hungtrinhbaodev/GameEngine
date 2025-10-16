@@ -300,7 +300,6 @@ Graphic::Vulkan_Core_Data* Graphic::Vulkan_Core_Data::get() {
 }
 
 void Graphic::Vulkan_Core_Data::clean_up() {
-    
     _lock_instance.lock();
 
     delete(_instance);

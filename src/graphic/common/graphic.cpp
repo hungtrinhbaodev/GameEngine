@@ -4,6 +4,8 @@ Graphic::Graphic_State Graphic::Graphic::_graphic_state = Graphic_State::NOT_INI
 
 std::mutex Graphic::Graphic::_graphic_state_mutex;
 
+std::vector<std::thread> Graphic::Graphic::threads;
+
 void Graphic::Graphic::_set_graphic_state(Graphic_State state) {
 
     _graphic_state_mutex.lock();
@@ -42,8 +44,7 @@ void Graphic::Graphic::init(Window* window) {
 }
 
 void Graphic::Graphic::main(Window* window) {
-    std::thread t(run, window);
-    t.detach();
+    threads.emplace_back(std::thread(run, window));
 }
 
 void Graphic::Graphic::run(Window* window) {
@@ -99,11 +100,13 @@ void Graphic::Graphic::destroy() {
 
 bool Graphic::Graphic::is_running() {
 
-    _graphic_state_mutex.lock();
-
     const auto& graphic_state = _get_graphic_state();
 
-    _graphic_state_mutex.unlock();
-
     return graphic_state == Graphic_State::RUNNING;
+}
+
+void Graphic::Graphic::terminate() {
+    for (auto& thread : threads) {
+        thread.join();
+    }
 }

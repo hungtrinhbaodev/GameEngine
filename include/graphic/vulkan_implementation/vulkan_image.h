@@ -31,19 +31,17 @@ namespace Graphic {
             VkMemoryPropertyFlags properties
         );
 
-        void transition_image_layout(
-            Vulkan_Commands_Mode command_mode,
+        Vulkan_Commands_Record_Data make_transition_record_data(
             VkFormat format,
             VkImageLayout old_layout,
             VkImageLayout new_layout,
             Vulkan_Command_Callback callback = nullptr
         );
 
-        void copy_buffer_to_image(
-            Vulkan_Commands_Mode command_mode,
+        Vulkan_Commands_Record_Data make_copy_to_image_record_data(
             int width,
             int height,
-            std::shared_ptr<Vulkan_Buffer> staging_buffer,
+            void* pixels,
             Vulkan_Command_Callback callback = nullptr
         );
 

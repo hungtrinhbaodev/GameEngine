@@ -25,28 +25,24 @@ std::ostream& operator<<(std::ostream& os, const glm::mat<C, R, T, Q>& matrix) {
 
 template<glm::length_t C, typename T, glm::qualifier Q>
 std::ostream& operator<<(std::ostream& os, const glm::vec<C, T, Q>& vec) {
-    os << std::endl;
+    os << "[";
     for (glm::length_t i = 0;i < C; i++) {
         os << vec[i];
         if (i < C - 1) {
-            os << std::endl;
+            os << ", ";
         }
     }
+    os << "]";
     return os;
 }
 
 template<typename T>
 std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
     os << '{';
-    if constexpr (!std::is_convertible_v<decltype(os << std::declval<T>()), std::ostream&>) {
-        os << "<unprintable type>";
-    }
-    else {
-        for (size_t i = 0;i < vec.size(); i++) {
-            os << vec[i];
-            if (i < vec.size() - 1) {
-                os << ", ";
-            }
+    for (size_t i = 0;i < vec.size(); i++) {
+        os << vec[i];
+        if (i < vec.size() - 1) {
+            os << ", ";
         }
     }
     os << '}';
@@ -107,6 +103,8 @@ namespace Utility {
 
             _lock_log.unlock();
         }
+
+        void parse_void_data(const char * prefix, void* data, int size);
 
         static Log* get();
 

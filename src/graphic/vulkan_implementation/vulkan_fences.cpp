@@ -65,8 +65,6 @@ void Graphic::Vulkan_Fences::using_fence_with_callback(
     vkResetFences(_vk_device, 1, &vk_fence);
 
     using_fence(vk_fence);
-
-    _callback_lock.unlock();
 }
 
 void Graphic::Vulkan_Fences::update_data() {

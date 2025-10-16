@@ -104,11 +104,21 @@ namespace Graphic {
 
     };
 
+    struct Vulkan_Commands_Record_Data {
+        Vulkan_Command_Record record;
+        Vulkan_Command_Callback callback = nullptr;
+    };
+
     class Vulkan_Command_Pool {
 
         private:
 
         Vulkan_Command_Thread_Pool* _vk_commands_thread_pool;
+
+        void _record_single_commands(
+            Vulkan_Commands_Mode commands_mode,
+            const Vulkan_Commands_Record_Data& record_data
+        );
 
         public:
 
@@ -123,6 +133,11 @@ namespace Graphic {
             Vulkan_Commands_Mode commands_mode,
             Vulkan_Command_Record record,
             Vulkan_Command_Callback callback = nullptr
+        );
+
+        void record_sequence_commands(
+            Vulkan_Commands_Mode commands_mode,
+            std::vector<Vulkan_Commands_Record_Data>& records
         );
 
         void destroy();

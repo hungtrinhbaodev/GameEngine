@@ -54,114 +54,131 @@ void Graphic::Vulkan_Image::make(
     );
 }
 
-void Graphic::Vulkan_Image::transition_image_layout(
-    Vulkan_Commands_Mode command_mode,
+Graphic::Vulkan_Commands_Record_Data Graphic::Vulkan_Image::make_transition_record_data(
     VkFormat format,
     VkImageLayout old_layout,
     VkImageLayout new_layout,
     Vulkan_Command_Callback callback
 ) {
-    const auto& vk_default_submit = Vulkan_Utility::get_or_default_submit(
-        nullptr,
-        nullptr
-    );
-    Utility::Log::get()->log_info("transition_image_layout 1");
+    auto record = [this, old_layout, new_layout] (VkCommandBuffer command_buffer) {
+        Utility::Log::get()->log_info("transition_image_layout 2");
 
-    vk_default_submit.command_pool->record_single_commands(
-        command_mode,
-        [this, old_layout, new_layout] (VkCommandBuffer command_buffer) {
-            Utility::Log::get()->log_info("transition_image_layout 2");
+        VkImageMemoryBarrier barrier_info{};
+        barrier_info.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier_info.oldLayout = old_layout;
+        barrier_info.newLayout = new_layout;
+        barrier_info.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier_info.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier_info.image = _vk_image;
+        barrier_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier_info.subresourceRange.baseArrayLayer = 0;
+        barrier_info.subresourceRange.baseMipLevel = 0;
+        barrier_info.subresourceRange.levelCount = 1;
+        barrier_info.subresourceRange.layerCount = 1;
+        
+        VkPipelineStageFlags src_stage;
+        VkPipelineStageFlags dst_stage;
 
-            VkImageMemoryBarrier barrier_info{};
-            barrier_info.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-            barrier_info.oldLayout = old_layout;
-            barrier_info.newLayout = new_layout;
-            barrier_info.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier_info.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier_info.image = _vk_image;
-            barrier_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            barrier_info.subresourceRange.baseArrayLayer = 0;
-            barrier_info.subresourceRange.baseMipLevel = 0;
-            barrier_info.subresourceRange.levelCount = 1;
-            barrier_info.subresourceRange.layerCount = 1;
-            
-            VkPipelineStageFlags src_stage;
-            VkPipelineStageFlags dst_stage;
+        if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+            barrier_info.srcAccessMask = 0;
+            barrier_info.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
-            if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-                barrier_info.srcAccessMask = 0;
-                barrier_info.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        }
+        else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+            barrier_info.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier_info.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-                src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-                dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            }
-            else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-                barrier_info.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-                barrier_info.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        }
+        else {
+            throw std::runtime_error("Transfer layout are not supported!");
+        }
 
-                src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-                dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            }
-            else {
-                throw std::runtime_error("Transfer layout are not supported!");
-            }
+        vkCmdPipelineBarrier(
+            command_buffer,
+            src_stage,
+            dst_stage,
+            0,
+            0, nullptr,
+            0, nullptr,
+            1, &barrier_info
+        );
+    };
 
-            vkCmdPipelineBarrier(
-                command_buffer,
-                src_stage,
-                dst_stage,
-                0,
-                0, nullptr,
-                0, nullptr,
-                1, &barrier_info
-            );
-            // Utility::Log::get()->log_info("transition_image_layout 3");
-        },
-        callback
-    );
+    auto record_callback = [callback] () {
+        if (callback != nullptr) {
+            callback();
+        }
+    };
+
+    return Vulkan_Commands_Record_Data {
+        record,
+        record_callback
+    };
 }
 
-void Graphic::Vulkan_Image::copy_buffer_to_image(
-    Vulkan_Commands_Mode command_mode,
+Graphic::Vulkan_Commands_Record_Data Graphic::Vulkan_Image::make_copy_to_image_record_data(
     int width,
     int height,
-    const std::shared_ptr<Vulkan_Buffer> vk_staging_buffer,
+    void* pixels,
     Vulkan_Command_Callback callback
 ) {
-    // Utility::Log::get()->log_info("copy_buffer_to_image 1");
-    const auto& vk_default_submit = Vulkan_Utility::get_or_default_submit(
-        nullptr,
-        nullptr
-    );
+    std::shared_ptr<Vulkan_Buffer> staging_buffer = std::make_shared<Vulkan_Buffer>();
+    VkImage vk_image = _vk_image;
+    auto record = [staging_buffer, width, height, pixels, vk_image] (VkCommandBuffer command_buffer) {
 
-    // Utility::Log::get()->log_info("copy_buffer_to_image 2");
-    vk_default_submit.command_pool->record_single_commands(
-        command_mode,
-        [this, vk_staging_buffer, width, height] (VkCommandBuffer command_buffer) {
-            // Utility::Log::get()->log_info("copy_buffer_to_image 3");
+        VkDeviceSize image_size = width * height * 4;
 
-            VkBufferImageCopy region{};
-            region.bufferOffset = 0;
-            region.bufferRowLength = 0;
-            region.bufferImageHeight = 0;
-            region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            region.imageSubresource.mipLevel = 0;
-            region.imageSubresource.baseArrayLayer = 0;
-            region.imageSubresource.layerCount = 1;
-            region.imageOffset = {0, 0, 0};
-            region.imageExtent = {
-                (uint32_t) width,
-                (uint32_t) height,
-                1
-            };
-            // Utility::Log::get()->log_info("copy_buffer_to_image 4");
+        staging_buffer->make(
+            image_size,
+            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        );
 
-            vkCmdCopyBufferToImage(command_buffer, vk_staging_buffer->get(), _vk_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-        },
-        callback
-    );
+        staging_buffer->map_and_copy_data(
+            pixels,
+            image_size
+        );
 
-    // Utility::Log::get()->log_info("copy_buffer_to_image 5");
+        VkBufferImageCopy region{};
+        region.bufferOffset = 0;
+        region.bufferRowLength = 0;
+        region.bufferImageHeight = 0;
+        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.baseArrayLayer = 0;
+        region.imageSubresource.layerCount = 1;
+        region.imageOffset = {0, 0, 0};
+        region.imageExtent = {
+            (uint32_t) width,
+            (uint32_t) height,
+            1
+        };
+
+        vkCmdCopyBufferToImage(
+            command_buffer, 
+            staging_buffer->get(), 
+            vk_image, 
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
+            1, 
+            &region
+        );
+    };
+
+    auto callback_record = [staging_buffer, callback] () {
+        staging_buffer->destroy();
+        if (callback != nullptr) {
+            callback();
+        }
+    };
+
+    return Vulkan_Commands_Record_Data {
+        record,
+        callback_record
+    };
 } 
 
 VkImage Graphic::Vulkan_Image::get_image() {

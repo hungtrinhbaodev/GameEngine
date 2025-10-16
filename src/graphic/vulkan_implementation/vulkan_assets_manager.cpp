@@ -39,9 +39,6 @@ std::shared_ptr<Graphic::Vulkan_Texture> Graphic::Vulkan_Assets_Manager::load_vk
                 Vulkan_Texture_Load_Description {
                     load_mode,
                     tex
-                },
-                [path] (std::shared_ptr<Vulkan_Texture> tex) {
-                    Utility::Log::get()->log_info("Loaded Vulkan Texture finish: ", path);
                 }
             );
         }

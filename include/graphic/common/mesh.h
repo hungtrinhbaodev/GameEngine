@@ -24,13 +24,15 @@ namespace Graphic {
 
         void on_load(const Mesh_Load_Params& params);
 
+        const std::vector<Vertex>& get_vertices();
+
         void* get_vertices_data();
 
-        size_t get_vertices_memory_size();
+        uint32_t get_vertices_memory_size();
 
         void* get_indices_data();
 
-        size_t get_indices_memory_size();
+        uint32_t get_indices_memory_size();
     };
 
 };

@@ -40,15 +40,6 @@ void Graphic::Vulkan_Texture::on_load(const Vulkan_Texture_Load_Description& des
     const auto& texture_info = des.texture->get_texture_info();
     Utility::Log::get()->log_info("load_vk_texture 1");
 
-    _vk_image.make(
-        texture_info.width,
-        texture_info.height,
-        VK_FORMAT_R8G8B8A8_SRGB,
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-    );
-
     auto vk_device_default = Vulkan_Utility::get_or_default_device(
         VK_NULL_HANDLE,
         VK_NULL_HANDLE
@@ -58,61 +49,50 @@ void Graphic::Vulkan_Texture::on_load(const Vulkan_Texture_Load_Description& des
         nullptr,
         nullptr
     );
-    Utility::Log::get()->log_info("load_vk_texture 1.2", wp_sumit_default.command_pool, wp_sumit_default.queues);
 
-    _vk_image.transition_image_layout(
-        Vulkan_Utility::get_command_mode_by_load_resource_mode(des.load_mode),
+    _vk_image.make(
+        texture_info.width,
+        texture_info.height,
         VK_FORMAT_R8G8B8A8_SRGB,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        [this, des, texture_info, vk_device_default]() {
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    );
 
-            Utility::Log::get()->log_info("load_vk_texture 2");
+    std::vector<Vulkan_Commands_Record_Data> records;
 
-            VkDeviceSize image_size = texture_info.width * texture_info.height * 4;
+    records.emplace_back(
+        _vk_image.make_transition_record_data(
+            VK_FORMAT_R8G8B8A8_SRGB,
+            VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+        )
+    );
 
-            auto staging_buffer = std::make_shared<Vulkan_Buffer>();
+    records.emplace_back(
+        _vk_image.make_copy_to_image_record_data(
+            texture_info.width,
+            texture_info.height,
+            texture_info.pixels
+        )
+    );
 
-            Utility::Log::get()->log_info("load_vk_texture 2.1");
+    records.emplace_back(
+        _vk_image.make_transition_record_data(
+            VK_FORMAT_R8G8B8A8_SRGB,
+            VK_IMAGE_LAYOUT_UNDEFINED,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            [this, vk_device_default, des] () {
+                _make_vk_sampler(vk_device_default.vk_device, vk_device_default.vk_physical_device);
+                set_loaded_state(Core::Resource_Loaded_State::LOADED);
+                Utility::Log::get()->log_info("Loaded Vulkan Texture finish: ", des.texture->get_path());
+            }
+        )
+    );
 
-            staging_buffer->make(
-                image_size,
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-            );
-
-            staging_buffer->map_and_copy_data(
-                texture_info.pixels,
-                image_size
-            );
-
-            Utility::Log::get()->log_info("load_vk_texture 2.2");
-            
-            _vk_image.copy_buffer_to_image(
-                Vulkan_Utility::get_command_mode_by_load_resource_mode(des.load_mode),
-                texture_info.width,
-                texture_info.height,
-                staging_buffer,
-                [this, des, staging_buffer, vk_device_default]() {
-
-                    // destroy buffer staging when copy finish
-                    staging_buffer->destroy();
-
-                    Utility::Log::get()->log_info("load_vk_texture 3");
-                    _vk_image.transition_image_layout(
-                        Vulkan_Utility::get_command_mode_by_load_resource_mode(des.load_mode),
-                        VK_FORMAT_R8G8B8A8_SRGB,
-                        VK_IMAGE_LAYOUT_UNDEFINED,
-                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                        [this, des, vk_device_default]() {
-                            _make_vk_sampler(vk_device_default.vk_device, vk_device_default.vk_physical_device);
-                            set_loaded_state(Core::Resource_Loaded_State::LOADED);
-                            Utility::Log::get()->log_info("Loaded Vulkan Texture finish: ", des.texture->get_path());
-                        }
-                    );
-                }
-            );
-        }
+    wp_sumit_default.command_pool->record_sequence_commands(
+        Vulkan_Utility::get_command_mode_by_load_resource_mode(des.load_mode),
+        records
     );
 }
 

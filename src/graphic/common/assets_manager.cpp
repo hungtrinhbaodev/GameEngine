@@ -3,6 +3,7 @@
 Graphic::Assets_Manager::Assets_Manager() {
     _texs_storage = new Core::Resource_Storage<std::string, Texture, Texture_Load_Description>();
 
+    _meshs_storage = new Core::Resource_Storage<std::string, Mesh, Mesh_Load_Params>();
 };
 
 void Graphic::Assets_Manager::init_data() {
@@ -37,8 +38,10 @@ std::shared_ptr<Graphic::Mesh> Graphic::Assets_Manager::load_mesh(std::string pa
 
 void Graphic::Assets_Manager::destroy_data() {
     _texs_storage->destroy_resources();
+    _meshs_storage->destroy_resources();
 }
 
 Graphic::Assets_Manager::~Assets_Manager() {
     delete(_texs_storage);
+    delete(_meshs_storage);
 };

@@ -181,8 +181,9 @@ namespace Core {
         void _do_callbacks_loaded(const Key& key) {
 
             std::unique_lock<std::mutex> lock(_load_lock);
-
+            Utility::Log::get()->log_info("_do_callbacks_loaded 1", key, _callbacks.size());
             if (_callbacks.find(key) != _callbacks.end()) {
+                Utility::Log::get()->log_info("_do_callbacks_loaded 2", key, _callbacks[key].size());
                 for (const auto& callback : _callbacks[key]) {
                     std::shared_ptr<Resource_Extend> resource = _resources[key];
                     Resource_Loaded_Callback_Info task_info {
@@ -264,6 +265,7 @@ namespace Core {
                             // to future process
                             long task_id = _load_thread_pool.push_task(task_info);
                             _processing_tasks[key] = task_id;
+                            _add_callback_loaded(key, callback);
                             break;
                         }
                     }

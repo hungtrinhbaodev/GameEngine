@@ -191,16 +191,15 @@ void Graphic::Vulkan_Command_Pool::init(
  * Vulkan_Command_Pool field
  */
 
-void Graphic::Vulkan_Command_Pool::record_single_commands(
+void Graphic::Vulkan_Command_Pool::_record_single_commands(
     Vulkan_Commands_Mode commands_mode,
-    Vulkan_Command_Record record,
-    Vulkan_Command_Callback callback
+    const Vulkan_Commands_Record_Data& record_data
 ) {
     Utility::Log::get()->log_info("record_single_command 1", "commands_mode", commands_mode);
     Vulkan_Command_Task_Info task_info {
-        record,
+        record_data.record,
         commands_mode,
-        callback
+        record_data.callback
     };
     switch (commands_mode) {
         case Vulkan_Commands_Mode::COMMANDS_MODE_SYNC: {
@@ -218,6 +217,46 @@ void Graphic::Vulkan_Command_Pool::record_single_commands(
             break;
         }
     }
+}
+
+void Graphic::Vulkan_Command_Pool::record_single_commands(
+    Vulkan_Commands_Mode commands_mode,
+    Vulkan_Command_Record record,
+    Vulkan_Command_Callback callback
+) {
+    _record_single_commands(
+        commands_mode,
+        Vulkan_Commands_Record_Data {
+            record,
+            callback
+        }
+    );
+}
+
+void Graphic::Vulkan_Command_Pool::record_sequence_commands(
+    Vulkan_Commands_Mode commands_mode,
+    std::vector<Vulkan_Commands_Record_Data>& records
+) {
+    for (int i = records.size() - 1;i > 0;i--) {
+        auto record = records[i];
+        auto& prev_record = records[i - 1];
+        Vulkan_Command_Callback callback = prev_record.callback;
+        Vulkan_Command_Callback wapper_callback = [this, commands_mode, record, callback, i] () {
+            if (callback != nullptr) {
+                callback();
+            }
+            Utility::Log::get()->log_info("record_sequence_commands 2", "record", i, commands_mode);
+            this->_record_single_commands(
+                commands_mode,
+                record
+            );
+        };
+        prev_record.callback = wapper_callback;
+    }
+    _record_single_commands(
+        commands_mode,
+        records[0]
+    );
 }
 
 void Graphic::Vulkan_Command_Pool::destroy() {

@@ -3,6 +3,7 @@
 
 #include <vector>
 
+#include <utility/func_utils.h>
 #include <graphic/vulkan_implementation/vulkan_constants.h>
 #include <graphic/vulkan_implementation/vulkan_utility.h>
 #include <graphic/vulkan_implementation/vulkan_queues.h>
@@ -12,7 +13,7 @@ namespace Graphic {
 
     class Vulkan_Buffer {
 
-        private:
+        protected:
 
         VkDevice _vk_device;
 
@@ -20,14 +21,18 @@ namespace Graphic {
 
         VkDeviceMemory _vk_device_memory;
 
-        VkDeviceSize _size;
+        uint32_t _size = 0;
+
+        VkBufferUsageFlags _usage;
+
+        VkMemoryPropertyFlags _property_flags;
 
         void* _map_ptr;
 
         public:
 
         void make(
-            VkDeviceSize size,
+            uint32_t size,
             VkBufferUsageFlags usage,
             VkMemoryPropertyFlags property_flags
         );
@@ -36,28 +41,32 @@ namespace Graphic {
 
         void unmap_memory();
 
-        void copy_data(void * data_src, size_t size);
+        void copy_data(void * data_src, uint32_t size);
 
-        void map_and_copy_data(void * data_src, size_t size);
+        void map_and_copy_data(void * data_src, uint32_t size);
+
+        void swap_with_other(Vulkan_Buffer& other);
 
         VkBuffer get();
 
         VkDeviceSize get_size();
 
+        VkDeviceMemory& get_vk_device_memory();
+
         void destroy();
 
         static void copy_buffer(
             Vulkan_Commands_Mode commands_mode,
-            Vulkan_Buffer& src,
-            Vulkan_Buffer& dst,
+            Vulkan_Buffer* src,
+            Vulkan_Buffer* dst,
             const std::vector<VkBufferCopy>& copy_regions,
             Vulkan_Command_Callback callback = nullptr
         );
 
         static void copy_buffer(
             Vulkan_Commands_Mode commands_mode,
-            Vulkan_Buffer& src, 
-            Vulkan_Buffer& dst,
+            Vulkan_Buffer* src, 
+            Vulkan_Buffer* dst,
             Vulkan_Command_Callback callback = nullptr
         );
 
