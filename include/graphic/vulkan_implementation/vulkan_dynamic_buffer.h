@@ -21,6 +21,8 @@ namespace Graphic {
         
         public:
 
+        void log_buffer_data(const std::string& prefix = "");
+
         void make(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags);
     };
  

@@ -1,6 +1,7 @@
 #pragma once
 #include <mutex>
 #include <queue>
+#include <iostream>
 
 namespace Core {
 
@@ -8,6 +9,8 @@ namespace Core {
     class Objects_ID_Generated {
 
         protected:
+
+        bool is_init = false;
 
         std::mutex _gen_lock;
 
@@ -20,10 +23,20 @@ namespace Core {
             return counter;
         }
 
+        virtual void init() {
+
+        }
+
         public:
 
         ID gen_id() {
             std::unique_lock<std::mutex> lock(_gen_lock);
+            
+            if (!is_init) {
+                init();
+                is_init = true;
+            }
+
             ID _id;
             if (_un_used_ids.size() > 0) {
                 _id = _un_used_ids.front();
@@ -50,6 +63,12 @@ namespace Core {
     class Longs_ID_Generated : public Objects_ID_Generated<long> {
 
         protected:
+
+        void init() {
+            std::cout << "Go here init counter 1" << _counter << std::endl;
+            _counter = 0;
+            std::cout << "Go here init counter 2" << _counter << std::endl;
+        }
 
         long _inscrease_id(long counter) {
             counter++;

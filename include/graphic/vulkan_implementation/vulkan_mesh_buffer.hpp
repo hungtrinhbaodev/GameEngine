@@ -89,10 +89,8 @@ namespace Graphic {
         }
 
         void _log_buffer_data(const Key& key) {
-            map_memory();
-            const auto& parse_data = Utility::Func_Utils::parse_data<int>(_map_ptr, 0, _size);
-            Utility::Log::get()->log_info("append data", key, parse_data, "buffer propertices flag:", _property_flags);
-            unmap_memory();
+
+            Vulkan_Dynamic_Buffer::log_buffer_data();
 
             for (const auto& [key, offset] : _offset_data) {
                 Utility::Log::get()->log_info("Offset info at key", key, "offset: ", offset.offset, "size: ", offset.size);
@@ -109,7 +107,7 @@ namespace Graphic {
 
             // If push already exist key we will throw a exception
             if (_offset_data.find(key) != _offset_data.end()) {
-                throw std::runtime_error("fail to push data to dynamic buffer: key push already in!");
+                throw std::runtime_error("fail to push data to mesh buffer: key push already in!");
             }
 
             // Find the size suitable unused memory if has
@@ -161,7 +159,7 @@ namespace Graphic {
             // add offset data of key to unused memory
             _add_unused_offset_data(_offset_data[key]);
 
-            // clear key from data to un tracking
+            // clear key from data to untracking
             _offset_data.erase(key);
         }
 

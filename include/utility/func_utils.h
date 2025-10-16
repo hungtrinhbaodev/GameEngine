@@ -33,7 +33,6 @@ namespace Utility {
             size_t stride = sizeof(T);
             std::vector<T> ret;
             ret.reserve(parse_data.size() / stride);
-            Utility::Log::get()->log_info("parse_data.size() / stride", parse_data.size(), stride, parse_data.size() / stride);
             for (int i = 0;i < parse_data.size() / stride; i++) {
                 std::vector<uint8_t> byte_in_stride;
                 byte_in_stride.reserve(stride);

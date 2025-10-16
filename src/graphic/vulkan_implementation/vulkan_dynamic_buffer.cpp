@@ -28,32 +28,35 @@ uint32_t Graphic::Vulkan_Dynamic_Buffer::_on_resize(uint32_t additional_size) {
     // after addition for future using
     else {
 
-        uint32_t additional_size_need = additional_size + uint32_t((_size + additional_size) * 0.5f);
+        uint32_t additional_size_need = uint32_t((_size + additional_size) * 0.5f);
 
         // make staging buffer
-        Vulkan_Buffer staging_buffer;
+        Vulkan_Buffer* staging_buffer = new Vulkan_Buffer();
 
-        staging_buffer.make(
+        staging_buffer->make(
             _size + additional_size_need,
             _usage,
             _property_flags
         );
 
-        Utility::Log::get()->log_info("_on_resize 4", staging_buffer.get_vk_device_memory(), _vk_device_memory);
+        Utility::Log::get()->log_info("_on_resize 4", staging_buffer->get_vk_device_memory(), _vk_device_memory);
         // make a copy to template buffer
         Vulkan_Buffer::copy_buffer(
             Vulkan_Commands_Mode::COMMANDS_MODE_SYNC,
             this,
-            &staging_buffer,
-            {{0, 0, _size}}
+            staging_buffer,
+            {{0, 0, _size}},
+            [this, staging_buffer] () {
+
+                // swap two buffer with each other
+                swap_with_other(*staging_buffer);
+
+                // destroy the staging is swapped
+                staging_buffer->destroy();
+            }
         );
 
-        // swap two buffer with each other
-        swap_with_other(staging_buffer);
-        Utility::Log::get()->log_info("_on_resize 5", staging_buffer.get_vk_device_memory(), _vk_device_memory);
-
-        // destroy the staging is swapped
-        staging_buffer.destroy();
+        Utility::Log::get()->log_info("_on_resize 5", staging_buffer->get_vk_device_memory(), _vk_device_memory);
 
         return additional_size_need;
     }
@@ -74,21 +77,30 @@ void Graphic::Vulkan_Dynamic_Buffer::_copy_data_to_offset(
     }
     else {
         // we make a staging buffer and copy that
-        Vulkan_Buffer staging_buffer;
+        Vulkan_Buffer* staging_buffer = new Vulkan_Buffer();
         void* src_cpy_data = (uint8_t*)src_data + src_offset;
-        staging_buffer.make(
+        staging_buffer->make(
             size,
             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         );
-        staging_buffer.map_and_copy_data(src_cpy_data, size);
+        staging_buffer->map_and_copy_data(src_cpy_data, size);
         Vulkan_Buffer::copy_buffer(
             Vulkan_Commands_Mode::COMMANDS_MODE_SYNC,
-            &staging_buffer,
+            staging_buffer,
             this,
-            {{0, dst_offset, size}}
+            {{0, dst_offset, size}},
+            [staging_buffer] () {
+                staging_buffer->destroy();
+            }
         );
-        staging_buffer.destroy();
     }
 
+}
+
+void Graphic::Vulkan_Dynamic_Buffer::log_buffer_data(const std::string& prefix) {
+    map_memory();
+    const auto& parse_data = Utility::Func_Utils::parse_data<int>(_map_ptr, 0, _size);
+    Utility::Log::get()->log_info("append data", prefix, parse_data, "buffer propertices flag:", _property_flags);
+    unmap_memory();
 }
