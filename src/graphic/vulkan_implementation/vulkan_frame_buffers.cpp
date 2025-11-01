@@ -30,6 +30,14 @@ void Graphic::Vulkan_Frame_Buffers::init(
     Utility::Log::get()->log_info("Create frame buffers success!");
 }
 
+VkFramebuffer Graphic::Vulkan_Frame_Buffers::get_frame_buffer(uint32_t current_frame) {
+    if (current_frame < 0 || current_frame > Vulkan_Constants::MAX_FRAMES_IN_FLIGHT) {
+        throw std::runtime_error("Fail to get frame buffer: invalid frame id!");
+    }
+
+    return _vk_frame_buffers[current_frame];
+}
+
 const std::vector<VkFramebuffer>& Graphic::Vulkan_Frame_Buffers::get() {
     return _vk_frame_buffers;
 }

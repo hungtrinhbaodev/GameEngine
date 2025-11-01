@@ -20,7 +20,7 @@ namespace Graphic {
         int channels;
     };
 
-    class Texture : public Core::Resource<Texture_Load_Description> {
+    class Texture : public Core::Resource<Texture_Load_Description, std::string> {
 
         private:
         

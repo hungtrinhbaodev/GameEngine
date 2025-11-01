@@ -80,9 +80,11 @@ void Graphic::Vulkan_Swapchain::init(
     }
 
     uint32_t image_count = swapchain_detail.capabilities.minImageCount + 1;
-    if (swapchain_detail.capabilities.maxImageCount < image_count) {
+    if(swapchain_detail.capabilities.maxImageCount > 0 && image_count > swapchain_detail.capabilities.maxImageCount){
         image_count = swapchain_detail.capabilities.maxImageCount;
     }
+
+    Utility::Log::get()->log_info("Vulkan_Swapchain::init", swapchain_detail.capabilities.maxImageCount, swapchain_detail.capabilities.minImageCount);
 
     VkSwapchainCreateInfoKHR create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -127,6 +129,7 @@ void Graphic::Vulkan_Swapchain::init(
     vkGetSwapchainImagesKHR(vk_device, _vk_swapchain, &image_count, nullptr);
     _vk_swapchain_images.resize(image_count);
     vkGetSwapchainImagesKHR(vk_device, _vk_swapchain, &image_count, _vk_swapchain_images.data());
+    Utility::Log::get()->log_info("swapchain image count", image_count);
     
     _vk_swapchain_format = format.format;
     _vk_swapchain_extent = extent;
@@ -135,6 +138,28 @@ void Graphic::Vulkan_Swapchain::init(
         _vk_swapchain_images, 
         _vk_swapchain_format, 
         vk_device
+    );
+}
+
+void Graphic::Vulkan_Swapchain::recreate_swapchain(
+    VkPhysicalDevice vk_physical_device,
+    VkSurfaceKHR vk_surface,
+    VkDevice vk_device,
+    GLFWwindow* window
+) {
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(window, &width, &height);
+    while (width == 0 || height == 0) {
+        glfwGetFramebufferSize(window, &width, &height);
+        glfwWaitEvents();
+    }
+    vkDeviceWaitIdle(vk_device);
+    destroy(vk_device);
+    init(
+        vk_physical_device,
+        vk_surface,
+        vk_device,
+        window
     );
 }
 

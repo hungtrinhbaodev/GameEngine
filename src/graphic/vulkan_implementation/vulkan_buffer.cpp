@@ -4,7 +4,8 @@
 void Graphic::Vulkan_Buffer::make(
     uint32_t size,
     VkBufferUsageFlags usage,
-    VkMemoryPropertyFlags property_flags
+    VkMemoryPropertyFlags property_flags,
+    bool is_auto_map_memory
 ) {
 
     const auto& vk_default_data = Vulkan_Utility::get_or_default_device(VK_NULL_HANDLE, VK_NULL_HANDLE);
@@ -16,6 +17,7 @@ void Graphic::Vulkan_Buffer::make(
     _usage = usage;
     _property_flags = property_flags;
     _size = size;
+    _is_auto_map_memory = is_auto_map_memory;
 
     VkBufferCreateInfo buffer_info{};
     buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -46,29 +48,48 @@ void Graphic::Vulkan_Buffer::make(
     );
 
     vkBindBufferMemory(_vk_device, _vk_buffer, _vk_device_memory, 0);
+
+    if(_is_auto_map_memory) {
+        map_memory();
+    }
 }
 
 void Graphic::Vulkan_Buffer::map_memory() {
-    vkMapMemory(
-        _vk_device, 
-        _vk_device_memory, 
-        0, 
-        static_cast<VkDeviceSize>(_size), 
-        0,
-        &_map_ptr
-    );
+    switch (_map_state) {
+        case Vulkan_Buffer_Map_Memory_State::UNMAP: {
+            vkMapMemory(
+                _vk_device, 
+                _vk_device_memory, 
+                0, 
+                static_cast<VkDeviceSize>(_size), 
+                0,
+                &_map_ptr
+            );
+            _map_state = Vulkan_Buffer_Map_Memory_State::MAPPED;
+            break;
+        }
+        default:{
+            break;
+        }
+    }
+    
 }
 
 void Graphic::Vulkan_Buffer::unmap_memory() {
-    vkUnmapMemory(_vk_device, _vk_device_memory);
+    switch (_map_state) {
+        case Vulkan_Buffer_Map_Memory_State::MAPPED: {
+            vkUnmapMemory(_vk_device, _vk_device_memory);
+            _map_state = Vulkan_Buffer_Map_Memory_State::UNMAP;
+            break;
+        }
+        default: {
+            break;
+        }
+    }
 }
 
 void Graphic::Vulkan_Buffer::copy_data(void * data_src, uint32_t size) {
-    Utility::Log::get()->log_info("copy_data 1", size);
     memcpy(this->_map_ptr, data_src, static_cast<size_t>(size));
-    Utility::Log::get()->log_info("copy_data 2", size);
-    size = 5;
-    Utility::Log::get()->log_info("copy_data 3", size);
 }
 
 void Graphic::Vulkan_Buffer::map_and_copy_data(void * data_src, uint32_t size) {
@@ -81,12 +102,23 @@ void Graphic::Vulkan_Buffer::map_and_copy_data(void * data_src, uint32_t size) {
 }
 
 void Graphic::Vulkan_Buffer::swap_with_other(Vulkan_Buffer& other) {
+    unmap_memory();
+    other.unmap_memory();
+
     Utility::Func_Utils::swap(_vk_buffer, other._vk_buffer);
     Utility::Func_Utils::swap(_size, other._size);
     Utility::Func_Utils::swap(_map_ptr, other._map_ptr);
     Utility::Func_Utils::swap(_vk_device_memory, other._vk_device_memory);
     Utility::Func_Utils::swap(_usage, other._usage);
     Utility::Func_Utils::swap(_property_flags, other._property_flags);
+
+    if (_is_auto_map_memory) {
+        map_memory();
+    }
+
+    if (other._is_auto_map_memory) {
+        other.map_memory();
+    }
 }
 
 VkBuffer Graphic::Vulkan_Buffer::get() {
@@ -102,11 +134,11 @@ VkDeviceMemory& Graphic::Vulkan_Buffer::get_vk_device_memory() {
 }
 
 void Graphic::Vulkan_Buffer::destroy() {
-    Utility::Log::get()->log_info("Graphic::Vulkan_Buffer::destroy", _vk_device);
     vkDestroyBuffer(_vk_device, _vk_buffer, nullptr);
 
     vkFreeMemory(_vk_device, _vk_device_memory, nullptr);
 
+    Utility::Log::get()->log_info("Graphic::Vulkan_Buffer::destroy", _vk_buffer, _vk_device);
 }
 
 void Graphic::Vulkan_Buffer::copy_buffer(

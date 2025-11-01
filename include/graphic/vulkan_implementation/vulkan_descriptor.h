@@ -1,9 +1,12 @@
+#pragma once
 #include <vulkan/vulkan.h>
 
+#include <core/key_to_index_generated.hpp>
 #include <graphic/vulkan_implementation/vulkan_builder.h>
 #include <graphic/vulkan_implementation/vulkan_constants.h>
 #include <graphic/vulkan_implementation/vulkan_utility.h>
 #include <graphic/vulkan_implementation/vulkan_buffer.h>
+#include <graphic/vulkan_implementation/vulkan_texture.h>
 
 namespace Graphic {
 
@@ -17,11 +20,13 @@ namespace Graphic {
 
         VkDevice _vk_device;
 
-        VkDescriptorSetLayout _vk_descriptor_set_layout;
+        std::vector<VkDescriptorSetLayout> _vk_descriptor_set_layouts;
 
         VkDescriptorPool _vk_descriptor_pool;
 
         std::vector<VkDescriptorSet> _vk_descriptor_sets;
+
+        Core::Key_To_Index_Generated<std::string> key_to_index_generater;
 
         public:
 
@@ -37,19 +42,23 @@ namespace Graphic {
             VkShaderStageFlags vk_stageFlags
         );
 
-        void init_descriptor_set_layout();
+        void init_descriptor_set_layouts();
 
         void init_descriptor_pool();
 
-        VkDescriptorSetLayout get_descriptor_set_layout();
+        const std::vector<VkDescriptorSetLayout>& get_descriptor_set_layouts();
 
         void update_uniform_descriptor(
             std::vector<Vulkan_Buffer>& uniform_buffers
         );
 
         void update_texture_descriptor(
-
+            std::shared_ptr<Vulkan_Texture> vk_texture
         );
+
+        VkDescriptorSet get_uniform_descriptor_set(uint32_t current_frame);
+
+        VkDescriptorSet get_sampler_descriptor_set(uint32_t current_frame, std::string texture_key);
 
         void destroy();
 

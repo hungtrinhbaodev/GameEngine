@@ -42,7 +42,7 @@ namespace Core {
 
     enum Thread_Task_State {
         NONE,
-        WATIING,
+        WAITING,
         PROCESSING,
         ENDING
     };
@@ -109,8 +109,9 @@ namespace Core {
         /**
          * Add state of task to task tracking data to keep track
          */
-        void _add_task_tracking(const long& task_id, Thread_Task_State task_state) {
+        void _add_task_tracking(long task_id, Thread_Task_State task_state) {
             std::unique_lock<std::mutex> lock(_task_tracking_lock);
+            Utility::Log::get()->log_info("_size of task tracking data", _processing_tasks.size());
             if (_processing_tasks.find(task_id) == _processing_tasks.end()) {
                 _processing_tasks[task_id] = Task_Tracking_Data {
                     task_state,
@@ -119,7 +120,22 @@ namespace Core {
                 };
             }
             else {
+                if (task_state == Thread_Task_State::WAITING) {
+                    Utility::Log::get()->log_info("_add_task_tracking task id is already waiting", task_id);
+                    return;
+                }
                 _processing_tasks[task_id].task_state = task_state;
+            }
+        }
+
+        /**
+         * Add clear of task to task tracking data to keep track
+         */
+        void _delete_task_tracking(const long& task_id) {
+            std::unique_lock<std::mutex> lock(_task_tracking_lock);
+            if (_processing_tasks.find(task_id) != _processing_tasks.end()){
+                _task_id_generated.free_id(task_id);
+                _processing_tasks.erase(task_id);
             }
         }
 
@@ -127,7 +143,7 @@ namespace Core {
          * Query task tracking data by task id to keep track
          */
         Task_Tracking_Data _get_task_tracking_data(long task_id) {
-
+            std::unique_lock<std::mutex> lock(_task_tracking_lock);
             if (_processing_tasks.find(task_id) == _processing_tasks.end()) {
                 return Task_Tracking_Data {
                     Thread_Task_State::NONE,
@@ -214,15 +230,13 @@ namespace Core {
                         {
                             switch (task_tracking_data.task_state) {
                                 case Thread_Task_State::NONE: {
-
                                     break;
                                 }
                                 
                                 default: {
-
                                     std::unique_lock<std::mutex> lock(*task_tracking_data.task_mutex);
                                     task_tracking_data.task_condition->notify_one();
-                                    this->_processing_tasks.erase(task_data.task_id);
+                                    _delete_task_tracking(task_data.task_id);
                                     break;
                                 }
                             }
@@ -246,16 +260,15 @@ namespace Core {
             // Task_Info class with task id to tracking
             {
                 std::unique_lock<std::mutex> lock(_queue_lock);
+                task_id = _task_id_generated.gen_id();
                 _queues_task.push({
-                    _task_id_generated.gen_id(),
+                    task_id,
                     task
                 });
-
-                task_id = _queues_task.front().task_id;
+                // fix here: when we push task the thread already get task
+                // so we need add task tracking first before thread get it
+                _add_task_tracking(task_id, Thread_Task_State::WAITING);
             }
-
-            // Add state of task to tracking future
-            _add_task_tracking(task_id, Thread_Task_State::WATIING);
 
             // Notify for some thread is sleep to do task
             _queue_condition.notify_one();
@@ -308,11 +321,16 @@ namespace Core {
 
             // In other state waiting and loading we need sleep current thread
             // and wait until it's processed finish
+            // Utility::Log::get()->log_info("wait_to_task_end 1", task_id);
             std::unique_lock<std::mutex> lock(*task_tracking_data.task_mutex);
             task_tracking_data.task_condition->wait(lock, [this, task_id]() {
                 Task_Tracking_Data task_tracking_data = _get_task_tracking_data(task_id);
+                // Utility::Log::get()->log_info("wait_to_task_end 2", task_id, task_tracking_data.task_state);
                 return !this->is_running() || task_tracking_data.task_state == Thread_Task_State::ENDING || task_tracking_data.task_state == Thread_Task_State::NONE;
             });
+
+            // Utility::Log::get()->log_info("wait_to_task_end 3", task_id);
+            _delete_task_tracking(task_id);
         }
 
         /**

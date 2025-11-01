@@ -12,7 +12,7 @@ namespace Graphic {
         std::string path;
     };
     
-    class Mesh : public Core::Resource<Mesh_Load_Params> {
+    class Mesh : public Core::Resource<Mesh_Load_Params, std::string> {
 
         private:
 

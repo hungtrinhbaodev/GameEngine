@@ -1,4 +1,6 @@
 #pragma once
+
+#include <mutex>
 #include <iostream>
 #include <map>
 
@@ -7,8 +9,14 @@
 namespace Graphic {
 
     struct Vulkan_Mesh_Buffer_Offset {
+
         uint32_t offset = 0;
         uint32_t size = 0;
+
+        friend std::ostream& operator<<(std::ostream& os, const Vulkan_Mesh_Buffer_Offset& offset) {
+            os << "offset: " << offset.offset << " " << "size: " << offset.size;
+            return os;
+        };
     };
 
     template<typename Key>
@@ -105,6 +113,8 @@ namespace Graphic {
 
         void push_data(const Key& key, void* data, uint32_t offset, uint32_t size) {
 
+            std::unique_lock<std::mutex> lock(_buffer_lock);
+
             // If push already exist key we will throw a exception
             if (_offset_data.find(key) != _offset_data.end()) {
                 throw std::runtime_error("fail to push data to mesh buffer: key push already in!");
@@ -135,7 +145,7 @@ namespace Graphic {
             // Resize the buffer to push data
             if (size_need_append > 0) {
                 _on_resize(size_need_append);
-            } 
+            }
 
             // Copy the using data to last offset using
             _copy_data_to_offset(data, offset, _using_size, size);
@@ -151,6 +161,9 @@ namespace Graphic {
         }
 
         void delete_data(const Key& key) {
+
+            std::unique_lock<std::mutex> lock(_buffer_lock);
+
             // if not have key do notthing
             if (_offset_data.find(key) == _offset_data.end()) {
                 return;

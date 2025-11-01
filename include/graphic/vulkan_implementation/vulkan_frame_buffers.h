@@ -24,6 +24,8 @@ namespace Graphic {
 
         const std::vector<VkFramebuffer>& get();
 
+        VkFramebuffer get_frame_buffer(uint32_t current_frame);
+
         void destroy(VkDevice vk_device);
     };
 }

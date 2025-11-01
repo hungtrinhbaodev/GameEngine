@@ -18,6 +18,12 @@ namespace Utility {
             return rand_number;
         }
 
+        static double rand_range(double start = 0.0, double end = 1.0f) {
+            std::uniform_real_distribution<double> distribution(start, end);
+            double rand_number = distribution(_generator); 
+            return rand_number;
+        }
+
     };
 
 }

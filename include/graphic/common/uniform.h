@@ -14,5 +14,5 @@ namespace Graphic {
         
         glm::mat4 projection;
 
-    };   
+    };
 }

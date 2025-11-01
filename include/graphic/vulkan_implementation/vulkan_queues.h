@@ -40,6 +40,17 @@ namespace Graphic {
             Submit_Callback callback = nullptr
         );
 
+        void submit_custom_commands(
+            const VkSubmitInfo& vk_submit_info,
+            VkFence vk_fence
+        );
+
+        void submit_present_commands(
+            const VkPresentInfoKHR& vk_present_info
+        );
+
+        void wait_to_idle();
+
         VkQueue get_graphics_queue();
 
         VkQueue get_present_queue();

@@ -4,6 +4,7 @@
 
 void Graphic::Vulkan_Utility::vk_check_action(VkResult result, std::string crash_message) {
     if (result != VK_SUCCESS) {
+        Utility::Log::get()->log_info("Fail action result", result);
         throw std::runtime_error(crash_message.data());
     }
 }

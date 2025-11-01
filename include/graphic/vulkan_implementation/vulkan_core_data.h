@@ -24,6 +24,8 @@
 #include <graphic/vulkan_implementation/vulkan_fences.h>
 #include <graphic/vulkan_implementation/vulkan_command_pool.h>
 #include <graphic/vulkan_implementation/vulkan_assets_manager.h>
+#include <graphic/vulkan_implementation/vulkan_render_data.h>
+#include <graphic/vulkan_implementation/vulkan_semaphores.h>
 #include <graphic/common/window.h>
 #include <graphic/common/uniform.h>
 
@@ -64,6 +66,10 @@ namespace Graphic {
         Vulkan_Command_Pool* wp_command_pool = nullptr;
 
         Vulkan_Assets_Manager* wp_assets_mgr = nullptr;
+
+        Vulkan_Render_Data* wp_render_data = nullptr;
+
+        Vulkan_Semaphores* wp_semaphores = nullptr;
     };
 
     /**
@@ -130,6 +136,20 @@ namespace Graphic {
 
         Vulkan_Assets_Manager* _vk_assets_mgr;
 
+        Vulkan_Render_Data* _vk_render_data;
+
+        Vulkan_Semaphores* _vk_semaphores;
+
+        std::vector<VkFence> _vk_draw_fences;
+
+        std::vector<VkSemaphore> _vk_draw_semaphores;
+
+        std::vector<VkSemaphore> _vk_render_finish_semaphores;
+
+        std::vector<VkCommandBuffer> _vk_draw_command_buffers;
+
+        int _current_frame = 0;
+
         void _init_uniform_buffers();
 
         /**
@@ -149,6 +169,10 @@ namespace Graphic {
         void update_data();
 
         void clear_data();
+
+        void update_uniform_buffer();
+
+        void on_draw_frame();
 
         Vulkan_Core_Data();
 

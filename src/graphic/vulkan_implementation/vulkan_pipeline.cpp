@@ -79,7 +79,7 @@ VkPipelineRasterizationStateCreateInfo Graphic::Vulkan_Pipeline::_create_rasteri
     info.polygonMode = VK_POLYGON_MODE_FILL;
     info.lineWidth = 1.0f;
     info.cullMode = VK_CULL_MODE_BACK_BIT;
-    info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    info.frontFace = VK_FRONT_FACE_CLOCKWISE;
     info.depthBiasEnable = VK_FALSE;
     return info;
 }
@@ -124,8 +124,9 @@ VkPipelineDynamicStateCreateInfo Graphic::Vulkan_Pipeline::_create_dynamic_state
 VkPipelineLayoutCreateInfo Graphic::Vulkan_Pipeline::_create_pipeline_layout_info(const Vulkan_Pipeline_Config& pipeline_config) {
     VkPipelineLayoutCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    info.setLayoutCount = 1;
-    info.pSetLayouts = &pipeline_config.descriptor_set_layout;
+    const auto& vk_descriptor_set_layouts = pipeline_config.descriptor_set_layouts;
+    info.setLayoutCount = vk_descriptor_set_layouts.size();
+    info.pSetLayouts = vk_descriptor_set_layouts.data();
     return info;
 }
 
@@ -213,7 +214,15 @@ void Graphic::Vulkan_Pipeline::init(
     vkDestroyShaderModule(vk_device, fragment_module, nullptr);
  }
 
- void Graphic::Vulkan_Pipeline::destroy(VkDevice vk_device) {
+VkPipeline Graphic::Vulkan_Pipeline::get() {
+    return _vk_pipeline;
+}
+
+VkPipelineLayout Graphic::Vulkan_Pipeline::get_layout() {
+    return _vk_pipeline_layout;
+}
+
+void Graphic::Vulkan_Pipeline::destroy(VkDevice vk_device) {
 
     // destroy vulkan pipeline 
     vkDestroyPipeline(vk_device, _vk_pipeline, nullptr);
@@ -222,7 +231,7 @@ void Graphic::Vulkan_Pipeline::init(
     // destroy vulkan pipeline layout
     vkDestroyPipelineLayout(vk_device, _vk_pipeline_layout, nullptr);
     Utility::Log::get()->log_info("Destroy pipeline layout success!");
- }
+}
 
 /**
  * Builder pipeline field

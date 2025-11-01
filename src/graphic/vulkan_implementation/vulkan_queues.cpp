@@ -36,22 +36,22 @@ void Graphic::Vulkan_Queues::submit_single_commands(
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &command_buffer;
 
-    Utility::Log::get()->log_info("submit_single_commands 1", "command buffer:", command_buffer);
+    // Utility::Log::get()->log_info("submit_single_commands 1", "command buffer:", command_buffer);
 
     switch(submit_mode) {
         case Vulkan_Queue_Submit_Mode::SUBMIT_MODE_SYNC: {
-            Utility::Log::get()->log_info("submit_single_commands 2", "command buffer:", command_buffer, "graphic queue: ", _vk_graphics_queue);
+            // Utility::Log::get()->log_info("submit_single_commands 2", "command buffer:", command_buffer, "graphic queue: ", _vk_graphics_queue);
             vkQueueSubmit(_vk_graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
-            Utility::Log::get()->log_info("submit_single_commands 2.1", "graphic queue: ", _vk_graphics_queue);
+            // Utility::Log::get()->log_info("submit_single_commands 2.1", "graphic queue: ", _vk_graphics_queue);
             vkQueueWaitIdle(_vk_graphics_queue);
             
-            Utility::Log::get()->log_info("submit_single_commands 3");
+            // Utility::Log::get()->log_info("submit_single_commands 3");
             lock.unlock();
 
             if(callback != nullptr) {
                 callback();
             }
-            Utility::Log::get()->log_info("submit_single_commands 4");
+            // Utility::Log::get()->log_info("submit_single_commands 4");
             break;
         }
         default: {
@@ -69,10 +69,35 @@ void Graphic::Vulkan_Queues::submit_single_commands(
     }
 }
 
+void Graphic::Vulkan_Queues::submit_custom_commands(
+    const VkSubmitInfo& vk_submit_info,
+    VkFence vk_fence
+) {
+    std::unique_lock<std::mutex> lock(_sumit_lock);
+    Vulkan_Utility::vk_check_action(
+        vkQueueSubmit(_vk_graphics_queue, 1, &vk_submit_info, vk_fence),
+        "failed to submit custom command buffer!"
+    );
+}
+
+void Graphic::Vulkan_Queues::submit_present_commands(
+    const VkPresentInfoKHR& vk_present_info
+) {
+    std::unique_lock<std::mutex> lock(_sumit_lock);
+    Vulkan_Utility::vk_check_action(
+        vkQueuePresentKHR(_vk_present_queue, &vk_present_info),
+        "failed to submit present command buffer!"
+    );
+}
+
 VkQueue Graphic::Vulkan_Queues::get_graphics_queue() {
     return _vk_graphics_queue;
 }
 
 VkQueue Graphic::Vulkan_Queues::get_present_queue() {
     return _vk_present_queue;
+}
+
+void Graphic::Vulkan_Queues::wait_to_idle() {
+    vkQueueWaitIdle(_vk_graphics_queue);
 }

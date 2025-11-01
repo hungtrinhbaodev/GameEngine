@@ -22,7 +22,7 @@ namespace Graphic {
 
         std::vector<VkVertexInputAttributeDescription> vertex_attributes;
 
-        VkDescriptorSetLayout descriptor_set_layout;
+        std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
     };
 
     class Vulkan_Pipeline {
@@ -71,6 +71,10 @@ namespace Graphic {
             VkRenderPass vk_render_pass,
             const Vulkan_Pipeline_Config& pipeline_config
         );
+
+        VkPipeline get();
+
+        VkPipelineLayout get_layout();
 
         void destroy(VkDevice vk_device);
     };

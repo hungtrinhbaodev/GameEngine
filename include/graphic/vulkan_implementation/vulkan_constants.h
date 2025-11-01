@@ -3,6 +3,7 @@
 #include <vulkan/vulkan_beta.h>
 
 #include <vector>
+#include <string>
 
 namespace Graphic {
 
@@ -49,6 +50,8 @@ namespace Graphic {
         static std::string DEFAULT_PATH_SHADER_DRAW_DEFAULT;
 
         static std::string DEFAULT_PATH_SHADER_DRAW_WITH_TEXTURE;
+
+        static uint32_t MAX_NUMBER_DESCRIPTOR_TEXTURE;
     };
 
 }

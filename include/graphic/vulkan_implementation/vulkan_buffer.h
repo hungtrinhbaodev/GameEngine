@@ -11,6 +11,11 @@
 
 namespace Graphic {
 
+    enum Vulkan_Buffer_Map_Memory_State {
+        UNMAP,
+        MAPPED
+    };
+
     class Vulkan_Buffer {
 
         protected:
@@ -29,12 +34,17 @@ namespace Graphic {
 
         void* _map_ptr;
 
+        bool _is_auto_map_memory = false;
+
+        Vulkan_Buffer_Map_Memory_State _map_state = Vulkan_Buffer_Map_Memory_State::UNMAP;
+
         public:
 
         void make(
             uint32_t size,
             VkBufferUsageFlags usage,
-            VkMemoryPropertyFlags property_flags
+            VkMemoryPropertyFlags property_flags,
+            bool is_auto_map_memory = false
         );
 
         void map_memory();

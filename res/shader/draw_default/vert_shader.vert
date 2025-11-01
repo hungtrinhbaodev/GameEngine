@@ -19,6 +19,6 @@ layout (location = 0) out vec3 fragColor;
 
 void main(){
     mat4 model = mat4(inModelMatrixCol0, inModelMatrixCol1, inModelMatrixCol2, inModelMatrixCol3);
-    gl_Position =  ubo.projection * ubo.view * model * vec4(inPosition, 1.0);
+    gl_Position =  model * vec4(inPosition, 1.0);
     fragColor = inColor;
 }

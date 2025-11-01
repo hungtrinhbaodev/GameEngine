@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <map>
+#include <mutex>
 
 #include <graphic/vulkan_implementation/vulkan_buffer.h>
 
@@ -18,12 +19,29 @@ namespace Graphic {
             uint32_t dst_offset,
             uint32_t size
         );
+
+        std::mutex _buffer_lock;
         
         public:
 
         void log_buffer_data(const std::string& prefix = "");
 
-        void make(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags);
+        void make(
+            VkBufferUsageFlags usage, 
+            VkMemoryPropertyFlags property_flags,
+            bool is_auto_map_memory = false
+        );
+
+        /**
+         * request using buffer will return buffer
+         * and make buffer in sync processing
+         * and safe to using
+         */
+        VkBuffer request_using_buffer();
+
+        void release_using_buffer();
+
+        ~Vulkan_Dynamic_Buffer();
     };
  
 }

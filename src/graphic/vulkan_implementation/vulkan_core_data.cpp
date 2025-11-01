@@ -16,6 +16,8 @@ Graphic::Vulkan_Core_Data::Vulkan_Core_Data() {
     _vk_fences = new Vulkan_Fences();
     _vk_command_pool = new Vulkan_Command_Pool();
     _vk_assets_mgr = new Vulkan_Assets_Manager();
+    _vk_render_data = new Vulkan_Render_Data();
+    _vk_semaphores = new Vulkan_Semaphores();
 }
 
 Graphic::Vulkan_Core_Data::~Vulkan_Core_Data() {
@@ -30,6 +32,8 @@ Graphic::Vulkan_Core_Data::~Vulkan_Core_Data() {
     delete(_vk_fences);
     delete(_vk_command_pool);
     delete(_vk_assets_mgr);
+    delete(_vk_render_data);
+    delete(_vk_semaphores);
 }
 
 void Graphic::Vulkan_Core_Data::_init_uniform_buffers() {
@@ -115,7 +119,7 @@ void Graphic::Vulkan_Core_Data::_init_objects_draw_stage() {
             path_frag_shader,
             Vulkan_Vertex::get_vertex_input_binding_descriptions(),
             Vulkan_Vertex::get_vertex_input_attribute_descriptions(draw_ID),
-            _descriptors[draw_ID]->get_descriptor_set_layout()
+            _descriptors[draw_ID]->get_descriptor_set_layouts()
         };
 
         // builder pipeline at draw ID
@@ -176,7 +180,12 @@ void Graphic::Vulkan_Core_Data::init_data(Window *window) {
     );
 
     // init vulkan swapchain
-    _vk_swapchain->init(_vk_physical_device->get(), _vk_surface->get(), _vk_device->get(), _window->get_window());
+    _vk_swapchain->init(
+        _vk_physical_device->get(), 
+        _vk_surface->get(), 
+        _vk_device->get(), 
+        _window->get_window()
+    );
 
     // init vulkan command pool
     _vk_command_pool->init(
@@ -205,7 +214,26 @@ void Graphic::Vulkan_Core_Data::init_data(Window *window) {
     _init_objects_draw_stage();
 
     // init vulkan asset manager to storage resource
-    _vk_assets_mgr->init_data();
+    _vk_assets_mgr->init_data(_descriptors[Vulkan_Draw_ID::OBJECT_WITH_TEXTURE]);
+
+    // init vulkan render data
+    _vk_render_data->init(
+        _vk_assets_mgr
+    );
+
+    // init semaphores
+    _vk_semaphores->init(
+        _vk_device->get()
+    );
+
+    // init draw synchonization objects
+    // and draw command buffers
+    for (int i = 0;i < Vulkan_Constants::MAX_FRAMES_IN_FLIGHT;i++) {
+        _vk_draw_fences.push_back(_vk_fences->request_item());
+        _vk_draw_semaphores.push_back(_vk_semaphores->request_item());
+        _vk_render_finish_semaphores.push_back(_vk_semaphores->request_item());
+        _vk_draw_command_buffers.push_back(_vk_command_pool->request_draw_command_buffer());
+    }
 }
 
 void Graphic::Vulkan_Core_Data::update_data() {
@@ -216,7 +244,21 @@ void Graphic::Vulkan_Core_Data::update_data() {
     
 }
 
+void Graphic::Vulkan_Core_Data::update_uniform_buffer() {
+    Uniform uniform {};
+    _vk_uniform_buffers[_current_frame].copy_data(&uniform, sizeof(uniform));
+}
+
 void Graphic::Vulkan_Core_Data::clear_data() {
+
+    // wait to queues idle all task
+    _vk_queues->wait_to_idle();
+
+    // destroy all semaphore is using
+    _vk_semaphores->destroy();
+
+    // destroy render data
+    _vk_render_data->destroy();
 
     // destroy all assets vulkan use
     _vk_assets_mgr->destroy_data(_vk_device->get());
@@ -254,6 +296,262 @@ void Graphic::Vulkan_Core_Data::clear_data() {
     _vk_instance->destroy();
 }
 
+void Graphic::Vulkan_Core_Data::on_draw_frame() {
+
+    auto render_models = _vk_render_data->get_render_models();
+
+    if (render_models.size() <= 0) return;
+
+    VkFence vk_fence = _vk_draw_fences[_current_frame];
+
+    VkSemaphore vk_semaphore = _vk_draw_semaphores[_current_frame];
+
+    VkSemaphore vk_finish_semaphore = _vk_render_finish_semaphores[_current_frame];
+
+    // STEP 1: Acquire a image in swapchain
+
+    uint32_t image_index;
+
+    vkWaitForFences(_vk_device->get(), 1, &vk_fence, VK_TRUE, UINT64_MAX);
+
+    VkResult result = vkAcquireNextImageKHR(
+        _vk_device->get(), 
+        _vk_swapchain->get(), 
+        UINT64_MAX,
+        vk_semaphore,
+        VK_NULL_HANDLE,
+        &image_index
+    );
+
+    // Utility::Log::get()->log_info("on_draw_frame 1", image_index);
+
+    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+        // TODO: recreate swapchain
+        _vk_swapchain->recreate_swapchain(
+            _vk_physical_device->get(),
+            _vk_surface->get(),
+            _vk_device->get(),
+            _window->get_window()
+        );
+        _vk_frame_buffers->destroy(_vk_device->get());
+        _vk_frame_buffers->init (
+            _vk_device->get(),
+            _vk_render_pass->get(),
+            _vk_swapchain->get_imageviews(),
+            _vk_swapchain->get_extent()
+        );
+        return;
+    }
+    else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
+
+    // STEP 2: update uniform buffer
+
+    update_uniform_buffer();
+
+    // STEP 3: set up command buffer to draw
+
+    VkCommandBuffer vk_command_buffer = _vk_draw_command_buffers[_current_frame];
+    
+    vkResetFences(_vk_device->get(), 1, &vk_fence);
+
+    vkResetCommandBuffer(vk_command_buffer, 0);
+
+    // STEP 4: draw by data
+
+    // TODO: add function record all draw data here
+    VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+        Vulkan_Utility::vk_check_action(
+            vkBeginCommandBuffer(vk_command_buffer, &begin_info),
+            "failed to begin recording command buffer!"
+        );
+
+        // STEP 4.1: reset draw buffer.
+
+        VkRenderPassBeginInfo render_pass_info{};
+        render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        render_pass_info.renderPass = _vk_render_pass->get();
+        render_pass_info.framebuffer = _vk_frame_buffers->get_frame_buffer(_current_frame);
+        render_pass_info.renderArea.offset = {0, 0};
+        render_pass_info.renderArea.extent = _vk_swapchain->get_extent();
+
+        VkClearValue clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+        render_pass_info.clearValueCount = 1;
+        render_pass_info.pClearValues = &clear_color;
+
+        // STEP 4.2: record by render pass data
+
+        // Bind render pass to draw
+        vkCmdBeginRenderPass(vk_command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+            auto vertices_buffer = _vk_render_data->get_vertices_buffer();
+
+            auto indices_bufer = _vk_render_data->get_indices_buffer();
+
+            VkBuffer vk_vertices_buffer = vertices_buffer->request_using_buffer();
+
+            VkBuffer vk_indices_buffer = indices_bufer->request_using_buffer();
+
+            for (auto& [draw_ID, models_by_texture] : render_models) {
+                if (_pipelines.find(draw_ID) == _pipelines.end() || _descriptors.find(draw_ID) == _descriptors.end()) {
+                    throw std::runtime_error("Draw id is not supported!");
+                }
+                auto& pipeline = _pipelines[draw_ID];
+                auto& descriptor = _descriptors[draw_ID];
+                // Bind pipeline at draw to draw
+                vkCmdBindPipeline(vk_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->get());
+
+                VkViewport viewport{};
+                viewport.x = 0;
+                viewport.y = 0;
+                viewport.width = (float) _vk_swapchain->get_extent().width;
+                viewport.height = (float) _vk_swapchain->get_extent().height;
+                viewport.minDepth = 0.0f;
+                viewport.maxDepth = 1.0f;
+                vkCmdSetViewport(vk_command_buffer, 0, 1, &viewport);
+
+                VkRect2D scissor{};
+                scissor.offset = {0, 0};
+                scissor.extent = _vk_swapchain->get_extent();
+                vkCmdSetScissor(vk_command_buffer, 0, 1, &scissor);
+
+                for (auto& [texture_key, models] : models_by_texture) {
+
+                    if (models.size() <= 0) {
+                        throw std::runtime_error("models is not in render data!");
+                    }
+
+                    // get common model draw id
+                    Vulkan_Draw_ID draw_ID = models[0]->get_draw_id();
+                    std::vector<VkDescriptorSet> vk_using_descriptor_sets;
+                    vk_using_descriptor_sets.push_back(
+                        descriptor->get_uniform_descriptor_set(_current_frame)
+                    );
+                    switch(draw_ID) {
+                        case Vulkan_Draw_ID::OBJECT_WITH_TEXTURE: {
+                            // get common texture of group models
+                            std::shared_ptr<Vulkan_Texture> vk_texture = models[0]->get_vk_texture();
+
+                            // add sampler texture set to using set
+                            VkDescriptorSet vk_sampler_set = descriptor->get_sampler_descriptor_set(_current_frame, vk_texture->get_key());
+                            vk_using_descriptor_sets.push_back(
+                                vk_sampler_set
+                            );
+                            break;
+                        }
+                        default: {
+                            // with object default we don't
+                            // need to update texture
+                            break;
+                        }
+                    }
+
+                    vkCmdBindDescriptorSets(
+                        vk_command_buffer,
+                        VK_PIPELINE_BIND_POINT_GRAPHICS, 
+                        pipeline->get_layout(),
+                        0, vk_using_descriptor_sets.size(),
+                        vk_using_descriptor_sets.data(),
+                        0,
+                        nullptr
+                    );
+
+                    for (auto& model : models) {
+
+                        std::string model_key = model->get_key();
+
+                        std::string mesh_key = model->get_vk_mesh()->get_key();
+
+                        // get instances buffer of model
+                        Graphic::Instance_Buffer* instances_buffer = _vk_render_data->get_instances_buffer(model_key);
+
+                        VkBuffer vk_instance_buffer = instances_buffer->request_using_buffer();
+
+                        VkBuffer vertices_buffers_binding[] = {vk_vertices_buffer, vk_instance_buffer};
+
+                        Vulkan_Mesh_Buffer_Offset vertices_offset = vertices_buffer->get_offset(mesh_key);
+
+                        Vulkan_Mesh_Buffer_Offset indices_offset = indices_bufer->get_offset(mesh_key);
+
+                        VkDeviceSize offsets[] = {vertices_offset.offset, 0};
+
+                        vkCmdBindVertexBuffers(vk_command_buffer, 0, 2, vertices_buffers_binding, offsets);
+
+                        vkCmdBindIndexBuffer(vk_command_buffer, vk_indices_buffer, indices_offset.offset, VK_INDEX_TYPE_UINT16);
+                        
+                        vkCmdDrawIndexed(
+                            vk_command_buffer,
+                            static_cast<uint32_t>(indices_offset.size / (int)sizeof(uint16_t)),
+                            instances_buffer->get_number_instance(), 0, 0, 0
+                        );
+
+                        instances_buffer->release_using_buffer();
+                    }
+                }
+
+            }
+            
+            vertices_buffer->release_using_buffer();
+
+            indices_bufer->release_using_buffer();
+
+        vkCmdEndRenderPass(vk_command_buffer);
+
+        if (vkEndCommandBuffer(vk_command_buffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to record command buffer!");
+        }
+
+    // Utility::Log::get()->log_info("on_draw_frame 2", image_index);
+
+    // STEP 5: end draw command buffer
+    VkSubmitInfo submit_info{};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    VkSemaphore wait_semaphores[] = {vk_semaphore};
+    VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = wait_semaphores;
+    submit_info.pWaitDstStageMask = wait_stages;
+
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &vk_command_buffer;
+
+    VkSemaphore signal_semaphores[] = {vk_finish_semaphore};
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = signal_semaphores;
+
+    // Utility::Log::get()->log_info("on_draw_frame 3", image_index);
+
+    _vk_queues->submit_custom_commands(
+        submit_info,
+        vk_fence
+    );
+
+    // Utility::Log::get()->log_info("on_draw_frame 4", image_index);
+
+    VkPresentInfoKHR present_info{};
+    present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = signal_semaphores;
+
+    VkSwapchainKHR swap_chains[] = {_vk_swapchain->get()};
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = swap_chains;
+    present_info.pImageIndices = &image_index;
+
+    // Utility::Log::get()->log_info("on_draw_frame 5", image_index);
+
+    _vk_queues->submit_present_commands(
+        present_info
+    );
+
+    // Utility::Log::get()->log_info("on_draw_frame 6", image_index);
+
+    _current_frame = (_current_frame + 1) % Vulkan_Constants::MAX_FRAMES_IN_FLIGHT;
+}
+
 Graphic::Vulkan_Wrapper_Data Graphic::Vulkan_Core_Data::get_wrapper_data() {
     return {
         _vk_instance,
@@ -268,7 +566,9 @@ Graphic::Vulkan_Wrapper_Data Graphic::Vulkan_Core_Data::get_wrapper_data() {
         _pipelines,
         _vk_fences,
         _vk_command_pool,
-        _vk_assets_mgr
+        _vk_assets_mgr,
+        _vk_render_data,
+        _vk_semaphores
     };
 }
 

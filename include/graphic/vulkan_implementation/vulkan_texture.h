@@ -1,6 +1,8 @@
 #pragma once
 #include <vulkan/vulkan.h>
 
+#include <functional>
+
 #include <core/resource.hpp>
 #include <graphic/common/texture.h>
 #include <graphic/vulkan_implementation/vulkan_image.h>
@@ -15,9 +17,11 @@ namespace Graphic {
 
         std::shared_ptr<Texture> texture = nullptr;
 
+        std::function<void()> callback = nullptr;
+
     };
 
-    class Vulkan_Texture : public Core::Resource<Vulkan_Texture_Load_Description> {
+    class Vulkan_Texture : public Core::Resource<Vulkan_Texture_Load_Description, std::string> {
 
         private:
 
@@ -32,6 +36,10 @@ namespace Graphic {
         void on_load(const Vulkan_Texture_Load_Description& des);
 
         void on_finish_load();
+
+        VkImageView get_vk_imageview();
+
+        VkSampler get_vk_sampler();
 
         void destroy(VkDevice vk_device);
 

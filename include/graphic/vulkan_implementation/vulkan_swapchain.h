@@ -1,3 +1,4 @@
+#pragma once
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 
@@ -40,6 +41,13 @@ namespace Graphic {
         VkExtent2D choose_swapchain_extent(const VkSurfaceCapabilitiesKHR& capabilities, GLFWwindow* window);
 
         void init(
+            VkPhysicalDevice vk_physical_device,
+            VkSurfaceKHR vk_surface,
+            VkDevice vk_device,
+            GLFWwindow* window
+        );
+
+        void recreate_swapchain(
             VkPhysicalDevice vk_physical_device,
             VkSurfaceKHR vk_surface,
             VkDevice vk_device,

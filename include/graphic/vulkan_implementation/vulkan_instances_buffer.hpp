@@ -26,7 +26,13 @@ namespace Graphic {
             return sizeof(Mat_Transfrom) * _number_element;
         }
 
+        uint32_t get_number_instance() {
+            return _number_element;
+        }
+
         void add_data(const ID& id, void* data, uint32_t offset) {
+
+            std::unique_lock<std::mutex> lock(_buffer_lock);
 
             // constant size of one transform data
             uint32_t size = sizeof(Mat_Transfrom);
@@ -54,12 +60,15 @@ namespace Graphic {
         }
 
         void add_data(const ID& id, const Mat_Transfrom& data) {
-            Utility::Log::get()->log_info("instances buffer add data", id, data);
-            glm::mat4* non_const_ptr = const_cast<glm::mat4*>(&data);
+            Utility::Log::get()->log_info("instances buffer add data", id, data, get_using_size());
+            Mat_Transfrom* non_const_ptr = const_cast<Mat_Transfrom*>(&data);
             add_data(id, static_cast<void*>(non_const_ptr), 0);
         }
 
         void update_data(const ID& id, void* data, uint32_t offset) {
+
+            std::unique_lock<std::mutex> lock(_buffer_lock);
+
             if (_id_to_index.find(id) == _id_to_index.end()) {
                 throw std::runtime_error("fail to update data in instances buffer: buffer doesn't have element id!");
             }
@@ -79,11 +88,14 @@ namespace Graphic {
 
         void update_data(const ID& id, const Mat_Transfrom& data) {
             Utility::Log::get()->log_info("instances buffer update data", id, data);
-            glm::mat4* non_const_ptr = const_cast<glm::mat4*>(&data);
+            Mat_Transfrom* non_const_ptr = const_cast<Mat_Transfrom*>(&data);
             update_data(id, static_cast<void*>(non_const_ptr), 0);
         }
 
         void delete_data(const ID& id) {
+
+            std::unique_lock<std::mutex> lock(_buffer_lock);
+
             if (_id_to_index.find(id) == _id_to_index.end()) {
                 throw std::runtime_error("fail to delete data in instances buffer: buffer doesn't have element with id!");
             }
@@ -107,7 +119,6 @@ namespace Graphic {
             );
 
             uint32_t index_remove = _id_to_index[id];
-            Utility::Log::get()->log_info("index_remove:", index_remove);
             uint32_t dst_offset = index_remove * size;
             Vulkan_Buffer::copy_buffer(
                 Vulkan_Commands_Mode::COMMANDS_MODE_SYNC,
@@ -120,7 +131,6 @@ namespace Graphic {
             );
 
             const ID& id_swap_index = _index_to_id[last_index];
-            Utility::Log::get()->log_info("index_remove:", id_swap_index);
             _id_to_index[id_swap_index] = index_remove;
             _index_to_id[index_remove] = id_swap_index;
             _id_to_index.erase(id);
@@ -130,11 +140,9 @@ namespace Graphic {
         }
 
         std::vector<Mat_Transfrom> get_data_in_buffer() {
-            map_memory();
             std::vector<Mat_Transfrom> data = Utility::Func_Utils::revert_data<Mat_Transfrom>(
                 Utility::Func_Utils::parse_data<uint8_t>(_map_ptr, 0, get_using_size())
             );
-            unmap_memory();
             return data;
         }
 

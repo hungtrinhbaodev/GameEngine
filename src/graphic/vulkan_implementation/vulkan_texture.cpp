@@ -38,6 +38,7 @@ void Graphic::Vulkan_Texture::_make_vk_sampler(VkDevice vk_device, VkPhysicalDev
 
 void Graphic::Vulkan_Texture::on_load(const Vulkan_Texture_Load_Description& des) {
     const auto& texture_info = des.texture->get_texture_info();
+    auto callback = des.callback;
     Utility::Log::get()->log_info("load_vk_texture 1");
 
     auto vk_device_default = Vulkan_Utility::get_or_default_device(
@@ -80,10 +81,13 @@ void Graphic::Vulkan_Texture::on_load(const Vulkan_Texture_Load_Description& des
     records.emplace_back(
         _vk_image.make_transition_record_data(
             VK_FORMAT_R8G8B8A8_SRGB,
-            VK_IMAGE_LAYOUT_UNDEFINED,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            [this, vk_device_default, des] () {
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            [this, vk_device_default, des, callback] () {
                 _make_vk_sampler(vk_device_default.vk_device, vk_device_default.vk_physical_device);
+                if (callback != nullptr) {
+                    callback();
+                }
                 set_loaded_state(Core::Resource_Loaded_State::LOADED);
                 Utility::Log::get()->log_info("Loaded Vulkan Texture finish: ", des.texture->get_path());
             }
@@ -94,6 +98,14 @@ void Graphic::Vulkan_Texture::on_load(const Vulkan_Texture_Load_Description& des
         Vulkan_Utility::get_command_mode_by_load_resource_mode(des.load_mode),
         records
     );
+}
+
+VkImageView Graphic::Vulkan_Texture::get_vk_imageview() {
+    return _vk_image.get_imageview();
+}
+
+VkSampler Graphic::Vulkan_Texture::get_vk_sampler() {
+    return _vk_sampler;
 }
 
 void Graphic::Vulkan_Texture::destroy(VkDevice vk_device) {

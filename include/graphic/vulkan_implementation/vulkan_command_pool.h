@@ -73,6 +73,8 @@ namespace Graphic {
 
         void do_task(Vulkan_Command_Task_Info task);
 
+        VkCommandBuffer request_command_buffer();
+
         ~Vulkan_Command_Thread_Item();
 
     };
@@ -115,6 +117,8 @@ namespace Graphic {
 
         Vulkan_Command_Thread_Pool* _vk_commands_thread_pool;
 
+        Vulkan_Command_Thread_Item _vk_command_main_thread_item;
+
         void _record_single_commands(
             Vulkan_Commands_Mode commands_mode,
             const Vulkan_Commands_Record_Data& record_data
@@ -139,6 +143,12 @@ namespace Graphic {
             Vulkan_Commands_Mode commands_mode,
             std::vector<Vulkan_Commands_Record_Data>& records
         );
+
+        /**
+         * This buffer will be only used
+         * in main thread graphic
+         */
+        VkCommandBuffer request_draw_command_buffer();
 
         void destroy();
     };

@@ -1,12 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
 
-add_definitions(-std=c++17)
-
 # Set the project name
 project(MyProject)
 
 # Set C++ standard
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17) 
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(CXX_FLAGS "-Wall")

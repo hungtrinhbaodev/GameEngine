@@ -1,11 +1,16 @@
 #include <graphic/vulkan_implementation/vulkan_dynamic_buffer.h>
 
-void Graphic::Vulkan_Dynamic_Buffer::make(VkBufferUsageFlags usage, VkMemoryPropertyFlags property_flags) {
+void Graphic::Vulkan_Dynamic_Buffer::make(
+    VkBufferUsageFlags usage, 
+    VkMemoryPropertyFlags property_flags,
+    bool is_auto_map_memory
+) {
     // save info of buffer to using in dynamic resize phase
     const auto& vk_default_device = Vulkan_Utility::get_or_default_device(VK_NULL_HANDLE, VK_NULL_HANDLE);
     _vk_device = vk_default_device.vk_device;
     _usage = usage | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     _property_flags = property_flags;
+    _is_auto_map_memory = is_auto_map_memory;
 }
 
 uint32_t Graphic::Vulkan_Dynamic_Buffer::_on_resize(uint32_t additional_size) {
@@ -13,15 +18,16 @@ uint32_t Graphic::Vulkan_Dynamic_Buffer::_on_resize(uint32_t additional_size) {
 
     // if current buffer does not have data
     // we just make it
-    Utility::Log::get()->log_info("_on_resize 1", additional_size, _size);
+    Utility::Log::get()->log_info("_on_resize 1", _vk_buffer, additional_size, _size);
     if (_size <= 0) {
-        Utility::Log::get()->log_info("_on_resize 2");
+        Utility::Log::get()->log_info("_on_resize 2", _vk_buffer);
         Vulkan_Buffer::make(
             additional_size,
             _usage,
-            _property_flags
+            _property_flags,
+            _is_auto_map_memory
         );
-        Utility::Log::get()->log_info("_on_resize 3");
+        Utility::Log::get()->log_info("_on_resize 3", _vk_buffer);
         return additional_size;
     }
     // else we reserve 1.2 size buffer
@@ -70,10 +76,16 @@ void Graphic::Vulkan_Dynamic_Buffer::_copy_data_to_offset(
 ) {
     if (_property_flags & (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)) {
         void* src_cpy_data = (uint8_t*)src_data + src_offset;
-        map_memory();
-        void* dst_cpy_data = (uint8_t*)_map_ptr + dst_offset;
-        memcpy(dst_cpy_data, src_cpy_data, size);
-        unmap_memory();
+        if (_is_auto_map_memory) {
+            void* dst_cpy_data = (uint8_t*)_map_ptr + dst_offset;
+            memcpy(dst_cpy_data, src_cpy_data, size);
+        }
+        else {
+            map_memory();
+            void* dst_cpy_data = (uint8_t*)_map_ptr + dst_offset;
+            memcpy(dst_cpy_data, src_cpy_data, size);
+            unmap_memory();
+        }
     }
     else {
         // we make a staging buffer and copy that
@@ -99,8 +111,27 @@ void Graphic::Vulkan_Dynamic_Buffer::_copy_data_to_offset(
 }
 
 void Graphic::Vulkan_Dynamic_Buffer::log_buffer_data(const std::string& prefix) {
-    map_memory();
-    const auto& parse_data = Utility::Func_Utils::parse_data<int>(_map_ptr, 0, _size);
-    Utility::Log::get()->log_info("append data", prefix, parse_data, "buffer propertices flag:", _property_flags);
-    unmap_memory();
+    if (!_is_auto_map_memory) {
+        map_memory();
+        const auto& parse_data = Utility::Func_Utils::parse_data<int>(_map_ptr, 0, _size);
+        Utility::Log::get()->log_info("append data", prefix, parse_data, "buffer propertices flag:", _property_flags);
+        unmap_memory();
+    }
+    else {
+        const auto& parse_data = Utility::Func_Utils::parse_data<int>(_map_ptr, 0, _size);
+        Utility::Log::get()->log_info("append data", prefix, parse_data, "buffer propertices flag:", _property_flags);
+    }
+}
+
+VkBuffer Graphic::Vulkan_Dynamic_Buffer::request_using_buffer() {
+    _buffer_lock.lock();
+    return Vulkan_Buffer::get();
+}
+
+void Graphic::Vulkan_Dynamic_Buffer::release_using_buffer() {
+    _buffer_lock.unlock();
+}
+
+Graphic::Vulkan_Dynamic_Buffer::~Vulkan_Dynamic_Buffer() {
+
 }

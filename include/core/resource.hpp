@@ -27,14 +27,30 @@ namespace Core {
      * Here is class base of resource need load in multi thread
      * Resource_Description: class or struct of params that resource need to load
      */
-    template <typename Resource_Description>
+    template <typename Resource_Description, typename Key>
     class Resource {
 
-        private:
+        protected:
+
+        Key _key;
 
         Resource_Loaded_State _loaded_state = Resource_Loaded_State::UN_LOAD;
 
         public:
+
+        /**
+         * set a unique key of resource
+         */
+        void set_key(Key key) {
+            _key = key;
+        }
+
+        /**
+         * get a unique key of resource
+         */
+        const Key& get_key() {
+            return _key;
+        }
 
         /**
          * state of resource in loading phase will
@@ -98,8 +114,8 @@ namespace Core {
     class Resource_Storage {
 
         static_assert(
-            std::is_base_of<Resource<Resource_Desctiprion>, Resource_Extend>::value, 
-            "Error: ResourceManager<Key, Resource_Extend, Resource_Desctiprion> requires Resource_Extend to inherit from Resource<Resource_Desctiprion>."
+            std::is_base_of<Resource<Resource_Desctiprion, Key>, Resource_Extend>::value, 
+            "Error: ResourceManager<Key, Resource_Extend, Resource_Desctiprion> requires Resource_Extend to inherit from Resource<Resource_Desctiprion, Key>."
         );
 
         using Resource_Loaded_Callback = std::function<void(std::shared_ptr<Resource_Extend>)>;
@@ -126,7 +142,6 @@ namespace Core {
                 std::shared_ptr<Resource_Extend> resource = task_info.resource_need_load;
                 const Resource_Desctiprion& load_params = task_info.resource_load_params;
                 resource->on_load(load_params);
-                resource->set_loaded_state(Resource_Loaded_State::LOADED);
                 resource->on_finish_load();
 
                 const Key& key = task_info.resource_key;
@@ -192,6 +207,7 @@ namespace Core {
                     };
                     _callback_thread_pool.push_task(task_info);
                 }
+                Utility::Log::get()->log_info("_do_callbacks_loaded 3", key, _callbacks[key].size());
             }
             if (_processing_tasks.find(key) != _processing_tasks.end()) {
                 _processing_tasks.erase(key);
@@ -213,11 +229,13 @@ namespace Core {
             std::shared_ptr<Resource_Extend> template_resoure;
             if (_resources.find(key) == _resources.end()) {
                 template_resoure = std::make_shared<Resource_Extend>();
+                template_resoure->set_key(key);
                 _resources[key] = template_resoure;
             }
             else {
                 template_resoure = _resources[key];
             }
+
             return template_resoure;
 
         }

@@ -57,8 +57,12 @@ void Graphic::Graphic::run(Window* window) {
             case Using_Graphic_Implemtation::VULKAN: {
 
                 const auto& vk_data = Vulkan_Core_Data::get();
+
+                // update logic data
                 vk_data->update_data();
 
+                // on draw at frame with vulkan
+                vk_data->on_draw_frame();
                 break;
             }
 
@@ -84,6 +88,7 @@ void Graphic::Graphic::destroy() {
         case Using_Graphic_Implemtation::VULKAN: {
 
             const auto& vk_data = Vulkan_Core_Data::get();
+            
             vk_data->clear_data();
 
             Vulkan_Core_Data::clean_up();

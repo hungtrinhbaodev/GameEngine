@@ -2,6 +2,8 @@
 #include <mutex>
 #include <queue>
 #include <iostream>
+#include <map>
+#include <utility/log_utils.h>
 
 namespace Core {
 
@@ -46,6 +48,7 @@ namespace Core {
                 _id = _counter;
                 _counter = _inscrease_id(_counter);
             }
+
             return _id;
         }
 
@@ -65,9 +68,7 @@ namespace Core {
         protected:
 
         void init() {
-            std::cout << "Go here init counter 1" << _counter << std::endl;
             _counter = 0;
-            std::cout << "Go here init counter 2" << _counter << std::endl;
         }
 
         long _inscrease_id(long counter) {
