@@ -68,7 +68,7 @@ int main() {
     // test
     const auto& data = Graphic::Vulkan_Core_Data::get();
     const auto& _vk_render_data = data->get_wrapper_data().wp_render_data;
-    int size = 100;
+    int size = 1000;
     for (int i = 0;i < size;i++) {
         _vk_render_data->add_model(
             "RECTANGLE",

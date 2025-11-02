@@ -200,7 +200,7 @@ void Graphic::Vulkan_Command_Pool::init(
         wp_queues
     );
 
-    _vk_commands_thread_pool->start_running(100);
+    _vk_commands_thread_pool->start_running(10);
 }
 
 /**

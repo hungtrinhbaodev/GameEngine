@@ -1,5 +1,4 @@
 {
-    "cmake.cmakePath": "build/Makefile",
     "files.associations": {
         "__bit_reference": "cpp",
         "__locale": "cpp",
@@ -84,5 +83,5 @@
             "envManager": "ms-python.python:venv",
             "packageManager": "ms-python.python:pip"
         }
-    ]
+    ],
 }
