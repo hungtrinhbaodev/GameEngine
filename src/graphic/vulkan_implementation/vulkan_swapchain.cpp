@@ -44,6 +44,7 @@ void Graphic::Vulkan_Swapchain::_create_swapchain_image_views(
         _vk_swapchain_imageviews[i] = Vulkan_Utility::create_imageview_from_image(
             swapchain_images[i], 
             format,
+            VK_IMAGE_ASPECT_COLOR_BIT,
             vk_device
         );
     }
@@ -136,7 +137,7 @@ void Graphic::Vulkan_Swapchain::init(
 
     _create_swapchain_image_views(
         _vk_swapchain_images, 
-        _vk_swapchain_format, 
+        _vk_swapchain_format,
         vk_device
     );
 }

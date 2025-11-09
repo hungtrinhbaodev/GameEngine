@@ -75,7 +75,25 @@
         "complex": "cpp",
         "execution": "cpp",
         "map": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "__mutex_base": "cpp",
+        "__config": "cpp",
+        "__debug": "cpp",
+        "__errc": "cpp",
+        "__functional_base": "cpp",
+        "__nullptr": "cpp",
+        "__string": "cpp",
+        "__tuple": "cpp",
+        "codecvt": "cpp",
+        "fstream": "cpp",
+        "iomanip": "cpp",
+        "numeric": "cpp",
+        "set": "cpp",
+        "unordered_set": "cpp",
+        "expected": "cpp",
+        "numbers": "cpp",
+        "ranges": "cpp",
+        "shared_mutex": "cpp"
     },
     "python-envs.pythonProjects": [
         {

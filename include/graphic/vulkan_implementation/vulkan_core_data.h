@@ -148,7 +148,13 @@ namespace Graphic {
 
         std::vector<VkCommandBuffer> _vk_draw_command_buffers;
 
+        Vulkan_Image* _wp_deep_image;
+
         int _current_frame = 0;
+
+        double _time_get_draw_data = -1.0f;
+
+        double _time_draw_data_in_gpu = -1.0f;
 
         void _init_uniform_buffers();
 
@@ -162,6 +168,10 @@ namespace Graphic {
          */
         void _clear_objects_draw_stage();
 
+        void _init_deep_image();
+
+        void _destroy_deep_image();
+
         public:
 
         void init_data(Window *window);
@@ -173,6 +183,10 @@ namespace Graphic {
         void update_uniform_buffer();
 
         void on_draw_frame();
+
+        double get_time_prepare_draw();
+
+        double get_time_cpu_draw();
 
         Vulkan_Core_Data();
 

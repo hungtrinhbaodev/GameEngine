@@ -28,6 +28,15 @@ void Graphic::Window::init_window(const char* window_name, int width, int height
     }
 }
 
+void Graphic::Window::change_window_name(double fps, double draw_time, double prepare_draw, double draw_time_cpu) {
+    std::string new_title = 
+    std::string("Engine fps: ") + std::to_string(fps)
+     + ", " + std::to_string(draw_time)
+     + ", " + std::to_string(prepare_draw)
+     + ", " + std::to_string(draw_time_cpu);
+    glfwSetWindowTitle(_window, new_title.data());
+}
+
 GLFWwindow *Graphic::Window::get_window() {
     return _window;
 }

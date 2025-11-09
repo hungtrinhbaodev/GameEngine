@@ -60,6 +60,8 @@ namespace Graphic {
 
         VkPipelineColorBlendStateCreateInfo _create_color_blending_info(VkPipelineColorBlendAttachmentState &attachment_color);
 
+        VkPipelineDepthStencilStateCreateInfo _create_depth_stencil_info();
+
         VkPipelineDynamicStateCreateInfo _create_dynamic_state_info();
 
         VkPipelineLayoutCreateInfo _create_pipeline_layout_info(const Vulkan_Pipeline_Config& pipeline_config);

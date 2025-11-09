@@ -1,4 +1,7 @@
 #pragma once
+
+#include <string>
+
 namespace Graphic {
 
     enum Using_Graphic_Implemtation {
@@ -17,6 +20,16 @@ namespace Graphic {
         public:
 
         static Using_Graphic_Implemtation GRAPHIC_IMPL;
+
+        static std::string KEY_TRACK_TIME_QUEUE_SEND_DRAW;
+
+        static std::string KEY_TRACK_TIME_QUEUE_SEND_COMMONS;
+
+        static std::string KEY_TRACK_TIME_RECORD_DRAWS;
+
+        static std::string KEY_TRACK_TIME_ACQUIRE_IMAGE;
+
+        static std::string KEY_TRACK_TIME_FULL_DRAW;
 
     };
 

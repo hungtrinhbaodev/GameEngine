@@ -34,6 +34,8 @@ namespace Graphic {
 
         void clear_window();
 
+        void change_window_name(double fps, double draw_time, double prepare_draw, double draw_time_cpu);
+
         static Window* get();
 
         static void clean_up();

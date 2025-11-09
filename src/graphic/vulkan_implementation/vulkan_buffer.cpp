@@ -33,6 +33,8 @@ void Graphic::Vulkan_Buffer::make(
     VkMemoryRequirements memory_requirement;
     vkGetBufferMemoryRequirements(_vk_device, _vk_buffer, &memory_requirement);
 
+    Utility::Log::get()->log_info("VkMemoryRequirements buffer", memory_requirement.size, memory_requirement.alignment, memory_requirement.memoryTypeBits);
+
     VkMemoryAllocateInfo allocate_info{};
     allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocate_info.allocationSize = static_cast<VkDeviceSize>(size);

@@ -50,7 +50,12 @@ namespace Graphic {
 
         static std::vector<const char*> query_physical_device_layers_enabled(VkPhysicalDevice vk_physical_device);
 
-        static VkImageView create_imageview_from_image(VkImage vk_image, const VkFormat& vk_format, VkDevice vk_device = VK_NULL_HANDLE);
+        static VkImageView create_imageview_from_image(
+            VkImage vk_image, 
+            const VkFormat& vk_format, 
+            VkImageAspectFlags aspect_flags = VK_IMAGE_ASPECT_COLOR_BIT,
+            VkDevice vk_device = VK_NULL_HANDLE
+        );
 
         static uint32_t find_buffer_memory_type_index(
             uint32_t type_filter,
@@ -63,6 +68,17 @@ namespace Graphic {
         static Vulkan_Submit_Default_Data get_or_default_submit(Vulkan_Queues* wp_queues = nullptr, Vulkan_Command_Pool* wp_command_pool= nullptr);
 
         static Vulkan_Commands_Mode get_command_mode_by_load_resource_mode(Core::Resource_Load_Mode resource_mode);
+
+        static VkFormat find_supported_format(
+            const std::vector<VkFormat>& candidates, 
+            VkImageTiling tiling, 
+            VkFormatFeatureFlags features,
+            VkPhysicalDevice vk_physical_device
+        );
+
+        static VkFormat find_depth_format(
+            VkPhysicalDevice vk_physical_device
+        );
 
     };
 }

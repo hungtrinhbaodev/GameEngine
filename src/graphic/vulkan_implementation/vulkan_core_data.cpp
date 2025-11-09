@@ -1,4 +1,6 @@
 #include <graphic/vulkan_implementation/vulkan_core_data.h>
+#include <utility/time_utils.h>
+#include <graphic/common/graphic_constants.h>
 
 Graphic::Vulkan_Core_Data* Graphic::Vulkan_Core_Data::_instance = nullptr;
 
@@ -18,6 +20,7 @@ Graphic::Vulkan_Core_Data::Vulkan_Core_Data() {
     _vk_assets_mgr = new Vulkan_Assets_Manager();
     _vk_render_data = new Vulkan_Render_Data();
     _vk_semaphores = new Vulkan_Semaphores();
+    _wp_deep_image = new Vulkan_Image();
 }
 
 Graphic::Vulkan_Core_Data::~Vulkan_Core_Data() {
@@ -34,6 +37,7 @@ Graphic::Vulkan_Core_Data::~Vulkan_Core_Data() {
     delete(_vk_assets_mgr);
     delete(_vk_render_data);
     delete(_vk_semaphores);
+    delete(_wp_deep_image);
 }
 
 void Graphic::Vulkan_Core_Data::_init_uniform_buffers() {
@@ -136,6 +140,41 @@ void Graphic::Vulkan_Core_Data::_init_objects_draw_stage() {
     }
 }
 
+void Graphic::Vulkan_Core_Data::_init_deep_image() {
+
+    VkFormat vk_depth_format = Vulkan_Utility::find_depth_format(_vk_physical_device->get());
+
+    Utility::Log::get()->log_info("_init_deep_image 1 my format:", vk_depth_format);
+
+    _wp_deep_image->make(
+        _vk_swapchain->get_extent().width,
+        _vk_swapchain->get_extent().height,
+        vk_depth_format,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        VK_IMAGE_ASPECT_DEPTH_BIT
+    );
+
+    auto record_data = _wp_deep_image->make_transition_record_data(
+        vk_depth_format,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        nullptr
+    );
+
+    _vk_command_pool->record_single_commands(
+        Vulkan_Commands_Mode::COMMANDS_MODE_SYNC,
+        record_data.record
+    );
+}
+
+void Graphic::Vulkan_Core_Data::_destroy_deep_image() {
+    _wp_deep_image->destroy(
+        _vk_device->get()
+    );
+}
+
 void Graphic::Vulkan_Core_Data::_clear_objects_draw_stage() {
 
     // clear pipeline in map draw ID
@@ -195,15 +234,23 @@ void Graphic::Vulkan_Core_Data::init_data(Window *window) {
         _vk_queues
     );
 
+    // init deep image to test
+    _init_deep_image();
+
     // init vulkan render pass
-    _vk_render_pass->init(_vk_device->get(), _vk_swapchain->get_format());
+    _vk_render_pass->init(
+        _vk_device->get(), 
+        _vk_physical_device->get(),
+        _vk_swapchain->get_format()
+    );
 
     // init frame buffers
     _vk_frame_buffers->init(
         _vk_device->get(), 
         _vk_render_pass->get(), 
         _vk_swapchain->get_imageviews(), 
-        _vk_swapchain->get_extent()
+        _vk_swapchain->get_extent(),
+        _wp_deep_image->get_imageview()
     );
 
     // init vulkan uniform buffers
@@ -257,6 +304,9 @@ void Graphic::Vulkan_Core_Data::clear_data() {
     // destroy all semaphore is using
     _vk_semaphores->destroy();
 
+    // destroy deep image
+    _destroy_deep_image();
+
     // destroy render data
     _vk_render_data->destroy();
 
@@ -298,6 +348,8 @@ void Graphic::Vulkan_Core_Data::clear_data() {
 
 void Graphic::Vulkan_Core_Data::on_draw_frame() {
 
+    double start = glfwGetTime();
+
     auto render_models = _vk_render_data->get_render_models();
 
     if (render_models.size() <= 0) return;
@@ -312,8 +364,11 @@ void Graphic::Vulkan_Core_Data::on_draw_frame() {
 
     uint32_t image_index;
 
+    _time_get_draw_data = glfwGetTime() - start;
+
     vkWaitForFences(_vk_device->get(), 1, &vk_fence, VK_TRUE, UINT64_MAX);
 
+    Utility::Time_Utils::get()->start_track(Graphic_Constants::KEY_TRACK_TIME_ACQUIRE_IMAGE);
     VkResult result = vkAcquireNextImageKHR(
         _vk_device->get(), 
         _vk_swapchain->get(), 
@@ -322,24 +377,34 @@ void Graphic::Vulkan_Core_Data::on_draw_frame() {
         VK_NULL_HANDLE,
         &image_index
     );
+    Utility::Time_Utils::get()->end_track(Graphic_Constants::KEY_TRACK_TIME_ACQUIRE_IMAGE);
 
     // Utility::Log::get()->log_info("on_draw_frame 1", image_index);
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        // TODO: recreate swapchain
+
+        // recreate swapchain
         _vk_swapchain->recreate_swapchain(
             _vk_physical_device->get(),
             _vk_surface->get(),
             _vk_device->get(),
             _window->get_window()
         );
+
+        // recreate deep image with another size
+        _destroy_deep_image();
+        _init_deep_image();
+
+        // recreate frame buffer
         _vk_frame_buffers->destroy(_vk_device->get());
         _vk_frame_buffers->init (
             _vk_device->get(),
             _vk_render_pass->get(),
             _vk_swapchain->get_imageviews(),
-            _vk_swapchain->get_extent()
+            _vk_swapchain->get_extent(),
+            _wp_deep_image->get_imageview()
         );
+
         return;
     }
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -361,6 +426,7 @@ void Graphic::Vulkan_Core_Data::on_draw_frame() {
     // STEP 4: draw by data
 
     // TODO: add function record all draw data here
+    Utility::Time_Utils::get()->start_track(Graphic_Constants::KEY_TRACK_TIME_RECORD_DRAWS);
     VkCommandBufferBeginInfo begin_info{};
         begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
@@ -377,15 +443,19 @@ void Graphic::Vulkan_Core_Data::on_draw_frame() {
         render_pass_info.framebuffer = _vk_frame_buffers->get_frame_buffer(_current_frame);
         render_pass_info.renderArea.offset = {0, 0};
         render_pass_info.renderArea.extent = _vk_swapchain->get_extent();
+        
+        std::vector<VkClearValue> clear_colors(2);
+        clear_colors[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+        clear_colors[1].depthStencil = {1.0f, 0};
 
-        VkClearValue clear_color = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-        render_pass_info.clearValueCount = 1;
-        render_pass_info.pClearValues = &clear_color;
+        render_pass_info.clearValueCount = static_cast<uint32_t>(clear_colors.size());
+        render_pass_info.pClearValues = clear_colors.data();
 
         // STEP 4.2: record by render pass data
 
         // Bind render pass to draw
         vkCmdBeginRenderPass(vk_command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
             auto vertices_buffer = _vk_render_data->get_vertices_buffer();
 
             auto indices_bufer = _vk_render_data->get_indices_buffer();
@@ -481,6 +551,7 @@ void Graphic::Vulkan_Core_Data::on_draw_frame() {
 
                         vkCmdBindIndexBuffer(vk_command_buffer, vk_indices_buffer, indices_offset.offset, VK_INDEX_TYPE_UINT16);
                         
+                        // std::cout << "Number instance: " << instances_buffer->get_number_instance() << std::endl;
                         vkCmdDrawIndexed(
                             vk_command_buffer,
                             static_cast<uint32_t>(indices_offset.size / (int)sizeof(uint16_t)),
@@ -499,9 +570,10 @@ void Graphic::Vulkan_Core_Data::on_draw_frame() {
 
         vkCmdEndRenderPass(vk_command_buffer);
 
-        if (vkEndCommandBuffer(vk_command_buffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to record command buffer!");
-        }
+    if (vkEndCommandBuffer(vk_command_buffer) != VK_SUCCESS) {
+        throw std::runtime_error("failed to record command buffer!");
+    }
+    Utility::Time_Utils::get()->end_track(Graphic_Constants::KEY_TRACK_TIME_RECORD_DRAWS);
 
     // Utility::Log::get()->log_info("on_draw_frame 2", image_index);
 
@@ -523,10 +595,14 @@ void Graphic::Vulkan_Core_Data::on_draw_frame() {
 
     // Utility::Log::get()->log_info("on_draw_frame 3", image_index);
 
+    // start = glfwGetTime();
+
     _vk_queues->submit_custom_commands(
         submit_info,
         vk_fence
     );
+
+    // _time_draw_data_in_gpu = glfwGetTime() - start;
 
     // Utility::Log::get()->log_info("on_draw_frame 4", image_index);
 
@@ -550,6 +626,14 @@ void Graphic::Vulkan_Core_Data::on_draw_frame() {
     // Utility::Log::get()->log_info("on_draw_frame 6", image_index);
 
     _current_frame = (_current_frame + 1) % Vulkan_Constants::MAX_FRAMES_IN_FLIGHT;
+}
+
+double Graphic::Vulkan_Core_Data::get_time_prepare_draw() {
+    return _time_get_draw_data;
+}
+
+double Graphic::Vulkan_Core_Data::get_time_cpu_draw() {
+    return _time_draw_data_in_gpu;
 }
 
 Graphic::Vulkan_Wrapper_Data Graphic::Vulkan_Core_Data::get_wrapper_data() {

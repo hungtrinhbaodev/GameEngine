@@ -3,6 +3,7 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+#include <chrono>
 
 #include <graphic/common/graphic_constants.h>
 #include <graphic/vulkan_implementation/vulkan_core_data.h>
@@ -25,6 +26,14 @@ namespace Graphic {
         static std::vector<std::thread> threads;
 
         public: 
+
+        static double global_fps;
+
+        static double global_draw_time;
+
+        static double global_time_prepare_data;
+
+        static double global_time_draw_in_cpu;
 
         static void init(Window* window);
 

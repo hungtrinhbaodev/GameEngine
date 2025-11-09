@@ -68,28 +68,28 @@ int main() {
     // test
     const auto& data = Graphic::Vulkan_Core_Data::get();
     const auto& _vk_render_data = data->get_wrapper_data().wp_render_data;
-    int size = 1000;
+    int size = 1;
     for (int i = 0;i < size;i++) {
         _vk_render_data->add_model(
-            "RECTANGLE",
-            DEFAULT_PATH + "texture1.png",
-            Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-1.0f, 1.0f), Utility::Math_Utils::rand_range(-1.0f, 1.0f))
-        );
-        _vk_render_data->add_model(
             "TRIANGLE",
-            DEFAULT_PATH + "texture2.png",
-            Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-1.0f, 1.0f), Utility::Math_Utils::rand_range(-1.0f, 1.0f))
+            "",
+            Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-10.0f, 10.0f), Utility::Math_Utils::rand_range(-10.0f, 10.0f))
         );
-        _vk_render_data->add_model(
-            "RECTANGLE",
-            DEFAULT_PATH + "texture3.png",
-            Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-1.0f, 1.0f), Utility::Math_Utils::rand_range(-1.0f, 1.0f))
-        );
-        _vk_render_data->add_model(
-            "TRIANGLE",
-            DEFAULT_PATH + "texture2.png",
-            Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-1.0f, 1.0f), Utility::Math_Utils::rand_range(-1.0f, 1.0f))
-        );
+        // _vk_render_data->add_model(
+        //     "TRIANGLE",
+        //     "",
+        //     Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-10.0f, 10.0f), Utility::Math_Utils::rand_range(-10.0f, 10.0f))
+        // );
+        // _vk_render_data->add_model(
+        //     "RECTANGLE",
+        //     "",
+        //     Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-10.0f, 10.0f), Utility::Math_Utils::rand_range(-10.0f, 10.0f))
+        // );
+        // _vk_render_data->add_model(
+        //     "TRIANGLE",
+        //     "",
+        //     Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-10.0f, 10.0f), Utility::Math_Utils::rand_range(-10.0f, 10.0f))
+        // );
     }
     
     // _vk_render_data->add_model(
@@ -102,11 +102,24 @@ int main() {
     //     Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(0.8f, -0.8f)
     // );
 
+    double last_time = glfwGetTime();
+
     // main loop of game engine
     while(Graphic::Graphic::is_running()) {
+        double current_time = glfwGetTime();
 
         // pool user events
         glfwPollEvents();
+
+        if (current_time - last_time >= 1.0f) {
+            window->change_window_name(
+                Graphic::Graphic::global_fps, 
+                Graphic::Graphic::global_draw_time,
+                Graphic::Graphic::global_time_prepare_data,
+                Graphic::Graphic::global_time_draw_in_cpu
+            );
+            last_time = current_time;
+        }
     }
     
     // terminate to wait main thread graphic end

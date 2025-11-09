@@ -19,7 +19,8 @@ namespace Graphic {
             VkDevice vk_device,
             VkRenderPass vk_render_pass,
             const std::vector<VkImageView>& vk_swapchain_imageviews,
-            VkExtent2D vk_swapchain_extent
+            VkExtent2D vk_swapchain_extent,
+            VkImageView depth_image_view
         );
 
         const std::vector<VkFramebuffer>& get();

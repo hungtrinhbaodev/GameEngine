@@ -17,6 +17,7 @@ namespace Graphic {
 
         void init(
             VkDevice vk_device,
+            VkPhysicalDevice vk_physical_device,
             VkFormat vk_swapchain_format
         );
 

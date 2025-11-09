@@ -1,5 +1,7 @@
 #include <graphic/vulkan_implementation/vulkan_queues.h>
 #include <graphic/vulkan_implementation/vulkan_utility.h>
+#include <utility/time_utils.h>
+#include <graphic/common/graphic_constants.h>
 
 void Graphic::Vulkan_Queues::init_queues(
     VkPhysicalDevice vk_physical_device,
@@ -41,7 +43,11 @@ void Graphic::Vulkan_Queues::submit_single_commands(
     switch(submit_mode) {
         case Vulkan_Queue_Submit_Mode::SUBMIT_MODE_SYNC: {
             // Utility::Log::get()->log_info("submit_single_commands 2", "command buffer:", command_buffer, "graphic queue: ", _vk_graphics_queue);
+
+            Utility::Time_Utils::get()->start_track(Graphic_Constants::KEY_TRACK_TIME_QUEUE_SEND_COMMONS);
             vkQueueSubmit(_vk_graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+            Utility::Time_Utils::get()->end_track(Graphic_Constants::KEY_TRACK_TIME_QUEUE_SEND_COMMONS);
+
             // Utility::Log::get()->log_info("submit_single_commands 2.1", "graphic queue: ", _vk_graphics_queue);
             vkQueueWaitIdle(_vk_graphics_queue);
             
@@ -59,7 +65,9 @@ void Graphic::Vulkan_Queues::submit_single_commands(
             _vk_fences->using_fence_with_callback(
                 [this, submit_info](VkFence vk_fence) {
                     // Utility::Log::get()->log_info("submit_single_commands 4", vk_fence);
+                    Utility::Time_Utils::get()->start_track(Graphic_Constants::KEY_TRACK_TIME_QUEUE_SEND_COMMONS);
                     vkQueueSubmit(_vk_graphics_queue, 1, &submit_info, vk_fence);
+                    Utility::Time_Utils::get()->end_track(Graphic_Constants::KEY_TRACK_TIME_QUEUE_SEND_COMMONS);
                     // Utility::Log::get()->log_info("submit_single_commands 5", vkGetFenceStatus(_vk_device, vk_fence));
                 },
                 callback
@@ -74,10 +82,9 @@ void Graphic::Vulkan_Queues::submit_custom_commands(
     VkFence vk_fence
 ) {
     std::unique_lock<std::mutex> lock(_sumit_lock);
-    Vulkan_Utility::vk_check_action(
-        vkQueueSubmit(_vk_graphics_queue, 1, &vk_submit_info, vk_fence),
-        "failed to submit custom command buffer!"
-    );
+    Utility::Time_Utils::get()->start_track(Graphic_Constants::KEY_TRACK_TIME_QUEUE_SEND_DRAW);
+    vkQueueSubmit(_vk_graphics_queue, 1, &vk_submit_info, vk_fence);
+    Utility::Time_Utils::get()->end_track(Graphic_Constants::KEY_TRACK_TIME_QUEUE_SEND_DRAW);
 }
 
 void Graphic::Vulkan_Queues::submit_present_commands(

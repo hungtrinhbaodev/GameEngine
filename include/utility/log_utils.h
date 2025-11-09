@@ -95,7 +95,7 @@ namespace Utility {
         template<typename ...Args>
         void log_info(const Args&... args) {
 
-            return;
+            // return;
 
             _lock_log.lock();
 

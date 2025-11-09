@@ -113,6 +113,17 @@ VkPipelineColorBlendStateCreateInfo Graphic::Vulkan_Pipeline::_create_color_blen
     return info;
 }
 
+VkPipelineDepthStencilStateCreateInfo Graphic::Vulkan_Pipeline::_create_depth_stencil_info() {
+    VkPipelineDepthStencilStateCreateInfo depth_stencil{};
+    depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depth_stencil.depthTestEnable = VK_TRUE;
+    depth_stencil.depthWriteEnable = VK_TRUE;
+    depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    depth_stencil.depthBoundsTestEnable = VK_FALSE;
+    depth_stencil.stencilTestEnable = VK_FALSE;
+    return depth_stencil;
+}
+
 VkPipelineDynamicStateCreateInfo Graphic::Vulkan_Pipeline::_create_dynamic_state_info() {
     VkPipelineDynamicStateCreateInfo info{};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -177,6 +188,8 @@ void Graphic::Vulkan_Pipeline::init(
 
     VkPipelineColorBlendStateCreateInfo color_blend_info = _create_color_blending_info(color_blend_attachment_info);
 
+    VkPipelineDepthStencilStateCreateInfo depth_stencil_info = _create_depth_stencil_info();
+
     VkPipelineDynamicStateCreateInfo dynamic_state_info = _create_dynamic_state_info();
 
     VkPipelineLayoutCreateInfo layout_info = _create_pipeline_layout_info(pipeline_config);
@@ -197,6 +210,7 @@ void Graphic::Vulkan_Pipeline::init(
     pipeline_create_info.pRasterizationState = &rasterizer_info;
     pipeline_create_info.pMultisampleState = &multi_sampling_info;
     pipeline_create_info.pColorBlendState = &color_blend_info;
+    pipeline_create_info.pDepthStencilState = &depth_stencil_info;
     pipeline_create_info.pDynamicState = &dynamic_state_info;
     pipeline_create_info.layout = _vk_pipeline_layout;
     pipeline_create_info.renderPass = vk_render_pass;

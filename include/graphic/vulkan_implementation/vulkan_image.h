@@ -20,6 +20,8 @@ namespace Graphic {
 
         VkImageView _vk_imageview = VK_NULL_HANDLE;
 
+        VkImageAspectFlags _vk_aspect_flags;
+
         public:
 
         void make(
@@ -28,7 +30,8 @@ namespace Graphic {
             VkFormat format,
             VkImageTiling tiling,
             VkImageUsageFlags usage,
-            VkMemoryPropertyFlags properties
+            VkMemoryPropertyFlags properties,
+            VkImageAspectFlags vk_aspect_flags = VK_IMAGE_ASPECT_COLOR_BIT
         );
 
         Vulkan_Commands_Record_Data make_transition_record_data(

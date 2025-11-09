@@ -4,20 +4,22 @@ void Graphic::Vulkan_Frame_Buffers::init(
     VkDevice vk_device,
     VkRenderPass vk_render_pass,
     const std::vector<VkImageView>& vk_swapchain_imageviews,
-    VkExtent2D vk_swapchain_extent
+    VkExtent2D vk_swapchain_extent,
+    VkImageView depth_image_view
 ) {
     _vk_frame_buffers.resize(vk_swapchain_imageviews.size());
 
     for(size_t i = 0;i < vk_swapchain_imageviews.size();i++){
-        VkImageView attachments[] = {
-            vk_swapchain_imageviews[i]
+        std::vector<VkImageView> attachments = {
+            vk_swapchain_imageviews[i],
+            depth_image_view
         };
 
         VkFramebufferCreateInfo create_info{};
         create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         create_info.renderPass = vk_render_pass;
-        create_info.attachmentCount = 1;
-        create_info.pAttachments = attachments;
+        create_info.attachmentCount = attachments.size();
+        create_info.pAttachments = attachments.data();
         create_info.width = vk_swapchain_extent.width;
         create_info.height = vk_swapchain_extent.height;
         create_info.layers = 1;

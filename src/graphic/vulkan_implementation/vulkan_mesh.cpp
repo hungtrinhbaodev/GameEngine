@@ -10,8 +10,8 @@ void Graphic::Vulkan_Mesh::on_load(const Vulkan_Mesh_Load_Params& load_param) {
     auto vertices_buffer = load_param.vertices_buffer;
     auto indices_buffer = load_param.indices_buffer;
     
-
-    Utility::Log::get()->log_info("Graphic::Vulkan_Mesh::on_load 1", vertices_buffer);
+    // TODO: set up event driven or callback to 
+    // make push vertices to buffer is async task
     vertices_buffer->push_data(
         mesh->get_key(), 
         mesh->get_vertices_data(), 
@@ -19,14 +19,10 @@ void Graphic::Vulkan_Mesh::on_load(const Vulkan_Mesh_Load_Params& load_param) {
         mesh->get_vertices_memory_size()
     );
 
-
-    Utility::Log::get()->log_info("Graphic::Vulkan_Mesh::on_load 2", indices_buffer);
     indices_buffer->push_data(
         mesh->get_key(),
         mesh->get_indices_data(),
         0,
         mesh->get_indices_memory_size()
     );
-
-    Utility::Log::get()->log_info("Graphic::Vulkan_Mesh::on_load 3");
 }

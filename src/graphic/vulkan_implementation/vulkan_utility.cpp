@@ -196,7 +196,12 @@ std::vector<const char*> Graphic::Vulkan_Utility::query_physical_device_layers_e
     return layer_names;
 }
 
-VkImageView Graphic::Vulkan_Utility::create_imageview_from_image(VkImage vk_image, const VkFormat& vk_format, VkDevice vk_device) {
+VkImageView Graphic::Vulkan_Utility::create_imageview_from_image(
+    VkImage vk_image, 
+    const VkFormat& vk_format, 
+    VkImageAspectFlags aspect_flags, 
+    VkDevice vk_device
+) {
 
     // if device is NULL HANDLE try to get default device
     if (vk_device == VK_NULL_HANDLE) {
@@ -217,7 +222,7 @@ VkImageView Graphic::Vulkan_Utility::create_imageview_from_image(VkImage vk_imag
     create_info.image = vk_image;
     create_info.format = vk_format;
     create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    create_info.subresourceRange.aspectMask = aspect_flags;
     create_info.subresourceRange.baseMipLevel = 0;
     create_info.subresourceRange.baseArrayLayer = 0;
     create_info.subresourceRange.layerCount = 1;
@@ -245,7 +250,8 @@ uint32_t Graphic::Vulkan_Utility::find_buffer_memory_type_index(
     vkGetPhysicalDeviceMemoryProperties(vk_physical_device, &memory_properties);
 
     for(int i = 0;i < memory_properties.memoryTypeCount;i++){
-        if((type_filter & (i << 1)) && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties){
+        Utility::Log::get()->log_info("find_buffer_memory_type_index 2", (bool)(type_filter & (1 << i)), memory_properties.memoryTypes[i].propertyFlags, properties);
+        if((type_filter & (1 << i)) && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties){
             return i;
         }
     }
@@ -302,4 +308,38 @@ Graphic::Vulkan_Commands_Mode Graphic::Vulkan_Utility::get_command_mode_by_load_
             return Vulkan_Commands_Mode::COMMANDS_MODE_ASYNC;
         }
     }
+}
+
+VkFormat Graphic::Vulkan_Utility::find_supported_format(
+    const std::vector<VkFormat>& candidates, 
+    VkImageTiling tiling, 
+    VkFormatFeatureFlags features,
+    VkPhysicalDevice vk_physical_device
+) {
+    Utility::Log::get()->log_info("support format 1", candidates.size());
+    for (auto format : candidates) {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(vk_physical_device, format, &props);
+        Utility::Log::get()->log_info("support format 2", tiling, VK_IMAGE_TILING_LINEAR, props.linearTilingFeatures, features, format);
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+            return format;
+
+        Utility::Log::get()->log_info("support format 3", tiling, props.optimalTilingFeatures, features, (props.optimalTilingFeatures & features), format);
+        if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
+            return format;
+        }
+    }
+
+    throw std::runtime_error("failed to find supported format!");
+}
+
+VkFormat Graphic::Vulkan_Utility::find_depth_format(
+    VkPhysicalDevice vk_physical_device
+) {
+    return find_supported_format(
+        {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        vk_physical_device
+    );
 }

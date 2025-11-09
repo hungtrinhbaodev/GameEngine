@@ -1,6 +1,6 @@
 #include <graphic/vulkan_implementation/vulkan_constants.h>
 
-bool Graphic::Vulkan_Constants::IS_ENABLED_VALIDATION_LAYER = false;
+bool Graphic::Vulkan_Constants::IS_ENABLED_VALIDATION_LAYER = true;
 
 const char* Graphic::Vulkan_Constants::VALIDATION_LAYER_NAME = "VK_LAYER_KHRONOS_validation";
 
