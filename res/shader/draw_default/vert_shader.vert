@@ -33,6 +33,8 @@ void main(){
     vec3 inPosition2 = positions[gl_VertexIndex];
     vec3 inColor2 = vec3(colors[gl_VertexIndex]);
     mat4 model = mat4(inModelMatrixCol0, inModelMatrixCol1, inModelMatrixCol2, inModelMatrixCol3);
-    gl_Position =  model * vec4(inPosition2, 1.0);
-    fragColor = inColor2;
+    //gl_Position =  model * vec4(inPosition, 1.0);
+    gl_Position =  vec4(inPosition, 1.0);
+    //gl_Position =  vec4(inPosition2, 1.0);
+    fragColor = inColor;
 }

@@ -71,15 +71,15 @@ int main() {
     int size = 1;
     for (int i = 0;i < size;i++) {
         _vk_render_data->add_model(
+            "RECTANGLE",
+            "",
+            Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-10.0f, 10.0f), Utility::Math_Utils::rand_range(-10.0f, 10.0f))
+        );
+        _vk_render_data->add_model(
             "TRIANGLE",
             "",
             Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-10.0f, 10.0f), Utility::Math_Utils::rand_range(-10.0f, 10.0f))
         );
-        // _vk_render_data->add_model(
-        //     "TRIANGLE",
-        //     "",
-        //     Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-10.0f, 10.0f), Utility::Math_Utils::rand_range(-10.0f, 10.0f))
-        // );
         // _vk_render_data->add_model(
         //     "RECTANGLE",
         //     "",

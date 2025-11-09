@@ -115,10 +115,14 @@ namespace Graphic {
 
             std::unique_lock<std::mutex> lock(_buffer_lock);
 
+            Utility::Log::get()->log_info("Vertex buffer push data", key, size);
+
             // If push already exist key we will throw a exception
             if (_offset_data.find(key) != _offset_data.end()) {
                 throw std::runtime_error("fail to push data to mesh buffer: key push already in!");
             }
+
+            Utility::Log::get()->log_info("Vertex buffer push data 2", key, size);
 
             // Find the size suitable unused memory if has
             int available_unsed_offset_index = _find_suitable_unused_offset_index(size);
@@ -142,10 +146,14 @@ namespace Graphic {
                 size_need_append = _using_size + size - _size;
             }
 
+            Utility::Log::get()->log_info("Vertex buffer push data 3", key, _using_size, size, size_need_append);
+
             // Resize the buffer to push data
             if (size_need_append > 0) {
                 _on_resize(size_need_append);
             }
+
+            Utility::Log::get()->log_info("Vertex buffer push data 4", key, _using_size, size, _size, size_need_append);
 
             // Copy the using data to last offset using
             _copy_data_to_offset(data, offset, _using_size, size);

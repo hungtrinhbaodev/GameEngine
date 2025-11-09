@@ -534,6 +534,8 @@ void Graphic::Vulkan_Core_Data::on_draw_frame() {
 
                         std::string mesh_key = model->get_vk_mesh()->get_key();
 
+                        Utility::Log::get()->log_info("On draw mesh with key", mesh_key);
+                            
                         // get instances buffer of model
                         Graphic::Instance_Buffer* instances_buffer = _vk_render_data->get_instances_buffer(model_key);
 

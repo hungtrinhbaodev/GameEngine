@@ -17,11 +17,13 @@ void Graphic::Vulkan_Render_Data::init(
     _vk_indices_buffer->make(
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        // VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
     );
 
     _vk_vertices_buffer->make(
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        // VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
     );
 }
 
@@ -48,6 +50,7 @@ Graphic::Vulkan_Model_User_Data Graphic::Vulkan_Render_Data::add_model(
         _vk_instance_buffers[model_key] = new Instance_Buffer();
         _vk_instance_buffers[model_key]->make(
             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            // VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
         );
     }
