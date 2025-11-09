@@ -111,6 +111,7 @@ void Graphic::Vulkan_Dynamic_Buffer::_copy_data_to_offset(
 }
 
 void Graphic::Vulkan_Dynamic_Buffer::log_buffer_data(const std::string& prefix) {
+    if (_property_flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) return;
     if (!_is_auto_map_memory) {
         map_memory();
         const auto& parse_data = Utility::Func_Utils::parse_data<int>(_map_ptr, 0, _size);

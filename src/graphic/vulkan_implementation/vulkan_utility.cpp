@@ -245,7 +245,7 @@ uint32_t Graphic::Vulkan_Utility::find_buffer_memory_type_index(
     vkGetPhysicalDeviceMemoryProperties(vk_physical_device, &memory_properties);
 
     for(int i = 0;i < memory_properties.memoryTypeCount;i++){
-        if((type_filter & (i << 1)) && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties){
+        if((type_filter & (1 << i)) && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties){
             return i;
         }
     }

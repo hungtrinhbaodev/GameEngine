@@ -72,24 +72,24 @@ int main() {
     for (int i = 0;i < size;i++) {
         _vk_render_data->add_model(
             "RECTANGLE",
-            DEFAULT_PATH + "texture1.png",
+            "",
             Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-1.0f, 1.0f), Utility::Math_Utils::rand_range(-1.0f, 1.0f))
         );
-        _vk_render_data->add_model(
-            "TRIANGLE",
-            DEFAULT_PATH + "texture2.png",
-            Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-1.0f, 1.0f), Utility::Math_Utils::rand_range(-1.0f, 1.0f))
-        );
-        _vk_render_data->add_model(
-            "RECTANGLE",
-            DEFAULT_PATH + "texture3.png",
-            Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-1.0f, 1.0f), Utility::Math_Utils::rand_range(-1.0f, 1.0f))
-        );
-        _vk_render_data->add_model(
-            "TRIANGLE",
-            DEFAULT_PATH + "texture2.png",
-            Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-1.0f, 1.0f), Utility::Math_Utils::rand_range(-1.0f, 1.0f))
-        );
+        // _vk_render_data->add_model(
+        //     "TRIANGLE",
+        //     DEFAULT_PATH + "texture2.png",
+        //     Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-1.0f, 1.0f), Utility::Math_Utils::rand_range(-1.0f, 1.0f))
+        // );
+        // _vk_render_data->add_model(
+        //     "RECTANGLE",
+        //     DEFAULT_PATH + "texture3.png",
+        //     Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-1.0f, 1.0f), Utility::Math_Utils::rand_range(-1.0f, 1.0f))
+        // );
+        // _vk_render_data->add_model(
+        //     "TRIANGLE",
+        //     DEFAULT_PATH + "texture2.png",
+        //     Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-1.0f, 1.0f), Utility::Math_Utils::rand_range(-1.0f, 1.0f))
+        // );
     }
     
     // _vk_render_data->add_model(
