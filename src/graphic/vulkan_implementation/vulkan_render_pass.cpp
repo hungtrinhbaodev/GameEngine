@@ -40,10 +40,12 @@ void Graphic::Vulkan_Render_Pass::init(
     VkSubpassDescription sub_pass{};
     sub_pass.colorAttachmentCount = 1;
     sub_pass.pColorAttachments = &color_attachment_ref;
-    sub_pass.pDepthStencilAttachment = &depth_attachment_ref;
-    // sub_pass.inputAttachmentCount = 0;
-    // sub_pass.pInputAttachments = nullptr;
-    // sub_pass.pResolveAttachments = nullptr; 
+    if (Vulkan_Constants::IS_ENABLE_DEPTH_BUFFER) {
+        sub_pass.pDepthStencilAttachment = &depth_attachment_ref;
+    }
+    sub_pass.inputAttachmentCount = 0;
+    sub_pass.pInputAttachments = nullptr;
+    sub_pass.pResolveAttachments = nullptr; 
 
     VkSubpassDependency dependency{};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -54,15 +56,26 @@ void Graphic::Vulkan_Render_Pass::init(
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
     // render pass create info
-    std::vector<VkAttachmentDescription> attachments = {color_attachment, depth_attachment};
+    std::vector<VkAttachmentDescription> attachments;
+
+    if (Vulkan_Constants::IS_ENABLE_DEPTH_BUFFER) {
+        attachments = {color_attachment, depth_attachment};
+    }
+    else {
+        attachments = {color_attachment};
+    }
+
     VkRenderPassCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
     create_info.attachmentCount = attachments.size();
     create_info.pAttachments = attachments.data();
     create_info.subpassCount = 1;
     create_info.pSubpasses = &sub_pass;
-    create_info.dependencyCount = 1;
-    create_info.pDependencies = &dependency;
+
+    if (Vulkan_Constants::IS_ENABLE_DEPTH_BUFFER) {
+        create_info.dependencyCount = 1;
+        create_info.pDependencies = &dependency;
+    }
 
     // create render pass
     Vulkan_Utility::vk_check_action(

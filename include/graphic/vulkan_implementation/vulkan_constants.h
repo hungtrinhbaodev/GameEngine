@@ -37,6 +37,8 @@ namespace Graphic {
 
         static bool IS_ENABLED_VALIDATION_LAYER;
 
+        static bool IS_ENABLE_DEPTH_BUFFER;
+
         static const char* VALIDATION_LAYER_NAME;
 
         static std::vector<const char*> INSTANCE_EXTENSION;

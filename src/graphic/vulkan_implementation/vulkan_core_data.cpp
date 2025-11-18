@@ -2,6 +2,8 @@
 #include <utility/time_utils.h>
 #include <graphic/common/graphic_constants.h>
 
+#include <algorithm>
+
 Graphic::Vulkan_Core_Data* Graphic::Vulkan_Core_Data::_instance = nullptr;
 
 std::mutex Graphic::Vulkan_Core_Data::_lock_instance;
@@ -156,17 +158,17 @@ void Graphic::Vulkan_Core_Data::_init_deep_image() {
         VK_IMAGE_ASPECT_DEPTH_BIT
     );
 
-    auto record_data = _wp_deep_image->make_transition_record_data(
-        vk_depth_format,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        nullptr
-    );
+    // auto record_data = _wp_deep_image->make_transition_record_data(
+    //     vk_depth_format,
+    //     VK_IMAGE_LAYOUT_UNDEFINED,
+    //     VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    //     nullptr
+    // );
 
-    _vk_command_pool->record_single_commands(
-        Vulkan_Commands_Mode::COMMANDS_MODE_SYNC,
-        record_data.record
-    );
+    // _vk_command_pool->record_single_commands(
+    //     Vulkan_Commands_Mode::COMMANDS_MODE_SYNC,
+    //     record_data.record
+    // );
 }
 
 void Graphic::Vulkan_Core_Data::_destroy_deep_image() {
@@ -235,7 +237,9 @@ void Graphic::Vulkan_Core_Data::init_data(Window *window) {
     );
 
     // init deep image to test
-    _init_deep_image();
+    if (Vulkan_Constants::IS_ENABLE_DEPTH_BUFFER) {
+        _init_deep_image();
+    }
 
     // init vulkan render pass
     _vk_render_pass->init(
@@ -305,7 +309,9 @@ void Graphic::Vulkan_Core_Data::clear_data() {
     _vk_semaphores->destroy();
 
     // destroy deep image
-    _destroy_deep_image();
+    if (Vulkan_Constants::IS_ENABLE_DEPTH_BUFFER) {
+        _destroy_deep_image();
+    }
 
     // destroy render data
     _vk_render_data->destroy();
@@ -392,8 +398,10 @@ void Graphic::Vulkan_Core_Data::on_draw_frame() {
         );
 
         // recreate deep image with another size
-        _destroy_deep_image();
-        _init_deep_image();
+        if (Vulkan_Constants::IS_ENABLE_DEPTH_BUFFER) {
+            _destroy_deep_image();
+            _init_deep_image();
+        }
 
         // recreate frame buffer
         _vk_frame_buffers->destroy(_vk_device->get());
@@ -444,9 +452,15 @@ void Graphic::Vulkan_Core_Data::on_draw_frame() {
         render_pass_info.renderArea.offset = {0, 0};
         render_pass_info.renderArea.extent = _vk_swapchain->get_extent();
         
-        std::vector<VkClearValue> clear_colors(2);
+        std::vector<VkClearValue> clear_colors;
+        if (Vulkan_Constants::IS_ENABLE_DEPTH_BUFFER) {
+            clear_colors.resize(2);
+            clear_colors[1].depthStencil = {1.0f, 0};
+        }
+        else {
+            clear_colors.resize(1);
+        }
         clear_colors[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
-        clear_colors[1].depthStencil = {1.0f, 0};
 
         render_pass_info.clearValueCount = static_cast<uint32_t>(clear_colors.size());
         render_pass_info.pClearValues = clear_colors.data();
@@ -533,8 +547,6 @@ void Graphic::Vulkan_Core_Data::on_draw_frame() {
                         std::string model_key = model->get_key();
 
                         std::string mesh_key = model->get_vk_mesh()->get_key();
-
-                        Utility::Log::get()->log_info("On draw mesh with key", mesh_key);
                             
                         // get instances buffer of model
                         Graphic::Instance_Buffer* instances_buffer = _vk_render_data->get_instances_buffer(model_key);

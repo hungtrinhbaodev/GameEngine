@@ -10,10 +10,19 @@ void Graphic::Vulkan_Frame_Buffers::init(
     _vk_frame_buffers.resize(vk_swapchain_imageviews.size());
 
     for(size_t i = 0;i < vk_swapchain_imageviews.size();i++){
-        std::vector<VkImageView> attachments = {
-            vk_swapchain_imageviews[i],
-            depth_image_view
-        };
+        std::vector<VkImageView> attachments; 
+
+        if (Vulkan_Constants::IS_ENABLE_DEPTH_BUFFER) {
+            attachments = {
+                vk_swapchain_imageviews[i],
+                depth_image_view
+            };
+        }
+        else {
+            attachments = {
+                vk_swapchain_imageviews[i]
+            };
+        }
 
         VkFramebufferCreateInfo create_info{};
         create_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;

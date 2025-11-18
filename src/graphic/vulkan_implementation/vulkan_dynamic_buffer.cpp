@@ -40,7 +40,7 @@ uint32_t Graphic::Vulkan_Dynamic_Buffer::_on_resize(uint32_t additional_size) {
         Vulkan_Buffer* staging_buffer = new Vulkan_Buffer();
 
         staging_buffer->make(
-            _size + additional_size + additional_size,
+            _size + additional_size + additional_size_need,
             _usage,
             _property_flags
         );
@@ -64,7 +64,7 @@ uint32_t Graphic::Vulkan_Dynamic_Buffer::_on_resize(uint32_t additional_size) {
 
         Utility::Log::get()->log_info("_on_resize 5", _size, additional_size_need);
 
-        return additional_size_need;
+        return additional_size + additional_size_need;
     }
 }
 

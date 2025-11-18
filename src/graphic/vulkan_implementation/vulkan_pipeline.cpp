@@ -210,7 +210,9 @@ void Graphic::Vulkan_Pipeline::init(
     pipeline_create_info.pRasterizationState = &rasterizer_info;
     pipeline_create_info.pMultisampleState = &multi_sampling_info;
     pipeline_create_info.pColorBlendState = &color_blend_info;
-    pipeline_create_info.pDepthStencilState = &depth_stencil_info;
+    if (Vulkan_Constants::IS_ENABLE_DEPTH_BUFFER) {
+        pipeline_create_info.pDepthStencilState = &depth_stencil_info;
+    }
     pipeline_create_info.pDynamicState = &dynamic_state_info;
     pipeline_create_info.layout = _vk_pipeline_layout;
     pipeline_create_info.renderPass = vk_render_pass;

@@ -57,6 +57,8 @@ namespace Graphic {
 
             // update number element in buffer
             _number_element++;
+
+            log_buffer_data("instance buffer add: ");
         }
 
         void add_data(const ID& id, const Mat_Transfrom& data) {

@@ -2,6 +2,8 @@
 
 bool Graphic::Vulkan_Constants::IS_ENABLED_VALIDATION_LAYER = true;
 
+bool Graphic::Vulkan_Constants::IS_ENABLE_DEPTH_BUFFER = false;
+
 const char* Graphic::Vulkan_Constants::VALIDATION_LAYER_NAME = "VK_LAYER_KHRONOS_validation";
 
 std::vector<const char*> Graphic::Vulkan_Constants::REQUIRED_PHYSICAL_DEVICE_EXTENSIONS = {
