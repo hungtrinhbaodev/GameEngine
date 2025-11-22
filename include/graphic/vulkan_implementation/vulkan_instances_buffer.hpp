@@ -58,11 +58,11 @@ namespace Graphic {
             // update number element in buffer
             _number_element++;
 
-            log_buffer_data("instance buffer add: ");
+            //log_buffer_data("instance buffer add: ");
         }
 
         void add_data(const ID& id, const Mat_Transfrom& data) {
-            Utility::Log::get()->log_info("instances buffer add data", id, data, get_using_size());
+            //Utility::Log::get()->log_info("instances buffer add data", id, data, get_using_size());
             Mat_Transfrom* non_const_ptr = const_cast<Mat_Transfrom*>(&data);
             add_data(id, static_cast<void*>(non_const_ptr), 0);
         }

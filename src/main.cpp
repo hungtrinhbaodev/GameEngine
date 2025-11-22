@@ -79,7 +79,7 @@ int main() {
     // test
     const auto& data = Graphic::Vulkan_Core_Data::get();
     const auto& _vk_render_data = data->get_wrapper_data().wp_render_data;
-    int size = 1000;
+    int size = 10000;
     for (int i = 0;i < size;i++) {
         _vk_render_data->add_model(
             "RECTANGLE",
@@ -132,9 +132,12 @@ int main() {
             last_time = current_time;
         }
     }
-    
-    // terminate to wait main thread graphic end
+
+    Graphic::Graphic::destroy();
+
     Graphic::Graphic::terminate();
+
+    Utility::Log::get()->log_info("Terminate destroy all graphic processing!");
 
     // clear data and clean up window
     window->clear_window();

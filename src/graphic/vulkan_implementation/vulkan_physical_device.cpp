@@ -10,13 +10,11 @@ void Graphic::Vulkan_Physical_Device::init(VkInstance vk_instance, VkSurfaceKHR 
     std::vector<VkPhysicalDevice> physical_devices(device_count);
     vkEnumeratePhysicalDevices(vk_instance, &device_count, physical_devices.data());
 
-    std::vector<const char *> physical_device_infos;
+    std::vector<std::string> physical_device_infos;
     for(VkPhysicalDevice physical_device : physical_devices){
-        VkPhysicalDeviceProperties property;
+        VkPhysicalDeviceProperties property{};
         vkGetPhysicalDeviceProperties(physical_device, &property);
-        char *physic_device_name = new char[strlen(property.deviceName)];
-        strcpy_s(physic_device_name, strlen(physic_device_name), property.deviceName);
-        physical_device_infos.push_back(physic_device_name);
+        physical_device_infos.push_back(property.deviceName);
     }
     Utility::Log::get()->log_info("List physical device:", physical_device_infos);
     
@@ -42,7 +40,7 @@ void Graphic::Vulkan_Physical_Device::init(VkInstance vk_instance, VkSurfaceKHR 
         Utility::Log::get()->log_info("Chosed deviced: ",  property.deviceName);
     }
 
-};
+ };
 
 VkPhysicalDevice Graphic::Vulkan_Physical_Device::get() {
     return _vk_physical_device;

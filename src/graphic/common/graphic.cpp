@@ -17,11 +17,9 @@ double Graphic::Graphic::global_time_draw_in_cpu = -1.0f;
 
 void Graphic::Graphic::_set_graphic_state(Graphic_State state) {
 
-    _graphic_state_mutex.lock();
+    std::unique_lock<std::mutex> lock(_graphic_state_mutex);
 
     _graphic_state = state;
-
-    _graphic_state_mutex.unlock();
 
 }
 
@@ -107,7 +105,7 @@ void Graphic::Graphic::run(Window* window) {
             tmp_time_draw_in_cpu = 0;
             tmp_time_prepare_data = 0;
 
-            std::cout << std::endl;
+            //std::cout << std::endl;
 
             auto queue_send_track = Utility::Time_Utils::get()->get_time_track_info(Graphic_Constants::KEY_TRACK_TIME_QUEUE_SEND_DRAW);
             std::cout << "Time track queue send draw: " << queue_send_track.first << ", " << queue_send_track.second<< ", " <<(queue_send_track.first / queue_send_track.second) << std::endl;
@@ -127,9 +125,6 @@ void Graphic::Graphic::run(Window* window) {
         }
 
     }
-
-    // destroy all graphic component to close app
-    destroy();
 
     // update graphic state
     _set_graphic_state(Graphic_State::CLOSED);

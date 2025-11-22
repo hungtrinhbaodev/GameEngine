@@ -96,14 +96,11 @@ namespace Utility {
         void log_info(const Args&... args) {
 
             // return;
-
-            _lock_log.lock();
+            std::unique_lock<std::mutex> lock(_lock_log);
 
             std::cout << "thread id: " << std::this_thread::get_id() << SEPARATE;
 
             _log_info(args...);
-
-            _lock_log.unlock();
         }
 
         void parse_void_data(const char * prefix, void* data, int size);

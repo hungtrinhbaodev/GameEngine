@@ -108,13 +108,15 @@ Graphic::Vulkan_Queue_Family_Indices Graphic::Vulkan_Utility::query_suitable_que
     uint32_t number_queue_family = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(vk_physical_device, &number_queue_family, nullptr);
 
+    std::cout << "number_queue_family: " << number_queue_family << std::endl;
+
     std::vector<VkQueueFamilyProperties> family_queues(number_queue_family);
     vkGetPhysicalDeviceQueueFamilyProperties(vk_physical_device, &number_queue_family, family_queues.data());
 
     Vulkan_Queue_Family_Indices indices;
     for(int i = 0;i < family_queues.size();i++){
-        VkQueueFamilyProperties *property = &family_queues[i];
-        if (property->queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        VkQueueFamilyProperties property = family_queues[i];
+        if (property.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             indices.graphic_family = i;
         }
 
@@ -128,6 +130,7 @@ Graphic::Vulkan_Queue_Family_Indices Graphic::Vulkan_Utility::query_suitable_que
             break;
         }
     }
+
     return indices;
 }
 
