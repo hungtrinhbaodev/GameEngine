@@ -3,3 +3,5 @@ include/vulkan/*
 dependencies/*
 .vscode/*
 res/shader/glslc
+.vscode/*
+*.vcxproj*
