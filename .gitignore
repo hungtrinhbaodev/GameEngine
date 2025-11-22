@@ -1,7 +1,6 @@
 build/*
 include/vulkan/*
 dependencies/*
-.vscode/*
+.vscode/
 res/shader/glslc
-*vscode*
 *.vcxproj*
