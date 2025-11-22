@@ -77,7 +77,12 @@ void Graphic::Vulkan_Instance::init() {
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.pEngineName = "No Engine";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+
+#ifdef __linux__
     app_info.apiVersion = VK_API_VERSION_1_1;
+#else
+    app_info.apiVersion = VK_API_VERSION_1_0;
+#endif
 
     VkInstanceCreateInfo create_info{};
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -87,11 +92,13 @@ void Graphic::Vulkan_Instance::init() {
     std::vector<const char*> extensions = Vk_Utils::query_instance_extensions();
 
     // modify flag extension by specific flatform require extension
+#ifdef __linux__
     for (auto extension : extensions){
         if(strcmp(extension, VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME) == 0){
             create_info.flags |= VK_KHR_portability_enumeration;
         }
     }
+#endif
     Utility::Log::get()->log_info("List instance extension:", extensions);
     create_info.enabledExtensionCount = extensions.size();
     create_info.ppEnabledExtensionNames = extensions.data();

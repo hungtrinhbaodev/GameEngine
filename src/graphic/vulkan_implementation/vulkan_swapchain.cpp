@@ -1,4 +1,5 @@
 #include <graphic/vulkan_implementation/vulkan_swapchain.h>
+#include <algorithm>
 
 VkSurfaceFormatKHR Graphic::Vulkan_Swapchain::choose_swapchain_format(const std::vector<VkSurfaceFormatKHR>& available_formats) {
     for (const VkSurfaceFormatKHR& available_format : available_formats) {

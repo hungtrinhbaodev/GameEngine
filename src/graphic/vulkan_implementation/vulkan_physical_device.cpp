@@ -14,8 +14,8 @@ void Graphic::Vulkan_Physical_Device::init(VkInstance vk_instance, VkSurfaceKHR 
     for(VkPhysicalDevice physical_device : physical_devices){
         VkPhysicalDeviceProperties property;
         vkGetPhysicalDeviceProperties(physical_device, &property);
-        char *physic_device_name = new char[strlen(property.deviceName) + 1];
-        strcpy(physic_device_name, property.deviceName);
+        char *physic_device_name = new char[strlen(property.deviceName)];
+        strcpy_s(physic_device_name, strlen(physic_device_name), property.deviceName);
         physical_device_infos.push_back(physic_device_name);
     }
     Utility::Log::get()->log_info("List physical device:", physical_device_infos);

@@ -3,6 +3,7 @@
 #include <mutex>
 #include <iostream>
 #include <map>
+#include <algorithm>
 
 #include <graphic/vulkan_implementation/vulkan_dynamic_buffer.h>
 

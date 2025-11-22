@@ -1,7 +1,10 @@
 #pragma once
 #define GLFW_INCLUDE_VULKAN
 #include <vulkan/vulkan.h>
+
+#ifdef __linux__
 #include <vulkan/vulkan_beta.h>
+#endif
 
 #include <iostream>
 #include <mutex>

@@ -39,7 +39,7 @@ void Utility::Time_Utils::end_track(const std::string& key) {
     if (_time_min_max_tracks.find(key) == _time_min_max_tracks.end()) {
         _time_min_max_tracks[key] = {};
         _time_min_max_tracks[key].first = -1.0f;
-        _time_min_max_tracks[key].second = MAXFLOAT;
+        _time_min_max_tracks[key].second = std::numeric_limits<double>::max();
     }
 
     if (_time_tracks[key].second >= INT_MAX) {
@@ -48,7 +48,7 @@ void Utility::Time_Utils::end_track(const std::string& key) {
 
         if (_time_min_max_tracks.find(key) != _time_min_max_tracks.end()) {
             _time_min_max_tracks[key].first = -1.0f;
-            _time_min_max_tracks[key].second = MAXFLOAT;
+            _time_min_max_tracks[key].second = std::numeric_limits<double>::max();
         }
     }
 
@@ -74,7 +74,7 @@ void Utility::Time_Utils::clear_track(const std::string& key) {
 
         if (_time_min_max_tracks.find(key) != _time_min_max_tracks.end()) {
             _time_min_max_tracks[key].first = -1.0f;
-            _time_min_max_tracks[key].second = MAXFLOAT;
+            _time_min_max_tracks[key].second = std::numeric_limits<double>::max();
         }
     }
 }

@@ -4,10 +4,13 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
-#include <unistd.h>
 #include <signal.h>
+
+#ifdef __linux__
 #include <execinfo.h> // For stack trace
+#include <unistd.h>
 #include <stdio.h> // Using C-style I/O for signal safety
+#endif
 
 #include <core/objects_id_generated.hpp>
 #include <utility/func_utils.h>
@@ -19,8 +22,13 @@
 #include <graphic/vulkan_implementation/vulkan_mesh_buffer.hpp>
 #include <graphic/vulkan_implementation/vulkan_instances_buffer.hpp>
 
+#ifdef __linux__
 const std::string DEFAULT_PATH = "/Users/lap13994/Documents/hungtrinhbaodev/GameEngine/res/texture/";
+#else
+const std::string DEFAULT_PATH = "D:/game_engine/game_engine/res/texture/";
+#endif
 
+#ifdef __linux__
 // Change the function signature to accept siginfo_t* and void*
 void signal_handler(int sig, siginfo_t* info, void* context) {
     
@@ -41,9 +49,11 @@ void signal_handler(int sig, siginfo_t* info, void* context) {
     signal(sig, SIG_DFL);
     raise(sig);
 }
+#endif
 
 int main() {
 
+#ifdef __linux__
     struct sigaction sa;
     
     // Use sa_sigaction and set the SA_SIGINFO flag
@@ -54,6 +64,7 @@ int main() {
     if (sigaction(SIGSEGV, &sa, NULL) == -1) {
         perror("Error setting signal handler for SIGSEGV");
     }
+#endif
 
     // init window singleton
     Graphic::Window* window = Graphic::Window::get();
@@ -68,17 +79,17 @@ int main() {
     // test
     const auto& data = Graphic::Vulkan_Core_Data::get();
     const auto& _vk_render_data = data->get_wrapper_data().wp_render_data;
-    int size = 3;
+    int size = 1000;
     for (int i = 0;i < size;i++) {
         _vk_render_data->add_model(
             "RECTANGLE",
             "",
-            Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-10.0f, 10.0f), Utility::Math_Utils::rand_range(-10.0f, 10.0f))
+            Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-1.0f, 1.0f), Utility::Math_Utils::rand_range(-1.0f, 1.0f))
         );
         _vk_render_data->add_model(
             "TRIANGLE",
             "",
-            Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-10.0f, 10.0f), Utility::Math_Utils::rand_range(-10.0f, 10.0f))
+            Utility::Glm::make_scale(0.5f, 0.5f) * Utility::Glm::make_translation(Utility::Math_Utils::rand_range(-1.0f, 1.0f), Utility::Math_Utils::rand_range(-1.0f, 1.0f))
         );
         // _vk_render_data->add_model(
         //     "RECTANGLE",

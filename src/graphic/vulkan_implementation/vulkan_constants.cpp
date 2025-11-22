@@ -8,10 +8,17 @@ const char* Graphic::Vulkan_Constants::VALIDATION_LAYER_NAME = "VK_LAYER_KHRONOS
 
 std::vector<const char*> Graphic::Vulkan_Constants::REQUIRED_PHYSICAL_DEVICE_EXTENSIONS = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+#ifdef __linux__
     VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME
+#endif
 };
 
+#ifdef __linux__
 int Graphic::Vulkan_Constants::MAX_FRAMES_IN_FLIGHT = 3;
+#else
+int Graphic::Vulkan_Constants::MAX_FRAMES_IN_FLIGHT = 2;
+#endif
+
 
 std::vector<VkDynamicState> Graphic::Vulkan_Constants::PIPELINE_DYNAMIC_STATES = {
     VK_DYNAMIC_STATE_VIEWPORT,
