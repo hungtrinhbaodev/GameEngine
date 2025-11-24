@@ -6,7 +6,7 @@
 #include <thread>
 #include <signal.h>
 
-#ifdef __linux__
+#ifdef __APPLE__
 #include <execinfo.h> // For stack trace
 #include <unistd.h>
 #include <stdio.h> // Using C-style I/O for signal safety
@@ -22,13 +22,13 @@
 #include <graphic/vulkan_implementation/vulkan_mesh_buffer.hpp>
 #include <graphic/vulkan_implementation/vulkan_instances_buffer.hpp>
 
-#ifdef __linux__
+#ifdef __APPLE__
 const std::string DEFAULT_PATH = "/Users/lap13994/Documents/hungtrinhbaodev/GameEngine/res/texture/";
 #else
 const std::string DEFAULT_PATH = "D:/game_engine/game_engine/res/texture/";
 #endif
 
-#ifdef __linux__
+#ifdef __APPLE__
 // Change the function signature to accept siginfo_t* and void*
 void signal_handler(int sig, siginfo_t* info, void* context) {
     
@@ -53,7 +53,7 @@ void signal_handler(int sig, siginfo_t* info, void* context) {
 
 int main() {
 
-#ifdef __linux__
+#ifdef __APPLE__
     struct sigaction sa;
     
     // Use sa_sigaction and set the SA_SIGINFO flag
@@ -79,7 +79,7 @@ int main() {
     // test
     const auto& data = Graphic::Vulkan_Core_Data::get();
     const auto& _vk_render_data = data->get_wrapper_data().wp_render_data;
-    int size = 10000;
+    int size = 100;
     for (int i = 0;i < size;i++) {
         _vk_render_data->add_model(
             "RECTANGLE",
