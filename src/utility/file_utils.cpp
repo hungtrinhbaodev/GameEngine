@@ -1,10 +1,10 @@
 #include <utility/file_utils.h>
 
-#ifdef __linux__
+#ifdef __APPLE__
 std::string Utility::File_Utils::DEFAULT_PATH = std::string("/Users/lap13994/Documents/hungtrinhbaodev/GameEngine/");
 #else
 std::string Utility::File_Utils::DEFAULT_PATH = std::string("D:/game_engine/game_engine/");
-#endif // __linux__
+#endif // __APPLE__
 
 Utility::File_Utils* Utility::File_Utils::_instance = nullptr;
 
