@@ -1,8 +1,0 @@
-build/*
-include/vulkan/*
-dependencies/*
-*vscode*
-res/shader/glslc
-*.vcxproj*
-x64/*
-Debug/*

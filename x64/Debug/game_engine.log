@@ -1,0 +1,34 @@
+﻿  main.cpp
+  vk_device.cpp
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_consts.h(16,16): warning C4114: same type qualifier used more than once
+  (compiling source file 'src/vulkan/vk_device.cpp')
+  
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_device.cpp(6,10): warning C4067: unexpected tokens following preprocessor directive - expected a newline
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_device.cpp(36,71): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_device.cpp(41,71): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_device.cpp(45,71): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+  vk_fences.cpp
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_consts.h(16,16): warning C4114: same type qualifier used more than once
+  (compiling source file 'src/vulkan/vk_fences.cpp')
+  
+  vk_instance.cpp
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_consts.h(16,16): warning C4114: same type qualifier used more than once
+  (compiling source file 'src/vulkan/vk_instance.cpp')
+  
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_instance.cpp(54,55): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_instance.cpp(60,54): warning C4267: '=': conversion from 'size_t' to 'uint32_t', possible loss of data
+  vk_physical_device.cpp
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_consts.h(16,16): warning C4114: same type qualifier used more than once
+  (compiling source file 'src/vulkan/vk_physical_device.cpp')
+  
+  vk_queues.cpp
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_consts.h(16,16): warning C4114: same type qualifier used more than once
+  (compiling source file 'src/vulkan/vk_queues.cpp')
+  
+  vk_surface.cpp
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_consts.h(16,16): warning C4114: same type qualifier used more than once
+  (compiling source file 'src/vulkan/vk_surface.cpp')
+  
+  Generating Code...
+LINK : warning LNK4098: defaultlib 'MSVCRT' conflicts with use of other libs; use /NODEFAULTLIB:library
+  game_engine.vcxproj -> D:\engine_project\game_engine\x64\Debug\game_engine.exe

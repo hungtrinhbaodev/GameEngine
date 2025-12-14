@@ -1,4 +1,0 @@
-- Add shadow map for drawing (deep buffer).
-- Update submit sequence data in command pool (using semaphore to handle and decrease loaded process for fence and make cpu better).
-- Research Resource Factory to implement resource (make step load more clean).
-- Research Dispatcher flow for event driven (remove callback lamda function).

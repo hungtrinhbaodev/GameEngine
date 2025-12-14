@@ -1,0 +1,10 @@
+D:\engine_project\game_engine\game_engine\main.cpp;D:\engine_project\game_engine\game_engine\x64\Debug\main.obj
+D:\engine_project\game_engine\game_engine\src\core.cpp;D:\engine_project\game_engine\game_engine\x64\Debug\core.obj
+D:\engine_project\game_engine\game_engine\src\vulkan\swapchain_support_detail.cpp;D:\engine_project\game_engine\game_engine\x64\Debug\swapchain_support_detail.obj
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_core.cpp;D:\engine_project\game_engine\game_engine\x64\Debug\vk_core.obj
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_device.cpp;D:\engine_project\game_engine\game_engine\x64\Debug\vk_device.obj
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_fences.cpp;D:\engine_project\game_engine\game_engine\x64\Debug\vk_fences.obj
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_instance.cpp;D:\engine_project\game_engine\game_engine\x64\Debug\vk_instance.obj
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_physical_device.cpp;D:\engine_project\game_engine\game_engine\x64\Debug\vk_physical_device.obj
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_queues.cpp;D:\engine_project\game_engine\game_engine\x64\Debug\vk_queues.obj
+D:\engine_project\game_engine\game_engine\src\vulkan\vk_surface.cpp;D:\engine_project\game_engine\game_engine\x64\Debug\vk_surface.obj
