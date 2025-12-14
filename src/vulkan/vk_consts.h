@@ -13,7 +13,7 @@ namespace Vulkan {
 
 		const inline int MAX_FRAMES_IN_FLIGHT = 2;
 
-		const inline const char* VALIDATION_LAYER_NAME = "VK_LAYER_KHRONOS_validation";
+		const inline char* VALIDATION_LAYER_NAME = "VK_LAYER_KHRONOS_validation";
 
 		const inline std::vector<const char*> REQUIRED_PHYSICAL_DEVICE_EXTENSIONS = {
 			VK_KHR_SWAPCHAIN_EXTENSION_NAME,

@@ -5,6 +5,7 @@
 #include <vulkan/vk_device.h>
 #include <vulkan/vk_queues.h>
 #include <vulkan/vk_fences.h>
+#include <vulkan/vk_command_pool.h>
 
 namespace Vulkan {
 
@@ -61,12 +62,18 @@ namespace Vulkan {
 			
 			// Initialize Vulkan Fence Pool
 			_init_fences();
+
+			// Initialize Vulkan Command Pool By Threads
+			_init_command_pool_threads();
 		}
 	}
 
 	namespace Destroy {
 
 		void destroy_vulkan() {
+
+			// Destroy All Vulkan Command Pool
+			_destroy_command_pool_threads();
 
 			// Destroy Vulkan Device
 			_destroy_device();

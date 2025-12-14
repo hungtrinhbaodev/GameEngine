@@ -116,7 +116,6 @@ class Scheduler {
 
 					for (int i = 0; i < tasks.size(); ++i) {
 						auto& task_data = tasks[i];
-
 						/*
 							if task is excuting wait till it end and do
 							at another loop

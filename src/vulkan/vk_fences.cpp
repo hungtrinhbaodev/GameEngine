@@ -109,7 +109,7 @@ namespace Vulkan {
                 if (!_global_scheduler->is_contain_task(Const::VULKAN_FENCE_SCHEDULER_TASK_NAME)) {
                     _global_scheduler->schedule([](long long) {
                         _update_fences_callback();
-                        }, Const::VULKAN_FENCE_SCHEDULER_TASK_NAME);
+                    }, Const::VULKAN_FENCE_SCHEDULER_TASK_NAME);
                 }
             }
 
