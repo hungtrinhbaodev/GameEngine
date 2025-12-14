@@ -29,12 +29,13 @@ namespace Vulkan {
 
 	};
 
-
 	namespace {
 
 		inline std::unordered_map<uint64_t, std::shared_ptr<_Command_Pool_Thread>> _command_pool_threads;
 
 	}
+
+	std::shared_ptr<_Command_Pool_Thread> _get_command_thread_pool();
 
 	namespace Init {
 
@@ -45,6 +46,16 @@ namespace Vulkan {
 	namespace Destroy {
 
 		void _destroy_command_pool_threads();
+
+	}
+
+	namespace API {
+
+		VkCommandBuffer request_command_buffer();
+
+		void release_command_buffer(VkCommandBuffer& command_buffer);
+
+		void record_and_submit(std::function<void(VkCommandBuffer)> record);
 
 	}
 

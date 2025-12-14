@@ -2,6 +2,7 @@
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_command_pool.h>
 #include <vulkan/vk_utils.h>
+#include <exception>
 #include <log.h>
 
 namespace Vulkan {
@@ -56,6 +57,18 @@ namespace Vulkan {
 		Log::log_info("Vulkan delete command pool at thread", std::this_thread::get_id(), "successfully!");
 	}
 
+	std::shared_ptr<_Command_Pool_Thread> _get_command_thread_pool() {
+		auto thread_id = std::this_thread::get_id();
+		uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
+
+		if (_command_pool_threads.find(hash_thread_id) == _command_pool_threads.end()) {
+			throw std::exception("Vulkan fail to find thread pool at thread");
+		}
+
+		return _command_pool_threads[hash_thread_id];
+
+	}
+
 	namespace Init {
 
 		void _init_command_pool_threads() {
@@ -103,6 +116,18 @@ namespace Vulkan {
 				result.get();
 			}
 
+		}
+
+	}
+
+	namespace API {
+
+		VkCommandBuffer request_command_buffer() {
+			return _get_command_thread_pool()->request_item();
+		}
+
+		void release_command_buffer(VkCommandBuffer& command_buffer) {
+			return _get_command_thread_pool()->pooling_item(command_buffer);
 		}
 
 	}
