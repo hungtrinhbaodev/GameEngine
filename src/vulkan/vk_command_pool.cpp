@@ -62,7 +62,7 @@ namespace Vulkan {
 		uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
 
 		if (_command_pool_threads.find(hash_thread_id) == _command_pool_threads.end()) {
-			throw std::exception("Vulkan fail to find thread pool at thread");
+			throw std::runtime_error("Vulkan fail to find thread pool at thread");
 		}
 
 		return _command_pool_threads[hash_thread_id];

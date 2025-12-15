@@ -1,6 +1,9 @@
 #include <iostream>
 #include <stdexcept>
+
+#ifdef _WIN32_
 #include <windows.h>
+#endif
 
 #include <core.h>
 #include <vulkan/vk_core.h>
@@ -15,7 +18,7 @@
 int main()
 {
     if (!glfwInit()) {
-        throw std::exception("fail to init glfw!");
+        throw std::runtime_error("fail to init glfw!");
     }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -37,9 +40,11 @@ int main()
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+#ifdef _WIN32_
         if (GetAsyncKeyState(VK_A)) {
             Core::global_scheduler->remove_task_by_name("task_loop");
         }
+#endif
     }
 
 	Vulkan::Destroy::destroy_vulkan();

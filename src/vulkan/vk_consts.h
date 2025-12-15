@@ -1,11 +1,17 @@
 #pragma once
 #include <string>
+#define GLFW_INCLUDE_VULKAN
+#if !defined(_WIN32_)
+#include <vulkan/vulkan_beta.h>
+#endif
 
 namespace Vulkan {
 
 	namespace Const {
 
 #ifdef _DEBUG
+		const inline bool IS_ENABLE_VALIDATION_LAYERS = true;
+#elif __APPLE__
 		const inline bool IS_ENABLE_VALIDATION_LAYERS = true;
 #else
 		const inline bool IS_ENABLE_VALIDATION_LAYERS = false;

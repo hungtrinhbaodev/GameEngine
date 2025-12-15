@@ -10,7 +10,7 @@ namespace Vulkan {
 	VkFence _Fence_Pool::_create_item() {
 
 		if (device == VK_NULL_HANDLE) {
-			throw std::exception("Vulkan fail to create fence: try to create device first!");
+			throw std::runtime_error("Vulkan fail to create fence: try to create device first!");
 		}
 
         VkFenceCreateInfo fence_info{};

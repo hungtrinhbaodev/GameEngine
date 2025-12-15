@@ -1,2 +1,5 @@
 X64/*
 game_engine.vcxproj*
+CMakeList*
+build/*
+.vscode*

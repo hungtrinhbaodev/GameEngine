@@ -8,6 +8,10 @@
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 
+#if !defined(_WIN32_)
+#include <vulkan/vulkan_beta.h>
+#endif
+
 
 namespace Vulkan {
 
