@@ -6,12 +6,15 @@
 #include <vulkan/vk_queues.h>
 #include <vulkan/vk_fences.h>
 #include <vulkan/vk_command_pool.h>
+#include <vulkan/vk_swapchain.h>
 
 namespace Vulkan {
 
 	std::shared_ptr<ThreadPool> _global_thread_pool = nullptr;
 
 	std::shared_ptr<Scheduler> _global_scheduler = nullptr;
+
+	GLFWwindow* _window = nullptr;
 
 	VkInstance instance = VK_NULL_HANDLE;
 
@@ -33,6 +36,10 @@ namespace Vulkan {
 
 	std::vector<VkImageView> swapchain_image_views;
 
+	VkFormat swapchain_format;
+
+	VkExtent2D swapchain_extent;
+
 	namespace Init {
 
 		void init_vulkan_core(
@@ -40,6 +47,8 @@ namespace Vulkan {
 			std::shared_ptr<ThreadPool> global_thread_pool,
 			std::shared_ptr<Scheduler> global_scheduler
 		) {
+
+			_window = window;
 
 			_global_thread_pool = global_thread_pool;
 
@@ -49,7 +58,7 @@ namespace Vulkan {
 			_init_instance();
 
 			// Initialize Vulkan Surface
-			_init_surface(window);
+			_init_surface();
 
 			// Initialize Vulkan Physical Device
 			_init_physical_device();
@@ -65,12 +74,21 @@ namespace Vulkan {
 
 			// Initialize Vulkan Command Pool By Threads
 			_init_command_pool_threads();
+
+			// Initialize Vulkan Swapchain
+			_init_swapchain();
 		}
 	}
 
 	namespace Destroy {
 
 		void destroy_vulkan() {
+
+			// Destroy All Using Fence
+			_destroy_fences();
+
+			// Destroy Vulkan Swapchain
+			_destroy_swapchain();
 
 			// Destroy All Vulkan Command Pool
 			_destroy_command_pool_threads();

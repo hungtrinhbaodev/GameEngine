@@ -8,10 +8,10 @@ namespace Vulkan {
 
 	namespace Init {
 
-		void _init_surface(GLFWwindow* window) {
+		void _init_surface() {
 			// init vulkan surface
 			Utils::vk_check_result(
-				glfwCreateWindowSurface(instance, window, nullptr, &surface),
+				glfwCreateWindowSurface(instance, _window, nullptr, &surface),
 				"Vulkan window surface created successfully!",
 				"Vulkan fail to create window surface!"
 			);

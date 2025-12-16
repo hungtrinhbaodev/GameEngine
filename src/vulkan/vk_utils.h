@@ -217,6 +217,34 @@ namespace Vulkan {
             return layer_names;
         }
 
+        inline VkImageView create_imageview_from_image(
+            VkImage image, 
+            const VkFormat& format, 
+            VkImageAspectFlags aspect_flags,
+            VkDevice device
+        ) {
+
+            VkImageViewCreateInfo create_info{};
+            create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            create_info.image = image;
+            create_info.format = format;
+            create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            create_info.subresourceRange.aspectMask = aspect_flags;
+            create_info.subresourceRange.baseMipLevel = 0;
+            create_info.subresourceRange.baseArrayLayer = 0;
+            create_info.subresourceRange.layerCount = 1;
+            create_info.subresourceRange.levelCount = 1;
+
+            VkImageView image_view;
+            Utils::vk_check_result(
+                vkCreateImageView(device, &create_info, nullptr, &image_view),
+                "",
+                "Fail to create image view!"
+            );
+
+            return image_view;
+        }
+
 	}
 
 }

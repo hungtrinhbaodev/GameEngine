@@ -19,6 +19,8 @@ namespace Vulkan {
 
 	extern std::shared_ptr<Scheduler> _global_scheduler;
 
+	extern GLFWwindow* _window;
+
 	extern VkInstance instance;
 
 	extern VkDebugUtilsMessengerEXT debug_messenger;
@@ -38,6 +40,10 @@ namespace Vulkan {
 	extern std::vector<VkImage> swapchain_images;
 
 	extern std::vector<VkImageView> swapchain_image_views;
+
+	extern VkFormat swapchain_format;
+
+	extern VkExtent2D swapchain_extent;
 
 	namespace Init {
 

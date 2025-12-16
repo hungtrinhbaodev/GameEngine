@@ -5,7 +5,7 @@ namespace Vulkan {
 
 	namespace Init {
 
-		void _init_surface(GLFWwindow* window);
+		void _init_surface();
 
 	}
 

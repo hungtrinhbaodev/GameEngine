@@ -42,10 +42,10 @@ namespace Vulkan {
 		Utils::vk_check_result(
 			vkCreateCommandPool(device, &pool_info, nullptr, &_command_pool),
 			"",
-			"failed to create command pool!"
+			"Vulkan fail to create command pool!"
 		);
 
-		Log::log_info("Create command pool at thread", std::this_thread::get_id(), _command_pool, " successfully!");
+		Log::log_info("Vulkan create command pool at thread", std::this_thread::get_id(), _command_pool, " successfully!");
 	}
 
 	void _Command_Pool_Thread::destroy() {
@@ -58,15 +58,15 @@ namespace Vulkan {
 	}
 
 	std::shared_ptr<_Command_Pool_Thread> _get_command_thread_pool() {
+
 		auto thread_id = std::this_thread::get_id();
 		uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
 
 		if (_command_pool_threads.find(hash_thread_id) == _command_pool_threads.end()) {
-			throw std::runtime_error("Vulkan fail to find thread pool at thread");
+			throw std::runtime_error("Vulkan fail to find command pool at thread!");
 		}
 
 		return _command_pool_threads[hash_thread_id];
-
 	}
 
 	namespace Init {
@@ -90,9 +90,7 @@ namespace Vulkan {
 			for (auto& [_, result] : results) {
 				result.get();
 			}
-
 		}
-
 	}
 
 	namespace Destroy {
@@ -115,9 +113,8 @@ namespace Vulkan {
 			for (auto& [_, result] : results) {
 				result.get();
 			}
-
 		}
-
+		
 	}
 
 	namespace API {
