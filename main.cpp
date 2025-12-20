@@ -7,6 +7,7 @@
 
 #include <core.h>
 #include <vulkan/vk_core.h>
+#include <vulkan/vk_texture.h>
 #include <log.h>
 
 #define GLFW_INCLUDE_VULKAN
@@ -14,6 +15,11 @@
 
 #define VK_A 0x41
 
+#if !defined(_WIN32_)
+const std::string DEFAULT_PATH = "/Users/lap13994/Documents/hungtrinhbaodev/GameEngine/res/texture/";
+#else
+const std::string DEFAULT_PATH = "D:/game_engine/game_engine/res/texture/";
+#endif
 
 int main()
 {
@@ -38,6 +44,9 @@ int main()
         std::this_thread::sleep_for(std::chrono::milliseconds(2000));
     }, "task_loop", 1000);
 
+    Vulkan::Texture texture{};
+    texture.load_from(DEFAULT_PATH + "texture1.png", "texture1");
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 #ifdef _WIN32_
@@ -46,6 +55,8 @@ int main()
         }
 #endif
     }
+
+    texture.destroy();
 
 	Vulkan::Destroy::destroy_vulkan();
 

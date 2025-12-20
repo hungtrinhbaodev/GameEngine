@@ -53,9 +53,7 @@ namespace Vulkan {
 
 		VkCommandBuffer request_command_buffer();
 
-		void release_command_buffer(VkCommandBuffer& command_buffer);
-
-		void record_and_submit(std::function<void(VkCommandBuffer)> record);
+		void release_command_buffer(VkCommandBuffer& command_buffer, std::thread::id thread_id);
 
 	}
 

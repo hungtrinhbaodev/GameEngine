@@ -6,6 +6,7 @@
 #include <vulkan/vk_consts.h>
 #include <vulkan/queue_family_indices.h>
 #include <vulkan/swapchain_support_detail.h>
+#include <log.h>
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
@@ -243,6 +244,25 @@ namespace Vulkan {
             );
 
             return image_view;
+        }
+
+        inline uint32_t find_suitable_memory_type(
+            uint32_t type_filter,
+            VkMemoryAllocateFlags properties,
+            VkPhysicalDevice physical_device
+        ) {
+
+            VkPhysicalDeviceMemoryProperties memory_properties;
+            vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
+
+            for(int i = 0;i < memory_properties.memoryTypeCount;i++){
+                Log::log_info("find_suitable_memory_type", type_filter, memory_properties.memoryTypes[i].propertyFlags, properties);
+                if((type_filter & (1 << i)) && (memory_properties.memoryTypes[i].propertyFlags & properties) == properties){
+                    return i;
+                }
+            }
+
+            throw std::runtime_error("Vulkan fail to find suitable memory type!");
         }
 
 	}

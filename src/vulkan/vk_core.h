@@ -12,6 +12,8 @@
 #include <vulkan/vulkan_beta.h>
 #endif
 
+#include <vulkan/vk_image.h>
+
 
 namespace Vulkan {
 
@@ -44,6 +46,12 @@ namespace Vulkan {
 	extern VkFormat swapchain_format;
 
 	extern VkExtent2D swapchain_extent;
+
+	extern std::vector<VkFramebuffer> frame_buffers;
+
+	extern Image depth_image;
+
+	extern VkRenderPass render_pass;
 
 	namespace Init {
 

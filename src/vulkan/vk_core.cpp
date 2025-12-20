@@ -40,6 +40,12 @@ namespace Vulkan {
 
 	VkExtent2D swapchain_extent;
 
+	std::vector<VkFramebuffer> frame_buffers;
+
+	VkRenderPass render_pass = VK_NULL_HANDLE;
+
+	Image depth_image;
+
 	namespace Init {
 
 		void init_vulkan_core(

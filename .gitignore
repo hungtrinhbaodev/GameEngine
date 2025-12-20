@@ -3,3 +3,4 @@ game_engine.vcxproj*
 CMakeList*
 build/*
 .vscode*
+res/shader/glslc

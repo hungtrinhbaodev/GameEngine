@@ -16,7 +16,11 @@ namespace Vulkan {
 		allocate_info.commandPool = _command_pool;
 		allocate_info.commandBufferCount = 1;
 
-		vkAllocateCommandBuffers(device, &allocate_info, &command_buffer);
+		Utils::vk_check_result(
+			vkAllocateCommandBuffers(device, &allocate_info, &command_buffer),
+			"",
+			"Vulkan fail to create command buffer!"
+		);
 
 		return command_buffer;
 	}
@@ -120,11 +124,18 @@ namespace Vulkan {
 	namespace API {
 
 		VkCommandBuffer request_command_buffer() {
-			return _get_command_thread_pool()->request_item();
+			VkCommandBuffer command_buffer = _get_command_thread_pool()->request_item();
+			vkResetCommandBuffer(command_buffer, 0);
+			return command_buffer;
 		}
 
-		void release_command_buffer(VkCommandBuffer& command_buffer) {
-			return _get_command_thread_pool()->pooling_item(command_buffer);
+		void release_command_buffer(VkCommandBuffer& command_buffer, std::thread::id thread_id) {
+			uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
+
+			if (_command_pool_threads.find(hash_thread_id) == _command_pool_threads.end()) {
+				throw std::runtime_error("Vulkan fail to release command buffer: can't find command pool at thread!");
+			}
+			return _command_pool_threads[hash_thread_id]->pooling_item(command_buffer);
 		}
 
 	}
