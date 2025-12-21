@@ -23,6 +23,8 @@ namespace Vulkan {
         sampler = other.sampler;
         aspect_flags = other.aspect_flags;
         descriptor = other.descriptor;
+        physical_device = other.physical_device;
+        device = other.device;
     }
 
     void Image::make_image(
@@ -45,7 +47,12 @@ namespace Vulkan {
             physical_device = Vulkan::physical_device;
         }
 
+        if (device == VK_NULL_HANDLE || physical_device == VK_NULL_HANDLE) {
+            throw std::runtime_error("Vulkan fail to make image: try to init device and physical device first!");
+        }
+
         this->device = device;
+        this->physical_device = physical_device;
         this->aspect_flags = aspect_flags;
         this->format = format;
         this->width = width;
@@ -171,10 +178,18 @@ namespace Vulkan {
                 fence
             );
 
-            return API::on_fence_success(fence, [] (VkFence fence, VkCommandBuffer command_buffer, std::thread::id thread_id) {
+            return API::on_fence_success(fence, [this] (VkFence fence, VkCommandBuffer command_buffer, std::thread::id thread_id, VkImageLayout new_layout) {
                 API::release_command_buffer(command_buffer, thread_id);
                 API::release_fence(fence);
-            }, fence, command_buffer, thread_id);
+                /*
+                    Update layout when transition successfully
+                */
+                {
+                    layout = new_layout;
+                    update_descriptor();
+                }
+
+            }, fence, command_buffer, thread_id, new_layout);
             
         }, old_layout, new_layout);
 
@@ -235,7 +250,6 @@ namespace Vulkan {
             API::submit(submit_info, fence);
 
             return API::on_fence_success(fence, [] (VkFence fence, VkCommandBuffer command_buffer, Buffer buffer, std::thread::id thread_id) {
-
                 buffer.destroy();
                 API::release_fence(fence);
                 API::release_command_buffer(command_buffer, thread_id);
@@ -247,7 +261,44 @@ namespace Vulkan {
         result.get().get();
     }
 
+    void Image::make_sampler() {
+
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(physical_device, &properties);
+
+        VkSamplerCreateInfo create_info{};
+        create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        create_info.magFilter = VK_FILTER_LINEAR;
+        create_info.minFilter = VK_FILTER_LINEAR;
+        create_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        create_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        create_info.anisotropyEnable = VK_FALSE;
+        create_info.maxAnisotropy = 1.0f;
+        create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        create_info.unnormalizedCoordinates = VK_FALSE;
+        create_info.compareEnable = VK_FALSE;
+        create_info.compareOp = VK_COMPARE_OP_ALWAYS;
+        create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
+        Utils::vk_check_result(
+            vkCreateSampler(device, &create_info, nullptr, &sampler),
+            "",
+            "Vulkan fail to create image sampler!"
+        );
+    }
+
+    void Image::update_descriptor() {
+        descriptor.imageLayout = layout;
+        descriptor.imageView = view;
+        descriptor.sampler = sampler;
+    }
+
     void Image::destroy() {
+
+        if (sampler != VK_NULL_HANDLE) {
+            vkDestroySampler(device, sampler, nullptr);
+        }
 
         if (view != VK_NULL_HANDLE) {
             vkDestroyImageView(device, view, nullptr);

@@ -7,6 +7,8 @@ namespace Vulkan {
 
         VkDevice device;
 
+        VkPhysicalDevice physical_device;
+
         VkBuffer buffer;
 
         VkDeviceMemory memory;

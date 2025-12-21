@@ -1,7 +1,7 @@
 #include <iostream>
 #include <stdexcept>
 
-#ifdef _WIN32_
+#ifdef _WIN32
 #include <windows.h>
 #endif
 
@@ -13,12 +13,21 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include <ktx.h>
+#include <ktxvulkan.h>
+
+#define TINYGLTF_IMPLEMENTATION
+#define STB_IMAGE_IMPLEMENTATION
+#define TINYGLTF_NO_STB_IMAGE_WRITE
+
+#include "tiny_gltf.h"
+
 #define VK_A 0x41
 
-#if !defined(_WIN32_)
+#if !defined(_WIN32)
 const std::string DEFAULT_PATH = "/Users/lap13994/Documents/hungtrinhbaodev/GameEngine/res/texture/";
 #else
-const std::string DEFAULT_PATH = "D:/game_engine/game_engine/res/texture/";
+const std::string DEFAULT_PATH = "D:/engine_project/game_engine/game_engine/res/texture/";
 #endif
 
 int main()
@@ -47,9 +56,11 @@ int main()
     Vulkan::Texture texture{};
     texture.load_from(DEFAULT_PATH + "texture1.png", "texture1");
 
+    tinygltf::Model gltfModel;
+
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
-#ifdef _WIN32_
+#ifdef _WIN32
         if (GetAsyncKeyState(VK_A)) {
             Core::global_scheduler->remove_task_by_name("task_loop");
         }

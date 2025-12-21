@@ -29,11 +29,7 @@ namespace Vulkan {
 
 	};
 
-	namespace {
-
-		inline std::unordered_map<uint64_t, std::shared_ptr<_Command_Pool_Thread>> _command_pool_threads;
-
-	}
+	inline std::unordered_map<uint64_t, std::shared_ptr<_Command_Pool_Thread>> _command_pool_threads;
 
 	std::shared_ptr<_Command_Pool_Thread> _get_command_thread_pool();
 

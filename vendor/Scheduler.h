@@ -30,7 +30,8 @@ class Scheduler {
 
 	enum Excute_State {
 		IDLE,
-		EXCUTING
+		EXCUTING,
+		PAUSE
 	};
 	
 	struct Scheduled_Task {
@@ -78,14 +79,18 @@ class Scheduler {
 					long long current_time = _get_current_time_ms();
 					task_data.task(current_time - start_time);
 					task_data.start_time = _get_current_time_ms();
-					task_data.excute_state = Excute_State::IDLE;
+					if (task_data.excute_state != Excute_State::PAUSE) {
+						task_data.excute_state = Excute_State::IDLE;
+					}
 				}, start_time);
 			}
 			else {
 				long long current_time = _get_current_time_ms();
 				task_data.task(current_time - start_time);
 				task_data.start_time = _get_current_time_ms();
-				task_data.excute_state = Excute_State::IDLE;
+				if (task_data.excute_state != Excute_State::PAUSE) {
+					task_data.excute_state = Excute_State::IDLE;
+				}
 			}
 #else	
 			task(dt_ms);
@@ -107,8 +112,8 @@ class Scheduler {
 
 					std::unique_lock<std::mutex> lock_task(tasks_mutex);
 					condition_variable.wait(lock_task, [this]() {
-						return this->is_stop || !this->tasks.empty();
-						});
+						return this->is_stop || (!this->tasks.empty() && !this->is_all_tasks_pause());
+					});
 
 					if (is_stop) {
 						return;
@@ -117,13 +122,12 @@ class Scheduler {
 					for (int i = 0; i < tasks.size(); ++i) {
 						auto& task_data = tasks[i];
 						/*
-							if task is excuting wait till it end and do
-							at another loop
+							if task is excuting or pause we wait 
+							till it end and do at another loop
 						*/
-						if (task_data.excute_state == Excute_State::EXCUTING) {
+						if (task_data.excute_state == Excute_State::EXCUTING || task_data.excute_state == Excute_State::PAUSE) {
 							continue;
 						}
-
 						long long current_time = _get_current_time_ms();
 
 						bool is_task_done = false;
@@ -159,6 +163,15 @@ class Scheduler {
 			if (looper_thread.joinable()) {
 				looper_thread.join();
 			}
+		}
+
+		bool is_all_tasks_pause() {
+			for (const auto& task : tasks) {
+				if (task.excute_state != Excute_State::PAUSE) {
+					return false;
+				}
+			}
+			return true;
 		}
 
 	public:
@@ -209,6 +222,24 @@ class Scheduler {
 #endif
 					tasks.erase(tasks.begin() + i);
 					--i;
+				}
+			}
+		}
+
+		void pause_scheduler_task(const std::string& task_name) {
+			std::lock_guard<std::mutex> lock(tasks_mutex);
+			for (auto& task : tasks) {
+				if (task.task_name == task_name) {
+					task.excute_state = Excute_State::PAUSE;
+				}
+			}
+		}
+
+		void unpause_scheduler_task(const std::string& task_name) {
+			std::lock_guard<std::mutex> lock(tasks_mutex);
+			for (auto& task : tasks) {
+				if (task.task_name == task_name) {
+					task.excute_state = Excute_State::IDLE;
 				}
 			}
 		}

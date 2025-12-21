@@ -4,3 +4,4 @@ CMakeList*
 build/*
 .vscode*
 res/shader/glslc
+vendor/ktx/*

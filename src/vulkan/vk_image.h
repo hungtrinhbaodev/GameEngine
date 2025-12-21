@@ -7,6 +7,8 @@ namespace Vulkan {
     struct Image {
 
         VkDevice device;
+        
+        VkPhysicalDevice physical_device;
 
         VkImage image;
 
@@ -24,7 +26,9 @@ namespace Vulkan {
 
         uint32_t height;
 
-        VkDescriptorImageInfo descriptor;
+        VkImageLayout layout;
+
+        VkDescriptorImageInfo descriptor{};
 
         Image();
 
@@ -48,6 +52,10 @@ namespace Vulkan {
         );
 
         void copy_image_data(uint32_t width, uint32_t height, void* pixels);
+
+        void make_sampler();
+
+        void update_descriptor();
 
         void destroy();
 

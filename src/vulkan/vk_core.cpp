@@ -7,6 +7,9 @@
 #include <vulkan/vk_fences.h>
 #include <vulkan/vk_command_pool.h>
 #include <vulkan/vk_swapchain.h>
+#include <vulkan/vk_depth_image.h>
+#include <vulkan/vk_render_pass.h>
+#include <vulkan/vk_frame_buffers.h>
 
 namespace Vulkan {
 
@@ -83,6 +86,15 @@ namespace Vulkan {
 
 			// Initialize Vulkan Swapchain
 			_init_swapchain();
+
+			// Initialize Vulkan Depth Image
+			_init_depth_image();
+
+			// Initialize Vulkan Render Pass
+			_init_render_pass();
+
+			// Initialize Vulkan Frame Buffer
+			_init_frame_buffers();
 		}
 	}
 
@@ -90,7 +102,16 @@ namespace Vulkan {
 
 		void destroy_vulkan() {
 
-			// Destroy All Using Fence
+			// Destroy Vulkan Frame Buffer
+			_destroy_frame_buffers();
+			
+			// Destroy Vulkan Render Pass
+			_destroy_render_pass();
+
+			// Destroy Vulkan Depth Image
+			_destroy_depth_image();
+
+			// Destroy All Using Vulkan Fence
 			_destroy_fences();
 
 			// Destroy Vulkan Swapchain

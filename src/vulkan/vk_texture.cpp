@@ -1,15 +1,37 @@
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_texture.h>
-#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#include <log.h>
+
 
 namespace Vulkan {
 
     struct Texture_Load_Info {
+
         stbi_uc* pixels = nullptr;
         int width;
         int height;
         int channels;
+
+        void load(const std::string& file) {
+            pixels = stbi_load(
+                file.data(),
+                &width,
+                &height,
+                &channels,
+                STBI_rgb_alpha
+            );
+            if (!pixels) {
+                throw std::runtime_error("Vulkan fail to load texture from file!");
+            }
+        }
+
+        void release() {
+            if (pixels != nullptr) {
+                delete(pixels);
+            }
+            pixels = nullptr;
+        }
     };
 
     Texture::Texture() {
@@ -27,16 +49,7 @@ namespace Vulkan {
 
         auto texture_info = _global_thread_pool->enqueue([] (std::string file) {
             Texture_Load_Info texture_info{};
-            texture_info.pixels = stbi_load(
-                file.data(),
-                &texture_info.width,
-                &texture_info.height,
-                &texture_info.channels,
-                STBI_rgb_alpha
-            );
-            if (!texture_info.pixels) {
-                throw std::runtime_error("Vulkan fail to load texture from file!");
-            }
+            texture_info.load(file);
             return texture_info;
         }, file).get();
 
@@ -51,10 +64,19 @@ namespace Vulkan {
         );
 
         inner_image.transition_image_layout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
             inner_image.copy_image_data(texture_info.width, texture_info.height, texture_info.pixels);
-
         inner_image.transition_image_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        /*
+            Update sampler and update descriptor
+            for image when it load successfully
+        */
+        {
+            inner_image.make_sampler();
+            inner_image.update_descriptor();
+        }
+
+        texture_info.release();
     }
 
     void Texture::destroy() {

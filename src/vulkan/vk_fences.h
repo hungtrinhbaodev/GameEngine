@@ -4,37 +4,58 @@
 #include <mutex>
 #include <future>
 #include <functional>
+#include <stdexcept>
 
 #include <vulkan/vulkan.h>
 #include <concurrent_pool.h>
 #include <vulkan/vk_consts.h>
+#include <vulkan/vk_core.h>
+#include <vulkan/vk_utils.h>
 #include <log.h>
 
 namespace Vulkan {
 
 	class _Fence_Pool : public Concurent_Pool<VkFence> {
 
-		VkFence _create_item() override;
+        VkFence _create_item() override {
 
-		void _delete_item(VkFence& item) override;
+            if (device == VK_NULL_HANDLE) {
+                throw std::runtime_error("Vulkan fail to create fence: try to create device first!");
+            }
+
+            VkFenceCreateInfo fence_info{};
+            fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+            fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+            VkFence fence = VK_NULL_HANDLE;
+            Utils::vk_check_result(
+                vkCreateFence(device, &fence_info, nullptr, &fence),
+                "",
+                "Vulkan fail to create fence!"
+            );
+
+            return fence;
+        }
+
+        void _delete_item(VkFence& fence) override {
+            if (fence != VK_NULL_HANDLE) {
+                vkDestroyFence(device, fence, nullptr);
+            }
+        }
 
 	};
 
-	namespace {
+    inline _Fence_Pool _fences_pool;
 
-		inline _Fence_Pool _fences_pool;
+    inline std::mutex _fences_callback_lock;
 
-		inline std::mutex _fences_callback_lock;
-
-		inline std::unordered_map<VkFence, std::function<void()>> _fences_callback;
-
-	}
+    inline std::unordered_map<VkFence, std::function<void()>> _fences_callback;
 
 	inline void _update_fences_callback() {
 
         std::lock_guard<std::mutex> lock(_fences_callback_lock);
 
         std::vector<VkFence> fences_need_remove;
+
         for (auto& [fence, callback] : _fences_callback) {
             if (vkGetFenceStatus(device, fence) == VK_SUCCESS) {
                 _global_thread_pool->enqueue(std::move(callback));
@@ -45,30 +66,54 @@ namespace Vulkan {
         for (auto& fence : fences_need_remove) {
             _fences_callback.erase(fence);
         }
+
+        if (_fences_callback.size() <= 0) {
+            _global_scheduler->pause_scheduler_task(Const::VULKAN_FENCES_SCHEDULER_TASK_NAME);
+        }
           
     }
 
 	namespace Init {
 
-		void _init_fences();
+        inline void _init_fences() {
+
+            _global_scheduler->schedule([](long long dt) {
+                _update_fences_callback();
+            }, Const::VULKAN_FENCES_SCHEDULER_TASK_NAME);
+
+        }
 
 	}
 
 	namespace Destroy {
 
-		void _destroy_fences();
+        inline void _destroy_fences() {
+
+            if (_global_scheduler->is_contain_task(Const::VULKAN_FENCES_SCHEDULER_TASK_NAME)) {
+                _global_scheduler->remove_task_by_name(Const::VULKAN_FENCES_SCHEDULER_TASK_NAME);
+            }
+
+            _fences_pool.destroy();
+
+        }
 
 	}
 
 	namespace API {
 
-		VkFence request_fence();
+        inline VkFence request_fence() {
+            VkFence fence = _fences_pool.request_item();
+            vkResetFences(device, 1, &fence);
+            return fence;
+        }
 
-		void release_fence(VkFence fence);
+        inline void release_fence(VkFence fence) {
+            _fences_pool.pooling_item(fence);
+        }
 
 		template<class F, class... Args>
 		inline auto on_fence_success(VkFence fence, F&& f, Args&&... args)
-			->std::future<typename std::invoke_result<F, Args...>::type> {
+		->std::future<typename std::invoke_result<F, Args...>::type> {
 
             using result_type = typename std::invoke_result<F, Args...>::type;
 
@@ -80,18 +125,14 @@ namespace Vulkan {
                 (*task)();
             }
             else {
-                // add task to list callback when fence excute success
-                std::lock_guard<std::mutex> lock(_fences_callback_lock);
-                _fences_callback.emplace(fence, [task] () {
-					(*task)();
-				});
-
-                Log::log_info("on_fence_success 1", _fences_callback.size());
-                if (!_global_scheduler->is_contain_task(Const::VULKAN_FENCE_SCHEDULER_TASK_NAME)) {
-                    _global_scheduler->schedule([](long long) {
-                        _update_fences_callback();
-                    }, Const::VULKAN_FENCE_SCHEDULER_TASK_NAME);
+                {
+                    // add task to list callback when fence excute success
+                    std::lock_guard<std::mutex> lock(_fences_callback_lock);
+                    _fences_callback.emplace(fence, [task]() {
+                        (*task)();
+                    });
                 }
+                _global_scheduler->unpause_scheduler_task(Const::VULKAN_FENCES_SCHEDULER_TASK_NAME);
             }
 
             return task->get_future();

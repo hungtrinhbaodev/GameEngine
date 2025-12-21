@@ -1,6 +1,7 @@
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_buffer.h>
 #include <vulkan/vk_utils.h>
+#include <log.h>
 
 namespace Vulkan {
 
@@ -13,6 +14,7 @@ namespace Vulkan {
         usage_flags = other.usage_flags;
         property_flags = other.property_flags;
         device = other.device;
+        physical_device = other.physical_device;
         buffer = other.buffer;
         memory = other.memory;
     };
@@ -33,10 +35,15 @@ namespace Vulkan {
             physical_device = Vulkan::physical_device;
         }
 
+        if (device == VK_NULL_HANDLE || physical_device == VK_NULL_HANDLE) {
+            throw std::runtime_error("Vulkan fail to make buffer: try to init device and physical device first!");
+        }
+
         this->usage_flags = usage_flags;
         this->property_flags = property_flags;
         this->size = size;
         this->device = device;
+        this->physical_device = physical_device;
 
         VkBufferCreateInfo buffer_info{};
         buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;

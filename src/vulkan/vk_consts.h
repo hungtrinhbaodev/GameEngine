@@ -28,7 +28,7 @@ namespace Vulkan {
 #endif
 		};
 
-		const inline std::string VULKAN_FENCE_SCHEDULER_TASK_NAME = "VULKAN_FENCE_SCHEDULER_TASK";
+		const inline std::string VULKAN_FENCES_SCHEDULER_TASK_NAME = "VULKAN_FENCE_SCHEDULER_TASK";
 
 	}
 
