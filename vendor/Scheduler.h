@@ -12,6 +12,7 @@
 #include <condition_variable>
 #include <future>
 #include <iostream>
+#include <log.h>
 
 #ifdef THREAD_POOL_H
 #include <ThreadPool.h>
@@ -33,7 +34,12 @@ class Scheduler {
 		EXCUTING,
 		PAUSE
 	};
-	
+
+	struct Pause_Task_Info {
+		std::string task_name;
+		bool pause_or_unpause;
+	};
+
 	struct Scheduled_Task {
 		std::string task_name;
 		Task_Function task;
@@ -59,6 +65,10 @@ class Scheduler {
 		std::thread looper_thread;
 
 		std::condition_variable condition_variable;
+
+		std::mutex pause_queue_mutex;
+
+		std::vector<Pause_Task_Info> tasks_need_pause;
 
 		bool is_stop = false;
 
@@ -93,7 +103,13 @@ class Scheduler {
 				}
 			}
 #else	
-			task(dt_ms);
+			// When no thread pool is used, execute synchronously using the provided start_time
+			long long current_time = _get_current_time_ms();
+			task_data.task(current_time - start_time);
+			task_data.start_time = _get_current_time_ms();
+			if (task_data.excute_state != Excute_State::PAUSE) {
+				task_data.excute_state = Excute_State::IDLE;
+			}
 #endif // THREAD_POOL_H
 		}
 
@@ -119,6 +135,33 @@ class Scheduler {
 						return;
 					}
 
+					{
+						std::unique_lock<std::mutex> lock(pause_queue_mutex);
+						for (int i = 0;i < tasks_need_pause.size();i++) {
+							const auto& pause_info = tasks_need_pause[i];
+							bool is_finish_pause = false;
+							bool found_task = false;
+							for (int i = 0;i < tasks.size();i++) {
+								if (tasks[i].task_name == pause_info.task_name) {
+									if (pause_info.pause_or_unpause && tasks[i].excute_state == Excute_State::IDLE) {
+										tasks[i].excute_state = Excute_State::PAUSE;
+										is_finish_pause = true;
+									}
+									if (!pause_info.pause_or_unpause && tasks[i].excute_state == Excute_State::PAUSE) {
+										tasks[i].excute_state = Excute_State::IDLE;
+										is_finish_pause = true;
+									}
+									found_task = true;
+								}
+							}
+							if (is_finish_pause || !found_task) {
+								tasks_need_pause[i] = tasks_need_pause[tasks_need_pause.size() - 1];
+								tasks_need_pause.pop_back();
+								i--;
+							}
+						}
+					}
+					Log::log_info("looper_thread 4");
 					for (int i = 0; i < tasks.size(); ++i) {
 						auto& task_data = tasks[i];
 						/*
@@ -171,7 +214,7 @@ class Scheduler {
 					return false;
 				}
 			}
-			return true;
+			return tasks_need_pause.size() <= 0;
 		}
 
 	public:
@@ -182,8 +225,9 @@ class Scheduler {
 			start();
 		}
 #else
-		Scheduler(min_loop_time_micrs = 1000)
+		Scheduler(int min_loop_time_micrs = 1000)
 			: min_loop_time_micrs(min_loop_time_micrs) {
+			start();
 		}
 #endif // THREAD_POOL_H
 		~Scheduler() {
@@ -227,21 +271,20 @@ class Scheduler {
 		}
 
 		void pause_scheduler_task(const std::string& task_name) {
-			std::lock_guard<std::mutex> lock(tasks_mutex);
-			for (auto& task : tasks) {
-				if (task.task_name == task_name) {
-					task.excute_state = Excute_State::PAUSE;
-				}
-			}
+			std::unique_lock<std::mutex> lock(pause_queue_mutex);
+			tasks_need_pause.push_back(Pause_Task_Info{
+				task_name,  
+				true
+			});
 		}
 
 		void unpause_scheduler_task(const std::string& task_name) {
-			std::lock_guard<std::mutex> lock(tasks_mutex);
-			for (auto& task : tasks) {
-				if (task.task_name == task_name) {
-					task.excute_state = Excute_State::IDLE;
-				}
-			}
+			std::unique_lock<std::mutex> lock(pause_queue_mutex);
+			tasks_need_pause.push_back(Pause_Task_Info{
+				task_name,
+				false
+			});
+			condition_variable.notify_one();
 		}
 };
 

@@ -39,22 +39,18 @@ int main()
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     GLFWwindow* window = glfwCreateWindow(1200, 800, "game", nullptr, nullptr);
 
-    uint32_t extension_count = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
-
 	Vulkan::Init::init_vulkan_core(
         window,
         Core::global_thread_pool,
         Core::global_scheduler
     );
 
-    Core::global_scheduler->schedule([](long long time_ms) {
-        Log::log_info("Time in one loop: ", time_ms);
-        std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-    }, "task_loop", 1000);
+    Log::log_info("ERROR come and go here 1");
 
     Vulkan::Texture texture{};
     texture.load_from(DEFAULT_PATH + "texture1.png", "texture1");
+
+    Log::log_info("ERROR come and go here 2");
 
     tinygltf::Model gltfModel;
 

@@ -124,12 +124,14 @@ namespace Vulkan {
 	namespace API {
 
 		VkCommandBuffer request_command_buffer() {
+
 			VkCommandBuffer command_buffer = _get_command_thread_pool()->request_item();
 			vkResetCommandBuffer(command_buffer, 0);
 			return command_buffer;
 		}
 
 		void release_command_buffer(VkCommandBuffer& command_buffer, std::thread::id thread_id) {
+
 			uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
 
 			if (_command_pool_threads.find(hash_thread_id) == _command_pool_threads.end()) {
@@ -140,4 +142,4 @@ namespace Vulkan {
 
 	}
 
-}
+} 
