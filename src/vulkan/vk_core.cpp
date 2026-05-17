@@ -10,6 +10,8 @@
 #include <vulkan/vk_depth_image.h>
 #include <vulkan/vk_render_pass.h>
 #include <vulkan/vk_frame_buffers.h>
+#include <vulkan/vk_descriptor.h>
+#include <vulkan/vk_consts.h>
 
 namespace Vulkan {
 
@@ -47,7 +49,13 @@ namespace Vulkan {
 
 	VkRenderPass render_pass = VK_NULL_HANDLE;
 
+	std::vector<VkDescriptorPool> descriptor_pools;
+
 	Image depth_image;
+
+	std::shared_ptr<Ring_Buffer> global_staging_buffer = std::make_shared<Ring_Buffer>();
+
+	Texture_System texture_system{};
 
 	namespace Init {
 
@@ -95,12 +103,30 @@ namespace Vulkan {
 
 			// Initialize Vulkan Frame Buffer
 			_init_frame_buffers();
+
+			// Initialize Vulkan Descriptor Pools
+			_init_descriptor_pools();
+
+			// Initialize global staging buffer
+			global_staging_buffer->init(Const::MAX_FRAMES_IN_FLIGHT, Const::BASE_SIZE_STAGING_BUFFER);
+
+			// Initialize texture system to loading texture
+			texture_system.init(Const::TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_TEXTURE_PER_BUCKETS);
 		}
 	}
 
 	namespace Destroy {
 
 		void destroy_vulkan() {
+
+			// Destroy texture system
+			texture_system.destroy();
+
+			// Destroy global staging buffer
+			global_staging_buffer->destroy();
+
+			// Destroy Vulkan Descriptor Pools
+			_destroy_descriptor_pools();
 
 			// Destroy Vulkan Frame Buffer
 			_destroy_frame_buffers();

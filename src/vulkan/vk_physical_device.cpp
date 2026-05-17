@@ -9,6 +9,7 @@ namespace Vulkan {
 	namespace Init {
 
 		void _init_physical_device() {
+
             uint32_t device_count = 0;
             vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
 

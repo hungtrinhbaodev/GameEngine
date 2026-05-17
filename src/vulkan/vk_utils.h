@@ -24,7 +24,7 @@ namespace Vulkan {
 					break;
 				}
 				default: {
-					throw std::runtime_error(exception_msg);
+                    throw std::runtime_error(exception_msg);
 				}
 			}
 		}

@@ -1,7 +1,10 @@
 #pragma once
 #include <string>
+
 #define GLFW_INCLUDE_VULKAN
-#if !defined(_WIN32_)
+#include <vulkan/vulkan.h>
+
+#if !defined(_WIN32)
 #include <vulkan/vulkan_beta.h>
 #endif
 
@@ -28,8 +31,25 @@ namespace Vulkan {
 #endif
 		};
 
+		const inline uint32_t BASE_SIZE_STAGING_BUFFER = 3 * 1024 * 1024; // 3MB
+
 		const inline std::string VULKAN_FENCES_SCHEDULER_TASK_NAME = "VULKAN_FENCE_SCHEDULER_TASK";
 
+		enum TEXTURE_STORAGE_MODE {
+			INVALID = -1,
+			BUCKET = 0,
+			INDIVIDUAL= 1
+		};
+
+		enum ASSETS_LOAD_STATE {
+			UNLOAD = -1,
+			LOADING = 0,
+			LOADED = 1
+		};
+
+		const inline std::vector<uint32_t> TEXTURE_BUCKET_SIZES{ {16, 32, 64, 128, 256, 512} };
+
+		const inline std::vector<uint32_t> NUMBER_LAYER_TEXTURE_PER_BUCKETS{ {256, 128, 64, 64, 32, 32} };
 	}
 
 }

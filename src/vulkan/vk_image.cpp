@@ -25,6 +25,7 @@ namespace Vulkan {
         descriptor = other.descriptor;
         physical_device = other.physical_device;
         device = other.device;
+        array_layers = other.array_layers;
     }
 
     void Image::make_image(
@@ -35,6 +36,7 @@ namespace Vulkan {
         VkImageUsageFlags usage,
         VkMemoryPropertyFlags properties,
         VkImageAspectFlags aspect_flags,
+        uint32_t array_layers,
         VkPhysicalDevice physical_device,
         VkDevice device
     ) {
@@ -57,6 +59,7 @@ namespace Vulkan {
         this->format = format;
         this->width = width;
         this->height = height;
+        this->array_layers = array_layers;
 
         VkImageCreateInfo create_info{};
         create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -64,7 +67,7 @@ namespace Vulkan {
         create_info.extent.width = width;
         create_info.extent.height = height;
         create_info.extent.depth = 1;
-        create_info.arrayLayers = 1;
+        create_info.arrayLayers = array_layers;
         create_info.format = format;
         create_info.tiling = tiling;
         create_info.mipLevels = 1;
@@ -108,9 +111,10 @@ namespace Vulkan {
 
     void Image::transition_image_layout(
         VkImageLayout old_layout,
-        VkImageLayout new_layout
+        VkImageLayout new_layout,
+        uint32_t layer_index
     ) {
-        auto result = _global_thread_pool->enqueue([this] (VkImageLayout old_layout, VkImageLayout new_layout) {
+        auto result = _global_thread_pool->enqueue([this] (VkImageLayout old_layout, VkImageLayout new_layout, uint32_t layer_index) {
 
             auto thread_id = std::this_thread::get_id();
             VkCommandBuffer command_buffer = API::request_command_buffer();
@@ -126,7 +130,7 @@ namespace Vulkan {
                 barrier_info.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                 barrier_info.image = image;
                 barrier_info.subresourceRange.aspectMask = aspect_flags;
-                barrier_info.subresourceRange.baseArrayLayer = 0;
+                barrier_info.subresourceRange.baseArrayLayer = layer_index;
                 barrier_info.subresourceRange.baseMipLevel = 0;
                 barrier_info.subresourceRange.levelCount = 1;
                 barrier_info.subresourceRange.layerCount = 1;
@@ -191,18 +195,23 @@ namespace Vulkan {
 
             }, fence, command_buffer, thread_id, new_layout);
             
-        }, old_layout, new_layout);
+        }, old_layout, new_layout, layer_index).get();
 
-        result.get().get();
+        result.get();
     } 
 
-    void Image::copy_image_data(uint32_t width, uint32_t height, void* pixels) {
+    void Image::copy_image_data(
+        uint32_t width, 
+        uint32_t height, 
+        void* pixels,
+        uint32_t layer_index
+    ) {
 
         if (this->width != width || this->height != height) {
             throw std::runtime_error("Vulkan fail to copy image data: wrong size image!");
         }
 
-        auto result = _global_thread_pool->enqueue([this] (uint32_t width, uint32_t height, void* pixels) {
+        auto result = _global_thread_pool->enqueue([this] (uint32_t width, uint32_t height, void* pixels, uint32_t layer_index) {
 
             VkDeviceSize image_size = width * height * 4;
             Buffer staging{};
@@ -225,7 +234,7 @@ namespace Vulkan {
                 region.bufferImageHeight = 0;
                 region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
                 region.imageSubresource.mipLevel = 0;
-                region.imageSubresource.baseArrayLayer = 0;
+                region.imageSubresource.baseArrayLayer = layer_index;
                 region.imageSubresource.layerCount = 1;
                 region.imageOffset = {0, 0, 0};
                 region.imageExtent = {
@@ -256,9 +265,9 @@ namespace Vulkan {
 
             }, fence, command_buffer, std::move(staging), thread_id);
 
-        }, width, height, pixels);
+        }, width, height, pixels, layer_index).get();
 
-        result.get().get();
+        result.get();
     }
 
     void Image::make_sampler() {
@@ -294,7 +303,7 @@ namespace Vulkan {
         descriptor.sampler = sampler;
     }
 
-    void Image::destroy() {
+    void Image::destroy() const {
 
         if (sampler != VK_NULL_HANDLE) {
             vkDestroySampler(device, sampler, nullptr);

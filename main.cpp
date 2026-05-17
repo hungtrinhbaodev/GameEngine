@@ -7,8 +7,9 @@
 
 #include <core.h>
 #include <vulkan/vk_core.h>
-#include <vulkan/vk_texture.h>
+#include <vulkan/vk_texture_array.h>
 #include <log.h>
+#include <utils.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -30,6 +31,17 @@ const std::string DEFAULT_PATH = "/Users/lap13994/Documents/hungtrinhbaodev/Game
 const std::string DEFAULT_PATH = "D:/engine_project/game_engine/game_engine/res/texture/";
 #endif
 
+struct Instance_Data {
+    float b;
+    int c;
+    char k;
+    friend std::ostream& operator<<(std::ostream& os, const Instance_Data& data) {
+        os << data.b << "|" << data.c << "|" << data.k;
+        return os;
+    }
+};
+
+
 int main()
 {
     if (!glfwInit()) {
@@ -45,34 +57,23 @@ int main()
         Core::global_scheduler
     );
 
-    Log::log_info("ERROR come and go here 1");
+    Vulkan::Texture_Array texture_array{};
+    texture_array.init(10, 1024, 1024);
 
-    Vulkan::Texture texture{};
-    texture.load_from(DEFAULT_PATH + "texture1.png", "texture1");
-
-    Log::log_info("ERROR come and go here 2");
-
-    tinygltf::Model gltfModel;
-
-    while (!glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose(window)) { 
         glfwPollEvents();
-#ifdef _WIN32
-        if (GetAsyncKeyState(VK_A)) {
-            Core::global_scheduler->remove_task_by_name("task_loop");
-        }
-#endif
     }
 
-    texture.destroy();
+    texture_array.destroy();
 
 	Vulkan::Destroy::destroy_vulkan();
 
-    glfwDestroyWindow(window);
+    glfwDestroyWindow(window); 
 
     glfwTerminate();
 
 #ifdef _DEBUG
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
 #endif
 
     return 0;

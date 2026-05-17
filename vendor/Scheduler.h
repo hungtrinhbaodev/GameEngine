@@ -12,7 +12,6 @@
 #include <condition_variable>
 #include <future>
 #include <iostream>
-#include <log.h>
 
 #ifdef THREAD_POOL_H
 #include <ThreadPool.h>
@@ -82,34 +81,28 @@ class Scheduler {
 		}
 
 		void do_task(Scheduled_Task& task_data, long long start_time) {
-			task_data.excute_state = Excute_State::EXCUTING;
-#ifdef THREAD_POOL_H
-			if (_global_thread_pool != nullptr) {
-				task_data.excute_finish = _global_thread_pool->enqueue([this, &task_data](long long start_time) {
-					long long current_time = _get_current_time_ms();
-					task_data.task(current_time - start_time);
-					task_data.start_time = _get_current_time_ms();
-					if (task_data.excute_state != Excute_State::PAUSE) {
-						task_data.excute_state = Excute_State::IDLE;
-					}
-				}, start_time);
-			}
-			else {
-				long long current_time = _get_current_time_ms();
-				task_data.task(current_time - start_time);
-				task_data.start_time = _get_current_time_ms();
-				if (task_data.excute_state != Excute_State::PAUSE) {
-					task_data.excute_state = Excute_State::IDLE;
-				}
-			}
-#else	
-			// When no thread pool is used, execute synchronously using the provided start_time
 			long long current_time = _get_current_time_ms();
 			task_data.task(current_time - start_time);
 			task_data.start_time = _get_current_time_ms();
 			if (task_data.excute_state != Excute_State::PAUSE) {
 				task_data.excute_state = Excute_State::IDLE;
 			}
+		}
+
+		void process_task(Scheduled_Task& task_data, long long start_time) {
+			task_data.excute_state = Excute_State::EXCUTING;
+#ifdef THREAD_POOL_H
+			if (_global_thread_pool != nullptr) {
+				task_data.excute_finish = _global_thread_pool->enqueue([this, &task_data](long long start_time) {
+					do_task(task_data, start_time);
+				}, start_time);
+			}
+			else {
+				do_task(task_data, start_time);
+			}
+#else	
+			// When no thread pool is used, execute synchronously using the provided start_time
+			do_task(task_data, start_time);
 #endif // THREAD_POOL_H
 		}
 
@@ -161,7 +154,6 @@ class Scheduler {
 							}
 						}
 					}
-					Log::log_info("looper_thread 4");
 					for (int i = 0; i < tasks.size(); ++i) {
 						auto& task_data = tasks[i];
 						/*
@@ -175,13 +167,13 @@ class Scheduler {
 
 						bool is_task_done = false;
 						if (task_data.required_time == TIME_NULL) {
-							do_task(task_data, task_data.start_time);
+							process_task(task_data, task_data.start_time);
 							is_task_done = true;
 						}
 						else {
 							long long elapsed_time = current_time - task_data.start_time;
 							if (elapsed_time >= task_data.required_time) {
-								do_task(task_data, task_data.start_time);
+								process_task(task_data, task_data.start_time);
 								is_task_done = true;
 							}
 						}

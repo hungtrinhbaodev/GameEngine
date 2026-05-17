@@ -8,11 +8,13 @@
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 
-#if !defined(_WIN32_)
+#if !defined(_WIN32)
 #include <vulkan/vulkan_beta.h>
 #endif
 
 #include <vulkan/vk_image.h>
+#include <vulkan/vk_ring_buffer.h>
+#include <vulkan/vk_texture_system.h>
 
 
 namespace Vulkan {
@@ -52,6 +54,12 @@ namespace Vulkan {
 	extern Image depth_image;
 
 	extern VkRenderPass render_pass;
+
+	extern std::vector<VkDescriptorPool> descriptor_pools;
+	
+	extern std::shared_ptr<Ring_Buffer> global_staging_buffer;
+
+	extern Texture_System texture_system;
 
 	namespace Init {
 
