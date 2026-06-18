@@ -4,70 +4,51 @@
 
 namespace Vulkan {
 
-    struct Image {
+	struct Image {
 
-        VkDevice device = VK_NULL_HANDLE;
-        
-        VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+		VkDevice device = VK_NULL_HANDLE;
 
-        VkImage image = VK_NULL_HANDLE;
+		VkPhysicalDevice physical_device = VK_NULL_HANDLE;
 
-        VkImageView view = VK_NULL_HANDLE;
+		VkImage image = VK_NULL_HANDLE;
 
-        VkFormat format = VK_FORMAT_UNDEFINED;
+		VkImageView view = VK_NULL_HANDLE;
 
-        VkDeviceMemory memory = VK_NULL_HANDLE;
+		VkFormat format = VK_FORMAT_UNDEFINED;
 
-        VkSampler sampler = VK_NULL_HANDLE;
+		VkDeviceMemory memory = VK_NULL_HANDLE;
 
-        VkImageAspectFlags aspect_flags = VK_IMAGE_ASPECT_COLOR_BIT;
+		VkSampler sampler = VK_NULL_HANDLE;
 
-        uint32_t width = 0;
+		VkImageAspectFlags aspect_flags = VK_IMAGE_ASPECT_COLOR_BIT;
 
-        uint32_t height = 0;
+		uint32_t width = 0;
 
-        uint32_t array_layers = 1;
+		uint32_t height = 0;
 
-        VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+		uint32_t array_layers = 1;
 
-        VkDescriptorImageInfo descriptor{};
+		VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-        Image();
+		VkDescriptorImageInfo descriptor{};
 
-        Image(const Image& other);
+		Image();
 
-        void make_image(
-            uint32_t width,
-            uint32_t height,
-            VkFormat format,
-            VkImageTiling tiling,
-            VkImageUsageFlags usage,
-            VkMemoryPropertyFlags properties,
-            VkImageAspectFlags aspect_flags,
-            uint32_t array_layers = 1,
-            VkPhysicalDevice physical_device = VK_NULL_HANDLE,
-            VkDevice device = VK_NULL_HANDLE
-        );
+		Image(const Image& other);
 
-        void transition_image_layout(
-            VkImageLayout old_layout,
-            VkImageLayout new_layout,
-            uint32_t layer_index = 0
-        );
+		void make_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+						VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags, uint32_t array_layers = 1,
+						VkPhysicalDevice physical_device = VK_NULL_HANDLE, VkDevice device = VK_NULL_HANDLE);
 
-        void copy_image_data(
-            uint32_t width,
-            uint32_t height,
-            void* pixels,
-            uint32_t layer_index = 0
-        );
+		void transition_image_layout(VkImageLayout old_layout, VkImageLayout new_layout, uint32_t layer_index = 0);
 
-        void make_sampler();
+		void copy_image_data(uint32_t width, uint32_t height, void* pixels, uint32_t layer_index = 0);
 
-        void update_descriptor();
+		void make_sampler();
 
-        void destroy() const;
+		void update_descriptor();
 
-    };
+		void destroy() const;
+	};
 
-}
+} // namespace Vulkan

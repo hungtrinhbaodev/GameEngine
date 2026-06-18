@@ -4,19 +4,15 @@
 
 namespace Vulkan {
 
-	Instance_Buffer::Instance_Buffer() {
-		
-	}
+	Instance_Buffer::Instance_Buffer() {}
 
-	void Instance_Buffer::init(Ring_Buffer* global_staging_buffer, uint32_t initialize_buffer_size, uint32_t instance_size) {
+	void Instance_Buffer::init(Ring_Buffer* global_staging_buffer, uint32_t initialize_buffer_size,
+							   uint32_t instance_size) {
 		stride = instance_size;
 		available_size = initialize_buffer_size;
 		staging_buffer = global_staging_buffer;
-		inner_buffer.make_buffer(
-			available_size,
-			VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-		);
+		inner_buffer.make_buffer(available_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+								 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		instances_data.resize(available_size);
 		counter_id = 0;
 		number_instance = 0;
@@ -87,5 +83,5 @@ namespace Vulkan {
 	void Instance_Buffer::destroy() const {
 		inner_buffer.destroy();
 	}
-		
-}
+
+} // namespace Vulkan

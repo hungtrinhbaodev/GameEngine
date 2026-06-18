@@ -5,46 +5,41 @@
 
 namespace Vulkan {
 
-    struct Buffer {
+	struct Buffer {
 
-        VkDevice device;
+		VkDevice device;
 
-        VkPhysicalDevice physical_device;
+		VkPhysicalDevice physical_device;
 
-        VkBuffer buffer;
+		VkBuffer buffer;
 
-        VkDeviceMemory memory;
+		VkDeviceMemory memory;
 
-        uint32_t size;
+		uint32_t size;
 
-        VkBufferUsageFlags usage_flags;
+		VkBufferUsageFlags usage_flags;
 
-        VkMemoryPropertyFlags property_flags;
+		VkMemoryPropertyFlags property_flags;
 
-        Buffer();
+		Buffer();
 
-        Buffer(const Buffer& other);
+		Buffer(const Buffer& other);
 
-        void make_buffer(
-            uint32_t size,
-            VkBufferUsageFlags usage_flags,
-            VkMemoryPropertyFlags property_flags,
-            VkPhysicalDevice physical_device = VK_NULL_HANDLE,
-            VkDevice device = VK_NULL_HANDLE
-        );
+		void make_buffer(uint32_t size, VkBufferUsageFlags usage_flags, VkMemoryPropertyFlags property_flags,
+						 VkPhysicalDevice physical_device = VK_NULL_HANDLE, VkDevice device = VK_NULL_HANDLE);
 
-        void copy_data(uint32_t size, void* data, uint32_t offset = 0) const;
+		void copy_data(uint32_t size, void* data, uint32_t offset = 0) const;
 
-        void resize(uint32_t new_size);
+		void resize(uint32_t new_size);
 
-        void destroy() const;
+		void destroy() const;
 
-        bool is_host_visible_buffer() const;
+		bool is_host_visible_buffer() const;
 
-        std::vector<char> parse_buffer(int offset = 0, int parse_size = -1) const;
+		std::vector<char> parse_buffer(int offset = 0, int parse_size = -1) const;
 
-        static void copy_buffer(Buffer src_buffer, Buffer dst_buffer, uint32_t src_offset, uint32_t dst_offset, uint32_t size);
+		static void copy_buffer(Buffer src_buffer, Buffer dst_buffer, uint32_t src_offset, uint32_t dst_offset,
+								uint32_t size);
+	};
 
-    };
-
-}
+} // namespace Vulkan

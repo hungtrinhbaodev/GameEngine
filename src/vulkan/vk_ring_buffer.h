@@ -15,13 +15,13 @@ namespace Vulkan {
 		int offset_dst;
 
 		int size;
-		  
+
 		VkBuffer dst_buffer;
 	};
-	
+
 	/*
 		This buffer make a role like a global staging buffer
-		can be storage data in phase staging 
+		can be storage data in phase staging
 	*/
 	struct Ring_Buffer {
 
@@ -52,4 +52,4 @@ namespace Vulkan {
 		void destroy();
 	};
 
-}
+} // namespace Vulkan

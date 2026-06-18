@@ -38,16 +38,15 @@ namespace Vulkan {
 
 		void init(Ring_Buffer* global_staging_buffer, uint32_t initialize_buffer_size, uint32_t instance_size);
 
-		uint32_t add_data(void *data);
+		uint32_t add_data(void* data);
 
 		void update_data(uint32_t id, void* update_data);
 
 		void remove_data(uint32_t id);
-		
+
 		void flush_data();
 
 		void destroy() const;
-
 	};
 
-}
+} // namespace Vulkan

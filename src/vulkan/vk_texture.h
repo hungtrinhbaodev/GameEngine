@@ -21,4 +21,4 @@ namespace Vulkan {
 		void destroy() const;
 	};
 
-}
+} // namespace Vulkan

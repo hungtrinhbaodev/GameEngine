@@ -29,9 +29,10 @@ namespace Files {
 
 		size_t size = file.tellg();
 		std::vector<char> buffer(size);
-		file.seekg(0); file.read(buffer.data(), size);
+		file.seekg(0);
+		file.read(buffer.data(), size);
 
 		return buffer;
 	}
 
-}
+} // namespace Files

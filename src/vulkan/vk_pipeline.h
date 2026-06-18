@@ -7,9 +7,7 @@
 
 #include <vulkan/vk_image.h>
 
-
 namespace Vulkan {
-
 
 	struct Pipeline_Config {
 
@@ -29,7 +27,6 @@ namespace Vulkan {
 		std::string fragment_shader_path;
 
 		Image depth_image;
-
 	};
 
 	struct Pipeline {
@@ -41,7 +38,6 @@ namespace Vulkan {
 		void init(const Pipeline_Config& config);
 
 		void destroy(VkDevice device = VK_NULL_HANDLE) const;
-
 	};
 
-}
+} // namespace Vulkan

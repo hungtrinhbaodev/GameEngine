@@ -3,7 +3,6 @@
 #include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
 
-
 #include <vector>
 
 namespace Graphic {
@@ -14,5 +13,4 @@ namespace Graphic {
 		glm::vec2 uv;
 	};
 
-
-}
+} // namespace Graphic

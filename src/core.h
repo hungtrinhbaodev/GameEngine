@@ -9,4 +9,4 @@ namespace Core {
 
 	extern std::shared_ptr<Scheduler> global_scheduler;
 
-}
+} // namespace Core

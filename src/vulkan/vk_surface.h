@@ -15,4 +15,4 @@ namespace Vulkan {
 
 	}
 
-}
+} // namespace Vulkan

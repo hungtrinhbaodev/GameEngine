@@ -14,19 +14,20 @@ namespace Vulkan {
 	struct Static_Buffer_Range {
 
 		uint32_t offset;
-		
+
 		uint32_t size;
 
 		uint32_t using_size;
-
 	};
 
 	struct Static_Buffer_Range_Compare {
-		inline bool operator() (const Static_Buffer_Range& a, const Static_Buffer_Range& b) const { return a.size > b.size; }
+		inline bool operator()(const Static_Buffer_Range& a, const Static_Buffer_Range& b) const {
+			return a.size > b.size;
+		}
 	};
 
 	/*
-		Using to storage all static data upload once use many 
+		Using to storage all static data upload once use many
 		like vertex, mesh, indices,... of model
 	*/
 	struct Static_Buffer {
@@ -35,7 +36,8 @@ namespace Vulkan {
 
 		std::stack<int> available_ids;
 
-		std::priority_queue<Static_Buffer_Range, std::vector<Static_Buffer_Range>, Static_Buffer_Range_Compare> available_ranges;
+		std::priority_queue<Static_Buffer_Range, std::vector<Static_Buffer_Range>, Static_Buffer_Range_Compare>
+			available_ranges;
 
 		std::map<uint32_t, Static_Buffer_Range> ranges_by_id;
 
@@ -54,7 +56,6 @@ namespace Vulkan {
 		bool remove_data(uint32_t id);
 
 		void destroy();
-
 	};
 
-}
+} // namespace Vulkan

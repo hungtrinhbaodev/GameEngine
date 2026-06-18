@@ -11,12 +11,9 @@ namespace Vulkan {
 
 	namespace API {
 
-		void submit(
-			const VkSubmitInfo &submit_info,
-			VkFence fence = VK_NULL_HANDLE,
-			VkQueue submit_queue = Vulkan::graphics_queue
-		);
+		void submit(const VkSubmitInfo& submit_info, VkFence fence = VK_NULL_HANDLE,
+					VkQueue submit_queue = Vulkan::graphics_queue);
 
 	}
 
-}
+} // namespace Vulkan

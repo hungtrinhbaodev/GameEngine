@@ -32,49 +32,43 @@ const std::string DEFAULT_PATH = "D:/engine_project/game_engine/game_engine/res/
 #endif
 
 struct Instance_Data {
-    float b;
-    int c;
-    char k;
-    friend std::ostream& operator<<(std::ostream& os, const Instance_Data& data) {
-        os << data.b << "|" << data.c << "|" << data.k;
-        return os;
-    }
+	float b;
+	int c;
+	char k;
+	friend std::ostream& operator<<(std::ostream& os, const Instance_Data& data) {
+		os << data.b << "|" << data.c << "|" << data.k;
+		return os;
+	}
 };
 
+int main() {
+	if (!glfwInit()) {
+		throw std::runtime_error("fail to init glfw!");
+	}
 
-int main()
-{
-    if (!glfwInit()) {
-        throw std::runtime_error("fail to init glfw!");
-    }
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	GLFWwindow* window = glfwCreateWindow(1200, 800, "game", nullptr, nullptr);
 
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow* window = glfwCreateWindow(1200, 800, "game", nullptr, nullptr);
+	Vulkan::Init::init_vulkan_core(window, Core::global_thread_pool, Core::global_scheduler);
 
-	Vulkan::Init::init_vulkan_core(
-        window,
-        Core::global_thread_pool,
-        Core::global_scheduler
-    );
+	Vulkan::Texture_Array texture_array{};
+	texture_array.init(10, 1024, 1024);
 
-    Vulkan::Texture_Array texture_array{};
-    texture_array.init(10, 1024, 1024);
+	while (!glfwWindowShouldClose(window)) {
+		glfwPollEvents();
+	}
 
-    while (!glfwWindowShouldClose(window)) { 
-        glfwPollEvents();
-    }
-
-    texture_array.destroy();
+	texture_array.destroy();
 
 	Vulkan::Destroy::destroy_vulkan();
 
-    glfwDestroyWindow(window); 
+	glfwDestroyWindow(window);
 
-    glfwTerminate();
+	glfwTerminate();
 
 #ifdef _DEBUG
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+	std::this_thread::sleep_for(std::chrono::milliseconds(50));
 #endif
 
-    return 0;
+	return 0;
 }

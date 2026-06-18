@@ -12,21 +12,18 @@
 namespace Vulkan {
 
 	class _Command_Pool_Thread : public Concurent_Pool<VkCommandBuffer> {
-	
-	private:
 
+	  private:
 		VkCommandPool _command_pool;
 
 		VkCommandBuffer _create_item() override;
 
 		void _delete_item(VkCommandBuffer& command_buffer) override;
 
-	public:
-
+	  public:
 		void init_pool();
 
 		void destroy();
-
 	};
 
 	inline std::unordered_map<uint64_t, std::shared_ptr<_Command_Pool_Thread>> _command_pool_threads;
@@ -51,6 +48,6 @@ namespace Vulkan {
 
 		void release_command_buffer(VkCommandBuffer& command_buffer, std::thread::id thread_id);
 
-	}
+	} // namespace API
 
-}
+} // namespace Vulkan

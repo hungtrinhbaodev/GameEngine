@@ -3,38 +3,31 @@
 
 namespace Vulkan {
 
-	Vertex_Input_Builder& Vertex_Input_Builder::add_binding_description(uint32_t binding, uint32_t stride, VkVertexInputRate input_rate) {
-		binding_descriptions.push_back({ binding, stride, input_rate });
+	Vertex_Input_Builder& Vertex_Input_Builder::add_binding_description(uint32_t binding, uint32_t stride,
+																		VkVertexInputRate input_rate) {
+		binding_descriptions.push_back({binding, stride, input_rate});
 		if (binding >= attribute_descriptions_by_bindings.size()) {
 			attribute_descriptions_by_bindings.resize(static_cast<size_t>(binding + 1));
 		}
 		return *this;
 	}
 
-	Vertex_Input_Builder& Vertex_Input_Builder::add_attribute_description(uint32_t binding, VkFormat format, uint32_t offset) {
+	Vertex_Input_Builder& Vertex_Input_Builder::add_attribute_description(uint32_t binding, VkFormat format,
+																		  uint32_t offset) {
 		if (binding >= attribute_descriptions_by_bindings.size()) {
 			throw std::runtime_error("Binding index out of range, please add more first!");
 		}
-		attribute_descriptions_by_bindings[binding].push_back({
-			0,
-			binding,
-			format,
-			offset
-		});
+		attribute_descriptions_by_bindings[binding].push_back({0, binding, format, offset});
 		return *this;
 	}
-	 
+
 	Vertex_Input_Builder& Vertex_Input_Builder::add_mat4_attribute_description(uint32_t binding, uint32_t offset) {
 		if (binding >= attribute_descriptions_by_bindings.size()) {
 			throw std::runtime_error("Binding index out of range, please add more first!");
 		}
 		for (int i = 0; i < 4; i++) {
-			attribute_descriptions_by_bindings[binding].push_back({
-				0,
-				binding,
-				VK_FORMAT_R32G32B32A32_SFLOAT,
-				offset + static_cast<uint32_t>(sizeof(float)) * 4 * i
-			});
+			attribute_descriptions_by_bindings[binding].push_back(
+				{0, binding, VK_FORMAT_R32G32B32A32_SFLOAT, offset + static_cast<uint32_t>(sizeof(float)) * 4 * i});
 		}
 		return *this;
 	}
@@ -51,4 +44,4 @@ namespace Vulkan {
 		}
 		return Structs::make_pipeline_vertex_input_state_create_info(binding_descriptions, all_attribute_descriptions);
 	}
-}
+} // namespace Vulkan

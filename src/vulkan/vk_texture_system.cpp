@@ -7,7 +7,8 @@ namespace Vulkan {
 	void Texture_System::init(std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets) {
 
 		if (bucket_sizes.size() != number_texture_per_buckets.size()) {
-			throw std::runtime_error("Vulkan fail to init texture system: number base sizes config need to equal number textures in buckets config size!");
+			throw std::runtime_error("Vulkan fail to init texture system: number base sizes config need to equal "
+									 "number textures in buckets config size!");
 		}
 
 		texture_buckets.resize(bucket_sizes.size());
@@ -17,7 +18,6 @@ namespace Vulkan {
 			texture_buckets[i].init(number_texture_per_bucket, texture_size, texture_size);
 			texture_size *= 2;
 		}
-
 	}
 
 	bool Texture_System::can_use_bucket(uint32_t width, uint32_t height) {
@@ -42,21 +42,14 @@ namespace Vulkan {
 		if (available_ids.size() > 0) {
 			id = available_ids.top();
 			available_ids.pop();
-		}
-		else {
+		} else {
 			id = ++counter_id;
 		}
 
 		// load texture from disk
 		int width = 0, height = 0, channels = 0;
 		stbi_uc* pixels = nullptr;
-		pixels = stbi_load(
-			file.data(),
-			&width,
-			&height,
-			&channels,
-			STBI_rgb_alpha
-		);
+		pixels = stbi_load(file.data(), &width, &height, &channels, STBI_rgb_alpha);
 		if (!pixels) {
 			throw std::runtime_error("Vulkan fail to load texture from file!");
 		}
@@ -88,8 +81,7 @@ namespace Vulkan {
 
 			if (availble_slot < 0) {
 				need_use_individual_texture = true;
-			}
-			else {
+			} else {
 				// fill padding into image to fix with bucket
 				uint32_t texture_size_width = using_bucket.inner_image.width;
 				uint32_t texture_size_height = using_bucket.inner_image.height;
@@ -104,8 +96,7 @@ namespace Vulkan {
 				// save using image to view query
 				used_image = using_bucket.inner_image;
 			}
-		}
-		else {
+		} else {
 			need_use_individual_texture = true;
 		}
 
@@ -124,21 +115,21 @@ namespace Vulkan {
 		}
 
 		// add id of texture to tracking
-		Texture_View view{ file, used_image };
+		Texture_View view{file, used_image};
 		ids_to_views[id] = view;
 		ids_to_files[id] = file;
 		files_to_ids[file] = id;
 		ids_to_storages[id] = storage_info;
 
 		// release texture loaded on ram
-		delete(pixels);
+		delete (pixels);
 
 		return static_cast<uint32_t>(id);
 	}
 
 	Texture_View Texture_System::view_texture(uint32_t id) {
 		if (ids_to_views.find(id) == ids_to_views.end()) {
-			return { "" };
+			return {""};
 		}
 		return ids_to_views[id];
 	}
@@ -155,18 +146,20 @@ namespace Vulkan {
 			return;
 		}
 		if (ids_to_storages.find(id) == ids_to_storages.end()) {
-			throw std::runtime_error("Vulkan fail to remove texture in texture system: not found storage info, can't handle remove!");
+			throw std::runtime_error(
+				"Vulkan fail to remove texture in texture system: not found storage info, can't handle remove!");
 		}
 		Texture_Storage_Info storage_info = ids_to_storages[id];
 		switch (storage_info.storage_mode) {
-			case Const::TEXTURE_STORAGE_MODE::INDIVIDUAL: {
-				if (ids_to_individual_textures.find(id) == ids_to_individual_textures.end()) {
-					throw std::runtime_error("Vulkan fail to remove texture in texture system: not found individual texture to remove!");
-				}
-				Texture texture = ids_to_individual_textures[id];
-				texture.destroy();
-				break;
+		case Const::TEXTURE_STORAGE_MODE::INDIVIDUAL: {
+			if (ids_to_individual_textures.find(id) == ids_to_individual_textures.end()) {
+				throw std::runtime_error(
+					"Vulkan fail to remove texture in texture system: not found individual texture to remove!");
 			}
+			Texture texture = ids_to_individual_textures[id];
+			texture.destroy();
+			break;
+		}
 		}
 		std::string& file = ids_to_files[id];
 		ids_to_views.erase(id);
@@ -184,4 +177,4 @@ namespace Vulkan {
 		}
 	}
 
-}
+} // namespace Vulkan

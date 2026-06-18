@@ -16,7 +16,6 @@
 #include <vulkan/vk_ring_buffer.h>
 #include <vulkan/vk_texture_system.h>
 
-
 namespace Vulkan {
 
 	extern std::shared_ptr<ThreadPool> _global_thread_pool;
@@ -56,18 +55,15 @@ namespace Vulkan {
 	extern VkRenderPass render_pass;
 
 	extern std::vector<VkDescriptorPool> descriptor_pools;
-	
+
 	extern std::shared_ptr<Ring_Buffer> global_staging_buffer;
 
 	extern Texture_System texture_system;
 
 	namespace Init {
 
-		void init_vulkan_core(
-			GLFWwindow *window,
-			std::shared_ptr<ThreadPool> global_thread_pool,
-			std::shared_ptr<Scheduler> global_scheduler
-		);
+		void init_vulkan_core(GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool,
+							  std::shared_ptr<Scheduler> global_scheduler);
 
 	}
 
@@ -76,4 +72,4 @@ namespace Vulkan {
 		void destroy_vulkan();
 
 	}
-}
+} // namespace Vulkan

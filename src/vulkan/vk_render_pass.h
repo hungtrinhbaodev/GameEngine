@@ -3,7 +3,7 @@
 namespace Vulkan {
 
 	namespace Init {
-		
+
 		void _init_render_pass();
 
 	}
@@ -14,4 +14,4 @@ namespace Vulkan {
 
 	}
 
-} 
+} // namespace Vulkan

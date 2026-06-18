@@ -28,64 +28,51 @@ namespace Vulkan {
 
 		// Make shader stage create info for vertex and fragment shader
 		std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
-		shader_stages.push_back(Structs::make_pipeline_shader_stage_create_info(
-			config.vertex_shader_path,
-			VK_SHADER_STAGE_VERTEX_BIT,
-			device
-		));
-		shader_stages.push_back(Structs::make_pipeline_shader_stage_create_info(
-			config.fragment_shader_path,
-			VK_SHADER_STAGE_FRAGMENT_BIT,
-			device
-		));
+		shader_stages.push_back(Structs::make_pipeline_shader_stage_create_info(config.vertex_shader_path,
+																				VK_SHADER_STAGE_VERTEX_BIT, device));
+		shader_stages.push_back(Structs::make_pipeline_shader_stage_create_info(config.fragment_shader_path,
+																				VK_SHADER_STAGE_FRAGMENT_BIT, device));
 
 		// Make input assembly create info
-		VkPipelineInputAssemblyStateCreateInfo input_assembly_info = Structs::make_pipeline_input_assembly_create_info(
-			VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-			VK_FALSE
-		);
+		VkPipelineInputAssemblyStateCreateInfo input_assembly_info =
+			Structs::make_pipeline_input_assembly_create_info(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, VK_FALSE);
 
 		// Make viewport and scissor info
 		VkViewport viewport{};
 		VkRect2D scissor{};
-		VkPipelineViewportStateCreateInfo viewport_info = Structs::make_pipeline_view_port_create_info(
-			config.swapchain_extent,
-			viewport,
-			scissor
-		);
+		VkPipelineViewportStateCreateInfo viewport_info =
+			Structs::make_pipeline_view_port_create_info(config.swapchain_extent, viewport, scissor);
 
 		// Make rasterization create info
 		VkPipelineRasterizationStateCreateInfo rasterization_info = Structs::make_pipeline_rasterization_create_info();
 
 		// Make multisampling create info
-		VkPipelineMultisampleStateCreateInfo multi_sampling_info = Structs::make_pipeline_multisample_state_create_info();
+		VkPipelineMultisampleStateCreateInfo multi_sampling_info =
+			Structs::make_pipeline_multisample_state_create_info();
 
 		// Make depth test stencill create info
-		VkPipelineDepthStencilStateCreateInfo depth_stencil_info = Structs::make_pipeline_depth_stencil_state_create_info();
+		VkPipelineDepthStencilStateCreateInfo depth_stencil_info =
+			Structs::make_pipeline_depth_stencil_state_create_info();
 
 		// Make color blend attachment info
-		VkPipelineColorBlendAttachmentState color_attachment_state = Structs::make_pipeline_color_blend_attachment_state();
-		VkPipelineColorBlendStateCreateInfo color_attachment_info = Structs::make_pipeline_color_blend_state_create_info(
-			color_attachment_state
-		);
+		VkPipelineColorBlendAttachmentState color_attachment_state =
+			Structs::make_pipeline_color_blend_attachment_state();
+		VkPipelineColorBlendStateCreateInfo color_attachment_info =
+			Structs::make_pipeline_color_blend_state_create_info(color_attachment_state);
 
 		// Make dynamic state in pipeline crate info
 		std::vector<VkDynamicState> dynamic_states{};
-		VkPipelineDynamicStateCreateInfo dynamic_state_info = Structs::make_pipeline_dynamic_state_create_info(dynamic_states);
+		VkPipelineDynamicStateCreateInfo dynamic_state_info =
+			Structs::make_pipeline_dynamic_state_create_info(dynamic_states);
 
 		// Make pipeline layout create info
 		VkPushConstantRange push_constant_range = Structs::make_push_constant_range();
-		VkPipelineLayoutCreateInfo pipeline_layout_info = Structs::make_pipeline_layout_create_info(
-			config.descriptor_set_layouts,
-			push_constant_range
-		);
-		
+		VkPipelineLayoutCreateInfo pipeline_layout_info =
+			Structs::make_pipeline_layout_create_info(config.descriptor_set_layouts, push_constant_range);
+
 		// Create and check pipeline layout first
-		Utils::vk_check_result(
-			vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &layout),
-			"Create pipeline layout successfully!",
-			"Fail to create pipline layout"
-		);
+		Utils::vk_check_result(vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &layout),
+							   "Create pipeline layout successfully!", "Fail to create pipline layout");
 
 		VkGraphicsPipelineCreateInfo create_info{};
 		create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -115,19 +102,8 @@ namespace Vulkan {
 		create_info.basePipelineIndex = -1;
 
 		// Create pipeline with all above info
-		Utils::vk_check_result(
-			vkCreateGraphicsPipelines(
-				device,
-				nullptr,
-				1,
-				&create_info,
-				nullptr,
-				&pipeline
-			),
-			"Vulkan create pipeline successfully!",
-			"Vulkan fail to create pipeline!"
-		);
-
+		Utils::vk_check_result(vkCreateGraphicsPipelines(device, nullptr, 1, &create_info, nullptr, &pipeline),
+							   "Vulkan create pipeline successfully!", "Vulkan fail to create pipeline!");
 	}
 
 	void Pipeline::destroy(VkDevice device) const {
@@ -145,7 +121,6 @@ namespace Vulkan {
 
 		vkDestroyPipeline(device, pipeline, nullptr);
 		Log::log_info("Vulkan destroy pipeline successfully!");
-
 	}
 
-}
+} // namespace Vulkan

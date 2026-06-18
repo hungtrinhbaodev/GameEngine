@@ -13,7 +13,7 @@ namespace Vulkan {
 		uint32_t number_layer = 0;
 
 		std::vector<bool> used_indices;
-		
+
 		Image inner_image;
 
 		void init(uint32_t number_layer, uint32_t width, uint32_t height);
@@ -24,8 +24,7 @@ namespace Vulkan {
 
 		void remove_data(uint32_t layer_index);
 
-		void destroy() const ;
-
+		void destroy() const;
 	};
 
-}
+} // namespace Vulkan

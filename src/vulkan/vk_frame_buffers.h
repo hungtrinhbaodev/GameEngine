@@ -2,16 +2,16 @@
 
 namespace Vulkan {
 
-    namespace Init {
+	namespace Init {
 
-        void _init_frame_buffers();
+		void _init_frame_buffers();
 
-    }
+	}
 
-    namespace Destroy {
+	namespace Destroy {
 
-        void _destroy_frame_buffers();
+		void _destroy_frame_buffers();
 
-    }
+	}
 
-}
+} // namespace Vulkan

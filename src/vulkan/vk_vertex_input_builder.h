@@ -18,6 +18,5 @@ namespace Vulkan {
 		Vertex_Input_Builder& add_mat4_attribute_description(uint32_t binding, uint32_t offset);
 
 		VkPipelineVertexInputStateCreateInfo build();
-
 	};
-}
+} // namespace Vulkan

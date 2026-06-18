@@ -36,7 +36,7 @@ namespace Vulkan {
 	VkQueue present_queue = VK_NULL_HANDLE;
 
 	VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-	
+
 	std::vector<VkImage> swapchain_images;
 
 	std::vector<VkImageView> swapchain_image_views;
@@ -59,11 +59,8 @@ namespace Vulkan {
 
 	namespace Init {
 
-		void init_vulkan_core(
-			GLFWwindow* window,
-			std::shared_ptr<ThreadPool> global_thread_pool,
-			std::shared_ptr<Scheduler> global_scheduler
-		) {
+		void init_vulkan_core(GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool,
+							  std::shared_ptr<Scheduler> global_scheduler) {
 
 			_window = window;
 
@@ -85,7 +82,7 @@ namespace Vulkan {
 
 			// Initialize Vulkan Queues
 			_init_queues();
-			
+
 			// Initialize Vulkan Fence Pool
 			_init_fences();
 
@@ -113,7 +110,7 @@ namespace Vulkan {
 			// Initialize texture system to loading texture
 			texture_system.init(Const::TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_TEXTURE_PER_BUCKETS);
 		}
-	}
+	} // namespace Init
 
 	namespace Destroy {
 
@@ -130,7 +127,7 @@ namespace Vulkan {
 
 			// Destroy Vulkan Frame Buffer
 			_destroy_frame_buffers();
-			
+
 			// Destroy Vulkan Render Pass
 			_destroy_render_pass();
 
@@ -154,9 +151,8 @@ namespace Vulkan {
 
 			// Destroy Vulkan Instance
 			_destroy_instance();
-
 		}
 
-	}
-	 
-}
+	} // namespace Destroy
+
+} // namespace Vulkan

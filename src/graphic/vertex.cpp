@@ -1,5 +1,3 @@
 #include <graphic/vertex.h>
 
-namespace Graphic {
-
-}
+namespace Graphic {}

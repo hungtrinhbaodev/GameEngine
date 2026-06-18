@@ -8,15 +8,11 @@ namespace Vulkan {
 		available_size = initialize_size;
 		staging_buffer = global_staging_buffer;
 
-		inner_buffer.make_buffer(
-			available_size,
-			VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-		);
+		inner_buffer.make_buffer(available_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+								 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 		id_counter = 0;
 		current_offset = 0;
-
 	}
 
 	uint32_t Static_Buffer::upload_data(uint32_t size, void* data) {
@@ -25,8 +21,7 @@ namespace Vulkan {
 		if (available_ids.size() > 0) {
 			id = available_ids.top();
 			available_ids.pop();
-		}
-		else {
+		} else {
 			id = id_counter++;
 		}
 
@@ -46,16 +41,15 @@ namespace Vulkan {
 				ranges.pop_back();
 				using_range = optimal_range;
 				using_range.using_size = size;
-
 			}
 
 			for (int i = 0; i < ranges.size(); i++) {
 				available_ranges.push(ranges[i]);
 			}
 		}
-		
+
 		if (using_range.offset < 0) {
-			using_range = {current_offset, size, size};	
+			using_range = {current_offset, size, size};
 			if (current_offset + size > available_size) {
 				available_size = (uint32_t)((current_offset + size) * 1.5f);
 				inner_buffer.resize(available_size);
@@ -71,7 +65,6 @@ namespace Vulkan {
 		}
 
 		return static_cast<uint32_t>(id);
-
 	}
 
 	bool Static_Buffer::remove_data(uint32_t id) {
@@ -85,12 +78,10 @@ namespace Vulkan {
 		available_ids.push(id);
 
 		return true;
-
 	}
 
 	void Static_Buffer::destroy() {
-		  
-		inner_buffer.destroy();
 
+		inner_buffer.destroy();
 	}
-}
+} // namespace Vulkan

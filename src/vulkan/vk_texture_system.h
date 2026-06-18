@@ -15,21 +15,19 @@ namespace Vulkan {
 		std::string file = "";
 
 		Image image;
-
 	};
 
 	struct Texture_Storage_Info {
 
 		uint32_t bucket_index = 0;
-		
+
 		uint32_t slot_index = 0;
 
 		Const::TEXTURE_STORAGE_MODE storage_mode = Const::TEXTURE_STORAGE_MODE::BUCKET;
 
 		Const::ASSETS_LOAD_STATE load_state = Const::ASSETS_LOAD_STATE::LOADED;
-
 	};
-	
+
 	struct Texture_System {
 
 		std::vector<Texture_Array> texture_buckets;
@@ -43,7 +41,7 @@ namespace Vulkan {
 		std::map<std::string, uint32_t> files_to_ids;
 
 		std::map<uint32_t, std::string> ids_to_files;
-		
+
 		std::map<uint32_t, Texture_View> ids_to_views;
 
 		std::map<uint32_t, Texture_Storage_Info> ids_to_storages;
@@ -61,7 +59,6 @@ namespace Vulkan {
 		void remove_texture(uint32_t id);
 
 		void destroy() const;
-
 	};
 
-}
+} // namespace Vulkan
