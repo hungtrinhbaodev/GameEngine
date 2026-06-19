@@ -10,11 +10,11 @@ namespace Vulkan {
 
 	struct Ring_Buffer_Allocate_Info {
 
-		int offset_src;
+		uint32_t offset_src;
 
-		int offset_dst;
+		uint32_t offset_dst;
 
-		int size;
+		uint32_t size;
 
 		VkBuffer dst_buffer;
 	};

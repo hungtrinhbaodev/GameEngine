@@ -1,0 +1,2 @@
+Install Cmake bin file: winget install Kitware.CMake --accept-package-agreements --accept-source-agreements.
+Install VS Build Tool: winget install Microsoft.VisualStudio.2022.BuildTools --accept-package-agreements --accept-source-agreements.

@@ -25,7 +25,8 @@ namespace Vulkan {
 			id = id_counter++;
 		}
 
-		Static_Buffer_Range using_range{-1, 0, 0};
+		Static_Buffer_Range using_range{0, 0, 0};
+		bool found = false;
 		if (available_ranges.size() > 0) {
 
 			Static_Buffer_Range optimal_range = available_ranges.top();
@@ -41,6 +42,7 @@ namespace Vulkan {
 				ranges.pop_back();
 				using_range = optimal_range;
 				using_range.using_size = size;
+				found = true;
 			}
 
 			for (int i = 0; i < ranges.size(); i++) {
@@ -48,7 +50,7 @@ namespace Vulkan {
 			}
 		}
 
-		if (using_range.offset < 0) {
+		if (!found) {
 			using_range = {current_offset, size, size};
 			if (current_offset + size > available_size) {
 				available_size = (uint32_t)((current_offset + size) * 1.5f);

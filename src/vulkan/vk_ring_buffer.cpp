@@ -30,8 +30,8 @@ namespace Vulkan {
 
 	void Ring_Buffer::upload_data(VkBuffer dst_buffer, uint32_t dst_offset, uint32_t size, void* data) {
 
-		int max_frame_size = max_frame_sizes[current_frame];
-		int current_frame_offset = current_frame_offsets[current_frame];
+		uint32_t max_frame_size = max_frame_sizes[current_frame];
+		uint32_t current_frame_offset = current_frame_offsets[current_frame];
 
 		// Check size off buffer is enough we resize buffer at this frame
 		if (current_frame_offset + size > max_frame_size) {
@@ -62,7 +62,9 @@ namespace Vulkan {
 			if (copied_data.find(dst_buffer) == copied_data.end()) {
 				copied_data[dst_buffer] = {};
 			}
-			VkBufferCopy region{allocate_info.offset_src, allocate_info.offset_dst, allocate_info.size};
+			VkBufferCopy region{static_cast<VkDeviceSize>(allocate_info.offset_src),
+								static_cast<VkDeviceSize>(allocate_info.offset_dst),
+								static_cast<VkDeviceSize>(allocate_info.size)};
 			copied_data[dst_buffer].push_back(region);
 		}
 
