@@ -60,12 +60,24 @@ namespace Vulkan {
 
 	extern Texture_System texture_system;
 
+	extern uint32_t current_frame;
+
 	namespace Init {
 
 		void init_vulkan_core(GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool,
 							  std::shared_ptr<Scheduler> global_scheduler);
 
 	}
+
+	namespace Process {
+
+		void start_frame();
+
+		void draw_frame();
+
+		void end_frame();
+
+	} // namespace Process
 
 	namespace Destroy {
 

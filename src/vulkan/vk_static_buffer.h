@@ -53,6 +53,8 @@ namespace Vulkan {
 
 		uint32_t upload_data(uint32_t size, void* data);
 
+		Static_Buffer_Range view_slot_info(uint32_t id);
+
 		bool remove_data(uint32_t id);
 
 		void destroy();

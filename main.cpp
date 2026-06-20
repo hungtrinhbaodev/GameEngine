@@ -10,6 +10,7 @@
 #include <vulkan/vk_texture_array.h>
 #include <log.h>
 #include <utils.h>
+#include <vulkan/vk_draw_info.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -45,7 +46,19 @@ int main() {
 	uint32_t texture_id = Vulkan::texture_system.load_texture(Utils::get_root_path() + "res\\texture\\texture4.png");
 
 	while (!glfwWindowShouldClose(window)) {
+
 		glfwPollEvents();
+
+		// Set up all component when start frame (reset frame of ring buffer, ...).
+		Vulkan::Process::start_frame();
+
+		// TODO: logic of all component will be place here in future.
+
+		// Draw all information of this current frame.
+		Vulkan::Process::draw_frame();
+
+		// Reset all cache or work need to using in this frame.
+		Vulkan::Process::end_frame();
 	}
 
 	Vulkan::Destroy::destroy_vulkan();

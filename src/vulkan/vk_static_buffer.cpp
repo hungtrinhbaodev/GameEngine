@@ -17,7 +17,7 @@ namespace Vulkan {
 
 	uint32_t Static_Buffer::upload_data(uint32_t size, void* data) {
 
-		int id = -1;
+		uint32_t id = 0;
 		if (available_ids.size() > 0) {
 			id = available_ids.top();
 			available_ids.pop();
@@ -67,6 +67,14 @@ namespace Vulkan {
 		}
 
 		return static_cast<uint32_t>(id);
+	}
+
+	Static_Buffer_Range Static_Buffer::view_slot_info(uint32_t id) {
+
+		if (ranges_by_id.find(id) == ranges_by_id.end()) {
+			return {};
+		}
+		return ranges_by_id[id];
 	}
 
 	bool Static_Buffer::remove_data(uint32_t id) {

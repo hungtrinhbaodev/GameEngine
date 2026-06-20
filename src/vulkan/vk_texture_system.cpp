@@ -168,6 +168,13 @@ namespace Vulkan {
 			texture.destroy();
 			break;
 		}
+		case Const::TEXTURE_STORAGE_MODE::BUCKET: {
+			// In case bucket we don't need to erase because next load will replace all data
+			break;
+		}
+		default: {
+			break;
+		}
 		}
 		std::string& file = ids_to_files[id];
 		ids_to_views.erase(id);

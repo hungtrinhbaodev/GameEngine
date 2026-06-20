@@ -57,6 +57,8 @@ namespace Vulkan {
 
 	Texture_System texture_system{};
 
+	uint32_t current_frame = 0;
+
 	namespace Init {
 
 		void init_vulkan_core(GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool,
@@ -111,6 +113,21 @@ namespace Vulkan {
 			texture_system.init(Const::TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_TEXTURE_PER_BUCKETS);
 		}
 	} // namespace Init
+
+	namespace Process {
+
+		void start_frame() {
+			Vulkan::global_staging_buffer->start_frame(current_frame);
+		}
+
+		void draw_frame() {
+			Vulkan::global_staging_buffer->flush_frame();
+		}
+
+		void end_frame() {
+			current_frame = (current_frame + 1) % Const::MAX_FRAMES_IN_FLIGHT;
+		}
+	} // namespace Process
 
 	namespace Destroy {
 

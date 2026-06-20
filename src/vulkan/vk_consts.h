@@ -52,6 +52,12 @@ namespace Vulkan {
 		const inline std::vector<uint32_t> TEXTURE_BUCKET_SIZES{{16, 32, 64, 128, 256, 512}};
 
 		const inline std::vector<uint32_t> NUMBER_LAYER_TEXTURE_PER_BUCKETS{{256, 128, 64, 64, 32, 32}};
+
+		enum DRAW_ID {
+			DRAW_2D_MESH,					// draw primitive with raw color that user input.
+			DRAW_2D_RECTANGLE_WITH_TEXTURE, // draw a rectange with texture (ui image, sprite object, ...).
+		};
+
 	} // namespace Const
 
 } // namespace Vulkan
