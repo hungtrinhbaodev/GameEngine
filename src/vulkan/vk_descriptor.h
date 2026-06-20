@@ -18,9 +18,8 @@ namespace Vulkan {
 
 		std::vector<VkWriteDescriptorSet> writes;
 
-		Descriptor_Set_Writer& add_uniform_buffer_write(uint32_t binding,
-														VkDescriptorBufferInfo* descriptor_buffer_info,
-														VkDescriptorSet dst_set);
+		Descriptor_Set_Writer& add_buffer_write(uint32_t binding, VkDescriptorBufferInfo* descriptor_buffer_info,
+												VkDescriptorSet dst_set);
 
 		Descriptor_Set_Writer& add_image_write(uint32_t binding, VkDescriptorImageInfo* descriptor_image_info,
 											   VkDescriptorSet dst_set);

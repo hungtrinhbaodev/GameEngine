@@ -30,8 +30,9 @@ namespace Vulkan {
 		return layout;
 	}
 
-	Descriptor_Set_Writer& Descriptor_Set_Writer::add_uniform_buffer_write(
-		uint32_t binding, VkDescriptorBufferInfo* descriptor_buffer_info, VkDescriptorSet dst_set) {
+	Descriptor_Set_Writer& Descriptor_Set_Writer::add_buffer_write(uint32_t binding,
+																   VkDescriptorBufferInfo* descriptor_buffer_info,
+																   VkDescriptorSet dst_set) {
 		VkWriteDescriptorSet write{};
 		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		write.dstSet = dst_set;
