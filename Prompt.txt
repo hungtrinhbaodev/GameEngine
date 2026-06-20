@@ -1,0 +1,6 @@
++ Hi claude, please don't code just tell me how to get the src path of the runtime project and I want when we build the res will be copied to that build folder.
++ So can we use python script to make copy resource, because resource is very large we need some caching technique to just copy the changing resource ?
++ Oh right can you write to me the python script to do it!, but first I need to install python right ?
++ I installed python please check it and help me to write the script that can plugin to our CMake build system!
++ Hi claude can you notes all installed proces to config_guide.txt to future programer can access it and know how to install step by step to run our project ?
++ Please don't code now can you show me some lib in c++ that can get the path of executable to get the resource we copied in code ?

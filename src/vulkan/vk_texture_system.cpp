@@ -1,10 +1,16 @@
 #include <vulkan/vk_texture_system.h>
+#include <vulkan/vk_consts.h>
+#include <log.h>
 #include <stb_image.h>
 #include <stdexcept>
 
 namespace Vulkan {
 
 	void Texture_System::init(std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets) {
+
+		// @note: From now we disabled texture bucket to have full flow texture to test program first!
+		if (!Const::ENABLED_TEXTURE_BUCKETS)
+			return;
 
 		if (bucket_sizes.size() != number_texture_per_buckets.size()) {
 			throw std::runtime_error("Vulkan fail to init texture system: number base sizes config need to equal "
@@ -31,7 +37,9 @@ namespace Vulkan {
 	}
 
 	uint32_t Texture_System::load_texture(std::string file) {
-
+#ifdef _DEBUG
+		Log::log_info("Load texture with name", file);
+#endif
 		// this texture was loaded success!
 		if (files_to_ids.find(file) != files_to_ids.end()) {
 			return files_to_ids[file];

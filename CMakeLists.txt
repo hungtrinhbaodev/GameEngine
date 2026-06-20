@@ -7,6 +7,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(Vulkan REQUIRED)
 set(GLFW_DIR "C:/Tool/glfw-3.4.bin.WIN64/")
+set(PYTHON_EXEC_DIR "C:/Users/Hung/AppData/Local/Programs/Python/Python313")
 
 file(GLOB_RECURSE SOURCES "main.cpp" "src/*.cpp")
 add_executable(GameEngine ${SOURCES})
@@ -16,7 +17,7 @@ target_link_libraries(GameEngine PRIVATE Vulkan::Vulkan "${GLFW_DIR}/lib-vc2022/
 
 find_program(PYTHON_EXEC
     NAMES python python3
-    PATHS "C:/Users/Hung/AppData/Local/Programs/Python/Python313"
+    PATHS ${PYTHON_EXEC_DIR}
     NO_DEFAULT_PATH
 )
 

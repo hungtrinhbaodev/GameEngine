@@ -22,12 +22,6 @@
 
 #define VK_A 0x41
 
-#if !defined(_WIN32)
-const std::string DEFAULT_PATH = "/Users/lap13994/Documents/hungtrinhbaodev/GameEngine/res/texture/";
-#else
-const std::string DEFAULT_PATH = "D:/engine_project/game_engine/game_engine/res/texture/";
-#endif
-
 struct Instance_Data {
 	float b;
 	int c;
@@ -48,14 +42,11 @@ int main() {
 
 	Vulkan::Init::init_vulkan_core(window, Core::global_thread_pool, Core::global_scheduler);
 
-	Vulkan::Texture_Array texture_array{};
-	texture_array.init(10, 1024, 1024);
+	uint32_t texture_id = Vulkan::texture_system.load_texture(Utils::get_root_path() + "res\\texture\\texture4.png");
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 	}
-
-	texture_array.destroy();
 
 	Vulkan::Destroy::destroy_vulkan();
 

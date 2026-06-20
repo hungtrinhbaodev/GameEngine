@@ -47,6 +47,8 @@ namespace Vulkan {
 			LOADED = 1
 		};
 
+		const inline bool ENABLED_TEXTURE_BUCKETS = false;
+
 		const inline std::vector<uint32_t> TEXTURE_BUCKET_SIZES{{16, 32, 64, 128, 256, 512}};
 
 		const inline std::vector<uint32_t> NUMBER_LAYER_TEXTURE_PER_BUCKETS{{256, 128, 64, 64, 32, 32}};
