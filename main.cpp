@@ -15,12 +15,6 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#define TINYGLTF_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#define TINYGLTF_NO_STB_IMAGE_WRITE
-
-#include "tiny_gltf.h"
-
 #define VK_A 0x41
 
 struct Instance_Data {
@@ -39,7 +33,7 @@ int main() {
 	}
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	GLFWwindow* window = glfwCreateWindow(1200, 800, "game", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(1200, 720, "game", nullptr, nullptr);
 
 	Vulkan::Init::init_vulkan_core(window, Core::global_thread_pool, Core::global_scheduler);
 
@@ -50,12 +44,12 @@ int main() {
 		glfwPollEvents();
 
 		// Set up all component when start frame (reset frame of ring buffer, ...).
-		Vulkan::Process::start_frame();
+		// Vulkan::Process::start_frame();
 
 		// TODO: logic of all component will be place here in future.
 
 		// Draw all information of this current frame.
-		Vulkan::Process::draw_frame();
+		// Vulkan::Process::draw_frame();
 
 		// Reset all cache or work need to using in this frame.
 		Vulkan::Process::end_frame();

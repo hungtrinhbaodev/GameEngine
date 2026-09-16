@@ -1,6 +1,7 @@
 #include <vulkan/vk_texture_system.h>
 #include <vulkan/vk_consts.h>
 #include <log.h>
+#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <stdexcept>
 

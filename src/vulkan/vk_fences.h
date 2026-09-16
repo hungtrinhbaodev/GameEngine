@@ -42,14 +42,17 @@ namespace Vulkan {
 
 	inline _Fence_Pool _fences_pool;
 
-	inline std::mutex _fences_callback_lock;
+	inline std::timed_mutex _fences_callback_lock;
 
 	inline std::unordered_map<VkFence, std::function<void()>> _fences_callback;
 
 	inline void _update_fences_callback() {
-
-		std::lock_guard<std::mutex> lock(_fences_callback_lock);
-
+		std::unique_lock<std::timed_mutex> lock(_fences_callback_lock, std::defer_lock);
+		if (!lock.try_lock_for(std::chrono::seconds(5))) {
+			Log::log_info("WARNING: _update_fences_callback not acquired within 5s - possible "
+						  "deadlock/contention");
+			return;
+		}
 		std::vector<VkFence> fences_need_remove;
 
 		for (auto& [fence, callback] : _fences_callback) {
@@ -117,7 +120,11 @@ namespace Vulkan {
 			} else {
 				{
 					// add task to list callback when fence excute success
-					std::lock_guard<std::mutex> lock(_fences_callback_lock);
+					std::unique_lock<std::timed_mutex> lock(_fences_callback_lock, std::defer_lock);
+					if (!lock.try_lock_for(std::chrono::seconds(5))) {
+						Log::log_info("WARNING: on_fence_success not acquired within 5s - possible "
+									  "deadlock/contention");
+					}
 					_fences_callback.emplace(fence, [task]() { (*task)(); });
 				}
 				_global_scheduler->unpause_scheduler_task(Const::VULKAN_FENCES_SCHEDULER_TASK_NAME);

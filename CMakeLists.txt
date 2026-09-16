@@ -5,57 +5,53 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+
+set(GLM_DIR "D:/Dev/glm/")
+set(GLFW_DIR "D:/Dev/glfw-3.4.bin.WIN64/glfw-3.4.bin.WIN64")
 find_package(Vulkan REQUIRED)
-
-# Per-machine dependency locations. Override via -D on the CMake command line,
-# or by setting the matching environment variable before configuring.
-if(NOT GLFW_DIR AND DEFINED ENV{GLFW_DIR})
-    set(GLFW_DIR "$ENV{GLFW_DIR}")
-endif()
-if(NOT GLFW_DIR)
-    message(FATAL_ERROR "GLFW_DIR is not set. Pass -DGLFW_DIR=<path to glfw-3.4.bin.WIN64> or set the GLFW_DIR environment variable.")
-endif()
-
-if(NOT GLM_DIR AND DEFINED ENV{GLM_DIR})
-    set(GLM_DIR "$ENV{GLM_DIR}")
-endif()
-if(GLM_DIR)
-    add_subdirectory(${GLM_DIR} ${CMAKE_BINARY_DIR}/glm_build)
-endif()
+add_subdirectory(${GLM_DIR} ${CMAKE_BINARY_DIR}/glm_build)
 
 file(GLOB_RECURSE SOURCES "main.cpp" "src/*.cpp")
-add_executable(GameEngine ${SOURCES})
+add_executable(main ${SOURCES})
 
-target_include_directories(GameEngine PRIVATE src vendor vendor/tinygltf "${GLFW_DIR}/include")
+target_include_directories(main PRIVATE src vendor "${GLFW_DIR}/include/")
+target_link_libraries(main PRIVATE glm::glm Vulkan::Vulkan "${GLFW_DIR}/lib-mingw-w64/libglfw3.a")
 
-if(MINGW)
-    set(GLFW_LIB "${GLFW_DIR}/lib-mingw-w64/libglfw3.a")
-else()
-    set(GLFW_LIB "${GLFW_DIR}/lib-vc2022/glfw3.lib")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)
+    
+    # 1. Ép CMake chuyển toàn bộ cấu hình Runtime từ Debug (/MDd) sang Release (/MD) toàn cục
+    # Điều này giúp ngăn chặn việc liên kết nhầm với msvcprtd.lib (gây ra lỗi _malloc_dbg)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+    
+    # Kích hoạt macro debug để giữ nguyên các tính năng kiểm tra lỗi lập trình
+    add_compile_definitions(_DEBUG)
+
+    # 2. Thêm cờ biên dịch ASan cho toàn bộ dự án
+    add_compile_options(/fsanitize=address /Zi)
+    
+    # 3. Thêm thư viện liên kết ASan tương ứng cho Linker (cho kiến trúc x64)
+    add_link_options(
+        "clang_rt.asan_dynamic-x86_64.lib"
+        "clang_rt.asan_dynamic_runtime_thunk-x86_64.lib"
+    )
+    
 endif()
 
-target_link_libraries(GameEngine PRIVATE Vulkan::Vulkan "${GLFW_LIB}")
-if(TARGET glm::glm)
-    target_link_libraries(GameEngine PRIVATE glm::glm)
-endif()
 
-if(DEFINED ENV{PYTHON_EXEC_DIR})
-    set(PYTHON_EXEC_DIR "$ENV{PYTHON_EXEC_DIR}")
-endif()
 
 find_program(PYTHON_EXEC
     NAMES python python3
-    PATHS ${PYTHON_EXEC_DIR}
 )
 
 if(PYTHON_EXEC)
-    add_custom_command(TARGET GameEngine POST_BUILD
+    add_custom_target(sync_resource ALL
         COMMAND ${PYTHON_EXEC}
             "${CMAKE_SOURCE_DIR}/scripts/copy_res.py"
             "${CMAKE_SOURCE_DIR}/res"
-            "$<TARGET_FILE_DIR:GameEngine>/res"
-        COMMENT "Syncing res/ to build output..."
+            "$<TARGET_FILE_DIR:main>/res"
+        COMMENT "Syncing res and shader/ to build output..."
     )
+    add_dependencies(sync_resource main)
 else()
-    message(WARNING "Python not found — res/ will not be copied to build output.")
+    message(WARNING "Python not found — res/ and shader/ will not be copied to build output.")
 endif()
