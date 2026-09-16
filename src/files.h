@@ -20,7 +20,7 @@ namespace Files {
 
 		assert_file(file_path);
 
-		std::ifstream file(file_path, read_mode);
+		std::ifstream file(file_path, static_cast<std::ios::openmode>(read_mode));
 
 		if (!file.is_open()) {
 			std::string msg = std::string("fail to load file: ") + file_path + " fail to open!";

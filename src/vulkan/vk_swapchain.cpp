@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_swapchain.h>
 #include <vulkan/vk_utils.h>
