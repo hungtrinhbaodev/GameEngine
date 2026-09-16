@@ -79,12 +79,7 @@ inline ThreadPool::ThreadPool(size_t threads)
 				std::function<void()> task;
 
 				{
-					std::unique_lock<std::timed_mutex> lock(this->queue_mutex, std::defer_lock);
-					if (!lock.try_lock_for(std::chrono::seconds(5))) {
-						Log::log_info("WARNING: ThreadPool pause_queue_mutex not acquired within 5s - possible "
-									  "deadlock/contention");
-						continue;
-					}
+					std::unique_lock<std::timed_mutex> lock(this->queue_mutex);
 					this->condition.wait(lock, [this, thread_id] {
 						return this->stop || !this->tasks.empty() || !this->get_personal_tasks(thread_id).empty();
 					});
@@ -119,12 +114,7 @@ inline auto ThreadPool::enqueue(F&& f, Args&&... args) -> std::future<typename s
 
 	std::future<return_type> res = task->get_future();
 	{
-		std::unique_lock<std::timed_mutex> lock(this->queue_mutex, std::defer_lock);
-		if (!lock.try_lock_for(std::chrono::seconds(5))) {
-			Log::log_info("WARNING: enqueue pause_queue_mutex not acquired within 5s - possible "
-						  "deadlock/contention");
-		}
-
+		std::unique_lock<std::timed_mutex> lock(this->queue_mutex);
 		// don't allow enqueueing after stopping the pool
 		if (stop)
 			throw std::runtime_error("enqueue on stopped ThreadPool");
@@ -160,13 +150,7 @@ inline auto ThreadPool::loop_all_threads(F&& f, Args&&... args)
 
 		result_res[thread_id] = task->get_future();
 		{
-			std::unique_lock<std::timed_mutex> lock(this->queue_mutex, std::defer_lock);
-			if (!lock.try_lock_for(std::chrono::seconds(5))) {
-				Log::log_info("WARNING: loop_all_threads not acquired within 5s - possible "
-							  "deadlock/contention");
-				continue;
-			}
-
+			std::unique_lock<std::timed_mutex> lock(this->queue_mutex);
 			if (stop) {
 				std::cout << "Fail to loop all threads, thread pool is stopped." << std::endl;
 				throw std::runtime_error("enqueue on stopped ThreadPool");
@@ -184,11 +168,7 @@ inline auto ThreadPool::loop_all_threads(F&& f, Args&&... args)
 // the destructor joins all threads
 inline ThreadPool::~ThreadPool() {
 	{
-		std::unique_lock<std::timed_mutex> lock(this->queue_mutex, std::defer_lock);
-		if (!lock.try_lock_for(std::chrono::seconds(5))) {
-			Log::log_info("WARNING: ~ThreadPool not acquired within 5s - possible "
-						  "deadlock/contention");
-		}
+		std::unique_lock<std::timed_mutex> lock(this->queue_mutex);
 		stop = true;
 	}
 	condition.notify_all();

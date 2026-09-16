@@ -102,12 +102,7 @@ class Scheduler {
 	void push_task(Task_Function task, std::string task_key = "", long long delay_ms = TIME_NULL,
 				   Schedule_Type scheduled_type = Schedule_Type::REPEAT_FOREVER) {
 		{
-			std::unique_lock<std::timed_mutex> lock(tasks_mutex, std::defer_lock);
-			if (!lock.try_lock_for(std::chrono::seconds(5))) {
-				Log::log_info("WARNING: push_task tasks_mutex not acquired within 5s - possible "
-							  "deadlock/contention");
-				return;
-			}
+			std::unique_lock<std::timed_mutex> lock(tasks_mutex);
 			long long current_time = _get_current_time_ms();
 			tasks.push_back(Scheduled_Task{task_key, task, current_time, delay_ms, scheduled_type});
 		}
@@ -117,13 +112,7 @@ class Scheduler {
 	void start() {
 		looper_thread = std::thread([this]() {
 			for (;;) {
-
-				std::unique_lock<std::timed_mutex> lock_task(tasks_mutex, std::defer_lock);
-				if (!lock_task.try_lock_for(std::chrono::seconds(5))) {
-					Log::log_info("WARNING: looper_thread tasks_mutex not acquired within 5s - possible "
-								  "deadlock/contention");
-					continue;
-				}
+				std::unique_lock<std::timed_mutex> lock_task(tasks_mutex);
 				condition_variable.wait(lock_task, [this]() {
 					return this->is_stop || (!this->tasks.empty() && !this->is_all_tasks_pause());
 				});
@@ -245,12 +234,7 @@ class Scheduler {
 	}
 
 	void remove_task_by_name(const std::string& task_name) {
-		std::unique_lock<std::timed_mutex> lock(tasks_mutex, std::defer_lock);
-		if (!lock.try_lock_for(std::chrono::seconds(5))) {
-			Log::log_info("WARNING: remove_task_by_name tasks_mutex not acquired within 5s - possible "
-						  "deadlock/contention");
-			return;
-		}
+		std::unique_lock<std::timed_mutex> lock(tasks_mutex);
 		for (int i = 0; i < tasks.size(); ++i) {
 			if (tasks[i].task_name == task_name) {
 #ifdef THREAD_POOL_H
@@ -269,22 +253,12 @@ class Scheduler {
 	}
 
 	void pause_scheduler_task(const std::string& task_name) {
-		std::unique_lock<std::timed_mutex> lock(tasks_mutex, std::defer_lock);
-		if (!lock.try_lock_for(std::chrono::seconds(5))) {
-			Log::log_info("WARNING: pause_scheduler_task tasks_mutex not acquired within 5s - possible "
-						  "deadlock/contention");
-			return;
-		}
+		std::unique_lock<std::timed_mutex> lock(tasks_mutex);
 		tasks_need_pause.push_back(Pause_Task_Info{task_name, true});
 	}
 
 	void unpause_scheduler_task(const std::string& task_name) {
-		std::unique_lock<std::timed_mutex> lock(tasks_mutex, std::defer_lock);
-		if (!lock.try_lock_for(std::chrono::seconds(5))) {
-			Log::log_info("WARNING: unpause_scheduler_task tasks_mutex not acquired within 5s - possible "
-						  "deadlock/contention");
-			return;
-		}
+		std::unique_lock<std::timed_mutex> lock(tasks_mutex);
 		tasks_need_pause.push_back(Pause_Task_Info{task_name, false});
 		condition_variable.notify_one();
 	}
