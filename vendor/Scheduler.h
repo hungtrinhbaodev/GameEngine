@@ -64,8 +64,6 @@ class Scheduler {
 
 	std::condition_variable_any condition_variable;
 
-	std::timed_mutex pause_queue_mutex;
-
 	std::vector<Pause_Task_Info> tasks_need_pause;
 
 	bool is_stop = false;
@@ -106,7 +104,7 @@ class Scheduler {
 		{
 			std::unique_lock<std::timed_mutex> lock(tasks_mutex, std::defer_lock);
 			if (!lock.try_lock_for(std::chrono::seconds(5))) {
-				Log::log_info("WARNING: push_task pause_queue_mutex not acquired within 5s - possible "
+				Log::log_info("WARNING: push_task tasks_mutex not acquired within 5s - possible "
 							  "deadlock/contention");
 				return;
 			}
@@ -122,7 +120,7 @@ class Scheduler {
 
 				std::unique_lock<std::timed_mutex> lock_task(tasks_mutex, std::defer_lock);
 				if (!lock_task.try_lock_for(std::chrono::seconds(5))) {
-					Log::log_info("WARNING: looper_thread 1 pause_queue_mutex not acquired within 5s - possible "
+					Log::log_info("WARNING: looper_thread tasks_mutex not acquired within 5s - possible "
 								  "deadlock/contention");
 					continue;
 				}
@@ -134,35 +132,27 @@ class Scheduler {
 					return;
 				}
 
-				{
-					std::unique_lock<std::timed_mutex> lock(pause_queue_mutex, std::defer_lock);
-					if (!lock.try_lock_for(std::chrono::seconds(5))) {
-						Log::log_info("WARNING: looper_thread 2 pause_queue_mutex not acquired within 5s - possible "
-									  "deadlock/contention");
-						continue;
-					}
-					for (int i = 0; i < tasks_need_pause.size(); i++) {
-						const auto& pause_info = tasks_need_pause[i];
-						bool is_finish_pause = false;
-						bool found_task = false;
-						for (int i = 0; i < tasks.size(); i++) {
-							if (tasks[i].task_name == pause_info.task_name) {
-								if (pause_info.pause_or_unpause && tasks[i].excute_state == Excute_State::IDLE) {
-									tasks[i].excute_state = Excute_State::PAUSE;
-									is_finish_pause = true;
-								}
-								if (!pause_info.pause_or_unpause && tasks[i].excute_state == Excute_State::PAUSE) {
-									tasks[i].excute_state = Excute_State::IDLE;
-									is_finish_pause = true;
-								}
-								found_task = true;
+				for (int i = 0; i < tasks_need_pause.size(); i++) {
+					const auto& pause_info = tasks_need_pause[i];
+					bool is_finish_pause = false;
+					bool found_task = false;
+					for (int i = 0; i < tasks.size(); i++) {
+						if (tasks[i].task_name == pause_info.task_name) {
+							if (pause_info.pause_or_unpause && tasks[i].excute_state == Excute_State::IDLE) {
+								tasks[i].excute_state = Excute_State::PAUSE;
+								is_finish_pause = true;
 							}
+							if (!pause_info.pause_or_unpause && tasks[i].excute_state == Excute_State::PAUSE) {
+								tasks[i].excute_state = Excute_State::IDLE;
+								is_finish_pause = true;
+							}
+							found_task = true;
 						}
-						if (is_finish_pause || !found_task) {
-							tasks_need_pause[i] = tasks_need_pause.back();
-							tasks_need_pause.pop_back();
-							i--;
-						}
+					}
+					if (is_finish_pause || !found_task) {
+						tasks_need_pause[i] = tasks_need_pause.back();
+						tasks_need_pause.pop_back();
+						i--;
 					}
 				}
 
@@ -212,13 +202,13 @@ class Scheduler {
 		}
 	}
 
+	// @note: always called with tasks_mutex already held (condition_variable predicate, looper loop)
 	bool is_all_tasks_pause() {
 		for (const auto& task : tasks) {
 			if (task.excute_state != Excute_State::PAUSE) {
 				return false;
 			}
 		}
-		std::unique_lock<std::timed_mutex> lock(pause_queue_mutex);
 		return tasks_need_pause.size() <= 0;
 	}
 
@@ -257,7 +247,7 @@ class Scheduler {
 	void remove_task_by_name(const std::string& task_name) {
 		std::unique_lock<std::timed_mutex> lock(tasks_mutex, std::defer_lock);
 		if (!lock.try_lock_for(std::chrono::seconds(5))) {
-			Log::log_info("WARNING: remove_task_by_name pause_queue_mutex not acquired within 5s - possible "
+			Log::log_info("WARNING: remove_task_by_name tasks_mutex not acquired within 5s - possible "
 						  "deadlock/contention");
 			return;
 		}
@@ -279,9 +269,9 @@ class Scheduler {
 	}
 
 	void pause_scheduler_task(const std::string& task_name) {
-		std::unique_lock<std::timed_mutex> lock(pause_queue_mutex, std::defer_lock);
+		std::unique_lock<std::timed_mutex> lock(tasks_mutex, std::defer_lock);
 		if (!lock.try_lock_for(std::chrono::seconds(5))) {
-			Log::log_info("WARNING: pause_scheduler_task pause_queue_mutex not acquired within 5s - possible "
+			Log::log_info("WARNING: pause_scheduler_task tasks_mutex not acquired within 5s - possible "
 						  "deadlock/contention");
 			return;
 		}
@@ -289,9 +279,9 @@ class Scheduler {
 	}
 
 	void unpause_scheduler_task(const std::string& task_name) {
-		std::unique_lock<std::timed_mutex> lock(pause_queue_mutex, std::defer_lock);
+		std::unique_lock<std::timed_mutex> lock(tasks_mutex, std::defer_lock);
 		if (!lock.try_lock_for(std::chrono::seconds(5))) {
-			Log::log_info("WARNING: unpause_scheduler_task pause_queue_mutex not acquired within 5s - possible "
+			Log::log_info("WARNING: unpause_scheduler_task tasks_mutex not acquired within 5s - possible "
 						  "deadlock/contention");
 			return;
 		}
