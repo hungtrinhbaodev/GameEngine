@@ -16,8 +16,10 @@ namespace Vulkan {
 		allocate_info.commandPool = _command_pool;
 		allocate_info.commandBufferCount = 1;
 
-		Utils::vk_check_result(vkAllocateCommandBuffers(device, &allocate_info, &command_buffer), "",
-							   "Vulkan fail to create command buffer!");
+		Utils::vk_check_result(
+			vkAllocateCommandBuffers(device, &allocate_info, &command_buffer), "",
+			"Vulkan fail to create command buffer!"
+		);
 
 		return command_buffer;
 	}
@@ -37,11 +39,13 @@ namespace Vulkan {
 		pool_info.queueFamilyIndex = indices.graphic_family.value();
 
 		// init vulkan command pool
-		Utils::vk_check_result(vkCreateCommandPool(device, &pool_info, nullptr, &_command_pool), "",
-							   "Vulkan fail to create command pool!");
+		Utils::vk_check_result(
+			vkCreateCommandPool(device, &pool_info, nullptr, &_command_pool), "", "Vulkan fail to create command pool!"
+		);
 
-		Log::log_info("Vulkan create command pool at thread", std::this_thread::get_id(), _command_pool,
-					  " successfully!");
+		Log::log_info(
+			"Vulkan create command pool at thread", std::this_thread::get_id(), _command_pool, " successfully!"
+		);
 	}
 
 	void _Command_Pool_Thread::destroy() {
@@ -71,21 +75,23 @@ namespace Vulkan {
 
 			std::shared_ptr<std::mutex> init_pool_lock = std::make_shared<std::mutex>();
 
-			auto results = _global_thread_pool->loop_all_threads(
-				[](std::shared_ptr<std::mutex> init_pool_lock) {
-					auto thread_id = std::this_thread::get_id();
-					uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
-					{
-						std::lock_guard<std::mutex> lock(*init_pool_lock);
-						_command_pool_threads.emplace(hash_thread_id, std::make_shared<_Command_Pool_Thread>());
-						_command_pool_threads[hash_thread_id]->init_pool();
-					}
-				},
-				init_pool_lock);
+			auto create_command_pool_thread = [](std::shared_ptr<std::mutex> init_pool_lock) {
+				auto thread_id = std::this_thread::get_id();
+				uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
+				{
+					std::lock_guard<std::mutex> lock(*init_pool_lock);
+					_command_pool_threads.emplace(hash_thread_id, std::make_shared<_Command_Pool_Thread>());
+					_command_pool_threads[hash_thread_id]->init_pool();
+				}
+			};
+
+			auto results = _global_thread_pool->loop_all_threads(create_command_pool_thread, init_pool_lock);
 
 			for (auto& [_, result] : results) {
 				result.get();
 			}
+
+			create_command_pool_thread(init_pool_lock);
 		}
 	} // namespace Init
 
@@ -94,21 +100,21 @@ namespace Vulkan {
 		void _destroy_command_pool_threads() {
 
 			std::shared_ptr<std::mutex> destroy_pool_lock = std::make_shared<std::mutex>();
-
-			auto results = _global_thread_pool->loop_all_threads(
-				[](std::shared_ptr<std::mutex> destroy_pool_lock) {
-					auto thread_id = std::this_thread::get_id();
-					uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
-					{
-						std::lock_guard<std::mutex> lock(*destroy_pool_lock);
-						_command_pool_threads[hash_thread_id]->destroy();
-					}
-				},
-				destroy_pool_lock);
+			auto destroy_command_pool_thread = [](std::shared_ptr<std::mutex> destroy_pool_lock) {
+				auto thread_id = std::this_thread::get_id();
+				uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
+				{
+					std::lock_guard<std::mutex> lock(*destroy_pool_lock);
+					_command_pool_threads[hash_thread_id]->destroy();
+				}
+			};
+			auto results = _global_thread_pool->loop_all_threads(destroy_command_pool_thread, destroy_pool_lock);
 
 			for (auto& [_, result] : results) {
 				result.get();
 			}
+
+			destroy_command_pool_thread(destroy_pool_lock);
 		}
 
 	} // namespace Destroy
@@ -116,16 +122,13 @@ namespace Vulkan {
 	namespace API {
 
 		VkCommandBuffer request_command_buffer() {
-
 			VkCommandBuffer command_buffer = _get_command_thread_pool()->request_item();
 			vkResetCommandBuffer(command_buffer, 0);
 			return command_buffer;
 		}
 
 		void release_command_buffer(VkCommandBuffer& command_buffer, std::thread::id thread_id) {
-
 			uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
-
 			if (_command_pool_threads.find(hash_thread_id) == _command_pool_threads.end()) {
 				throw std::runtime_error("Vulkan fail to release command buffer: can't find command pool at thread!");
 			}

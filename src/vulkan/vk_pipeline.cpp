@@ -26,12 +26,17 @@ namespace Vulkan {
 			throw std::runtime_error("Vulkan fail to init pipeline: try to init render pass first!");
 		}
 
+		// Save handle descriptor set layouts to delete when end program
+		descriptor_set_layouts = config.descriptor_set_layouts;
+
 		// Make shader stage create info for vertex and fragment shader
 		std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
-		shader_stages.push_back(Structs::make_pipeline_shader_stage_create_info(config.vertex_shader_path,
-																				VK_SHADER_STAGE_VERTEX_BIT, device));
-		shader_stages.push_back(Structs::make_pipeline_shader_stage_create_info(config.fragment_shader_path,
-																				VK_SHADER_STAGE_FRAGMENT_BIT, device));
+		VkShaderModule vert_module = Structs::make_shader_module(config.vertex_shader_path, device);
+		VkShaderModule frag_module = Structs::make_shader_module(config.fragment_shader_path, device);
+		shader_stages.push_back(
+			Structs::make_pipeline_shader_stage_create_info(vert_module, VK_SHADER_STAGE_VERTEX_BIT));
+		shader_stages.push_back(
+			Structs::make_pipeline_shader_stage_create_info(frag_module, VK_SHADER_STAGE_FRAGMENT_BIT));
 
 		// Make input assembly create info
 		VkPipelineInputAssemblyStateCreateInfo input_assembly_info =
@@ -82,7 +87,9 @@ namespace Vulkan {
 		create_info.pStages = shader_stages.data();
 
 		// pipeline fix function state
-		create_info.pVertexInputState = &config.vertex_input_create_info;
+		VkPipelineVertexInputStateCreateInfo vertex_input_state = Structs::make_pipeline_vertex_input_state_create_info(
+			config.vertex_descriptions, config.attribute_descriptions);
+		create_info.pVertexInputState = &vertex_input_state;
 		create_info.pInputAssemblyState = &input_assembly_info;
 		create_info.pTessellationState = nullptr;
 		create_info.pViewportState = &viewport_info;
@@ -104,6 +111,10 @@ namespace Vulkan {
 		// Create pipeline with all above info
 		Utils::vk_check_result(vkCreateGraphicsPipelines(device, nullptr, 1, &create_info, nullptr, &pipeline),
 							   "Vulkan create pipeline successfully!", "Vulkan fail to create pipeline!");
+
+		// remove module shader after create pipeline finish
+		vkDestroyShaderModule(device, vert_module, nullptr);
+		vkDestroyShaderModule(device, frag_module, nullptr);
 	}
 
 	void Pipeline::destroy(VkDevice device) const {
@@ -115,6 +126,11 @@ namespace Vulkan {
 		if (device == VK_NULL_HANDLE) {
 			throw std::runtime_error("Vulkan fail to destroy pipeline: try to init device first!");
 		}
+
+		for (const VkDescriptorSetLayout& descriptor_set_layout : descriptor_set_layouts) {
+			vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
+		}
+		Log::log_info("Vulkan destroy descriptor set layouts successfully!");
 
 		vkDestroyPipelineLayout(device, layout, nullptr);
 		Log::log_info("Vulkan destroy pipeline layout successfully!");

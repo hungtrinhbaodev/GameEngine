@@ -17,9 +17,6 @@ namespace Vulkan {
 
 		VkExtent2D swapchain_extent;
 
-		// Using Vertex_Input_Builder to build it
-		VkPipelineVertexInputStateCreateInfo vertex_input_create_info;
-
 		std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
 
 		std::string vertex_shader_path;
@@ -27,6 +24,10 @@ namespace Vulkan {
 		std::string fragment_shader_path;
 
 		Image depth_image;
+
+		std::vector<VkVertexInputBindingDescription> vertex_descriptions;
+
+		std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
 	};
 
 	struct Pipeline {
@@ -34,6 +35,8 @@ namespace Vulkan {
 		VkPipeline pipeline;
 
 		VkPipelineLayout layout;
+
+		std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
 
 		void init(const Pipeline_Config& config);
 

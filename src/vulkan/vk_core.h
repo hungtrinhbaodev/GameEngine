@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <map>
 
 #include <ThreadPool.h>
 #include <Scheduler.h>
@@ -15,6 +16,9 @@
 #include <vulkan/vk_image.h>
 #include <vulkan/vk_ring_buffer.h>
 #include <vulkan/vk_texture_system.h>
+#include <vulkan/vk_static_buffer.h>
+#include <vulkan/vk_pipeline.h>
+#include <vulkan/vk_buffer.h>
 
 namespace Vulkan {
 
@@ -56,20 +60,50 @@ namespace Vulkan {
 
 	extern std::vector<VkDescriptorPool> descriptor_pools;
 
-	extern std::shared_ptr<Ring_Buffer> global_staging_buffer;
+	extern std::shared_ptr<Ring_Buffer> global_stagging_buffer;
 
 	extern Texture_System texture_system;
 
 	extern uint32_t current_frame;
 
+	extern std::map<Const::DRAW_ID, Pipeline> pipelines;
+
+	extern std::map<Const::DRAW_ID, std::vector<std::vector<VkDescriptorSet>>> descriptor_sets_by_draw_id;
+
+	extern Static_Buffer global_vertex_buffer;
+
+	extern Static_Buffer global_indices_buffer;
+
+	extern std::vector<Buffer> uniform_buffers;
+
+	extern std::vector<VkFence> draw_fences;
+
+	extern std::vector<VkSemaphore> draw_semaphores;
+
+	extern std::vector<VkSemaphore> render_finish_semaphores;
+
+	extern std::vector<VkCommandBuffer> draw_command_buffers;
+
 	namespace Init {
+
+		void _init_vulkan_pipelines();
+
+		void _init_uniform_buffers();
+
+		void _init_static_buffers();
+
+		void _request_draw_fences();
+
+		void _init_semaphores();
+
+		void _request_draw_command_buffers();
 
 		void init_vulkan_core(GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool,
 							  std::shared_ptr<Scheduler> global_scheduler);
-
-	}
+	} // namespace Init
 
 	namespace Process {
+		void _update_uniform_buffer();
 
 		void start_frame();
 
@@ -80,8 +114,13 @@ namespace Vulkan {
 	} // namespace Process
 
 	namespace Destroy {
+		void _destroy_static_buffers();
+
+		void _destroy_uniform_buffers();
+
+		void _destroy_pipelines();
 
 		void destroy_vulkan();
 
-	}
+	} // namespace Destroy
 } // namespace Vulkan

@@ -15,9 +15,10 @@ namespace Vulkan {
 		for (int i = 0; i < this->max_frame; i++) {
 			max_frame_sizes.push_back(initialize_size);
 			Buffer inner_buffer{};
-			inner_buffer.make_buffer(initialize_size,
-									 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-									 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+			inner_buffer.make_buffer(
+				initialize_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+				VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+			);
 			inner_buffers.push_back(inner_buffer);
 			current_frame_offsets.push_back(0);
 		}
@@ -62,9 +63,10 @@ namespace Vulkan {
 			if (copied_data.find(dst_buffer) == copied_data.end()) {
 				copied_data[dst_buffer] = {};
 			}
-			VkBufferCopy region{static_cast<VkDeviceSize>(allocate_info.offset_src),
-								static_cast<VkDeviceSize>(allocate_info.offset_dst),
-								static_cast<VkDeviceSize>(allocate_info.size)};
+			VkBufferCopy region{
+				static_cast<VkDeviceSize>(allocate_info.offset_src),
+				static_cast<VkDeviceSize>(allocate_info.offset_dst), static_cast<VkDeviceSize>(allocate_info.size)
+			};
 			copied_data[dst_buffer].push_back(region);
 		}
 
@@ -78,8 +80,9 @@ namespace Vulkan {
 					VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
 					vkBeginCommandBuffer(command_buffer, &begin_info);
 					for (auto& [dst_buffer, copied_ranges] : copied_data) {
-						vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, copied_ranges.size(),
-										copied_ranges.data());
+						vkCmdCopyBuffer(
+							command_buffer, src_buffer, dst_buffer, copied_ranges.size(), copied_ranges.data()
+						);
 					}
 					vkEndCommandBuffer(command_buffer);
 					VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
@@ -91,10 +94,12 @@ namespace Vulkan {
 							API::release_command_buffer(command_buffer, thread_id);
 							API::release_fence(fence);
 						},
-						thread_id, command_buffer, fence)
+						thread_id, command_buffer, fence
+					)
 						.get();
 				},
-				copied_data, inner_buffer.buffer)
+				copied_data, inner_buffer.buffer
+			)
 			.get();
 
 		queue_upload_transfer.clear();

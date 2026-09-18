@@ -7,19 +7,19 @@ namespace Vulkan {
 
 	struct Buffer {
 
-		VkDevice device;
+		VkDevice device = VK_NULL_HANDLE;
 
-		VkPhysicalDevice physical_device;
+		VkPhysicalDevice physical_device = VK_NULL_HANDLE;
 
-		VkBuffer buffer;
+		VkBuffer buffer = VK_NULL_HANDLE;
 
-		VkDeviceMemory memory;
+		VkDeviceMemory memory = VK_NULL_HANDLE;
 
-		uint32_t size;
+		uint32_t size = 0;
 
-		VkBufferUsageFlags usage_flags;
+		VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
-		VkMemoryPropertyFlags property_flags;
+		VkMemoryPropertyFlags property_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 
 		Buffer();
 

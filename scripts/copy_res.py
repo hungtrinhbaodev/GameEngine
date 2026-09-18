@@ -1,6 +1,60 @@
 import os
 import sys
 import shutil
+import subprocess
+
+SHADER_EXTENSIONS = (".vert", ".frag")
+
+
+def find_glslc():
+    vulkan_sdk = os.environ.get("VULKAN_SDK")
+    if vulkan_sdk:
+        for sub_dir in ("Bin", "bin"):
+            candidate = os.path.join(vulkan_sdk, sub_dir, "glslc.exe" if os.name == "nt" else "glslc")
+            if os.path.isfile(candidate):
+                return candidate
+
+    glslc_on_path = shutil.which("glslc")
+    if glslc_on_path:
+        return glslc_on_path
+
+    print("[shader-compile] glslc not found (checked $VULKAN_SDK and PATH) — can't compile shaders.")
+    sys.exit(1)
+
+
+def compile_shaders(shader_dir):
+    if not os.path.isdir(shader_dir):
+        return
+
+    glslc_path = None
+    compiled = 0
+    skipped = 0
+
+    for root, dirs, files in os.walk(shader_dir):
+        for file in files:
+            if not file.endswith(SHADER_EXTENSIONS):
+                continue
+
+            src_file = os.path.join(root, file)
+            spv_file = src_file + ".spv"
+
+            if os.path.exists(spv_file) and os.path.getmtime(spv_file) >= os.path.getmtime(src_file):
+                skipped += 1
+                continue
+
+            if glslc_path is None:
+                glslc_path = find_glslc()
+
+            result = subprocess.run([glslc_path, src_file, "-o", spv_file], capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"[shader-compile] Failed to compile {os.path.relpath(src_file, shader_dir)}:")
+                print(result.stderr)
+                sys.exit(1)
+
+            print(f"[shader-compile] Compiled: {os.path.relpath(src_file, shader_dir)}")
+            compiled += 1
+
+    print(f"[shader-compile] Done — compiled: {compiled}, skipped: {skipped}")
 
 
 def sync_resources(src_dir, dst_dir):
@@ -59,4 +113,5 @@ if __name__ == "__main__":
         print("Usage: copy_res.py <src_res_dir> <dst_res_dir>")
         sys.exit(1)
 
+    compile_shaders(os.path.join(sys.argv[1], "shader"))
     sync_resources(sys.argv[1], sys.argv[2])

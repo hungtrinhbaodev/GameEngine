@@ -12,8 +12,26 @@
 #include <vulkan/vk_frame_buffers.h>
 #include <vulkan/vk_descriptor.h>
 #include <vulkan/vk_consts.h>
+#include <vulkan/vk_vertex_input_builder.h>
+#include <vulkan/vk_vertex.h>
+#include <vulkan/vk_uniform.h>
+#include <vulkan/vk_semaphores.h>
+#include <vulkan/vk_structs.h>
+#include <utils.h>
 
 namespace Vulkan {
+
+	std::vector<Vertex> TRIANGLE_VERTICES = {
+		{{-0.7f, -0.7f, 0.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+		{{0.7f, -0.7f, 0.0f}, {0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+		{{0.7f, 0.7f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}}
+	};
+
+	std::vector<uint16_t> TRIANGLE_INDICES = {0, 1, 2};
+
+	uint32_t triangle_vertices_id = -1;
+
+	uint32_t triangle_indices_id = -1;
 
 	std::shared_ptr<ThreadPool> _global_thread_pool = nullptr;
 
@@ -53,16 +71,154 @@ namespace Vulkan {
 
 	Image depth_image;
 
-	std::shared_ptr<Ring_Buffer> global_staging_buffer = std::make_shared<Ring_Buffer>();
+	std::shared_ptr<Ring_Buffer> global_stagging_buffer = std::make_shared<Ring_Buffer>();
 
 	Texture_System texture_system{};
 
 	uint32_t current_frame = 0;
 
+	std::map<Const::DRAW_ID, Pipeline> pipelines = {};
+
+	std::map<Const::DRAW_ID, std::vector<std::vector<VkDescriptorSet>>> descriptor_sets_by_draw_id = {};
+
+	Static_Buffer global_vertex_buffer = {};
+
+	Static_Buffer global_indices_buffer = {};
+
+	std::vector<Buffer> uniform_buffers = {};
+
+	std::vector<VkFence> draw_fences = {};
+
+	std::vector<VkSemaphore> draw_semaphores = {};
+
+	std::vector<VkSemaphore> render_finish_semaphores = {};
+
+	std::vector<VkCommandBuffer> draw_command_buffers = {};
+
 	namespace Init {
 
-		void init_vulkan_core(GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool,
-							  std::shared_ptr<Scheduler> global_scheduler) {
+		void _init_vulkan_pipelines() {
+			/**
+			 * Make vertex config to pipeline.
+			 */
+			Vertex_Input_Builder vertex_builder{};
+			vertex_builder.add_binding_description(0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX)
+				.add_attribute_description(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position))
+				.add_attribute_description(0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, tex_coord))
+				.add_attribute_description(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal))
+				.add_attribute_description(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color));
+			vertex_builder.add_binding_description(1, sizeof(glm::mat4), VK_VERTEX_INPUT_RATE_INSTANCE)
+				.add_mat4_attribute_description(0, 0);
+
+			/**
+			 * Make pipeline config.
+			 */
+			Pipeline_Config pipeline_config{};
+			pipeline_config.vertex_descriptions = vertex_builder.build_binding_descriptions();
+			pipeline_config.attribute_descriptions = vertex_builder.build_attribute_descriptions();
+			pipeline_config.render_pass = render_pass;
+			pipeline_config.device = device;
+			pipeline_config.swapchain_extent = swapchain_extent;
+
+			/**
+			 * Make descriptor set layout camera buffer to pipline
+			 */
+			Descriptor_Set_Layout_Builder uniform_descriptor_set_layout_builder{};
+			uniform_descriptor_set_layout_builder.add_binding(
+				0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT
+			);
+
+			/**
+			 * Make pipeline draw primitive
+			 */
+			{
+				std::vector<VkDescriptorSetLayout> descriptor_set_layouts{
+					{uniform_descriptor_set_layout_builder.build()}
+				};
+				pipeline_config.descriptor_set_layouts = descriptor_set_layouts;
+				pipeline_config.vertex_shader_path = ::Utils::get_root_path() + Const::PATH_VERT_SHADERD_DRAW_DEFAULT;
+				pipeline_config.fragment_shader_path = ::Utils::get_root_path() + Const::PATH_FRAG_SHADERD_DRAW_DEFAULT;
+				pipeline_config.depth_image = depth_image;
+				Pipeline pipeline = {};
+				pipeline.init(pipeline_config);
+				pipelines[Const::DRAW_ID::DRAW_2D_MESH] = pipeline;
+
+				/**
+				 * Initialize descriptor set relative with pipeline
+				 */
+				std::vector<std::vector<VkDescriptorSet>> descriptor_set_by_frames;
+				for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+					const Buffer& uniform_buffer = uniform_buffers[i];
+					descriptor_set_by_frames.push_back({});
+					/**
+					 * Create uniform buffer descriptor set
+					 */
+					VkDescriptorSet uniform_buffer_descriptor_set{};
+					VkDescriptorSetAllocateInfo allocate_info =
+						Structs::make_descriptor_set_allocate_info(descriptor_pools[i], descriptor_set_layouts);
+					vkAllocateDescriptorSets(device, &allocate_info, &uniform_buffer_descriptor_set);
+					Descriptor_Set_Writer writer{};
+					VkDescriptorBufferInfo descriptor_buffer_info =
+						Structs::make_descriptor_buffer_info(uniform_buffer.buffer, 0, uniform_buffer.size);
+					writer.add_buffer_write(0, &descriptor_buffer_info, uniform_buffer_descriptor_set);
+					writer.write(device);
+					descriptor_set_by_frames[i].push_back(uniform_buffer_descriptor_set);
+				}
+				descriptor_sets_by_draw_id[Const::DRAW_2D_MESH] = descriptor_set_by_frames;
+			}
+		}
+
+		void _init_uniform_buffers() {
+			size_t uniform_size = sizeof(Uniform);
+			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+				Buffer uniform_buffer{};
+				uniform_buffer.make_buffer(
+					uniform_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+				);
+				uniform_buffers.push_back(uniform_buffer);
+			}
+			Log::log_info("Create uniform buffers successfully!");
+		}
+
+		void _request_draw_fences() {
+			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+				draw_fences.push_back(API::request_fence());
+			}
+			Log::log_info("Create draw fences successfully!");
+		}
+
+		void _init_semaphores() {
+			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+				draw_semaphores.push_back(API::request_semaphore());
+				render_finish_semaphores.push_back(API::request_semaphore());
+			}
+			Log::log_info("Create draw semaphores successfully!");
+		}
+
+		void _request_draw_command_buffers() {
+			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+				draw_command_buffers.push_back(API::request_command_buffer());
+			}
+		}
+
+		void _init_static_buffers() {
+			global_vertex_buffer.init(global_stagging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE);
+			global_indices_buffer.init(global_stagging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE);
+			/**
+			 * @Note: test draw a first triangle!
+			 * TODO: update to handle a system static data latter.
+			 */
+			triangle_vertices_id =
+				global_vertex_buffer.upload_data(sizeof(Vertex) * TRIANGLE_VERTICES.size(), TRIANGLE_VERTICES.data());
+			triangle_indices_id =
+				global_indices_buffer.upload_data(sizeof(uint16_t) * TRIANGLE_INDICES.size(), TRIANGLE_VERTICES.data());
+		}
+
+		void init_vulkan_core(
+			GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool,
+			std::shared_ptr<Scheduler> global_scheduler
+		) {
 
 			_window = window;
 
@@ -88,6 +244,12 @@ namespace Vulkan {
 			// Initialize Vulkan Fence Pool
 			_init_fences();
 
+			// Initialize Vulkan semaphore to draw
+			_init_semaphores();
+
+			// Request some specific fences to draw
+			_request_draw_fences();
+
 			// Initialize Vulkan Command Pool By Threads
 			_init_command_pool_threads();
 
@@ -106,22 +268,118 @@ namespace Vulkan {
 			// Initialize Vulkan Descriptor Pools
 			_init_descriptor_pools();
 
+			// Initialize Vulkan Uniform buffers
+			_init_uniform_buffers();
+
+			// Initialize Vulkan Pipeline by each draw ID
+			_init_vulkan_pipelines();
+
+			// Request some command buffer to draw
+			_request_draw_command_buffers();
+
 			// Initialize global staging buffer
-			global_staging_buffer->init(Const::MAX_FRAMES_IN_FLIGHT, Const::BASE_SIZE_STAGING_BUFFER);
+			global_stagging_buffer->init(Const::MAX_FRAMES_IN_FLIGHT, Const::BASE_SIZE_STAGING_BUFFER);
 
 			// Initialize texture system to loading texture
 			texture_system.init(Const::TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_TEXTURE_PER_BUCKETS);
+
+			// Initialize Vulkan static buffer to storage prototype like vertex data, index data,...
+			_init_static_buffers();
 		}
 	} // namespace Init
 
 	namespace Process {
 
+		void _update_uniform_buffer() {
+			const Buffer& uniform_buffer = uniform_buffers[current_frame];
+			Uniform uniform{};
+			global_stagging_buffer->upload_data(uniform_buffer.buffer, 0, sizeof(Uniform), &uniform);
+		}
+
 		void start_frame() {
-			Vulkan::global_staging_buffer->start_frame(current_frame);
+			global_stagging_buffer->start_frame(current_frame);
+			_update_uniform_buffer();
 		}
 
 		void draw_frame() {
-			Vulkan::global_staging_buffer->flush_frame();
+			global_stagging_buffer->flush_frame();
+			VkFence draw_fence = draw_fences[current_frame];
+			VkSemaphore draw_semaphore = draw_semaphores[current_frame];
+			VkSemaphore finish_render_semaphore = render_finish_semaphores[current_frame];
+
+			uint32_t image_index;
+
+			vkWaitForFences(device, 1, &draw_fence, VK_TRUE, UINT64_MAX);
+
+			VkResult result =
+				vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, draw_semaphore, VK_NULL_HANDLE, &image_index);
+
+			if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+				_recreate_swapchain();
+				_recreate_frame_buffers();
+				_recreate_depth_image();
+				return;
+			} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+				throw std::runtime_error("failed to acquire swap chain image!");
+			}
+
+			VkCommandBuffer command_buffer = draw_command_buffers[current_frame];
+			vkResetFences(device, 1, &draw_fence);
+			vkResetCommandBuffer(command_buffer, 0);
+
+			VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
+			vkBeginCommandBuffer(command_buffer, &begin_info);
+			{
+				/**
+				 * Clear color to background and depth image before draw.
+				 */
+				std::vector<VkClearValue> clear_colors(2);
+				clear_colors[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+				clear_colors[1].depthStencil = {1.0f, 0};
+				VkRenderPassBeginInfo render_pass_info = Structs::make_render_pass_begin_info(
+					render_pass, frame_buffers[current_frame], swapchain_extent, clear_colors
+				);
+				/**
+				 * Set viewport and scissor before draw.
+				 */
+				VkViewport viewport =
+					Structs::make_draw_viewport(0, 0, swapchain_extent.width, swapchain_extent.height, 0.f, 1.f);
+				VkRect2D scissor = Structs::make_scissor(swapchain_extent);
+				vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+				vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+
+				vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+				{
+					for (const auto& [draw_id, pipeline_info] : pipelines) {
+						VkPipeline pipeline = pipeline_info.pipeline;
+						vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+						std::vector<VkDescriptorSet> descriptor_sets =
+							descriptor_sets_by_draw_id[draw_id][current_frame];
+						switch (draw_id) {
+						case Const::DRAW_ID::DRAW_2D_MESH: {
+							vkCmdBindDescriptorSets(
+								command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_info.layout, 0,
+								descriptor_sets.size(), descriptor_sets.data(), 0, nullptr
+							);
+							break;
+						}
+						default: {
+							break;
+						}
+						}
+					}
+				}
+				vkCmdEndRenderPass(command_buffer);
+			}
+			vkEndCommandBuffer(command_buffer);
+			VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			VkSubmitInfo submit_info = Structs::make_submit_info(
+				&command_buffer, 1, 1, &draw_semaphore, &wait_stage, 1, &finish_render_semaphore
+			);
+			API::submit(submit_info, draw_fence);
+			VkPresentInfoKHR present_info =
+				Structs::make_present_info(1, &finish_render_semaphore, 1, &swapchain, &image_index);
+			API::submit_present(present_info);
 		}
 
 		void end_frame() {
@@ -131,13 +389,43 @@ namespace Vulkan {
 
 	namespace Destroy {
 
+		void _destroy_static_buffers() {
+			global_vertex_buffer.destroy();
+			global_indices_buffer.destroy();
+			Log::log_info("Destroy static buffers successfully!");
+		}
+
+		void _destroy_uniform_buffers() {
+			for (auto& buffer : uniform_buffers) {
+				buffer.destroy();
+			}
+			Log::log_info("Destroy uniform buffers successfully!");
+		}
+
+		void _destroy_pipelines() {
+			for (auto& [draw_id, pipeline] : pipelines) {
+				pipeline.destroy(device);
+			}
+		}
+
 		void destroy_vulkan() {
+			// Wait to queue idle first before destroy anything
+			vkQueueWaitIdle(graphics_queue);
+
+			// Destroy static buffers
+			_destroy_static_buffers();
 
 			// Destroy texture system
 			texture_system.destroy();
 
 			// Destroy global staging buffer
-			global_staging_buffer->destroy();
+			global_stagging_buffer->destroy();
+
+			// Destroy all using pipeline
+			_destroy_pipelines();
+
+			// Destroy uniform buffer
+			_destroy_uniform_buffers();
 
 			// Destroy Vulkan Descriptor Pools
 			_destroy_descriptor_pools();
@@ -150,6 +438,9 @@ namespace Vulkan {
 
 			// Destroy Vulkan Depth Image
 			_destroy_depth_image();
+
+			// Destroy All Using Vulkan Semaphore
+			_destroy_semaphores();
 
 			// Destroy All Using Vulkan Fence
 			_destroy_fences();

@@ -28,15 +28,11 @@ namespace Vulkan {
 	};
 
 	namespace Init {
-
 		void _init_descriptor_pools();
-
 	}
 
 	namespace Destroy {
-
 		void _destroy_descriptor_pools();
-
 	}
 
 } // namespace Vulkan

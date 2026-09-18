@@ -7,48 +7,71 @@ namespace Vulkan {
 	namespace Structs {
 
 		inline VkCommandBufferBeginInfo make_command_begin_info(
-			VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT) {
+			VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT
+		) {
 			VkCommandBufferBeginInfo begin_info{};
 			begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 			begin_info.flags = flags;
 			return begin_info;
 		}
 
-		inline VkSubmitInfo make_submit_info(VkCommandBuffer* command_buffer, uint32_t command_count = 1) {
+		inline VkSubmitInfo make_submit_info(
+			VkCommandBuffer* command_buffer, uint32_t command_count = 1, uint32_t wait_semaphore_count = 0,
+			VkSemaphore* wait_semaphores = nullptr, VkPipelineStageFlags* wait_dst_stages = nullptr,
+			uint32_t signal_semaphore_count = 0, VkSemaphore* signal_semaphores = nullptr
+		) {
 			VkSubmitInfo submit_info{};
 			submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 			submit_info.commandBufferCount = command_count;
 			submit_info.pCommandBuffers = command_buffer;
+			submit_info.waitSemaphoreCount = wait_semaphore_count;
+			submit_info.pWaitSemaphores = wait_semaphores;
+			submit_info.pWaitDstStageMask = wait_dst_stages;
+			submit_info.signalSemaphoreCount = signal_semaphore_count;
+			submit_info.pSignalSemaphores = signal_semaphores;
 			return submit_info;
 		}
 
-		inline VkShaderModuleCreateInfo make_shader_module(const std::vector<char>& code) {
+		inline VkPresentInfoKHR make_present_info(
+			uint32_t wait_semaphore_count, VkSemaphore* wait_semaphores, uint32_t swapchain_count,
+			VkSwapchainKHR* swapchains, uint32_t* image_index
+		) {
+			VkPresentInfoKHR present_info{};
+			present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+			present_info.waitSemaphoreCount = wait_semaphore_count;
+			present_info.pWaitSemaphores = wait_semaphores;
+			present_info.swapchainCount = swapchain_count;
+			present_info.pSwapchains = swapchains;
+			present_info.pImageIndices = image_index;
+			return present_info;
+		}
+
+		inline VkShaderModule make_shader_module(const std::string& shader_path, VkDevice device) {
+			std::vector<char> code = Files::read_file(shader_path);
 			VkShaderModuleCreateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 			create_info.codeSize = code.size();
 			create_info.pCode = reinterpret_cast<const uint32_t*>(code.data());
-			return create_info;
+			VkShaderModule module{};
+			vkCreateShaderModule(device, &create_info, nullptr, &module);
+			return module;
 		}
 
-		inline VkPipelineShaderStageCreateInfo make_pipeline_shader_stage_create_info(const std::string& shader_path,
-																					  VkShaderStageFlagBits stage,
-																					  VkDevice device) {
+		inline VkPipelineShaderStageCreateInfo make_pipeline_shader_stage_create_info(
+			VkShaderModule module, VkShaderStageFlagBits stage
+		) {
 			VkPipelineShaderStageCreateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 			create_info.stage = stage;
-
-			std::vector<char> code = Files::read_file(shader_path);
-			auto create_module_info = make_shader_module(code);
-			VkShaderModule module{};
-			vkCreateShaderModule(device, &create_module_info, nullptr, &module);
-
 			create_info.module = module;
+			create_info.pName = "main";
 			return create_info;
 		}
 
 		inline VkPipelineVertexInputStateCreateInfo make_pipeline_vertex_input_state_create_info(
 			const std::vector<VkVertexInputBindingDescription>& vertex_binding_descriptions,
-			const std::vector<VkVertexInputAttributeDescription>& vertex_attribute_descriptions) {
+			const std::vector<VkVertexInputAttributeDescription>& vertex_attribute_descriptions
+		) {
 			VkPipelineVertexInputStateCreateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 
@@ -61,9 +84,10 @@ namespace Vulkan {
 			return create_info;
 		}
 
-		inline std::vector<VkDescriptorSet> make_descriptor_set(VkDescriptorPool descriptor_pool,
-																uint32_t descriptor_set_count,
-																VkDescriptorSetLayout* set_layout, VkDevice device) {
+		inline std::vector<VkDescriptorSet> make_descriptor_set(
+			VkDescriptorPool descriptor_pool, uint32_t descriptor_set_count, VkDescriptorSetLayout* set_layout,
+			VkDevice device
+		) {
 			std::vector<VkDescriptorSet> descriptor_sets(descriptor_set_count);
 			VkDescriptorSetAllocateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -75,7 +99,8 @@ namespace Vulkan {
 		}
 
 		inline VkPipelineInputAssemblyStateCreateInfo make_pipeline_input_assembly_create_info(
-			VkPrimitiveTopology topology, VkBool32 primitiveRestartEnable) {
+			VkPrimitiveTopology topology, VkBool32 primitiveRestartEnable
+		) {
 			VkPipelineInputAssemblyStateCreateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 			create_info.topology = topology;
@@ -83,9 +108,9 @@ namespace Vulkan {
 			return create_info;
 		}
 
-		inline VkPipelineViewportStateCreateInfo make_pipeline_view_port_create_info(VkExtent2D swapchain_extent,
-																					 VkViewport& viewport,
-																					 VkRect2D& scissor) {
+		inline VkPipelineViewportStateCreateInfo make_pipeline_view_port_create_info(
+			VkExtent2D swapchain_extent, VkViewport& viewport, VkRect2D& scissor
+		) {
 
 			viewport.x = 0.0f;
 			viewport.y = 0.0f;
@@ -160,7 +185,8 @@ namespace Vulkan {
 		}
 
 		inline VkPipelineColorBlendStateCreateInfo make_pipeline_color_blend_state_create_info(
-			VkPipelineColorBlendAttachmentState color_blend_state) {
+			const VkPipelineColorBlendAttachmentState& color_blend_state
+		) {
 			VkPipelineColorBlendStateCreateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 			create_info.logicOpEnable = VK_FALSE;
@@ -170,7 +196,8 @@ namespace Vulkan {
 		}
 
 		inline VkPipelineDynamicStateCreateInfo make_pipeline_dynamic_state_create_info(
-			std::vector<VkDynamicState>& dynamicStates) {
+			std::vector<VkDynamicState>& dynamicStates
+		) {
 			dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 			VkPipelineDynamicStateCreateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
@@ -190,7 +217,8 @@ namespace Vulkan {
 		}
 
 		inline VkPipelineLayoutCreateInfo make_pipeline_layout_create_info(
-			std::vector<VkDescriptorSetLayout> descriptor_set_layouts, VkPushConstantRange push_constant_range) {
+			const std::vector<VkDescriptorSetLayout>& descriptor_set_layouts, VkPushConstantRange push_constant_range
+		) {
 			VkPipelineLayoutCreateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 			create_info.setLayoutCount = descriptor_set_layouts.size();
@@ -200,6 +228,59 @@ namespace Vulkan {
 			return create_info;
 		}
 
+		inline VkRenderPassBeginInfo make_render_pass_begin_info(
+			VkRenderPass render_pass, VkFramebuffer frame_buffer, VkExtent2D swapchain_extent,
+			const std::vector<VkClearValue>& clear_colors
+		) {
+			VkRenderPassBeginInfo begin_info{};
+			begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+			begin_info.renderPass = render_pass;
+			begin_info.framebuffer = frame_buffer;
+			begin_info.renderArea.offset = {0, 0};
+			begin_info.renderArea.extent = swapchain_extent;
+			begin_info.clearValueCount = clear_colors.size();
+			begin_info.pClearValues = clear_colors.data();
+			return begin_info;
+		}
+
+		inline VkViewport make_draw_viewport(
+			float x, float y, float width, float height, float min_depth, float max_depth
+		) {
+			VkViewport viewport{};
+			viewport.x = x;
+			viewport.y = y;
+			viewport.width = width;
+			viewport.height = height;
+			viewport.minDepth = min_depth;
+			viewport.maxDepth = max_depth;
+			return viewport;
+		}
+
+		inline VkRect2D make_scissor(const VkExtent2D& swapchain_extent) {
+			VkRect2D scissor{};
+			scissor.offset = {0, 0};
+			scissor.extent = swapchain_extent;
+			return scissor;
+		}
+
+		inline VkDescriptorSetAllocateInfo make_descriptor_set_allocate_info(
+			VkDescriptorPool descriptor_pool, const std::vector<VkDescriptorSetLayout>& descriptor_set_layouts
+		) {
+			VkDescriptorSetAllocateInfo allocate_info{};
+			allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+			allocate_info.descriptorPool = descriptor_pool;
+			allocate_info.descriptorSetCount = descriptor_set_layouts.size();
+			allocate_info.pSetLayouts = descriptor_set_layouts.data();
+			return allocate_info;
+		}
+
+		inline VkDescriptorBufferInfo make_descriptor_buffer_info(VkBuffer buffer, uint32_t offset, uint32_t range) {
+			VkDescriptorBufferInfo descriptor_buffer_info{};
+			descriptor_buffer_info.buffer = buffer;
+			descriptor_buffer_info.offset = offset;
+			descriptor_buffer_info.range = range;
+			return descriptor_buffer_info;
+		}
 	} // namespace Structs
 
 } // namespace Vulkan

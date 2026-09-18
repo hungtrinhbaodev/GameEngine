@@ -27,8 +27,9 @@ namespace Vulkan {
 			fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 			fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 			VkFence fence = VK_NULL_HANDLE;
-			Utils::vk_check_result(vkCreateFence(device, &fence_info, nullptr, &fence), "",
-								   "Vulkan fail to create fence!");
+			Utils::vk_check_result(
+				vkCreateFence(device, &fence_info, nullptr, &fence), "", "Vulkan fail to create fence!"
+			);
 
 			return fence;
 		}
@@ -47,12 +48,7 @@ namespace Vulkan {
 	inline std::unordered_map<VkFence, std::function<void()>> _fences_callback;
 
 	inline void _update_fences_callback() {
-		std::unique_lock<std::timed_mutex> lock(_fences_callback_lock, std::defer_lock);
-		if (!lock.try_lock_for(std::chrono::seconds(5))) {
-			Log::log_info("WARNING: _update_fences_callback not acquired within 5s - possible "
-						  "deadlock/contention");
-			return;
-		}
+		std::unique_lock<std::timed_mutex> lock(_fences_callback_lock);
 		std::vector<VkFence> fences_need_remove;
 
 		for (auto& [fence, callback] : _fences_callback) {
@@ -72,30 +68,25 @@ namespace Vulkan {
 	}
 
 	namespace Init {
-
 		inline void _init_fences() {
-
-			_global_scheduler->schedule([](long long dt) { _update_fences_callback(); },
-										Const::VULKAN_FENCES_SCHEDULER_TASK_NAME);
+			_global_scheduler->schedule(
+				[](long long dt) { _update_fences_callback(); }, Const::VULKAN_FENCES_SCHEDULER_TASK_NAME
+			);
 		}
 
 	} // namespace Init
 
 	namespace Destroy {
-
 		inline void _destroy_fences() {
-
 			if (_global_scheduler->is_contain_task(Const::VULKAN_FENCES_SCHEDULER_TASK_NAME)) {
 				_global_scheduler->remove_task_by_name(Const::VULKAN_FENCES_SCHEDULER_TASK_NAME);
 			}
-
 			_fences_pool.destroy();
 		}
 
 	} // namespace Destroy
 
 	namespace API {
-
 		inline VkFence request_fence() {
 			VkFence fence = _fences_pool.request_item();
 			vkResetFences(device, 1, &fence);
@@ -113,25 +104,21 @@ namespace Vulkan {
 			using result_type = typename std::invoke_result<F, Args...>::type;
 
 			auto task = std::make_shared<std::packaged_task<result_type()>>(
-				std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+				std::bind(std::forward<F>(f), std::forward<Args>(args)...)
+			);
 
 			if (vkGetFenceStatus(device, fence) == VK_SUCCESS) {
 				(*task)();
 			} else {
 				{
 					// add task to list callback when fence excute success
-					std::unique_lock<std::timed_mutex> lock(_fences_callback_lock, std::defer_lock);
-					if (!lock.try_lock_for(std::chrono::seconds(5))) {
-						Log::log_info("WARNING: on_fence_success not acquired within 5s - possible "
-									  "deadlock/contention");
-					}
+					std::unique_lock<std::timed_mutex> lock(_fences_callback_lock);
 					_fences_callback.emplace(fence, [task]() { (*task)(); });
+					_global_scheduler->unpause_scheduler_task(Const::VULKAN_FENCES_SCHEDULER_TASK_NAME);
 				}
-				_global_scheduler->unpause_scheduler_task(Const::VULKAN_FENCES_SCHEDULER_TASK_NAME);
 			}
 
 			return task->get_future();
 		}
-
 	} // namespace API
 } // namespace Vulkan

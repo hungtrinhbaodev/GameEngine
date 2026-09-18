@@ -44,18 +44,18 @@ int main() {
 		glfwPollEvents();
 
 		// Set up all component when start frame (reset frame of ring buffer, ...).
-		// Vulkan::Process::start_frame();
+		Vulkan::Process::start_frame();
 
 		// TODO: logic of all component will be place here in future.
 
 		// Draw all information of this current frame.
-		// Vulkan::Process::draw_frame();
+		Vulkan::Process::draw_frame();
 
 		// Reset all cache or work need to using in this frame.
 		Vulkan::Process::end_frame();
 	}
 
-	Vulkan::Destroy::destroy_vulkan();
+		Vulkan::Destroy::destroy_vulkan();
 
 	glfwDestroyWindow(window);
 

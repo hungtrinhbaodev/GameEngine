@@ -1,4 +1,6 @@
-----20/06/2026----
-[]: Add two pipeline draw with texture and draw normal with color.
-[]: Test two type of pipeline by data.
-[Done]: Add Draw_ID {texture_id, slot_vertex_id, slot_indices_id, draw_type, instancing_id,...} to controll object need to draw.
+[]: Add id generator.
+[]: Add pipelines.
+[]: Add full flow draw a triangle.
+[]: Add full flow draw rectangle.
+[]: Add full flow draw image.
+[]: Add draw with instance to 2D image.

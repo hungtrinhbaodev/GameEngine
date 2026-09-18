@@ -32,7 +32,11 @@ namespace Vulkan {
 		return *this;
 	}
 
-	VkPipelineVertexInputStateCreateInfo Vertex_Input_Builder::build() {
+	std::vector<VkVertexInputBindingDescription> Vertex_Input_Builder::build_binding_descriptions() {
+		return binding_descriptions;
+	}
+
+	std::vector<VkVertexInputAttributeDescription> Vertex_Input_Builder::build_attribute_descriptions() {
 		std::vector<VkVertexInputAttributeDescription> all_attribute_descriptions;
 		uint32_t location_counter = 0;
 		for (auto& attribute_descriptions : attribute_descriptions_by_bindings) {
@@ -42,6 +46,6 @@ namespace Vulkan {
 				location_counter++;
 			}
 		}
-		return Structs::make_pipeline_vertex_input_state_create_info(binding_descriptions, all_attribute_descriptions);
+		return all_attribute_descriptions;
 	}
 } // namespace Vulkan

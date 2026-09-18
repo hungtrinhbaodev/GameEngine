@@ -79,8 +79,11 @@ class Scheduler {
 		long long current_time = _get_current_time_ms();
 		task_data.task(current_time - start_time);
 		task_data.start_time = _get_current_time_ms();
-		if (task_data.excute_state != Excute_State::PAUSE) {
-			task_data.excute_state = Excute_State::IDLE;
+		{
+			std::unique_lock<std::timed_mutex> lock(tasks_mutex);
+			if (task_data.excute_state != Excute_State::PAUSE) {
+				task_data.excute_state = Excute_State::IDLE;
+			}
 		}
 	}
 
@@ -89,7 +92,8 @@ class Scheduler {
 #ifdef THREAD_POOL_H
 		if (_global_thread_pool != nullptr) {
 			task_data.excute_finish = _global_thread_pool->enqueue(
-				[this, &task_data](long long start_time) { do_task(task_data, start_time); }, start_time);
+				[this, &task_data](long long start_time) { do_task(task_data, start_time); }, start_time
+			);
 		} else {
 			do_task(task_data, start_time);
 		}
@@ -99,8 +103,10 @@ class Scheduler {
 #endif // THREAD_POOL_H
 	}
 
-	void push_task(Task_Function task, std::string task_key = "", long long delay_ms = TIME_NULL,
-				   Schedule_Type scheduled_type = Schedule_Type::REPEAT_FOREVER) {
+	void push_task(
+		Task_Function task, std::string task_key = "", long long delay_ms = TIME_NULL,
+		Schedule_Type scheduled_type = Schedule_Type::REPEAT_FOREVER
+	) {
 		{
 			std::unique_lock<std::timed_mutex> lock(tasks_mutex);
 			long long current_time = _get_current_time_ms();
@@ -112,72 +118,76 @@ class Scheduler {
 	void start() {
 		looper_thread = std::thread([this]() {
 			for (;;) {
-				std::unique_lock<std::timed_mutex> lock_task(tasks_mutex);
-				condition_variable.wait(lock_task, [this]() {
-					return this->is_stop || (!this->tasks.empty() && !this->is_all_tasks_pause());
-				});
+				/**
+				 * Note: don't let the sleep in the lock!
+				 */
+				{
+					std::unique_lock<std::timed_mutex> lock_task(tasks_mutex);
+					condition_variable.wait(lock_task, [this]() {
+						return this->is_stop || (!this->tasks.empty() && !this->is_all_tasks_pause());
+					});
 
-				if (is_stop) {
-					return;
-				}
+					if (is_stop) {
+						return;
+					}
 
-				for (int i = 0; i < tasks_need_pause.size(); i++) {
-					const auto& pause_info = tasks_need_pause[i];
-					bool is_finish_pause = false;
-					bool found_task = false;
-					for (int i = 0; i < tasks.size(); i++) {
-						if (tasks[i].task_name == pause_info.task_name) {
-							if (pause_info.pause_or_unpause && tasks[i].excute_state == Excute_State::IDLE) {
-								tasks[i].excute_state = Excute_State::PAUSE;
-								is_finish_pause = true;
+					for (int i = 0; i < tasks_need_pause.size(); i++) {
+						const auto& pause_info = tasks_need_pause[i];
+						bool is_finish_pause = false;
+						bool found_task = false;
+						for (int j = 0; j < tasks.size(); j++) {
+							if (tasks[j].task_name == pause_info.task_name) {
+								if (pause_info.pause_or_unpause && tasks[j].excute_state == Excute_State::IDLE) {
+									tasks[j].excute_state = Excute_State::PAUSE;
+									is_finish_pause = true;
+								}
+								if (!pause_info.pause_or_unpause && tasks[j].excute_state == Excute_State::PAUSE) {
+									tasks[j].excute_state = Excute_State::IDLE;
+									is_finish_pause = true;
+								}
+								found_task = true;
 							}
-							if (!pause_info.pause_or_unpause && tasks[i].excute_state == Excute_State::PAUSE) {
-								tasks[i].excute_state = Excute_State::IDLE;
-								is_finish_pause = true;
-							}
-							found_task = true;
+						}
+						if (is_finish_pause || !found_task) {
+							tasks_need_pause[i] = tasks_need_pause.back();
+							tasks_need_pause.pop_back();
+							i--;
 						}
 					}
-					if (is_finish_pause || !found_task) {
-						tasks_need_pause[i] = tasks_need_pause.back();
-						tasks_need_pause.pop_back();
-						i--;
-					}
-				}
 
-				for (int i = 0; i < tasks.size(); ++i) {
-					auto& task_data = tasks[i];
-					/*
-						if task is excuting or pause we wait
-						till it end and do at another loop
-					*/
-					if (task_data.excute_state == Excute_State::EXCUTING ||
-						task_data.excute_state == Excute_State::PAUSE) {
-						continue;
-					}
-					long long current_time = _get_current_time_ms();
+					for (int i = 0; i < tasks.size(); ++i) {
+						auto& task_data = tasks[i];
+						/*
+							if task is excuting or pause we wait
+							till it end and do at another loop
+						*/
+						if (task_data.excute_state == Excute_State::EXCUTING ||
+							task_data.excute_state == Excute_State::PAUSE) {
+							continue;
+						}
+						long long current_time = _get_current_time_ms();
 
-					bool is_task_done = false;
-					if (task_data.required_time == TIME_NULL) {
-						process_task(task_data, task_data.start_time);
-						is_task_done = true;
-					} else {
-						long long elapsed_time = current_time - task_data.start_time;
-						if (elapsed_time >= task_data.required_time) {
+						bool is_task_done = false;
+						if (task_data.required_time == TIME_NULL) {
 							process_task(task_data, task_data.start_time);
 							is_task_done = true;
+						} else {
+							long long elapsed_time = current_time - task_data.start_time;
+							if (elapsed_time >= task_data.required_time) {
+								process_task(task_data, task_data.start_time);
+								is_task_done = true;
+							}
+						}
+
+						/*
+							if the task is once only and is done, remove it from the list
+						*/
+						if (is_task_done && task_data.type == Schedule_Type::ONCE_ONLY) {
+							tasks.erase(tasks.begin() + i);
+							--i;
 						}
 					}
-
-					/*
-						if the task is once only and is done, remove it from the list
-					*/
-					if (is_task_done && task_data.type == Schedule_Type::ONCE_ONLY) {
-						tasks.erase(tasks.begin() + i);
-						--i;
-					}
 				}
-
 				std::this_thread::sleep_for(std::chrono::microseconds(min_loop_time_micrs));
 			}
 		});
@@ -252,14 +262,18 @@ class Scheduler {
 		}
 	}
 
+	void push_pause_task(const std::string& task_name, bool pause_or_unpause) {}
+
 	void pause_scheduler_task(const std::string& task_name) {
 		std::unique_lock<std::timed_mutex> lock(tasks_mutex);
 		tasks_need_pause.push_back(Pause_Task_Info{task_name, true});
 	}
 
 	void unpause_scheduler_task(const std::string& task_name) {
-		std::unique_lock<std::timed_mutex> lock(tasks_mutex);
-		tasks_need_pause.push_back(Pause_Task_Info{task_name, false});
+		{
+			std::unique_lock<std::timed_mutex> lock(tasks_mutex);
+			tasks_need_pause.push_back(Pause_Task_Info{task_name, false});
+		}
 		condition_variable.notify_one();
 	}
 };

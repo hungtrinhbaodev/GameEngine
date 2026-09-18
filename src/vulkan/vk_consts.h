@@ -58,6 +58,11 @@ namespace Vulkan {
 			DRAW_2D_RECTANGLE_WITH_TEXTURE, // draw a rectange with texture (ui image, sprite object, ...).
 		};
 
+		const inline uint32_t INITIALIZE_STATIC_BUFFER_SIZE = 5 * 1024 * 1024; // 3MB
+
+		const inline std::string PATH_VERT_SHADERD_DRAW_DEFAULT = "res/shader/draw_default/vert_shader.vert.spv";
+		const inline std::string PATH_FRAG_SHADERD_DRAW_DEFAULT = "res/shader/draw_default/fragment_shader.frag.spv";
+
 	} // namespace Const
 
 } // namespace Vulkan

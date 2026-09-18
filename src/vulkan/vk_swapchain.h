@@ -14,15 +14,15 @@ namespace Vulkan {
 									   VkDevice vk_device);
 
 	namespace Init {
-
 		void _init_swapchain();
+	}
 
+	namespace Process {
+		void _recreate_swapchain();
 	}
 
 	namespace Destroy {
-
 		void _destroy_swapchain();
-
 	}
 
 } // namespace Vulkan

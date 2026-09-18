@@ -33,6 +33,13 @@ namespace Vulkan {
 
 	} // namespace Init
 
+	namespace Process {
+		void _recreate_frame_buffers() {
+			Destroy::_destroy_frame_buffers();
+			Init::_init_frame_buffers();
+		}
+	} // namespace Process
+
 	namespace Destroy {
 
 		void _destroy_frame_buffers() {

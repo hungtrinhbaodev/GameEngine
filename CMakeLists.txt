@@ -11,9 +11,11 @@ set(GLFW_DIR "D:/Dev/glfw-3.4.bin.WIN64/glfw-3.4.bin.WIN64")
 find_package(Vulkan REQUIRED)
 add_subdirectory(${GLM_DIR} ${CMAKE_BINARY_DIR}/glm_build)
 
+
 file(GLOB_RECURSE SOURCES "main.cpp" "src/*.cpp")
 add_executable(main ${SOURCES})
 
+target_compile_definitions(main PRIVATE $<$<CONFIG:Debug>:_DEBUG>)
 target_include_directories(main PRIVATE src vendor "${GLFW_DIR}/include/")
 target_link_libraries(main PRIVATE glm::glm Vulkan::Vulkan "${GLFW_DIR}/lib-mingw-w64/libglfw3.a")
 
