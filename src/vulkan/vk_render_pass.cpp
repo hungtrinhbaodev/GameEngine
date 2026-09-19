@@ -72,8 +72,10 @@ namespace Vulkan {
 			create_info.pDependencies = &dependency;
 
 			// create render pass
-			Utils::vk_check_result(vkCreateRenderPass(device, &create_info, nullptr, &render_pass), "",
-								   "Vulkan fail to create render pass!");
+			Utils::vk_check_result(
+				vkCreateRenderPass(device, &create_info, nullptr, &render_pass), "",
+				"Vulkan fail to create render pass!"
+			);
 			Log::log_info("Vulkan create render pass successfully!");
 		}
 

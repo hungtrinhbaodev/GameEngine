@@ -1,0 +1,9 @@
+Draw information contain:
+* Attribute:
+    - Shader code.
+    - Pipeline.
+    - Array descriptor set layout to plug data to shader.
+    - Array descriptor to plug into shader.
+    - Instancing buffer if need.
+* Function:
+    - draw bind vertex, index buffer to draw.

@@ -18,6 +18,7 @@
 #include <vulkan/vk_semaphores.h>
 #include <vulkan/vk_structs.h>
 #include <utils.h>
+#include <math_custom.h>
 
 namespace Vulkan {
 
@@ -32,6 +33,8 @@ namespace Vulkan {
 	uint32_t triangle_vertices_id = -1;
 
 	uint32_t triangle_indices_id = -1;
+
+	std::vector<uint32_t> triangle_instancing{};
 
 	std::shared_ptr<ThreadPool> _global_thread_pool = nullptr;
 
@@ -81,6 +84,8 @@ namespace Vulkan {
 
 	std::map<Const::DRAW_ID, std::vector<std::vector<VkDescriptorSet>>> descriptor_sets_by_draw_id = {};
 
+	std::map<Const::DRAW_ID, Instance_Buffer> instancing_buffers = {};
+
 	Static_Buffer global_vertex_buffer = {};
 
 	Static_Buffer global_indices_buffer = {};
@@ -95,6 +100,8 @@ namespace Vulkan {
 
 	std::vector<VkCommandBuffer> draw_command_buffers = {};
 
+	bool frame_buffer_resize = false;
+
 	namespace Init {
 
 		void _init_vulkan_pipelines() {
@@ -108,7 +115,7 @@ namespace Vulkan {
 				.add_attribute_description(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal))
 				.add_attribute_description(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color));
 			vertex_builder.add_binding_description(1, sizeof(glm::mat4), VK_VERTEX_INPUT_RATE_INSTANCE)
-				.add_mat4_attribute_description(0, 0);
+				.add_mat4_attribute_description(1, 0);
 
 			/**
 			 * Make pipeline config.
@@ -165,6 +172,15 @@ namespace Vulkan {
 					descriptor_set_by_frames[i].push_back(uniform_buffer_descriptor_set);
 				}
 				descriptor_sets_by_draw_id[Const::DRAW_2D_MESH] = descriptor_set_by_frames;
+
+				/**
+				 * Initialize instancing buffer relative to draw id
+				 */
+				Instance_Buffer instancing_buffer{};
+				instancing_buffer.init(
+					global_stagging_buffer.get(), Const::INITIALIZE_SIZE_INSTANCING_BUFFER, sizeof(glm::mat4)
+				);
+				instancing_buffers[Const::DRAW_2D_MESH] = instancing_buffer;
 			}
 		}
 
@@ -203,8 +219,12 @@ namespace Vulkan {
 		}
 
 		void _init_static_buffers() {
-			global_vertex_buffer.init(global_stagging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE);
-			global_indices_buffer.init(global_stagging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE);
+			global_vertex_buffer.init(
+				global_stagging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+			);
+			global_indices_buffer.init(
+				global_stagging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE, VK_BUFFER_USAGE_INDEX_BUFFER_BIT
+			);
 			/**
 			 * @Note: test draw a first triangle!
 			 * TODO: update to handle a system static data latter.
@@ -212,7 +232,21 @@ namespace Vulkan {
 			triangle_vertices_id =
 				global_vertex_buffer.upload_data(sizeof(Vertex) * TRIANGLE_VERTICES.size(), TRIANGLE_VERTICES.data());
 			triangle_indices_id =
-				global_indices_buffer.upload_data(sizeof(uint16_t) * TRIANGLE_INDICES.size(), TRIANGLE_VERTICES.data());
+				global_indices_buffer.upload_data(sizeof(uint16_t) * TRIANGLE_INDICES.size(), TRIANGLE_INDICES.data());
+			global_stagging_buffer->flush_frame();
+			/**
+			 * @Test instancing buffer to triangle first
+			 */
+			Instance_Buffer& instancing_buffer = instancing_buffers[Const::DRAW_2D_MESH];
+			std::vector<glm::mat4> transforms{};
+			for (int i = 0; i < 10000; i++) {
+				glm::mat4 transform =
+					Math::make_scale(0.5f, 0.35f) *
+					Math::make_translation(Math::random_float(-1.0f, 1.0f), Math::random_float(-1.0f, 1.0f));
+				uint32_t instancing_id = instancing_buffer.add_data(&transform);
+				triangle_instancing.push_back(instancing_id);
+				transforms.push_back(transform);
+			}
 		}
 
 		void init_vulkan_core(
@@ -221,6 +255,7 @@ namespace Vulkan {
 		) {
 
 			_window = window;
+			glfwSetFramebufferSizeCallback(_window, [](GLFWwindow*, int, int) { Vulkan::frame_buffer_resize = true; });
 
 			_global_thread_pool = global_thread_pool;
 
@@ -278,7 +313,7 @@ namespace Vulkan {
 			_request_draw_command_buffers();
 
 			// Initialize global staging buffer
-			global_stagging_buffer->init(Const::MAX_FRAMES_IN_FLIGHT, Const::BASE_SIZE_STAGING_BUFFER);
+			global_stagging_buffer->init(Const::MAX_FRAMES_IN_FLIGHT, Const::INITIALIZE_SIZE_STAGING_BUFFER);
 
 			// Initialize texture system to loading texture
 			texture_system.init(Const::TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_TEXTURE_PER_BUCKETS);
@@ -296,28 +331,38 @@ namespace Vulkan {
 			global_stagging_buffer->upload_data(uniform_buffer.buffer, 0, sizeof(Uniform), &uniform);
 		}
 
+		void _on_window_resize() {
+			_recreate_swapchain();
+			_recreate_depth_image();
+			_recreate_frame_buffers();
+		}
+
 		void start_frame() {
 			global_stagging_buffer->start_frame(current_frame);
 			_update_uniform_buffer();
 		}
 
 		void draw_frame() {
+			/**
+			 * Flush data instancing update in frame
+			 */
+			for (auto& [draw_id, instancing_buffer] : instancing_buffers) {
+				instancing_buffer.flush_data();
+			}
+			/**
+			 * Flush stagging need to upload into local device buffer
+			 */
 			global_stagging_buffer->flush_frame();
 			VkFence draw_fence = draw_fences[current_frame];
 			VkSemaphore draw_semaphore = draw_semaphores[current_frame];
 			VkSemaphore finish_render_semaphore = render_finish_semaphores[current_frame];
 
 			uint32_t image_index;
-
 			vkWaitForFences(device, 1, &draw_fence, VK_TRUE, UINT64_MAX);
-
 			VkResult result =
 				vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, draw_semaphore, VK_NULL_HANDLE, &image_index);
-
 			if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-				_recreate_swapchain();
-				_recreate_frame_buffers();
-				_recreate_depth_image();
+				_on_window_resize();
 				return;
 			} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 				throw std::runtime_error("failed to acquire swap chain image!");
@@ -337,7 +382,7 @@ namespace Vulkan {
 				clear_colors[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
 				clear_colors[1].depthStencil = {1.0f, 0};
 				VkRenderPassBeginInfo render_pass_info = Structs::make_render_pass_begin_info(
-					render_pass, frame_buffers[current_frame], swapchain_extent, clear_colors
+					render_pass, frame_buffers[image_index], swapchain_extent, clear_colors
 				);
 				/**
 				 * Set viewport and scissor before draw.
@@ -350,22 +395,45 @@ namespace Vulkan {
 
 				vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 				{
+					/**
+					 * Bind indices buffer first
+					 * because it use for all pipeline!
+					 */
+					vkCmdBindIndexBuffer(
+						command_buffer, global_indices_buffer.inner_buffer.buffer, 0, VK_INDEX_TYPE_UINT16
+					);
 					for (const auto& [draw_id, pipeline_info] : pipelines) {
 						VkPipeline pipeline = pipeline_info.pipeline;
 						vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 						std::vector<VkDescriptorSet> descriptor_sets =
 							descriptor_sets_by_draw_id[draw_id][current_frame];
+						Instance_Buffer& instancing_buffer = instancing_buffers[draw_id];
+						VkBuffer binding_buffers[] = {
+							global_vertex_buffer.inner_buffer.buffer, instancing_buffer.inner_buffer.buffer
+						};
+						VkDeviceSize buffer_offsets[] = {0, 0};
 						switch (draw_id) {
-						case Const::DRAW_ID::DRAW_2D_MESH: {
-							vkCmdBindDescriptorSets(
-								command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_info.layout, 0,
-								descriptor_sets.size(), descriptor_sets.data(), 0, nullptr
-							);
-							break;
-						}
-						default: {
-							break;
-						}
+							case Const::DRAW_ID::DRAW_2D_MESH: {
+								vkCmdBindVertexBuffers(command_buffer, 0, 2, binding_buffers, buffer_offsets);
+								vkCmdBindDescriptorSets(
+									command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_info.layout, 0,
+									descriptor_sets.size(), descriptor_sets.data(), 0, nullptr
+								);
+								Static_Buffer_Range range_vertices_triangle =
+									global_vertex_buffer.view_slot_info(triangle_vertices_id);
+								Static_Buffer_Range range_indices_triangle =
+									global_indices_buffer.view_slot_info(triangle_indices_id);
+								int number_index =
+									static_cast<uint32_t>(range_indices_triangle.size / (int)sizeof(uint16_t));
+								vkCmdDrawIndexed(
+									command_buffer, number_index, instancing_buffer.number_instance,
+									range_indices_triangle.offset, range_vertices_triangle.offset, 0
+								);
+								break;
+							}
+							default: {
+								break;
+							}
 						}
 					}
 				}
@@ -379,7 +447,13 @@ namespace Vulkan {
 			API::submit(submit_info, draw_fence);
 			VkPresentInfoKHR present_info =
 				Structs::make_present_info(1, &finish_render_semaphore, 1, &swapchain, &image_index);
-			API::submit_present(present_info);
+			result = API::submit_present(present_info);
+			if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || frame_buffer_resize) {
+				frame_buffer_resize = false;
+				_on_window_resize();
+			} else if (result != VK_SUCCESS) {
+				throw std::runtime_error("failed to present swap chain image!");
+			}
 		}
 
 		void end_frame() {
@@ -405,6 +479,9 @@ namespace Vulkan {
 		void _destroy_pipelines() {
 			for (auto& [draw_id, pipeline] : pipelines) {
 				pipeline.destroy(device);
+			}
+			for (const auto& [draw_id, instancing_buffer] : instancing_buffers) {
+				instancing_buffer.destroy();
 			}
 		}
 

@@ -24,8 +24,10 @@ namespace Vulkan {
 				create_info.height = swapchain_extent.height;
 				create_info.layers = 1;
 
-				Utils::vk_check_result(vkCreateFramebuffer(device, &create_info, nullptr, &frame_buffers[i]), "",
-									   "Vulkan failed to create framebuffer!");
+				Utils::vk_check_result(
+					vkCreateFramebuffer(device, &create_info, nullptr, &frame_buffers[i]), "",
+					"Vulkan failed to create framebuffer!"
+				);
 			}
 
 			Log::log_info("Vulkan create frame buffers success!");

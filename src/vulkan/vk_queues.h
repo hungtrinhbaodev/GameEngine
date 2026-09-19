@@ -15,7 +15,7 @@ namespace Vulkan {
 			const VkSubmitInfo& submit_info, VkFence fence = VK_NULL_HANDLE, VkQueue submit_queue = VK_NULL_HANDLE
 		);
 
-		void submit_present(const VkPresentInfoKHR& present_info);
+		VkResult submit_present(const VkPresentInfoKHR& present_info);
 	} // namespace API
 
 } // namespace Vulkan

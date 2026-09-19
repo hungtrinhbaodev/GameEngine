@@ -49,7 +49,10 @@ namespace Vulkan {
 
 		Ring_Buffer* staging_buffer;
 
-		void init(Ring_Buffer* global_staging_buffer, uint32_t initialize_size);
+		void init(
+			Ring_Buffer* global_staging_buffer, uint32_t initialize_size,
+			VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+		);
 
 		uint32_t upload_data(uint32_t size, void* data);
 

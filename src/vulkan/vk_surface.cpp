@@ -10,9 +10,10 @@ namespace Vulkan {
 
 		void _init_surface() {
 			// init vulkan surface
-			Utils::vk_check_result(glfwCreateWindowSurface(instance, _window, nullptr, &surface),
-								   "Vulkan window surface created successfully!",
-								   "Vulkan fail to create window surface!");
+			Utils::vk_check_result(
+				glfwCreateWindowSurface(instance, _window, nullptr, &surface),
+				"Vulkan window surface created successfully!", "Vulkan fail to create window surface!"
+			);
 		}
 
 	} // namespace Init

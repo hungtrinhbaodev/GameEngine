@@ -39,8 +39,9 @@ namespace Vulkan {
 		return actual_extent;
 	}
 
-	void _create_swapchain_image_views(const std::vector<VkImage>& swapchain_images, const VkFormat& format,
-									   VkDevice vk_device) {
+	void _create_swapchain_image_views(
+		const std::vector<VkImage>& swapchain_images, const VkFormat& format, VkDevice vk_device
+	) {
 		swapchain_image_views.resize(swapchain_images.size());
 
 		for (size_t i = 0; i < swapchain_images.size(); i++) {
@@ -59,7 +60,7 @@ namespace Vulkan {
 			VkSurfaceFormatKHR format = _choose_swapchain_format(swapchain_detail.formats);
 			VkPresentModeKHR present = _choose_swapchain_present_mode(swapchain_detail.present_modes);
 			VkExtent2D extent = _choose_swapchain_extent(swapchain_detail.capabilities, _window);
-
+			Log::log_info("What is my swapchain extent: ", extent.width, extent.height);
 			// log mode present is choosen
 			switch (present) {
 			case VK_PRESENT_MODE_MAILBOX_KHR: {
@@ -78,8 +79,10 @@ namespace Vulkan {
 				image_count = swapchain_detail.capabilities.maxImageCount;
 			}
 
-			Log::log_info("Vulkan_Swapchain::init", swapchain_detail.capabilities.maxImageCount,
-						  swapchain_detail.capabilities.minImageCount);
+			Log::log_info(
+				"Vulkan_Swapchain::init", swapchain_detail.capabilities.maxImageCount,
+				swapchain_detail.capabilities.minImageCount
+			);
 
 			VkSwapchainCreateInfoKHR create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -111,8 +114,9 @@ namespace Vulkan {
 
 			create_info.oldSwapchain = VK_NULL_HANDLE;
 
-			Utils::vk_check_result(vkCreateSwapchainKHR(device, &create_info, nullptr, &swapchain), "",
-								   "failed to create swap chain!");
+			Utils::vk_check_result(
+				vkCreateSwapchainKHR(device, &create_info, nullptr, &swapchain), "", "failed to create swap chain!"
+			);
 			Log::log_info("Create swap chain successfully!");
 
 			vkGetSwapchainImagesKHR(device, swapchain, &image_count, nullptr);

@@ -19,6 +19,7 @@
 #include <vulkan/vk_static_buffer.h>
 #include <vulkan/vk_pipeline.h>
 #include <vulkan/vk_buffer.h>
+#include <vulkan/vk_instance_buffer.h>
 
 namespace Vulkan {
 
@@ -70,6 +71,8 @@ namespace Vulkan {
 
 	extern std::map<Const::DRAW_ID, std::vector<std::vector<VkDescriptorSet>>> descriptor_sets_by_draw_id;
 
+	extern std::map<Const::DRAW_ID, Instance_Buffer> instancing_buffers;
+
 	extern Static_Buffer global_vertex_buffer;
 
 	extern Static_Buffer global_indices_buffer;
@@ -83,6 +86,8 @@ namespace Vulkan {
 	extern std::vector<VkSemaphore> render_finish_semaphores;
 
 	extern std::vector<VkCommandBuffer> draw_command_buffers;
+
+	extern bool frame_buffer_resize;
 
 	namespace Init {
 
@@ -98,12 +103,16 @@ namespace Vulkan {
 
 		void _request_draw_command_buffers();
 
-		void init_vulkan_core(GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool,
-							  std::shared_ptr<Scheduler> global_scheduler);
+		void init_vulkan_core(
+			GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool,
+			std::shared_ptr<Scheduler> global_scheduler
+		);
 	} // namespace Init
 
 	namespace Process {
 		void _update_uniform_buffer();
+
+		void _on_window_resize();
 
 		void start_frame();
 

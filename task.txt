@@ -1,6 +1,1 @@
-[]: Add id generator.
-[]: Add pipelines.
-[]: Add full flow draw a triangle.
-[]: Add full flow draw rectangle.
-[]: Add full flow draw image.
-[]: Add draw with instance to 2D image.
+[]: Add flow mix draw triangle and rectangle together.

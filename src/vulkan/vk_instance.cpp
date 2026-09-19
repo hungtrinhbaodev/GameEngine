@@ -64,18 +64,20 @@ namespace Vulkan {
 			}
 
 			// create vulkan instance with create info
-			Utils::vk_check_result(vkCreateInstance(&create_info, nullptr, &instance),
-								   "Vulkan create instance success!", "Vulkan fail to create instance!");
+			Utils::vk_check_result(
+				vkCreateInstance(&create_info, nullptr, &instance), "Vulkan create instance success!",
+				"Vulkan fail to create instance!"
+			);
 
 			if (Const::IS_ENABLE_VALIDATION_LAYERS) {
 				_set_up_vulkan_debuger_messenger(instance, nullptr, &debug_messenger);
 			}
 		}
 
-		VkResult _create_debug_messeger_ext(VkInstance instance,
-											const VkDebugUtilsMessengerCreateInfoEXT* p_create_info,
-											const VkAllocationCallbacks* p_allocator,
-											VkDebugUtilsMessengerEXT* p_debug_messenger) {
+		VkResult _create_debug_messeger_ext(
+			VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* p_create_info,
+			const VkAllocationCallbacks* p_allocator, VkDebugUtilsMessengerEXT* p_debug_messenger
+		) {
 			auto func =
 				(PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 			if (func != nullptr) {
@@ -85,10 +87,10 @@ namespace Vulkan {
 			}
 		}
 
-		VKAPI_ATTR VkBool32 VKAPI_CALL _debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
-													   VkDebugUtilsMessageTypeFlagsEXT message_type,
-													   const VkDebugUtilsMessengerCallbackDataEXT* p_callback_data,
-													   void* p_user_data) {
+		VKAPI_ATTR VkBool32 VKAPI_CALL _debug_callback(
+			VkDebugUtilsMessageSeverityFlagBitsEXT message_severity, VkDebugUtilsMessageTypeFlagsEXT message_type,
+			const VkDebugUtilsMessengerCallbackDataEXT* p_callback_data, void* p_user_data
+		) {
 			std::cerr << "Vulkan validation layer: " << p_callback_data->pMessage << std::endl;
 			return VK_FALSE;
 		}
@@ -105,21 +107,24 @@ namespace Vulkan {
 			create_info.pfnUserCallback = _debug_callback;
 		}
 
-		void _set_up_vulkan_debuger_messenger(VkInstance instance, const VkAllocationCallbacks* p_allocator,
-											  VkDebugUtilsMessengerEXT* p_debug_messenger) {
+		void _set_up_vulkan_debuger_messenger(
+			VkInstance instance, const VkAllocationCallbacks* p_allocator, VkDebugUtilsMessengerEXT* p_debug_messenger
+		) {
 			VkDebugUtilsMessengerCreateInfoEXT create_info{};
 			_populate_debug_messenger_create_info(create_info);
 
-			Utils::vk_check_result(_create_debug_messeger_ext(instance, &create_info, p_allocator, p_debug_messenger),
-								   "Vulkan set up messenger set up successfully!",
-								   "Vulkan fail to set up debug messenger!");
+			Utils::vk_check_result(
+				_create_debug_messeger_ext(instance, &create_info, p_allocator, p_debug_messenger),
+				"Vulkan set up messenger set up successfully!", "Vulkan fail to set up debug messenger!"
+			);
 		}
 	} // namespace Init
 
 	namespace Destroy {
 
-		void _destroy_debug_messeger_ext(VkInstance instance, VkDebugUtilsMessengerEXT debug_messenger,
-										 const VkAllocationCallbacks* p_allocator) {
+		void _destroy_debug_messeger_ext(
+			VkInstance instance, VkDebugUtilsMessengerEXT debug_messenger, const VkAllocationCallbacks* p_allocator
+		) {
 			auto func =
 				(PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
 			if (func != nullptr) {

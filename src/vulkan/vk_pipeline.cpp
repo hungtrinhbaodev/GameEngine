@@ -34,9 +34,11 @@ namespace Vulkan {
 		VkShaderModule vert_module = Structs::make_shader_module(config.vertex_shader_path, device);
 		VkShaderModule frag_module = Structs::make_shader_module(config.fragment_shader_path, device);
 		shader_stages.push_back(
-			Structs::make_pipeline_shader_stage_create_info(vert_module, VK_SHADER_STAGE_VERTEX_BIT));
+			Structs::make_pipeline_shader_stage_create_info(vert_module, VK_SHADER_STAGE_VERTEX_BIT)
+		);
 		shader_stages.push_back(
-			Structs::make_pipeline_shader_stage_create_info(frag_module, VK_SHADER_STAGE_FRAGMENT_BIT));
+			Structs::make_pipeline_shader_stage_create_info(frag_module, VK_SHADER_STAGE_FRAGMENT_BIT)
+		);
 
 		// Make input assembly create info
 		VkPipelineInputAssemblyStateCreateInfo input_assembly_info =
@@ -76,8 +78,10 @@ namespace Vulkan {
 			Structs::make_pipeline_layout_create_info(config.descriptor_set_layouts, push_constant_range);
 
 		// Create and check pipeline layout first
-		Utils::vk_check_result(vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &layout),
-							   "Create pipeline layout successfully!", "Fail to create pipline layout");
+		Utils::vk_check_result(
+			vkCreatePipelineLayout(device, &pipeline_layout_info, nullptr, &layout),
+			"Create pipeline layout successfully!", "Fail to create pipline layout"
+		);
 
 		VkGraphicsPipelineCreateInfo create_info{};
 		create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -88,7 +92,8 @@ namespace Vulkan {
 
 		// pipeline fix function state
 		VkPipelineVertexInputStateCreateInfo vertex_input_state = Structs::make_pipeline_vertex_input_state_create_info(
-			config.vertex_descriptions, config.attribute_descriptions);
+			config.vertex_descriptions, config.attribute_descriptions
+		);
 		create_info.pVertexInputState = &vertex_input_state;
 		create_info.pInputAssemblyState = &input_assembly_info;
 		create_info.pTessellationState = nullptr;
@@ -109,8 +114,10 @@ namespace Vulkan {
 		create_info.basePipelineIndex = -1;
 
 		// Create pipeline with all above info
-		Utils::vk_check_result(vkCreateGraphicsPipelines(device, nullptr, 1, &create_info, nullptr, &pipeline),
-							   "Vulkan create pipeline successfully!", "Vulkan fail to create pipeline!");
+		Utils::vk_check_result(
+			vkCreateGraphicsPipelines(device, nullptr, 1, &create_info, nullptr, &pipeline),
+			"Vulkan create pipeline successfully!", "Vulkan fail to create pipeline!"
+		);
 
 		// remove module shader after create pipeline finish
 		vkDestroyShaderModule(device, vert_module, nullptr);

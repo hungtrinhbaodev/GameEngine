@@ -55,7 +55,7 @@ int main() {
 		Vulkan::Process::end_frame();
 	}
 
-		Vulkan::Destroy::destroy_vulkan();
+	Vulkan::Destroy::destroy_vulkan();
 
 	glfwDestroyWindow(window);
 

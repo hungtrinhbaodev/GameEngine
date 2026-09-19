@@ -34,9 +34,13 @@ namespace Vulkan {
 			vkQueueSubmit(submit_queue, 1, &submit_info, fence);
 		}
 
-		void submit_present(const VkPresentInfoKHR& present_info) {
-			std::lock_guard<std::mutex> lock(_submit_mutex);
-			vkQueuePresentKHR(present_queue, &present_info);
+		VkResult submit_present(const VkPresentInfoKHR& present_info) {
+			VkResult submit_result = VK_INCOMPLETE;
+			{
+				std::lock_guard<std::mutex> lock(_submit_mutex);
+				submit_result = vkQueuePresentKHR(present_queue, &present_info);
+			}
+			return submit_result;
 		}
 
 	} // namespace API

@@ -46,8 +46,10 @@ namespace Vulkan {
 			create_info.ppEnabledLayerNames = device_layers_enabled.data();
 #endif
 
-			Utils::vk_check_result(vkCreateDevice(physical_device, &create_info, nullptr, &device),
-								   "Vulkan create logical device success!", "Vulkan fail to create logical device!");
+			Utils::vk_check_result(
+				vkCreateDevice(physical_device, &create_info, nullptr, &device),
+				"Vulkan create logical device success!", "Vulkan fail to create logical device!"
+			);
 		}
 
 	} // namespace Init

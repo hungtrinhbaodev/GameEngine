@@ -70,6 +70,11 @@ namespace Vulkan {
 			copied_data[dst_buffer].push_back(region);
 		}
 
+		if (copied_data.size() <= 0) {
+			queue_upload_transfer.clear();
+			return;
+		}
+
 		_global_thread_pool
 			->enqueue(
 				[](std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data, VkBuffer src_buffer) {

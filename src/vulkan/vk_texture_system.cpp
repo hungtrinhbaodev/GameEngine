@@ -14,8 +14,10 @@ namespace Vulkan {
 			return;
 
 		if (bucket_sizes.size() != number_texture_per_buckets.size()) {
-			throw std::runtime_error("Vulkan fail to init texture system: number base sizes config need to equal "
-									 "number textures in buckets config size!");
+			throw std::runtime_error(
+				"Vulkan fail to init texture system: number base sizes config need to equal "
+				"number textures in buckets config size!"
+			);
 		}
 
 		texture_buckets.resize(bucket_sizes.size());
@@ -156,14 +158,16 @@ namespace Vulkan {
 		}
 		if (ids_to_storages.find(id) == ids_to_storages.end()) {
 			throw std::runtime_error(
-				"Vulkan fail to remove texture in texture system: not found storage info, can't handle remove!");
+				"Vulkan fail to remove texture in texture system: not found storage info, can't handle remove!"
+			);
 		}
 		Texture_Storage_Info storage_info = ids_to_storages[id];
 		switch (storage_info.storage_mode) {
 		case Const::TEXTURE_STORAGE_MODE::INDIVIDUAL: {
 			if (ids_to_individual_textures.find(id) == ids_to_individual_textures.end()) {
 				throw std::runtime_error(
-					"Vulkan fail to remove texture in texture system: not found individual texture to remove!");
+					"Vulkan fail to remove texture in texture system: not found individual texture to remove!"
+				);
 			}
 			Texture texture = ids_to_individual_textures[id];
 			texture.destroy();

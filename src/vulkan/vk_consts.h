@@ -20,7 +20,7 @@ namespace Vulkan {
 		const inline bool IS_ENABLE_VALIDATION_LAYERS = false;
 #endif // _DEBUG
 
-		const inline int MAX_FRAMES_IN_FLIGHT = 2;
+		const inline int MAX_FRAMES_IN_FLIGHT = 3;
 
 		const inline char* VALIDATION_LAYER_NAME = "VK_LAYER_KHRONOS_validation";
 
@@ -30,8 +30,6 @@ namespace Vulkan {
 			VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME
 #endif
 		};
-
-		const inline uint32_t BASE_SIZE_STAGING_BUFFER = 3 * 1024 * 1024; // 3MB
 
 		const inline std::string VULKAN_FENCES_SCHEDULER_TASK_NAME = "VULKAN_FENCE_SCHEDULER_TASK";
 
@@ -58,7 +56,11 @@ namespace Vulkan {
 			DRAW_2D_RECTANGLE_WITH_TEXTURE, // draw a rectange with texture (ui image, sprite object, ...).
 		};
 
-		const inline uint32_t INITIALIZE_STATIC_BUFFER_SIZE = 5 * 1024 * 1024; // 3MB
+		const inline uint32_t INITIALIZE_STATIC_BUFFER_SIZE = 3 * 1024 * 1024; // 5MB
+
+		const inline uint32_t INITIALIZE_SIZE_STAGING_BUFFER = 3 * 1024 * 1024; // 3MB
+
+		const inline uint32_t INITIALIZE_SIZE_INSTANCING_BUFFER = 3 * 1024 * 1024; // 3MB
 
 		const inline std::string PATH_VERT_SHADERD_DRAW_DEFAULT = "res/shader/draw_default/vert_shader.vert.spv";
 		const inline std::string PATH_FRAG_SHADERD_DRAW_DEFAULT = "res/shader/draw_default/fragment_shader.frag.spv";

@@ -3,13 +3,14 @@
 
 namespace Vulkan {
 
-	void Static_Buffer::init(Ring_Buffer* global_staging_buffer, uint32_t initialize_size) {
+	void Static_Buffer::init(
+		Ring_Buffer* global_staging_buffer, uint32_t initialize_size, VkBufferUsageFlags usage_flags
+	) {
 
 		available_size = initialize_size;
 		staging_buffer = global_staging_buffer;
 
-		inner_buffer.make_buffer(available_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-								 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		inner_buffer.make_buffer(available_size, usage_flags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 		id_counter = 0;
 		current_offset = 0;

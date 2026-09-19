@@ -36,9 +36,11 @@ namespace Vulkan {
 
 		Image(const Image& other);
 
-		void make_image(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-						VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags, uint32_t array_layers = 1,
-						VkPhysicalDevice physical_device = VK_NULL_HANDLE, VkDevice device = VK_NULL_HANDLE);
+		void make_image(
+			uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+			VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags, uint32_t array_layers = 1,
+			VkPhysicalDevice physical_device = VK_NULL_HANDLE, VkDevice device = VK_NULL_HANDLE
+		);
 
 		void transition_image_layout(VkImageLayout old_layout, VkImageLayout new_layout, uint32_t layer_index = 0);
 
