@@ -132,4 +132,6 @@ namespace Vulkan {
 		void destroy_vulkan();
 
 	} // namespace Destroy
+
+	namespace API {}
 } // namespace Vulkan
