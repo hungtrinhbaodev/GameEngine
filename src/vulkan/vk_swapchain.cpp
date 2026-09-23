@@ -54,21 +54,21 @@ namespace Vulkan {
 
 		void _init_swapchain() {
 			Swapchain_Support_Detail swapchain_detail = Utils::query_swapchain_support_detail(physical_device, surface);
-			Log::log_info("Swapchain detail info:");
+			Log::info("Swapchain detail info:");
 			swapchain_detail.log_info();
 
 			VkSurfaceFormatKHR format = _choose_swapchain_format(swapchain_detail.formats);
 			VkPresentModeKHR present = _choose_swapchain_present_mode(swapchain_detail.present_modes);
 			VkExtent2D extent = _choose_swapchain_extent(swapchain_detail.capabilities, _window);
-			Log::log_info("What is my swapchain extent: ", extent.width, extent.height);
+			Log::info("What is my swapchain extent: ", extent.width, extent.height);
 			// log mode present is choosen
 			switch (present) {
 				case VK_PRESENT_MODE_MAILBOX_KHR: {
-					Log::log_info("Swapchain choose mode present: VK_PRESENT_MODE_MAILBOX_KHR");
+					Log::info("Swapchain choose mode present: VK_PRESENT_MODE_MAILBOX_KHR");
 					break;
 				}
 				default: {
-					Log::log_info("Swapchain choose mode present: VK_PRESENT_MODE_FIFO_KHR");
+					Log::info("Swapchain choose mode present: VK_PRESENT_MODE_FIFO_KHR");
 					break;
 				}
 			}
@@ -79,7 +79,7 @@ namespace Vulkan {
 				image_count = swapchain_detail.capabilities.maxImageCount;
 			}
 
-			Log::log_info(
+			Log::info(
 				"Vulkan_Swapchain::init", swapchain_detail.capabilities.maxImageCount,
 				swapchain_detail.capabilities.minImageCount
 			);
@@ -101,10 +101,10 @@ namespace Vulkan {
 				create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 				create_info.queueFamilyIndexCount = 2;
 				create_info.pQueueFamilyIndices = queue_indices;
-				Log::log_info("Swapchain choose image sharing mode: VK_SHARING_MODE_CONCURRENT");
+				Log::info("Swapchain choose image sharing mode: VK_SHARING_MODE_CONCURRENT");
 			} else {
 				create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-				Log::log_info("Swapchain choose image sharing mode: VK_SHARING_MODE_EXCLUSIVE");
+				Log::info("Swapchain choose image sharing mode: VK_SHARING_MODE_EXCLUSIVE");
 			}
 
 			create_info.preTransform = swapchain_detail.capabilities.currentTransform;
@@ -117,12 +117,12 @@ namespace Vulkan {
 			Utils::vk_check_result(
 				vkCreateSwapchainKHR(device, &create_info, nullptr, &swapchain), "", "failed to create swap chain!"
 			);
-			Log::log_info("Create swap chain successfully!");
+			Log::info("Create swap chain successfully!");
 
 			vkGetSwapchainImagesKHR(device, swapchain, &image_count, nullptr);
 			swapchain_images.resize(image_count);
 			vkGetSwapchainImagesKHR(device, swapchain, &image_count, swapchain_images.data());
-			Log::log_info("swapchain image count", image_count);
+			Log::info("swapchain image count", image_count);
 
 			swapchain_format = format.format;
 			swapchain_extent = extent;
@@ -152,10 +152,10 @@ namespace Vulkan {
 			for (auto& image_view : swapchain_image_views) {
 				vkDestroyImageView(device, image_view, nullptr);
 			}
-			Log::log_info("Destroy swap chain image view success!");
+			Log::info("Destroy swap chain image view success!");
 
 			vkDestroySwapchainKHR(device, swapchain, nullptr);
-			Log::log_info("Destroy swap chain success!");
+			Log::info("Destroy swap chain success!");
 		}
 
 	} // namespace Destroy

@@ -26,7 +26,7 @@ namespace Vulkan {
 				vkGetPhysicalDeviceProperties(physical_device, &property);
 				physical_device_infos.push_back(property.deviceName);
 			}
-			Log::log_info("Vulkan list physical device:", physical_device_infos);
+			Log::info("Vulkan list physical device:", physical_device_infos);
 
 			for (VkPhysicalDevice physical_device : physical_devices) {
 				if (Utils::is_suitable_physical_device(physical_device, surface)) {
@@ -40,7 +40,7 @@ namespace Vulkan {
 			} else {
 				VkPhysicalDeviceProperties property;
 				vkGetPhysicalDeviceProperties(Vulkan::physical_device, &property);
-				Log::log_info("Vulkan chosed deviced: ", Vulkan::physical_device, property.deviceName);
+				Log::info("Vulkan chosed deviced: ", Vulkan::physical_device, property.deviceName);
 			}
 		}
 

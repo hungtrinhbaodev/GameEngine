@@ -1,44 +1,48 @@
 #pragma once
-#include <iostream>
-#include <string>
-#include <type_traits>
-#include <mutex>
-#include <vector>
 #include <glm/glm.hpp>
+#include <iostream>
+#include <mutex>
+#include <string>
 #include <thread>
+#include <type_traits>
+#include <vector>
+
+namespace glm {
+
+	template <glm::length_t C, glm::length_t R, typename T, glm::qualifier Q>
+	inline std::ostream& operator<<(std::ostream& os, const glm::mat<C, R, T, Q>& matrix) {
+		os << std::endl;
+		os << '{';
+		for (glm::length_t i = 0; i < R; ++i) {
+			for (glm::length_t j = 0; j < R; ++j) {
+				os << matrix[j][i] << " ";
+			}
+			if (i < R - 1) {
+				os << std::endl;
+			}
+		}
+		os << '}';
+		return os;
+	}
+
+	template <glm::length_t C, typename T, glm::qualifier Q>
+	inline std::ostream& operator<<(std::ostream& os, const glm::vec<C, T, Q>& vec) {
+		os << "[";
+		for (glm::length_t i = 0; i < C; i++) {
+			os << vec[i];
+			if (i < C - 1) {
+				os << ", ";
+			}
+		}
+		os << "]";
+		return os;
+	}
+
+} // namespace glm
 
 namespace Log {
 
 	namespace {
-
-		template <glm::length_t C, glm::length_t R, typename T, glm::qualifier Q>
-		inline std::ostream& operator<<(std::ostream& os, const glm::mat<C, R, T, Q>& matrix) {
-			os << std::endl;
-			os << '{';
-			for (glm::length_t i = 0; i < R; ++i) {
-				for (glm::length_t j = 0; j < R; ++j) {
-					os << matrix[j][i] << " ";
-				}
-				if (i < R - 1) {
-					os << std::endl;
-				}
-			}
-			os << '}';
-			return os;
-		}
-
-		template <glm::length_t C, typename T, glm::qualifier Q>
-		inline std::ostream& operator<<(std::ostream& os, const glm::vec<C, T, Q>& vec) {
-			os << "[";
-			for (glm::length_t i = 0; i < C; i++) {
-				os << vec[i];
-				if (i < C - 1) {
-					os << ", ";
-				}
-			}
-			os << "]";
-			return os;
-		}
 
 		template <typename T> inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
 			os << '{';
@@ -86,7 +90,7 @@ namespace Log {
 	} // namespace
 
 	// common log with ...args
-	template <typename... Args> inline void log_info(const Args&... args) {
+	template <typename... Args> inline void info(const Args&... args) {
 
 		// return;
 		std::unique_lock<std::mutex> lock(_lock_log);

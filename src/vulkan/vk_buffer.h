@@ -21,6 +21,8 @@ namespace Vulkan {
 
 		VkMemoryPropertyFlags property_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 
+		VkDescriptorBufferInfo descriptor{};
+
 		Buffer();
 
 		Buffer(const Buffer& other);
@@ -33,6 +35,8 @@ namespace Vulkan {
 		void copy_data(uint32_t size, void* data, uint32_t offset = 0) const;
 
 		void resize(uint32_t new_size);
+
+		void update_descriptor();
 
 		void destroy() const;
 

@@ -4,7 +4,7 @@
 namespace Vulkan {
 
 	void Swapchain_Support_Detail::log_info() const {
-		Log::log_info(
+		Log::info(
 			"Info swap chain of device: ", "\nformat size: ", formats.size(),
 			"\npresent_modes_size: ", present_modes.size()
 		);

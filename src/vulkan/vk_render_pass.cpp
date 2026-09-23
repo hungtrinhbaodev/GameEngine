@@ -76,7 +76,7 @@ namespace Vulkan {
 				vkCreateRenderPass(device, &create_info, nullptr, &render_pass), "",
 				"Vulkan fail to create render pass!"
 			);
-			Log::log_info("Vulkan create render pass successfully!");
+			Log::info("Vulkan create render pass successfully!");
 		}
 
 	} // namespace Init
@@ -86,7 +86,7 @@ namespace Vulkan {
 		void _destroy_render_pass() {
 
 			vkDestroyRenderPass(device, render_pass, nullptr);
-			Log::log_info("Vulkan destroy render pass successfully!");
+			Log::info("Vulkan destroy render pass successfully!");
 		}
 
 	} // namespace Destroy

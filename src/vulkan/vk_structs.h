@@ -141,6 +141,10 @@ namespace Vulkan {
 			create_info.rasterizerDiscardEnable = VK_FALSE;
 			create_info.polygonMode = VK_POLYGON_MODE_FILL;
 			create_info.cullMode = VK_CULL_MODE_BACK_BIT;
+			/**
+			 * @Note: from now we disable UBO to test
+			 */
+			// create_info.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 			create_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
 			create_info.depthBiasEnable = VK_FALSE;
 			create_info.lineWidth = 1.0f;

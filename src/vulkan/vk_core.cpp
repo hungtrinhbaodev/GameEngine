@@ -1,3 +1,5 @@
+
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <math_custom.h>
 #include <utils.h>
 #include <vulkan/vk_command_pool.h>
@@ -155,7 +157,7 @@ namespace Vulkan {
 				 */
 				std::vector<std::vector<VkDescriptorSet>> descriptor_set_by_frames;
 				for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-					const Buffer& uniform_buffer = uniform_buffers[i];
+					Buffer& uniform_buffer = uniform_buffers[i];
 					descriptor_set_by_frames.push_back({});
 					/**
 					 * Create uniform buffer descriptor set
@@ -165,9 +167,7 @@ namespace Vulkan {
 						Structs::make_descriptor_set_allocate_info(descriptor_pools[i], descriptor_set_layouts);
 					vkAllocateDescriptorSets(device, &allocate_info, &uniform_buffer_descriptor_set);
 					Descriptor_Set_Writer writer{};
-					VkDescriptorBufferInfo descriptor_buffer_info =
-						Structs::make_descriptor_buffer_info(uniform_buffer.buffer, 0, uniform_buffer.size);
-					writer.add_buffer_write(0, &descriptor_buffer_info, uniform_buffer_descriptor_set);
+					writer.add_buffer_write(0, &uniform_buffer.descriptor, uniform_buffer_descriptor_set);
 					writer.write(device);
 					descriptor_set_by_frames[i].push_back(uniform_buffer_descriptor_set);
 				}
@@ -194,14 +194,14 @@ namespace Vulkan {
 				);
 				uniform_buffers.push_back(uniform_buffer);
 			}
-			Log::log_info("Create uniform buffers successfully!");
+			Log::info("Create uniform buffers successfully!");
 		}
 
 		void _request_draw_fences() {
 			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
 				draw_fences.push_back(API::request_fence());
 			}
-			Log::log_info("Create draw fences successfully!");
+			Log::info("Create draw fences successfully!");
 		}
 
 		void _init_semaphores() {
@@ -209,7 +209,7 @@ namespace Vulkan {
 				draw_semaphores.push_back(API::request_semaphore());
 				render_finish_semaphores.push_back(API::request_semaphore());
 			}
-			Log::log_info("Create draw semaphores successfully!");
+			Log::info("Create draw semaphores successfully!");
 		}
 
 		void _request_draw_command_buffers() {
@@ -239,11 +239,10 @@ namespace Vulkan {
 			 */
 			Instance_Buffer& instancing_buffer = instancing_buffers[Const::DRAW_2D_MESH];
 			std::vector<glm::mat4> transforms{};
-			for (int i = 0; i < 3; i++) {
+			for (int i = 0; i < 10000; i++) {
 				glm::mat4 transform =
 					Math::make_scale(0.5f, 0.35f) *
-					Math::make_translation(Math::random_float(-1.0f, 1.0f), Math::random_float(-1.0f, 1.0f)) *
-					Math::make_rotation(0.f, 0.f, Math::random_float());
+					Math::make_translation(Math::random_float(-1.0f, 1.0f), Math::random_float(-1.0f, 1.0f));
 				uint32_t instancing_id = instancing_buffer.add_data(&transform);
 				triangle_instancing.push_back(instancing_id);
 				transforms.push_back(transform);
@@ -329,6 +328,17 @@ namespace Vulkan {
 		void _update_uniform_buffer() {
 			const Buffer& uniform_buffer = uniform_buffers[current_frame];
 			Uniform uniform{};
+			/**
+			 * @Note: from now we disable UBO to test
+			 */
+			// glm::mat4 projection = glm::perspective(
+			// 	glm::radians(45.0f), (float)swapchain_extent.width / (float)swapchain_extent.height, 0.1f, 100.f
+			// );
+			// projection[1][1] *= -1.f;
+			// uniform.projection = projection;
+			// glm::mat4 view =
+			// 	glm::lookAt(glm::vec3(0.0f, 0.0f, 1.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+			// uniform.view = view;
 			global_stagging_buffer->upload_data(uniform_buffer.buffer, 0, sizeof(Uniform), &uniform);
 		}
 
@@ -466,14 +476,14 @@ namespace Vulkan {
 		void _destroy_static_buffers() {
 			global_vertex_buffer.destroy();
 			global_indices_buffer.destroy();
-			Log::log_info("Destroy static buffers successfully!");
+			Log::info("Destroy static buffers successfully!");
 		}
 
 		void _destroy_uniform_buffers() {
 			for (auto& buffer : uniform_buffers) {
 				buffer.destroy();
 			}
-			Log::log_info("Destroy uniform buffers successfully!");
+			Log::info("Destroy uniform buffers successfully!");
 		}
 
 		void _destroy_pipelines() {

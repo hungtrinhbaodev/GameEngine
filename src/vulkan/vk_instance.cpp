@@ -46,13 +46,13 @@ namespace Vulkan {
 				}
 			}
 #endif
-			Log::log_info("Vulkan list instance extension:", extensions);
+			Log::info("Vulkan list instance extension:", extensions);
 			create_info.enabledExtensionCount = extensions.size();
 			create_info.ppEnabledExtensionNames = extensions.data();
 
 			// add layer instance info
 			std::vector<const char*> layerEnableds = Utils::query_instance_layer_enabled();
-			Log::log_info("Vulkan list instance layer:", layerEnableds);
+			Log::info("Vulkan list instance layer:", layerEnableds);
 			create_info.enabledLayerCount = layerEnableds.size();
 			create_info.ppEnabledLayerNames = layerEnableds.data();
 
@@ -135,10 +135,10 @@ namespace Vulkan {
 		void _destroy_instance() {
 			if (Const::IS_ENABLE_VALIDATION_LAYERS) {
 				_destroy_debug_messeger_ext(instance, debug_messenger, nullptr);
-				Log::log_info("Vulkan debug messenger destroyed successfully!");
+				Log::info("Vulkan debug messenger destroyed successfully!");
 			}
 			vkDestroyInstance(instance, nullptr);
-			Log::log_info("Vulkan instance destroyed successfully!");
+			Log::info("Vulkan instance destroyed successfully!");
 		}
 	} // namespace Destroy
 } // namespace Vulkan

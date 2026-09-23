@@ -23,7 +23,7 @@ namespace Vulkan {
 		void _destroy_surface() {
 			// clean surface KHR
 			vkDestroySurfaceKHR(instance, surface, nullptr);
-			Log::log_info("Vulkan destroy surface success!");
+			Log::info("Vulkan destroy surface success!");
 		}
 
 	} // namespace Destroy

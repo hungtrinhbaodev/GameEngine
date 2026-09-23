@@ -59,7 +59,7 @@ namespace Vulkan {
 		void _destroy_device() {
 
 			vkDestroyDevice(device, nullptr);
-			Log::log_info("Vulkan destroy logical device success!");
+			Log::info("Vulkan destroy logical device success!");
 		}
 
 	} // namespace Destroy

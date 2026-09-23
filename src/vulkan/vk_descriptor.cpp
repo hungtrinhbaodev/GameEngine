@@ -109,7 +109,7 @@ namespace Vulkan {
 				vkDestroyDescriptorPool(device, pool, nullptr);
 			}
 
-			Log::log_info("Vulkan destroy descriptor pools successfully!");
+			Log::info("Vulkan destroy descriptor pools successfully!");
 		}
 	} // namespace Destroy
 

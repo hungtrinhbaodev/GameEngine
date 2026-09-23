@@ -6,11 +6,10 @@
 #endif
 
 #include <core.h>
-#include <vulkan/vk_core.h>
-#include <vulkan/vk_texture_array.h>
 #include <log.h>
 #include <utils.h>
-#include <vulkan/vk_draw_info.h>
+#include <vulkan/vk_core.h>
+#include <vulkan/vk_texture_array.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>

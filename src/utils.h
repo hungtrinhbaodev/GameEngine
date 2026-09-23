@@ -1,8 +1,8 @@
 #pragma once
-#include <vector>
-#include <string>
+#include <chrono>
 #include <filesystem>
-
+#include <string>
+#include <vector>
 #if defined(_WIN32)
 #include <windows.h>
 #elif defined(__APPLE__)
@@ -51,6 +51,13 @@ namespace Utils {
 			DEFAULT_PATH = get_root().string();
 		}
 		return DEFAULT_PATH + "\\";
+	}
+
+	inline long now() {
+		auto now = std::chrono::system_clock::now();
+		auto duration = now.time_since_epoch();
+		auto mili_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
+		return mili_seconds.count();
 	}
 
 } // namespace Utils

@@ -13,7 +13,8 @@ namespace Vulkan {
 
 	Buffer::Buffer() {}
 
-	Buffer::Buffer(const Buffer& other) {
+	Buffer::Buffer(const Buffer& other)
+		: Buffer() {
 		size = other.size;
 		usage_flags = other.usage_flags;
 		property_flags = other.property_flags;
@@ -21,6 +22,7 @@ namespace Vulkan {
 		physical_device = other.physical_device;
 		buffer = other.buffer;
 		memory = other.memory;
+		descriptor = other.descriptor;
 	};
 
 	void Buffer::make_buffer(
@@ -70,6 +72,7 @@ namespace Vulkan {
 		);
 
 		vkBindBufferMemory(device, buffer, memory, 0);
+		update_descriptor();
 	}
 
 	void Buffer::copy_data(uint32_t size, void* data, uint32_t offset) const {
@@ -109,6 +112,13 @@ namespace Vulkan {
 		size = new_size;
 		buffer = new_buffer.buffer;
 		memory = new_buffer.memory;
+		update_descriptor();
+	}
+
+	void Buffer::update_descriptor() {
+		descriptor.buffer = buffer;
+		descriptor.offset = 0;
+		descriptor.range = size;
 	}
 
 	void Buffer::destroy() const {

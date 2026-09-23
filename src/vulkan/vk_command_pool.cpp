@@ -43,9 +43,7 @@ namespace Vulkan {
 			vkCreateCommandPool(device, &pool_info, nullptr, &_command_pool), "", "Vulkan fail to create command pool!"
 		);
 
-		Log::log_info(
-			"Vulkan create command pool at thread", std::this_thread::get_id(), _command_pool, " successfully!"
-		);
+		Log::info("Vulkan create command pool at thread", std::this_thread::get_id(), _command_pool, " successfully!");
 	}
 
 	void _Command_Pool_Thread::destroy() {
@@ -54,7 +52,7 @@ namespace Vulkan {
 
 		vkDestroyCommandPool(device, _command_pool, nullptr);
 
-		Log::log_info("Vulkan delete command pool at thread", std::this_thread::get_id(), "successfully!");
+		Log::info("Vulkan delete command pool at thread", std::this_thread::get_id(), "successfully!");
 	}
 
 	std::shared_ptr<_Command_Pool_Thread> _get_command_thread_pool() {

@@ -137,13 +137,13 @@ namespace Vulkan {
 		for (const VkDescriptorSetLayout& descriptor_set_layout : descriptor_set_layouts) {
 			vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
 		}
-		Log::log_info("Vulkan destroy descriptor set layouts successfully!");
+		Log::info("Vulkan destroy descriptor set layouts successfully!");
 
 		vkDestroyPipelineLayout(device, layout, nullptr);
-		Log::log_info("Vulkan destroy pipeline layout successfully!");
+		Log::info("Vulkan destroy pipeline layout successfully!");
 
 		vkDestroyPipeline(device, pipeline, nullptr);
-		Log::log_info("Vulkan destroy pipeline successfully!");
+		Log::info("Vulkan destroy pipeline successfully!");
 	}
 
 } // namespace Vulkan

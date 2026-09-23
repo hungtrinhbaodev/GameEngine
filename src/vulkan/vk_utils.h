@@ -249,7 +249,7 @@ namespace Vulkan {
 			vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
 
 			for (int i = 0; i < memory_properties.memoryTypeCount; i++) {
-				Log::log_info(
+				Log::info(
 					"find_suitable_memory_type", type_filter, memory_properties.memoryTypes[i].propertyFlags, properties
 				);
 				if ((type_filter & (1 << i)) &&

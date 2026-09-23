@@ -12,7 +12,7 @@ namespace Vulkan {
 				VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_DEPTH_BIT
 			);
-			Log::log_info("Vulkan init depth image successfully!");
+			Log::info("Vulkan init depth image successfully!");
 		}
 
 	} // namespace Init
@@ -27,7 +27,7 @@ namespace Vulkan {
 	namespace Destroy {
 		void _destroy_depth_image() {
 			depth_image.destroy();
-			Log::log_info("Vulkan destroy depth image successfully!");
+			Log::info("Vulkan destroy depth image successfully!");
 		}
 	} // namespace Destroy
 

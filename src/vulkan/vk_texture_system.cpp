@@ -1,6 +1,6 @@
-#include <vulkan/vk_texture_system.h>
-#include <vulkan/vk_consts.h>
 #include <log.h>
+#include <vulkan/vk_consts.h>
+#include <vulkan/vk_texture_system.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <stdexcept>
@@ -41,7 +41,7 @@ namespace Vulkan {
 
 	uint32_t Texture_System::load_texture(std::string file) {
 #ifdef _DEBUG
-		Log::log_info("Load texture with name", file);
+		Log::info("Load texture with name", file);
 #endif
 		// this texture was loaded success!
 		if (files_to_ids.find(file) != files_to_ids.end()) {
@@ -142,7 +142,7 @@ namespace Vulkan {
 		if (ids_to_views.find(id) == ids_to_views.end()) {
 			return {""};
 		}
-		return ids_to_views[id]; 
+		return ids_to_views[id];
 	}
 
 	Texture_Storage_Info Texture_System::view_texture_storage_info(uint32_t id) {
@@ -163,23 +163,23 @@ namespace Vulkan {
 		}
 		Texture_Storage_Info storage_info = ids_to_storages[id];
 		switch (storage_info.storage_mode) {
-		case Const::TEXTURE_STORAGE_MODE::INDIVIDUAL: {
-			if (ids_to_individual_textures.find(id) == ids_to_individual_textures.end()) {
-				throw std::runtime_error(
-					"Vulkan fail to remove texture in texture system: not found individual texture to remove!"
-				);
+			case Const::TEXTURE_STORAGE_MODE::INDIVIDUAL: {
+				if (ids_to_individual_textures.find(id) == ids_to_individual_textures.end()) {
+					throw std::runtime_error(
+						"Vulkan fail to remove texture in texture system: not found individual texture to remove!"
+					);
+				}
+				Texture texture = ids_to_individual_textures[id];
+				texture.destroy();
+				break;
 			}
-			Texture texture = ids_to_individual_textures[id];
-			texture.destroy();
-			break;
-		}
-		case Const::TEXTURE_STORAGE_MODE::BUCKET: {
-			// In case bucket we don't need to erase because next load will replace all data
-			break;
-		}
-		default: {
-			break;
-		}
+			case Const::TEXTURE_STORAGE_MODE::BUCKET: {
+				// In case bucket we don't need to erase because next load will replace all data
+				break;
+			}
+			default: {
+				break;
+			}
 		}
 		std::string& file = ids_to_files[id];
 		ids_to_views.erase(id);

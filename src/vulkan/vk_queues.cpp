@@ -13,14 +13,10 @@ namespace Vulkan {
 			Queue_Family_Indices indices = Utils::query_suitable_queue_family_indices(physical_device, surface);
 
 			vkGetDeviceQueue(device, indices.graphic_family.value(), 0, &graphics_queue);
-			Log::log_info(
-				"Get device graphic queue at index", indices.graphic_family.value(), graphics_queue, "success!"
-			);
+			Log::info("Get device graphic queue at index", indices.graphic_family.value(), graphics_queue, "success!");
 
 			vkGetDeviceQueue(device, indices.present_family.value(), 0, &present_queue);
-			Log::log_info(
-				"Get device present queue at index", indices.present_family.value(), present_queue, "success!"
-			);
+			Log::info("Get device present queue at index", indices.present_family.value(), present_queue, "success!");
 		}
 
 	} // namespace Init

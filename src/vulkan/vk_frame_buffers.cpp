@@ -30,7 +30,7 @@ namespace Vulkan {
 				);
 			}
 
-			Log::log_info("Vulkan create frame buffers success!");
+			Log::info("Vulkan create frame buffers success!");
 		}
 
 	} // namespace Init
@@ -50,7 +50,7 @@ namespace Vulkan {
 				vkDestroyFramebuffer(device, frame_buffer, nullptr);
 			}
 
-			Log::log_info("Vulkan destroy swap chain frame buffers success!");
+			Log::info("Vulkan destroy swap chain frame buffers success!");
 		}
 
 	} // namespace Destroy
