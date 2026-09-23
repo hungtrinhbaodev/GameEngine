@@ -3,30 +3,32 @@
 #include <iostream>
 #include <vector>
 
-#include <vulkan/vk_consts.h>
+#include <log.h>
 #include <vulkan/queue_family_indices.h>
 #include <vulkan/swapchain_support_detail.h>
-#include <log.h>
+#include <vulkan/vk_consts.h>
 
-#include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan.h>
 
 namespace Vulkan {
 
 	namespace Utils {
 
-		inline void vk_check_result(VkResult result, const char* success_msg = "Vulkan action success!",
-									const char* exception_msg = "Vulkan action fail!") {
+		inline void vk_check_result(
+			VkResult result, const char* success_msg = "Vulkan action success!",
+			const char* exception_msg = "Vulkan action fail!"
+		) {
 			switch (result) {
-			case VK_SUCCESS: {
-				if (strcmp("", success_msg) != 0) {
-					std::cout << success_msg << std::endl;
+				case VK_SUCCESS: {
+					if (strcmp("", success_msg) != 0) {
+						std::cout << success_msg << std::endl;
+					}
+					break;
 				}
-				break;
-			}
-			default: {
-				throw std::runtime_error(exception_msg);
-			}
+				default: {
+					throw std::runtime_error(exception_msg);
+				}
 			}
 		}
 
@@ -96,8 +98,9 @@ namespace Vulkan {
 			return list_layer_enabled;
 		}
 
-		inline Queue_Family_Indices query_suitable_queue_family_indices(VkPhysicalDevice physical_device,
-																		VkSurfaceKHR surface) {
+		inline Queue_Family_Indices query_suitable_queue_family_indices(
+			VkPhysicalDevice physical_device, VkSurfaceKHR surface
+		) {
 
 			uint32_t number_queue_family = 0;
 			vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &number_queue_family, nullptr);
@@ -127,13 +130,15 @@ namespace Vulkan {
 		}
 
 		inline std::vector<const char*> query_physical_device_support_required_extensions(
-			VkPhysicalDevice physical_device) {
+			VkPhysicalDevice physical_device
+		) {
 			uint32_t number_extension = 0;
 			vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &number_extension, nullptr);
 			std::vector<VkExtensionProperties> extension_properties(number_extension);
 
-			vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &number_extension,
-												 extension_properties.data());
+			vkEnumerateDeviceExtensionProperties(
+				physical_device, nullptr, &number_extension, extension_properties.data()
+			);
 			std::vector<const char*> extension_names;
 
 			for (auto& extension_property : extension_properties) {
@@ -147,8 +152,9 @@ namespace Vulkan {
 			return extension_names;
 		}
 
-		inline Swapchain_Support_Detail query_swapchain_support_detail(VkPhysicalDevice physical_device,
-																	   VkSurfaceKHR surface) {
+		inline Swapchain_Support_Detail query_swapchain_support_detail(
+			VkPhysicalDevice physical_device, VkSurfaceKHR surface
+		) {
 			Swapchain_Support_Detail details;
 			vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical_device, surface, &details.capabilities);
 
@@ -163,8 +169,9 @@ namespace Vulkan {
 			vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &present_modes_count, nullptr);
 			if (present_modes_count > 0) {
 				details.present_modes.resize(present_modes_count);
-				vkGetPhysicalDeviceSurfacePresentModesKHR(physical_device, surface, &present_modes_count,
-														  details.present_modes.data());
+				vkGetPhysicalDeviceSurfacePresentModesKHR(
+					physical_device, surface, &present_modes_count, details.present_modes.data()
+				);
 			}
 
 			return details;
@@ -211,8 +218,9 @@ namespace Vulkan {
 			return layer_names;
 		}
 
-		inline VkImageView create_imageview_from_image(VkImage image, const VkFormat& format,
-													   VkImageAspectFlags aspect_flags, VkDevice device) {
+		inline VkImageView create_imageview_from_image(
+			VkImage image, const VkFormat& format, VkImageAspectFlags aspect_flags, VkDevice device
+		) {
 
 			VkImageViewCreateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -226,21 +234,24 @@ namespace Vulkan {
 			create_info.subresourceRange.levelCount = 1;
 
 			VkImageView image_view;
-			Utils::vk_check_result(vkCreateImageView(device, &create_info, nullptr, &image_view), "",
-								   "Fail to create image view!");
+			Utils::vk_check_result(
+				vkCreateImageView(device, &create_info, nullptr, &image_view), "", "Fail to create image view!"
+			);
 
 			return image_view;
 		}
 
-		inline uint32_t find_suitable_memory_type(uint32_t type_filter, VkMemoryAllocateFlags properties,
-												  VkPhysicalDevice physical_device) {
+		inline uint32_t find_suitable_memory_type(
+			uint32_t type_filter, VkMemoryAllocateFlags properties, VkPhysicalDevice physical_device
+		) {
 
 			VkPhysicalDeviceMemoryProperties memory_properties;
 			vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
 
 			for (int i = 0; i < memory_properties.memoryTypeCount; i++) {
-				Log::log_info("find_suitable_memory_type", type_filter, memory_properties.memoryTypes[i].propertyFlags,
-							  properties);
+				Log::log_info(
+					"find_suitable_memory_type", type_filter, memory_properties.memoryTypes[i].propertyFlags, properties
+				);
 				if ((type_filter & (1 << i)) &&
 					(memory_properties.memoryTypes[i].propertyFlags & properties) == properties) {
 					return i;
@@ -250,8 +261,10 @@ namespace Vulkan {
 			throw std::runtime_error("Vulkan fail to find suitable memory type!");
 		}
 
-		inline VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling,
-											  VkFormatFeatureFlags features, VkPhysicalDevice physical_device) {
+		inline VkFormat find_supported_format(
+			const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features,
+			VkPhysicalDevice physical_device
+		) {
 			for (auto format : candidates) {
 				VkFormatProperties props;
 				vkGetPhysicalDeviceFormatProperties(physical_device, format, &props);
@@ -269,7 +282,8 @@ namespace Vulkan {
 		inline VkFormat find_depth_format(VkPhysicalDevice physical_deivce) {
 			return find_supported_format(
 				{VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
-				VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT, physical_device);
+				VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT, physical_device
+			);
 		}
 
 	} // namespace Utils

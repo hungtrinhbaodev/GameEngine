@@ -1,25 +1,25 @@
 #pragma once
-#include <vector>
 #include <map>
+#include <vector>
 
-#include <ThreadPool.h>
 #include <Scheduler.h>
+#include <ThreadPool.h>
 
 #define GLFW_INCLUDE_VULKAN
-#include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+#include <vulkan/vulkan.h>
 
 #if !defined(_WIN32)
 #include <vulkan/vulkan_beta.h>
 #endif
 
-#include <vulkan/vk_image.h>
-#include <vulkan/vk_ring_buffer.h>
-#include <vulkan/vk_texture_system.h>
-#include <vulkan/vk_static_buffer.h>
-#include <vulkan/vk_pipeline.h>
 #include <vulkan/vk_buffer.h>
+#include <vulkan/vk_image.h>
 #include <vulkan/vk_instance_buffer.h>
+#include <vulkan/vk_pipeline.h>
+#include <vulkan/vk_ring_buffer.h>
+#include <vulkan/vk_static_buffer.h>
+#include <vulkan/vk_texture_system.h>
 
 namespace Vulkan {
 

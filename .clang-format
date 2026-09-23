@@ -14,5 +14,5 @@ BreakConstructorInitializers: BeforeComma
 AllowShortFunctionsOnASingleLine: Inline
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
-SortIncludes: false
+SortIncludes: true
 IndentCaseLabels: true

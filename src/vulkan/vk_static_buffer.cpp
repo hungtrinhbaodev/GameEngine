@@ -1,5 +1,5 @@
-#include <vulkan/vk_static_buffer.h>
 #include <stdexcept>
+#include <vulkan/vk_static_buffer.h>
 
 namespace Vulkan {
 

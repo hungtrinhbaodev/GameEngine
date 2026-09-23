@@ -1,5 +1,5 @@
-#include <vulkan/vk_texture_array.h>
 #include <stdexcept>
+#include <vulkan/vk_texture_array.h>
 
 namespace Vulkan {
 

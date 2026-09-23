@@ -10,8 +10,9 @@ namespace Vulkan {
 
 	VkExtent2D _choose_swapchain_extent(const VkSurfaceCapabilitiesKHR& capabilites, GLFWwindow* window);
 
-	void _create_swapchain_image_views(const std::vector<VkImage>& swapchain_images, const VkFormat& format,
-									   VkDevice vk_device);
+	void _create_swapchain_image_views(
+		const std::vector<VkImage>& swapchain_images, const VkFormat& format, VkDevice vk_device
+	);
 
 	namespace Init {
 		void _init_swapchain();

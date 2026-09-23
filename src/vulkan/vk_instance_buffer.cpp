@@ -1,6 +1,6 @@
-#include <vulkan/vk_instance_buffer.h>
-#include <stdexcept>
 #include <log.h>
+#include <stdexcept>
+#include <vulkan/vk_instance_buffer.h>
 
 namespace Vulkan {
 

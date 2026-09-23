@@ -1,1 +1,3 @@
-[]: Add flow mix draw triangle and rectangle together.
+[]: Add SSBO to all instancing of all draw type.
+[]: Add static device buffer to storage instancing data each draw call.
+[]: Add pipeline draw all primitive geomentries like rectangle, triangle, circle, line, box, pile, cube,...

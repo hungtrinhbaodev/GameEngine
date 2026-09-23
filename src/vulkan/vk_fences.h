@@ -1,17 +1,17 @@
 #pragma once
 
-#include <unordered_map>
-#include <mutex>
-#include <future>
 #include <functional>
+#include <future>
+#include <mutex>
 #include <stdexcept>
+#include <unordered_map>
 
-#include <vulkan/vulkan.h>
 #include <concurrent_pool.h>
+#include <log.h>
 #include <vulkan/vk_consts.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_utils.h>
-#include <log.h>
+#include <vulkan/vulkan.h>
 
 namespace Vulkan {
 

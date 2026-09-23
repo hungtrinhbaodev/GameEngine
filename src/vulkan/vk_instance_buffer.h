@@ -3,9 +3,9 @@
 
 #include <vulkan/vk_ring_buffer.h>
 
-#include <stack>
 #include <map>
 #include <set>
+#include <stack>
 
 namespace Vulkan {
 

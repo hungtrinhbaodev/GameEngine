@@ -9,7 +9,7 @@ namespace Math {
 
 	glm::mat4 make_rotation(float rx = 0.0f, float ry = 0.0f, float rz = 0.0f);
 
-	int random_int(int min, int max);
+	int random_int(int min = 1, int max = 100);
 
-	float random_float(float min, float max);
+	float random_float(float min = 0.f, float max = 1.f);
 } // namespace Math

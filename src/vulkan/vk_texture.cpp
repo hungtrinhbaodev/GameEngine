@@ -1,6 +1,6 @@
-#include <vulkan/vk_texture.h>
-#include <vector>
 #include <stdexcept>
+#include <vector>
+#include <vulkan/vk_texture.h>
 
 namespace Vulkan {
 

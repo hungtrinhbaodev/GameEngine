@@ -1,8 +1,8 @@
 #include <algorithm>
+#include <log.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_swapchain.h>
 #include <vulkan/vk_utils.h>
-#include <log.h>
 
 namespace Vulkan {
 
@@ -63,14 +63,14 @@ namespace Vulkan {
 			Log::log_info("What is my swapchain extent: ", extent.width, extent.height);
 			// log mode present is choosen
 			switch (present) {
-			case VK_PRESENT_MODE_MAILBOX_KHR: {
-				Log::log_info("Swapchain choose mode present: VK_PRESENT_MODE_MAILBOX_KHR");
-				break;
-			}
-			default: {
-				Log::log_info("Swapchain choose mode present: VK_PRESENT_MODE_FIFO_KHR");
-				break;
-			}
+				case VK_PRESENT_MODE_MAILBOX_KHR: {
+					Log::log_info("Swapchain choose mode present: VK_PRESENT_MODE_MAILBOX_KHR");
+					break;
+				}
+				default: {
+					Log::log_info("Swapchain choose mode present: VK_PRESENT_MODE_FIFO_KHR");
+					break;
+				}
 			}
 
 			uint32_t image_count = swapchain_detail.capabilities.minImageCount + 1;

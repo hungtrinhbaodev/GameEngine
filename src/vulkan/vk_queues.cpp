@@ -1,8 +1,8 @@
+#include <log.h>
+#include <vulkan/queue_family_indices.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_queues.h>
 #include <vulkan/vk_utils.h>
-#include <vulkan/queue_family_indices.h>
-#include <log.h>
 
 namespace Vulkan {
 

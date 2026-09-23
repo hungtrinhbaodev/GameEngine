@@ -4,10 +4,10 @@
 #include <vulkan/vk_buffer.h>
 #include <vulkan/vk_ring_buffer.h>
 
-#include <vector>
-#include <stack>
 #include <map>
 #include <queue>
+#include <stack>
+#include <vector>
 
 namespace Vulkan {
 
@@ -18,6 +18,8 @@ namespace Vulkan {
 		uint32_t size;
 
 		uint32_t using_size;
+
+		template <typename T> uint32_t size_as() { return using_size / sizeof(T); }
 	};
 
 	struct Static_Buffer_Range_Compare {

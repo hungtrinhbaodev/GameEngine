@@ -1,11 +1,11 @@
 #pragma once
 
+#include <functional>
 #include <thread>
 #include <unordered_map>
-#include <functional>
 
-#include <vulkan/vulkan.h>
 #include <ThreadPool.h>
+#include <vulkan/vulkan.h>
 
 #include <concurrent_pool.h>
 
@@ -31,19 +31,14 @@ namespace Vulkan {
 	std::shared_ptr<_Command_Pool_Thread> _get_command_thread_pool();
 
 	namespace Init {
-
 		void _init_command_pool_threads();
-
 	}
 
 	namespace Destroy {
-
 		void _destroy_command_pool_threads();
-
 	}
 
 	namespace API {
-
 		VkCommandBuffer request_command_buffer();
 
 		void release_command_buffer(VkCommandBuffer& command_buffer, std::thread::id thread_id);

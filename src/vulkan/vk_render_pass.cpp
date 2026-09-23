@@ -1,7 +1,7 @@
+#include <log.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_render_pass.h>
 #include <vulkan/vk_utils.h>
-#include <log.h>
 
 namespace Vulkan {
 

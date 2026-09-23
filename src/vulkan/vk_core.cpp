@@ -1,24 +1,24 @@
-#include <vulkan/vk_core.h>
-#include <vulkan/vk_instance.h>
-#include <vulkan/vk_surface.h>
-#include <vulkan/vk_physical_device.h>
-#include <vulkan/vk_device.h>
-#include <vulkan/vk_queues.h>
-#include <vulkan/vk_fences.h>
+#include <math_custom.h>
+#include <utils.h>
 #include <vulkan/vk_command_pool.h>
-#include <vulkan/vk_swapchain.h>
-#include <vulkan/vk_depth_image.h>
-#include <vulkan/vk_render_pass.h>
-#include <vulkan/vk_frame_buffers.h>
-#include <vulkan/vk_descriptor.h>
 #include <vulkan/vk_consts.h>
-#include <vulkan/vk_vertex_input_builder.h>
-#include <vulkan/vk_vertex.h>
-#include <vulkan/vk_uniform.h>
+#include <vulkan/vk_core.h>
+#include <vulkan/vk_depth_image.h>
+#include <vulkan/vk_descriptor.h>
+#include <vulkan/vk_device.h>
+#include <vulkan/vk_fences.h>
+#include <vulkan/vk_frame_buffers.h>
+#include <vulkan/vk_instance.h>
+#include <vulkan/vk_physical_device.h>
+#include <vulkan/vk_queues.h>
+#include <vulkan/vk_render_pass.h>
 #include <vulkan/vk_semaphores.h>
 #include <vulkan/vk_structs.h>
-#include <utils.h>
-#include <math_custom.h>
+#include <vulkan/vk_surface.h>
+#include <vulkan/vk_swapchain.h>
+#include <vulkan/vk_uniform.h>
+#include <vulkan/vk_vertex.h>
+#include <vulkan/vk_vertex_input_builder.h>
 
 namespace Vulkan {
 
@@ -239,10 +239,11 @@ namespace Vulkan {
 			 */
 			Instance_Buffer& instancing_buffer = instancing_buffers[Const::DRAW_2D_MESH];
 			std::vector<glm::mat4> transforms{};
-			for (int i = 0; i < 10000; i++) {
+			for (int i = 0; i < 3; i++) {
 				glm::mat4 transform =
 					Math::make_scale(0.5f, 0.35f) *
-					Math::make_translation(Math::random_float(-1.0f, 1.0f), Math::random_float(-1.0f, 1.0f));
+					Math::make_translation(Math::random_float(-1.0f, 1.0f), Math::random_float(-1.0f, 1.0f)) *
+					Math::make_rotation(0.f, 0.f, Math::random_float());
 				uint32_t instancing_id = instancing_buffer.add_data(&transform);
 				triangle_instancing.push_back(instancing_id);
 				transforms.push_back(transform);
@@ -423,8 +424,7 @@ namespace Vulkan {
 									global_vertex_buffer.view_slot_info(triangle_vertices_id);
 								Static_Buffer_Range range_indices_triangle =
 									global_indices_buffer.view_slot_info(triangle_indices_id);
-								int number_index =
-									static_cast<uint32_t>(range_indices_triangle.size / (int)sizeof(uint16_t));
+								uint32_t number_index = range_indices_triangle.size_as<uint16_t>();
 								vkCmdDrawIndexed(
 									command_buffer, number_index, instancing_buffer.number_instance,
 									range_indices_triangle.offset, range_vertices_triangle.offset, 0

@@ -1,10 +1,10 @@
 #include <set>
 
+#include <log.h>
+#include <vulkan/vk_consts.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_device.h>
-#include <vulkan/vk_consts.h>
 #include <vulkan/vk_utils.h>
-#include <log.h>
 
 namespace Vulkan {
 

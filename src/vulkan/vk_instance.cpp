@@ -1,6 +1,6 @@
+#include <vulkan/vk_consts.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_instance.h>
-#include <vulkan/vk_consts.h>
 #include <vulkan/vk_utils.h>
 
 #include <log.h>

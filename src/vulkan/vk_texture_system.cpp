@@ -142,7 +142,7 @@ namespace Vulkan {
 		if (ids_to_views.find(id) == ids_to_views.end()) {
 			return {""};
 		}
-		return ids_to_views[id];
+		return ids_to_views[id]; 
 	}
 
 	Texture_Storage_Info Texture_System::view_texture_storage_info(uint32_t id) {

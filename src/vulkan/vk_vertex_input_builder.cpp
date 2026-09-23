@@ -1,6 +1,6 @@
-#include <vulkan/vk_vertex_input_builder.h>
-#include <vulkan/vk_structs.h>
 #include <glm/glm.hpp>
+#include <vulkan/vk_structs.h>
+#include <vulkan/vk_vertex_input_builder.h>
 
 namespace Vulkan {
 

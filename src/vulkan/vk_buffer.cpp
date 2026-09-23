@@ -1,13 +1,13 @@
 #include <algorithm>
 
-#include <vulkan/vk_core.h>
-#include <vulkan/vk_buffer.h>
-#include <vulkan/vk_utils.h>
-#include <vulkan/vk_command_pool.h>
-#include <vulkan/vk_queues.h>
-#include <vulkan/vk_fences.h>
-#include <vulkan/vk_structs.h>
 #include <log.h>
+#include <vulkan/vk_buffer.h>
+#include <vulkan/vk_command_pool.h>
+#include <vulkan/vk_core.h>
+#include <vulkan/vk_fences.h>
+#include <vulkan/vk_queues.h>
+#include <vulkan/vk_structs.h>
+#include <vulkan/vk_utils.h>
 
 namespace Vulkan {
 

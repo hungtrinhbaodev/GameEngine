@@ -63,6 +63,7 @@ namespace Vulkan {
 		const inline uint32_t INITIALIZE_SIZE_INSTANCING_BUFFER = 3 * 1024 * 1024; // 3MB
 
 		const inline std::string PATH_VERT_SHADERD_DRAW_DEFAULT = "res/shader/draw_default/vert_shader.vert.spv";
+		
 		const inline std::string PATH_FRAG_SHADERD_DRAW_DEFAULT = "res/shader/draw_default/fragment_shader.frag.spv";
 
 	} // namespace Const
