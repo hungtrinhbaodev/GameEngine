@@ -107,6 +107,8 @@ namespace Vulkan {
 
 	bool frame_buffer_resize = false;
 
+	float global_draw_2D_order = 0.f;
+
 	namespace Init {
 
 		void _init_draw_packages() {
@@ -117,7 +119,7 @@ namespace Vulkan {
 				Draw_Geometry_2D_Package* draw_package = new Draw_Geometry_2D_Package();
 				draw_package->init(
 					global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D],
-					&global_indices_buffer, uniform_buffers
+					&global_indices_buffer, uniform_buffers, &global_draw_2D_order
 				);
 				draw_packages[Const::DRAW_ID::DRAW_2D_MESH] = draw_package;
 			}
@@ -267,6 +269,7 @@ namespace Vulkan {
 		}
 
 		void start_frame() {
+			global_draw_2D_order = 0.f;
 			global_staging_buffer->start_frame(current_frame);
 			_update_uniform_buffer();
 			for (auto& [draw_id, draw_package] : draw_packages) {
@@ -465,6 +468,14 @@ namespace Vulkan {
 			Draw_Geometry_2D_Package* draw_package =
 				reinterpret_cast<Draw_Geometry_2D_Package*>(draw_packages[Const::DRAW_ID::DRAW_2D_MESH]);
 			draw_package->draw_triangle_2D(first_position, second_position, third_position, color);
+		}
+
+		void draw_rectangle_2D(
+			float x, float y, float width, float height, glm::vec3 color, float rotation, glm::vec2 anchor_point
+		) {
+			Draw_Geometry_2D_Package* draw_package =
+				reinterpret_cast<Draw_Geometry_2D_Package*>(draw_packages[Const::DRAW_ID::DRAW_2D_MESH]);
+			draw_package->draw_rectangle_2D(x, y, width, height, color, rotation, anchor_point);
 		}
 	} // namespace API
 

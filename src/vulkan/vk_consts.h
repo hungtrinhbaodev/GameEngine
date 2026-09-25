@@ -63,6 +63,8 @@ namespace Vulkan {
 			VERTEX_3D,
 		};
 
+		const inline float MAX_Z_LAYER_2D = 9999997.f;
+
 		const inline uint32_t INITIALIZE_STATIC_BUFFER_SIZE = 3 * 1024 * 1024; // 5MB
 
 		const inline uint32_t INITIALIZE_SIZE_STAGING_BUFFER = 3 * 1024 * 1024; // 3MB

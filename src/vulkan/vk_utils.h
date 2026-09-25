@@ -9,6 +9,7 @@
 #include <vulkan/vk_consts.h>
 
 #include <GLFW/glfw3.h>
+#include <algorithm>
 #include <vulkan/vulkan.h>
 
 namespace Vulkan {
@@ -282,8 +283,12 @@ namespace Vulkan {
 		inline VkFormat find_depth_format(VkPhysicalDevice physical_deivce) {
 			return find_supported_format(
 				{VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
-				VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT, physical_device
+				VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT, physical_deivce
 			);
+		}
+
+		inline float calculate_z_depth_2D(float current_z_depth) {
+			return std::clamp(1 - (current_z_depth / Const::MAX_Z_LAYER_2D), 0.f, 1.f);
 		}
 
 	} // namespace Utils

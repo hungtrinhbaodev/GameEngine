@@ -56,7 +56,7 @@ namespace Vulkan {
 
 		// Make depth test stencill create info
 		VkPipelineDepthStencilStateCreateInfo depth_stencil_info =
-			Structs::make_pipeline_depth_stencil_state_create_info();
+			Structs::make_pipeline_depth_stencil_state_create_info(config.depth_compare_op);
 
 		// Make color blend attachment info
 		VkPipelineColorBlendAttachmentState color_attachment_state =

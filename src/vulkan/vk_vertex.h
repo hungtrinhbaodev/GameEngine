@@ -10,8 +10,8 @@ namespace Vulkan {
 		glm::vec3 normal = {0.f, 0.f, 0.f};
 		glm::vec3 color = {0.f, 0.f, 0.f};
 		friend std::ostream& operator<<(std::ostream& os, const Vertex& vertex) {
-			os << "Vertex: position: " << vertex.position << ",  tex_coord: " << vertex.tex_coord
-			   << ", normal: " << vertex.normal << ", color" << vertex.color << std::endl;
+			os << "{Vertex: position: " << vertex.position << ",  tex_coord: " << vertex.tex_coord
+			   << ", normal: " << vertex.normal << ", color: " << vertex.color << "}";
 			return os;
 		}
 	};
@@ -20,7 +20,7 @@ namespace Vulkan {
 		glm::vec2 position = {0.f, 0.f};
 		glm::vec3 color = {1.f, 1.f, 1.f};
 		friend std::ostream& operator<<(std::ostream& os, const Vertex_2D& vertex) {
-			os << "Vertex: position: " << vertex.position << ", color" << vertex.color << std::endl;
+			os << "{Vertex: position: " << vertex.position << ", color: " << vertex.color << "}";
 			return os;
 		}
 	};

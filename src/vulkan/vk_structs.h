@@ -158,13 +158,13 @@ namespace Vulkan {
 		}
 
 		inline VkPipelineDepthStencilStateCreateInfo make_pipeline_depth_stencil_state_create_info(
-
+			VkCompareOp depth_compare_op
 		) {
 			VkPipelineDepthStencilStateCreateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 			create_info.depthTestEnable = VK_TRUE;
 			create_info.depthWriteEnable = VK_TRUE;
-			create_info.depthCompareOp = VK_COMPARE_OP_LESS;
+			create_info.depthCompareOp = depth_compare_op;
 			create_info.depthBoundsTestEnable = VK_FALSE;
 			create_info.minDepthBounds = 0.0f;
 			create_info.maxDepthBounds = 1.0f;
@@ -215,7 +215,8 @@ namespace Vulkan {
 		}
 
 		inline VkPipelineLayoutCreateInfo make_pipeline_layout_create_info(
-			const std::vector<VkDescriptorSetLayout>& descriptor_set_layouts, VkPushConstantRange push_constant_range
+			const std::vector<VkDescriptorSetLayout>& descriptor_set_layouts,
+			const VkPushConstantRange& push_constant_range
 		) {
 			VkPipelineLayoutCreateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

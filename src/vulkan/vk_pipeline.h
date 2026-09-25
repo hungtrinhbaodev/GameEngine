@@ -30,6 +30,8 @@ namespace Vulkan {
 		std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
 
 		uint32_t push_constants_size = 128;
+
+		VkCompareOp depth_compare_op = VK_COMPARE_OP_LESS;
 	};
 
 	struct Pipeline {

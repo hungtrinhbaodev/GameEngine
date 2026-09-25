@@ -92,6 +92,8 @@ namespace Vulkan {
 
 	extern bool frame_buffer_resize;
 
+	extern float global_draw_2D_order;
+
 	namespace Init {
 
 		void _init_draw_packages();
@@ -145,5 +147,10 @@ namespace Vulkan {
 			glm::vec2 first_position, glm::vec2 second_position, glm::vec2 third_position, glm::vec3 color
 		);
 
-	}
+		void draw_rectangle_2D(
+			float x, float y, float width, float height, glm::vec3 color, float rotation = 0,
+			glm::vec2 anchor_point = {0.f, 0.f}
+		);
+
+	} // namespace API
 } // namespace Vulkan
