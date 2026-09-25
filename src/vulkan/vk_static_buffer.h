@@ -4,6 +4,7 @@
 #include <vulkan/vk_buffer.h>
 #include <vulkan/vk_ring_buffer.h>
 
+#include <iostream>
 #include <map>
 #include <queue>
 #include <stack>
@@ -20,6 +21,13 @@ namespace Vulkan {
 		uint32_t using_size;
 
 		template <typename T> uint32_t size_as() { return using_size / sizeof(T); }
+
+		template <typename T> uint32_t offset_as() { return offset / sizeof(T); }
+
+		friend std::ostream& operator<<(std::ostream& os, const Static_Buffer_Range& range) {
+			os << "Offset: " << range.offset << " Size: " << range.size << " Using size: " << range.using_size;
+			return os;
+		}
 	};
 
 	struct Static_Buffer_Range_Compare {
@@ -50,6 +58,8 @@ namespace Vulkan {
 		uint32_t current_offset;
 
 		Ring_Buffer* staging_buffer;
+
+		std::vector<Static_Buffer_Range> ranges_can_use;
 
 		void init(
 			Ring_Buffer* global_staging_buffer, uint32_t initialize_size,

@@ -75,14 +75,13 @@ namespace Log {
 			}
 		}
 
-		template <typename T, typename... Args>
-		inline void _log_info(const T& first_arg, const Args&... remaining_args) {
+		template <typename T, typename... Args> inline void _info(const T& first_arg, const Args&... remaining_args) {
 
 			_log_arg(first_arg);
 
 			if constexpr (sizeof...(remaining_args) > 0) {
 				std::cout << SEPARATE;
-				_log_info(remaining_args...);
+				_info(remaining_args...);
 			} else {
 				std::cout << std::endl;
 			}
@@ -97,7 +96,7 @@ namespace Log {
 
 		std::cout << "thread id: " << std::this_thread::get_id() << SEPARATE;
 
-		_log_info(args...);
+		_info(args...);
 	}
 
 } // namespace Log

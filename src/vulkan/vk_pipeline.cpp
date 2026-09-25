@@ -26,9 +26,6 @@ namespace Vulkan {
 			throw std::runtime_error("Vulkan fail to init pipeline: try to init render pass first!");
 		}
 
-		// Save handle descriptor set layouts to delete when end program
-		descriptor_set_layouts = config.descriptor_set_layouts;
-
 		// Make shader stage create info for vertex and fragment shader
 		std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
 		VkShaderModule vert_module = Structs::make_shader_module(config.vertex_shader_path, device);
@@ -73,7 +70,7 @@ namespace Vulkan {
 			Structs::make_pipeline_dynamic_state_create_info(dynamic_states);
 
 		// Make pipeline layout create info
-		VkPushConstantRange push_constant_range = Structs::make_push_constant_range();
+		VkPushConstantRange push_constant_range = Structs::make_push_constant_range(config.push_constants_size);
 		VkPipelineLayoutCreateInfo pipeline_layout_info =
 			Structs::make_pipeline_layout_create_info(config.descriptor_set_layouts, push_constant_range);
 
@@ -134,16 +131,9 @@ namespace Vulkan {
 			throw std::runtime_error("Vulkan fail to destroy pipeline: try to init device first!");
 		}
 
-		for (const VkDescriptorSetLayout& descriptor_set_layout : descriptor_set_layouts) {
-			vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
-		}
-		Log::info("Vulkan destroy descriptor set layouts successfully!");
-
 		vkDestroyPipelineLayout(device, layout, nullptr);
-		Log::info("Vulkan destroy pipeline layout successfully!");
 
 		vkDestroyPipeline(device, pipeline, nullptr);
-		Log::info("Vulkan destroy pipeline successfully!");
 	}
 
 } // namespace Vulkan

@@ -12,4 +12,6 @@ namespace Math {
 	int random_int(int min = 1, int max = 100);
 
 	float random_float(float min = 0.f, float max = 1.f);
+
+	bool is_valid_triangle_with_clockwise(glm::vec2 first, glm::vec2 second, glm::vec2 third);
 } // namespace Math

@@ -33,4 +33,9 @@ namespace Math {
 		std::uniform_real_distribution<float> distrib(min, max);
 		return distrib(gen);
 	}
+
+	bool is_valid_triangle_with_clockwise(glm::vec2 first, glm::vec2 second, glm::vec2 third) {
+		float d = (second.x - first.x) * (third.y - first.y) - (second.y - first.y) * (third.x - first.x);
+		return d < 0;
+	}
 } // namespace Math

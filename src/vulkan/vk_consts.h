@@ -57,6 +57,12 @@ namespace Vulkan {
 			DRAW_2D_RECTANGLE_WITH_TEXTURE, // draw a rectange with texture (ui image, sprite object, ...).
 		};
 
+		enum VERTEX_BUFFER_TYPE {
+			NONE,
+			VERTEX_2D,
+			VERTEX_3D,
+		};
+
 		const inline uint32_t INITIALIZE_STATIC_BUFFER_SIZE = 3 * 1024 * 1024; // 5MB
 
 		const inline uint32_t INITIALIZE_SIZE_STAGING_BUFFER = 3 * 1024 * 1024; // 3MB
@@ -66,6 +72,12 @@ namespace Vulkan {
 		const inline std::string PATH_VERT_SHADERD_DRAW_DEFAULT = "res/shader/draw_default/vert_shader.vert.spv";
 
 		const inline std::string PATH_FRAG_SHADERD_DRAW_DEFAULT = "res/shader/draw_default/fragment_shader.frag.spv";
+
+		const inline std::string PATH_VERT_SHADERD_DRAW_GEOMETRY_2D =
+			"res/shader/draw_geometry_2D/vert_shader.vert.spv";
+
+		const inline std::string PATH_FRAG_SHADERD_DRAW_GEOMETRY_2D =
+			"res/shader/draw_geometry_2D/fragment_shader.frag.spv";
 
 	} // namespace Const
 

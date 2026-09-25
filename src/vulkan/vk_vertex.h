@@ -18,7 +18,10 @@ namespace Vulkan {
 
 	struct Vertex_2D {
 		glm::vec2 position = {0.f, 0.f};
-		glm::vec2 tex_coord = {0.f, 0.f};
-		glm::vec3 color = {0.f, 0.f, 0.f};
+		glm::vec3 color = {1.f, 1.f, 1.f};
+		friend std::ostream& operator<<(std::ostream& os, const Vertex_2D& vertex) {
+			os << "Vertex: position: " << vertex.position << ", color" << vertex.color << std::endl;
+			return os;
+		}
 	};
 } // namespace Vulkan

@@ -1,6 +1,6 @@
 #pragma once
-#include <vulkan/vulkan.h>
 #include <concurrent_pool.h>
+#include <vulkan/vulkan.h>
 
 namespace Vulkan {
 	class _Semaphore_Pool : public Concurent_Pool<VkSemaphore> {
@@ -10,7 +10,7 @@ namespace Vulkan {
 		void _delete_item(VkSemaphore& item) override;
 	};
 
-	extern _Semaphore_Pool semaphore_pool;
+	extern _Semaphore_Pool _semaphore_pool;
 
 	namespace API {
 

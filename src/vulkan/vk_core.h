@@ -14,6 +14,7 @@
 #endif
 
 #include <vulkan/vk_buffer.h>
+#include <vulkan/vk_draw_package.h>
 #include <vulkan/vk_image.h>
 #include <vulkan/vk_instance_buffer.h>
 #include <vulkan/vk_pipeline.h>
@@ -61,7 +62,7 @@ namespace Vulkan {
 
 	extern std::vector<VkDescriptorPool> descriptor_pools;
 
-	extern std::shared_ptr<Ring_Buffer> global_stagging_buffer;
+	extern std::shared_ptr<Ring_Buffer> global_staging_buffer;
 
 	extern Texture_System texture_system;
 
@@ -71,9 +72,11 @@ namespace Vulkan {
 
 	extern std::map<Const::DRAW_ID, std::vector<std::vector<VkDescriptorSet>>> descriptor_sets_by_draw_id;
 
+	extern std::map<Const::DRAW_ID, Draw_Package*> draw_packages;
+
 	extern std::map<Const::DRAW_ID, Instance_Buffer> instancing_buffers;
 
-	extern Static_Buffer global_vertex_buffer;
+	extern std::map<Const::VERTEX_BUFFER_TYPE, Static_Buffer> global_vertex_buffers;
 
 	extern Static_Buffer global_indices_buffer;
 
@@ -91,7 +94,7 @@ namespace Vulkan {
 
 	namespace Init {
 
-		void _init_vulkan_pipelines();
+		void _init_draw_packages();
 
 		void _init_uniform_buffers();
 
@@ -99,7 +102,7 @@ namespace Vulkan {
 
 		void _request_draw_fences();
 
-		void _init_semaphores();
+		void _request_draw_semaphores();
 
 		void _request_draw_command_buffers();
 
@@ -107,9 +110,11 @@ namespace Vulkan {
 			GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool,
 			std::shared_ptr<Scheduler> global_scheduler
 		);
+
 	} // namespace Init
 
 	namespace Process {
+
 		void _update_uniform_buffer();
 
 		void _on_window_resize();
@@ -123,15 +128,22 @@ namespace Vulkan {
 	} // namespace Process
 
 	namespace Destroy {
+
 		void _destroy_static_buffers();
 
 		void _destroy_uniform_buffers();
 
-		void _destroy_pipelines();
+		void _destroy_draw_packages();
 
 		void destroy_vulkan();
 
 	} // namespace Destroy
 
-	namespace API {}
+	namespace API {
+
+		void draw_triangle_2D(
+			glm::vec2 first_position, glm::vec2 second_position, glm::vec2 third_position, glm::vec3 color
+		);
+
+	}
 } // namespace Vulkan

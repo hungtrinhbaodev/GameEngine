@@ -28,6 +28,8 @@ namespace Vulkan {
 		std::vector<VkVertexInputBindingDescription> vertex_descriptions;
 
 		std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
+
+		uint32_t push_constants_size = 128;
 	};
 
 	struct Pipeline {
@@ -35,8 +37,6 @@ namespace Vulkan {
 		VkPipeline pipeline;
 
 		VkPipelineLayout layout;
-
-		std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
 
 		void init(const Pipeline_Config& config);
 

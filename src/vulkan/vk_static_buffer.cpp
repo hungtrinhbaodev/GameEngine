@@ -27,31 +27,24 @@ namespace Vulkan {
 		}
 
 		Static_Buffer_Range using_range{0, 0, 0};
-		bool found = false;
-		if (available_ranges.size() > 0) {
+		if (available_ranges.size() > 0 && available_ranges.top().size >= size) {
 
-			Static_Buffer_Range optimal_range = available_ranges.top();
-			std::vector<Static_Buffer_Range> ranges;
-
-			do {
-				ranges.push_back(optimal_range);
-				optimal_range = available_ranges.top();
-			} while (optimal_range.size >= size);
-
-			if (ranges.size() > 0) {
-				optimal_range = ranges.back();
-				ranges.pop_back();
-				using_range = optimal_range;
-				using_range.using_size = size;
-				found = true;
+			ranges_can_use.clear();
+			while (available_ranges.size() > 0 && available_ranges.top().size >= size) {
+				ranges_can_use.push_back(available_ranges.top());
+				available_ranges.pop();
 			}
 
-			for (int i = 0; i < ranges.size(); i++) {
-				available_ranges.push(ranges[i]);
-			}
-		}
+			Static_Buffer_Range optimal_range = ranges_can_use.back();
+			ranges_can_use.pop_back();
+			using_range = optimal_range;
+			using_range.using_size = size;
 
-		if (!found) {
+			for (int i = 0; i < ranges_can_use.size(); i++) {
+				available_ranges.push(ranges_can_use[i]);
+			}
+
+		} else {
 			using_range = {current_offset, size, size};
 			if (current_offset + size > available_size) {
 				available_size = (uint32_t)((current_offset + size) * 1.5f);

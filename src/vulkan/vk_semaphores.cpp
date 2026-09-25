@@ -1,5 +1,5 @@
-#include <vulkan/vk_semaphores.h>
 #include <vulkan/vk_core.h>
+#include <vulkan/vk_semaphores.h>
 
 namespace Vulkan {
 
@@ -15,21 +15,21 @@ namespace Vulkan {
 		vkDestroySemaphore(device, item, nullptr);
 	}
 
-	_Semaphore_Pool semaphore_pool;
+	_Semaphore_Pool _semaphore_pool;
 
 	namespace API {
 		VkSemaphore request_semaphore() {
-			return semaphore_pool.request_item();
+			return _semaphore_pool.request_item();
 		}
 
 		void release_semaphore(VkSemaphore semaphore) {
-			semaphore_pool.pooling_item(semaphore);
+			_semaphore_pool.pooling_item(semaphore);
 		}
 	} // namespace API
 
 	namespace Destroy {
 		void _destroy_semaphores() {
-			semaphore_pool.destroy();
+			_semaphore_pool.destroy();
 		}
 	} // namespace Destroy
 
