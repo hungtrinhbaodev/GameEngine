@@ -33,7 +33,7 @@ namespace Vulkan {
 		Vertex_Input_Builder vertex_builder = this->make_vertex_2D_builder();
 		vertex_builder.add_binding_description(1, sizeof(Geometry_2D_Instance_Data), VK_VERTEX_INPUT_RATE_INSTANCE)
 			.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Geometry_2D_Instance_Data, translation))
-			.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Geometry_2D_Instance_Data, scale))
+			.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Geometry_2D_Instance_Data, size))
 			.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Geometry_2D_Instance_Data, anchor))
 			.add_attribute_description(1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Geometry_2D_Instance_Data, color))
 			.add_attribute_description(1, VK_FORMAT_R32_SFLOAT, offsetof(Geometry_2D_Instance_Data, z_depth))
@@ -70,28 +70,33 @@ namespace Vulkan {
 		);
 	}
 
-	void Draw_Geometry_2D_Package::setup_frist_frame() {
-		/**
-		 * Request slot indices to triangle.
-		 */
-		triangle_indices_id =
-			this->indices_buffer->upload_data(sizeof(uint16_t) * TRIANGLE_INDICES.size(), TRIANGLE_INDICES.data());
-		Geometry_2D_Instance_Data triangle_default_instance{};
-		triangle_instance_buffer.add_data(&triangle_default_instance);
-
-		rectangle_vertex_id = this->vertices_buffer->upload_data(
-			sizeof(Vertex_2D) * RECTANGLE_VERTICES.size(), RECTANGLE_VERTICES.data()
-		);
-		rectangle_indices_id =
-			this->indices_buffer->upload_data(sizeof(uint16_t) * RECTANGLE_INDICES.size(), RECTANGLE_INDICES.data());
-	}
-
-	void Draw_Geometry_2D_Package::draw(VkCommandBuffer command_buffer, VkExtent2D swapchain_extent) {
+	void Draw_Geometry_2D_Package::flush_data() {
 		/**
 		 * Flush all instancing data to GPU.
 		 */
 		this->triangle_instance_buffer.flush_data();
 		this->rectangle_instance_buffer.flush_data();
+	}
+
+	void Draw_Geometry_2D_Package::setup_first_frame() {
+		/**
+		 * Request slot indices to triangle.
+		 */
+		this->triangle_indices_id =
+			this->indices_buffer->upload_data(sizeof(uint16_t) * TRIANGLE_INDICES.size(), TRIANGLE_INDICES.data());
+		Geometry_2D_Instance_Data triangle_default_instance{};
+		this->triangle_instance_buffer.add_data(&triangle_default_instance);
+
+		this->rectangle_vertex_id = this->vertices_buffer->upload_data(
+			sizeof(Vertex_2D) * RECTANGLE_VERTICES.size(), RECTANGLE_VERTICES.data()
+		);
+		this->rectangle_indices_id =
+			this->indices_buffer->upload_data(sizeof(uint16_t) * RECTANGLE_INDICES.size(), RECTANGLE_INDICES.data());
+	}
+
+	void Draw_Geometry_2D_Package::draw(
+		VkCommandBuffer command_buffer, VkExtent2D swapchain_extent, uint32_t frame_index
+	) {
 		/**
 		 * Bind pipeline use to draw.
 		 */
@@ -141,7 +146,6 @@ namespace Vulkan {
 		);
 		Static_Buffer_Range vertex_range = this->vertices_buffer->view_slot_info(rectangle_vertex_id);
 		indices_range = this->indices_buffer->view_slot_info(rectangle_indices_id);
-		uint32_t base_offset_rectangle = vertex_range.offset_as<Vertex_2D>();
 		vkCmdDrawIndexed(
 			command_buffer, indices_range.size_as<uint16_t>(), this->rectangle_instance_buffer.number_instance,
 			indices_range.offset_as<uint16_t>(), vertex_range.offset_as<Vertex_2D>(), 0
@@ -188,10 +192,10 @@ namespace Vulkan {
 	void Draw_Geometry_2D_Package::draw_rectangle_2D(
 		float x, float y, float width, float height, glm::vec3 color, float rotation, glm::vec2 anchor_point
 	) {
-		glm::vec2 scale = {width, height};
+		glm::vec2 size = {width, height};
 		glm::vec2 translation = {x, y};
 		Geometry_2D_Instance_Data instance{
-			translation, scale, anchor_point, color, rotation, Utils::calculate_z_depth_2D(*this->global_z_depth_2D),
+			translation, size, anchor_point, color, rotation, Utils::calculate_z_depth_2D(*this->global_z_depth_2D),
 		};
 		this->rectangles.push_back({this->rectangle_instance_buffer.add_data(&instance)});
 		*this->global_z_depth_2D += 1.f;

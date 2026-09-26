@@ -81,6 +81,11 @@ namespace Vulkan {
 		const inline std::string PATH_FRAG_SHADERD_DRAW_GEOMETRY_2D =
 			"res/shader/draw_geometry_2D/fragment_shader.frag.spv";
 
+		const inline std::string PATH_VERT_SHADERD_DRAW_TEXTURE_2D = "res/shader/draw_texture_2D/vert_shader.vert.spv";
+
+		const inline std::string PATH_FRAG_SHADERD_DRAW_TEXTURE_2D =
+			"res/shader/draw_texture_2D/fragment_shader.frag.spv";
+
 	} // namespace Const
 
 } // namespace Vulkan

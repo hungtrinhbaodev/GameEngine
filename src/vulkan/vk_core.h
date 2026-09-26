@@ -13,6 +13,7 @@
 #include <vulkan/vulkan_beta.h>
 #endif
 
+#include <geometry_structs.h>
 #include <vulkan/vk_buffer.h>
 #include <vulkan/vk_draw_package.h>
 #include <vulkan/vk_image.h>
@@ -150,6 +151,11 @@ namespace Vulkan {
 		void draw_rectangle_2D(
 			float x, float y, float width, float height, glm::vec3 color, float rotation = 0,
 			glm::vec2 anchor_point = {0.f, 0.f}
+		);
+
+		void draw_texture_2D(
+			std::string texture_path, glm::vec2 position, glm::vec2 scale, float rotation = 0,
+			glm::vec2 anchor = {0.f, 0.f}, Geometry::Texture_Rect_2D texture_rect = {0.f, 0.f, 1.f, 1.f}
 		);
 
 	} // namespace API

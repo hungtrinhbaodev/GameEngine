@@ -20,15 +20,22 @@ namespace Vulkan {
 		Static_Buffer* indices_buffer = nullptr;
 		Ring_Buffer* global_staging_buffer = nullptr;
 
+		VkDevice device = VK_NULL_HANDLE;
+		std::vector<VkDescriptorPool> descriptor_pools{};
+
 		bool is_setup_first_frame = false;
+
+		Draw_Package();
+		virtual ~Draw_Package();
 
 		virtual void init(
 			Ring_Buffer* global_staging_buffer, Static_Buffer* vertices_buffer, Static_Buffer* indices_buffer,
 			std::vector<Buffer>& uniform_buffers
 		);
-		virtual void setup_frist_frame();
+		virtual void setup_first_frame();
 		virtual void start_frame();
-		virtual void draw(VkCommandBuffer command_buffer, VkExtent2D swapchain_extent);
+		virtual void flush_data();
+		virtual void draw(VkCommandBuffer command_buffer, VkExtent2D swapchain_extent, uint32_t frame_index);
 		virtual void end_frame();
 		virtual void destroy();
 		virtual Const::VERTEX_BUFFER_TYPE get_using_vertex_type();

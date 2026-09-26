@@ -46,6 +46,13 @@ namespace Vulkan {
 		return static_cast<uint32_t>(id);
 	}
 
+	uint32_t Instance_Buffer::get_index_by(uint32_t id) {
+		if (ids_to_indices.find(id) == ids_to_indices.end()) {
+			return 0;
+		}
+		return ids_to_indices[id];
+	}
+
 	void Instance_Buffer::update_data(uint32_t id, void* update_data) {
 		if (ids_to_indices.find(id) == ids_to_indices.end()) {
 			return;

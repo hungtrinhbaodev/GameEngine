@@ -17,6 +17,10 @@ namespace Vulkan {
 
 		Vertex_Input_Builder& add_mat4_attribute_description(uint32_t binding, uint32_t offset);
 
+		Vertex_Input_Builder& add_array_vec2_attribute_description(
+			uint32_t binding, uint32_t offset, uint32_t array_size
+		);
+
 		std::vector<VkVertexInputBindingDescription> build_binding_descriptions();
 
 		std::vector<VkVertexInputAttributeDescription> build_attribute_descriptions();

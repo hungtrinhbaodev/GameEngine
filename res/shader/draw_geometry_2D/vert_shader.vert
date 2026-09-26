@@ -9,7 +9,7 @@ layout (location = 0) in vec2 in_position;
 layout (location = 1) in vec3 in_color;
 
 layout (location = 2) in vec2 in_translation;
-layout (location = 3) in vec2 in_scale;
+layout (location = 3) in vec2 in_size;
 layout (location = 4) in vec2 in_anchor_point;
 layout (location = 5) in vec3 in_instance_color;
 layout (location = 6) in float in_z_depth;
@@ -48,7 +48,7 @@ void main() {
             break;
         }
         case RECTANGLE_DRAW_TYPE: {
-            vec2 translate_anchor = (in_position - in_anchor_point) * in_scale;
+            vec2 translate_anchor = (in_position - in_anchor_point) * in_size;
             vec2 rectangle_position = in_translation + rotate(in_rotation, translate_anchor);
             gl_Position = vec4(flipped_position(norm_position(rectangle_position)), in_z_depth, 1.f);
             frag_color = in_instance_color;

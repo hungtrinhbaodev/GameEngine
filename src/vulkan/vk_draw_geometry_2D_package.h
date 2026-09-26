@@ -10,15 +10,17 @@ namespace Vulkan {
 
 	struct Geometry_2D_Instance_Data {
 		glm::vec2 translation{0.f, 0.f};
-		glm::vec2 scale{1.f, 1.f};
+		glm::vec2 size{1.f, 1.f};
 		glm::vec2 anchor{0.f, 0.f};
 		glm::vec3 color{1.f, 1.f, 1.f};
 		float rotation = 0.f;
 		float z_depth = 0.f;
 		friend std::ostream& operator<<(std::ostream& os, const Geometry_2D_Instance_Data& instance) {
-			os << "{Vertex: translation: " << instance.translation << ",  scale: " << instance.scale
+			os << "{Vertex: translation: " << instance.translation << ",  scale: " << instance.size
 			   << ", anchor: " << instance.anchor << ", color: " << instance.color
-			   << ", rotation: " << instance.rotation << "}";
+			   << ", rotation: " << instance.rotation
+			   << ", z_depth: " << std::setprecision(std::numeric_limits<float>::max_digits10) << instance.z_depth
+			   << "}";
 			return os;
 		}
 	};
@@ -65,8 +67,9 @@ namespace Vulkan {
 			Ring_Buffer* global_staging_buffer, Static_Buffer* vertices_buffer, Static_Buffer* indices_buffer,
 			std::vector<Buffer>& uniform_buffers, float* global_z_depth_2D
 		);
-		void setup_frist_frame() override;
-		void draw(VkCommandBuffer command_buffer, VkExtent2D swapchain_extent) override;
+		void setup_first_frame() override;
+		void flush_data() override;
+		void draw(VkCommandBuffer command_buffer, VkExtent2D swapchain_extent, uint32_t frame_index) override;
 		void end_frame() override;
 		void destroy() override;
 		Const::VERTEX_BUFFER_TYPE get_using_vertex_type() override;

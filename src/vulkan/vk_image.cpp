@@ -1,13 +1,13 @@
 #include <future>
 
-#include <vulkan/vk_core.h>
-#include <vulkan/vk_image.h>
-#include <vulkan/vk_command_pool.h>
-#include <vulkan/vk_utils.h>
-#include <vulkan/vk_structs.h>
-#include <vulkan/vk_queues.h>
-#include <vulkan/vk_fences.h>
 #include <vulkan/vk_buffer.h>
+#include <vulkan/vk_command_pool.h>
+#include <vulkan/vk_core.h>
+#include <vulkan/vk_fences.h>
+#include <vulkan/vk_image.h>
+#include <vulkan/vk_queues.h>
+#include <vulkan/vk_structs.h>
+#include <vulkan/vk_utils.h>
 
 namespace Vulkan {
 
@@ -24,6 +24,7 @@ namespace Vulkan {
 		physical_device = other.physical_device;
 		device = other.device;
 		array_layers = other.array_layers;
+		descriptor = other.descriptor;
 	}
 
 	void Image::make_image(

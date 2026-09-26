@@ -1,4 +1,6 @@
 #pragma once
+#include <array>
+#include <geometry_structs.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -14,4 +16,7 @@ namespace Math {
 	float random_float(float min = 0.f, float max = 1.f);
 
 	bool is_valid_triangle_with_clockwise(glm::vec2 first, glm::vec2 second, glm::vec2 third);
+
+	std::array<glm::vec2, 4> make_tex_coord_from(const Geometry::Texture_Rect_2D& texture_rect);
+
 } // namespace Math

@@ -40,9 +40,6 @@ namespace Vulkan {
 	}
 
 	uint32_t Texture_System::load_texture(std::string file) {
-#ifdef _DEBUG
-		Log::info("Load texture with name", file);
-#endif
 		// this texture was loaded success!
 		if (files_to_ids.find(file) != files_to_ids.end()) {
 			return files_to_ids[file];

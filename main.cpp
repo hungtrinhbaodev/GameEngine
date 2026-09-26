@@ -52,6 +52,10 @@ int main() {
 		Vulkan::API::draw_triangle_2D({300.f, 450.f}, {500.f, 600.f}, {580.f, 120.f}, {1.f, 0.f, 0.f});
 		Vulkan::API::draw_rectangle_2D(150.f, 250.f, 250.f, 300.f, {0.f, 0.f, 1.f});
 
+		Vulkan::API::draw_rectangle_2D(320.f, 300.f, 121.f, 126.f, {0.f, 1.f, 0.f}, 0.f, {0.f, 0.f});
+		Vulkan::API::draw_texture_2D("res/AddonIcon7.png", {320.f, 300.f}, {1.f, 1.f}, 30.f, {0.5, 0.5});
+		Vulkan::API::draw_texture_2D("res/AddonIcon5.png", {500.f, 240.f}, {1.f, 1.f}, 0.f, {0.5, 0.5});
+
 		// Draw all information of this current frame.
 		Vulkan::Process::draw_frame();
 

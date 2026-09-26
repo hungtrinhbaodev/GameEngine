@@ -38,4 +38,14 @@ namespace Math {
 		float d = (second.x - first.x) * (third.y - first.y) - (second.y - first.y) * (third.x - first.x);
 		return d < 0;
 	}
+
+	std::array<glm::vec2, 4> make_tex_coord_from(const Geometry::Texture_Rect_2D& texture_rect) {
+		glm::vec2 frist_coord = {texture_rect.x, texture_rect.y};
+		return {
+			{{texture_rect.x, texture_rect.y},
+			 {texture_rect.x, texture_rect.y + texture_rect.ratio_height},
+			 {texture_rect.x + texture_rect.ratio_width, texture_rect.y + texture_rect.ratio_height},
+			 {texture_rect.x + texture_rect.ratio_width, texture_rect.y}},
+		};
+	}
 } // namespace Math

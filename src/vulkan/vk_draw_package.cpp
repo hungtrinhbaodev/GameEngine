@@ -6,6 +6,14 @@
 #include <vulkan/vk_vertex.h>
 
 namespace Vulkan {
+
+	Draw_Package::Draw_Package() {
+		this->device = Vulkan::device;
+		this->descriptor_pools = Vulkan::descriptor_pools;
+	}
+
+	Draw_Package::~Draw_Package() {}
+
 	void Draw_Package::init(
 		Ring_Buffer* global_staging_buffer, Static_Buffer* vertices_buffer, Static_Buffer* indices_buffer,
 		std::vector<Buffer>& uniform_buffers
@@ -41,11 +49,13 @@ namespace Vulkan {
 		this->pipeline_config.device = Vulkan::device;
 	}
 
-	void Draw_Package::setup_frist_frame() {}
+	void Draw_Package::setup_first_frame() {}
 
 	void Draw_Package::start_frame() {}
 
-	void Draw_Package::draw(VkCommandBuffer command_buffer, VkExtent2D swapchain_extent) {}
+	void Draw_Package::flush_data() {}
+
+	void Draw_Package::draw(VkCommandBuffer command_buffer, VkExtent2D swapchain_extent, uint32_t frame_index) {}
 
 	void Draw_Package::end_frame() {}
 

@@ -40,6 +40,8 @@ namespace Vulkan {
 
 		uint32_t add_data(void* data);
 
+		uint32_t get_index_by(uint32_t id);
+
 		void update_data(uint32_t id, void* update_data);
 
 		void remove_data(uint32_t id);

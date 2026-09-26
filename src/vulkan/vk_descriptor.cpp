@@ -56,7 +56,7 @@ namespace Vulkan {
 		write.dstBinding = binding;
 		write.dstArrayElement = 0;
 		write.descriptorCount = 1;
-		write.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+		write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		write.pImageInfo = descriptor_image_info;
 		writes.push_back(write);
 		return *this;

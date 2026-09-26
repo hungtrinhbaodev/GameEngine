@@ -36,6 +36,20 @@ namespace Vulkan {
 		return *this;
 	}
 
+	Vertex_Input_Builder& Vertex_Input_Builder::add_array_vec2_attribute_description(
+		uint32_t binding, uint32_t offset, uint32_t array_size
+	) {
+		if (binding >= attribute_descriptions_by_bindings.size()) {
+			throw std::runtime_error("Binding index out of range, please add more first!");
+		}
+		for (int i = 0; i < array_size; i++) {
+			attribute_descriptions_by_bindings[binding].push_back(
+				{0, binding, VK_FORMAT_R32G32_SFLOAT, offset + (uint32_t)sizeof(glm::vec2) * i}
+			);
+		}
+		return *this;
+	}
+
 	std::vector<VkVertexInputBindingDescription> Vertex_Input_Builder::build_binding_descriptions() {
 		return binding_descriptions;
 	}

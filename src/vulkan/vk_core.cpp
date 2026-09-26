@@ -9,6 +9,7 @@
 #include <vulkan/vk_descriptor.h>
 #include <vulkan/vk_device.h>
 #include <vulkan/vk_draw_geometry_2D_package.h>
+#include <vulkan/vk_draw_texture_2D_package.h>
 #include <vulkan/vk_fences.h>
 #include <vulkan/vk_frame_buffers.h>
 #include <vulkan/vk_instance.h>
@@ -122,6 +123,17 @@ namespace Vulkan {
 					&global_indices_buffer, uniform_buffers, &global_draw_2D_order
 				);
 				draw_packages[Const::DRAW_ID::DRAW_2D_MESH] = draw_package;
+			}
+			/**
+			 * Initialize texture 2D draw package
+			 */
+			{
+				Draw_Texture_2D_Package* draw_package = new Draw_Texture_2D_Package();
+				draw_package->init(
+					global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D],
+					&global_indices_buffer, uniform_buffers, &global_draw_2D_order, &texture_system
+				);
+				draw_packages[Const::DRAW_ID::DRAW_2D_RECTANGLE_WITH_TEXTURE] = draw_package;
 			}
 		}
 
@@ -274,7 +286,7 @@ namespace Vulkan {
 			_update_uniform_buffer();
 			for (auto& [draw_id, draw_package] : draw_packages) {
 				if (!draw_package->is_setup_first_frame) {
-					draw_package->setup_frist_frame();
+					draw_package->setup_first_frame();
 					draw_package->is_setup_first_frame = true;
 				}
 				draw_package->start_frame();
@@ -285,6 +297,9 @@ namespace Vulkan {
 			/**
 			 * Flush stagging need to upload into local device buffer
 			 */
+			for (auto& [draw_id, draw_package] : draw_packages) {
+				draw_package->flush_data();
+			}
 			global_staging_buffer->flush_frame();
 			VkFence draw_fence = draw_fences[current_frame];
 			VkSemaphore draw_semaphore = draw_semaphores[current_frame];
@@ -352,7 +367,7 @@ namespace Vulkan {
 						/**
 						 * Draw specific type of graphic by draw package
 						 */
-						draw_package->draw(command_buffer, swapchain_extent);
+						draw_package->draw(command_buffer, swapchain_extent, current_frame);
 					}
 				}
 				vkCmdEndRenderPass(command_buffer);
@@ -476,6 +491,16 @@ namespace Vulkan {
 			Draw_Geometry_2D_Package* draw_package =
 				reinterpret_cast<Draw_Geometry_2D_Package*>(draw_packages[Const::DRAW_ID::DRAW_2D_MESH]);
 			draw_package->draw_rectangle_2D(x, y, width, height, color, rotation, anchor_point);
+		}
+
+		void draw_texture_2D(
+			std::string texture_path, glm::vec2 position, glm::vec2 scale, float rotation, glm::vec2 anchor,
+			Geometry::Texture_Rect_2D texture_rect
+		) {
+			Draw_Texture_2D_Package* draw_package = reinterpret_cast<Draw_Texture_2D_Package*>(
+				draw_packages[Const::DRAW_ID::DRAW_2D_RECTANGLE_WITH_TEXTURE]
+			);
+			draw_package->draw_texture_2D(texture_path, position, scale, rotation, anchor, texture_rect);
 		}
 	} // namespace API
 
