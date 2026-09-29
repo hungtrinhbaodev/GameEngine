@@ -29,6 +29,14 @@ namespace Vulkan {
 		current_frame_offsets[this->current_frame] = 0;
 	}
 
+	void Ring_Buffer::update_dst_buffer_transfer(VkBuffer from, VkBuffer to) {
+		for (Ring_Buffer_Allocate_Info& allocate : this->queue_upload_transfer) {
+			if (allocate.dst_buffer == from) {
+				allocate.dst_buffer = to;
+			}
+		}
+	}
+
 	void Ring_Buffer::upload_data(VkBuffer dst_buffer, uint32_t dst_offset, uint32_t size, void* data, bool track_log) {
 
 		uint32_t max_frame_size = max_frame_sizes[current_frame];

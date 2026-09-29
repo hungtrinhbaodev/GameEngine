@@ -79,7 +79,8 @@ int main() {
 			Vulkan::API::draw_texture_2D(path, texture_positions[i], {1.f, 1.f}, 30.f, {0.5, 0.5});
 		}
 		for (const glm::vec3& position : model_positions) {
-			Vulkan::API::draw_model_3D("res/CesiumMan.gltf", position, {1.f, 1.f, 1.f}, {0.f, 0.f, 0.f});
+			Vulkan::API::draw_model_3D("res/CesiumMan.gltf", {-0.7f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {0.f, 0.f, 0.f});
+			Vulkan::API::draw_model_3D("res/cat 7.glb", {0.7f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {0.f, 0.f, 0.f});
 		}
 
 		// Draw all information of this current frame.

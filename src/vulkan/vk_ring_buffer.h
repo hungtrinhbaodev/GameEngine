@@ -46,6 +46,8 @@ namespace Vulkan {
 
 		void start_frame(int current_fame);
 
+		void update_dst_buffer_transfer(VkBuffer from, VkBuffer to);
+
 		void upload_data(VkBuffer dst_buffer, uint32_t dst_offset, uint32_t size, void* data, bool track_log = false);
 
 		void flush_frame();

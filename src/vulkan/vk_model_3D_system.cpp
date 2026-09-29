@@ -8,7 +8,7 @@ namespace Vulkan {
 	uint32_t Model_3D_System::default_texture_id = -1;
 
 	glm::vec3 Model_Mesh_Information::get_mesh_origin() const {
-		return this->max_bounding_box - this->min_bounding_box;
+		return (this->max_bounding_box + this->min_bounding_box) * 0.5f;
 	}
 
 	void Model_3D_System::init(

@@ -332,7 +332,7 @@ namespace Parser {
 					if (log_debug) {
 						Log::info(
 							"What is my vertices data", primitive.vertices.size(), primitive.vertices[0],
-							primitive.indices.size(), primitive.indices[0]
+							primitive.indices.size(), primitive.indices[0], mesh.min_bounding_box, mesh.max_bounding_box
 						);
 					}
 					primitive.material_index = primitive_json.value("material", -1);

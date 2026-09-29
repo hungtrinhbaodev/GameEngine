@@ -49,7 +49,10 @@ namespace Vulkan {
 			using_range = {current_offset, size, size};
 			if (current_offset + size > available_size) {
 				available_size = (uint32_t)((current_offset + size) * 1.5f);
+				VkBuffer current_buffer = inner_buffer.buffer;
 				inner_buffer.resize(available_size);
+				VkBuffer updated_buffer = inner_buffer.buffer;
+				staging_buffer->update_dst_buffer_transfer(current_buffer, updated_buffer);
 			}
 			current_offset += size;
 		}

@@ -69,7 +69,7 @@ namespace Vulkan {
 					model_info.global_meshes_transform.at(draw_scene_index).at(i);
 				glm::vec3 mesh_origin = mesh.get_mesh_origin();
 				for (const glm::mat4& transform : mesh_transforms) {
-					glm::mat4 final_transform = Math::make_translation(-mesh_origin) * transform;
+					glm::mat4 final_transform = transform * Math::make_translation(-mesh_origin);
 					vkCmdPushConstants(
 						command_buffer, pipeline_info.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
 						0, sizeof(glm::mat4), &final_transform
