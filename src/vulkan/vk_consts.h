@@ -55,6 +55,7 @@ namespace Vulkan {
 		enum DRAW_ID {
 			DRAW_2D_MESH,					// draw primitive with raw color that user input.
 			DRAW_2D_RECTANGLE_WITH_TEXTURE, // draw a rectange with texture (ui image, sprite object, ...).
+			DRAW_3D_MODEL
 		};
 
 		enum VERTEX_BUFFER_TYPE {
@@ -63,7 +64,7 @@ namespace Vulkan {
 			VERTEX_3D,
 		};
 
-		const inline float MAX_Z_LAYER_2D = 9999997.f;
+		const inline float MAX_Z_LAYER_2D = 999997.f;
 
 		const inline uint32_t INITIALIZE_STATIC_BUFFER_SIZE = 3 * 1024 * 1024; // 5MB
 
@@ -85,6 +86,10 @@ namespace Vulkan {
 
 		const inline std::string PATH_FRAG_SHADERD_DRAW_TEXTURE_2D =
 			"res/shader/draw_texture_2D/fragment_shader.frag.spv";
+
+		const inline std::string PATH_VERT_SHADERD_DRAW_MODEL_3D = "res/shader/draw_model_3D/vert_shader.vert.spv";
+
+		const inline std::string PATH_FRAG_SHADERD_DRAW_MODEL_3D = "res/shader/draw_model_3D/fragment_shader.frag.spv";
 
 	} // namespace Const
 

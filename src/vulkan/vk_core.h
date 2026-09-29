@@ -18,6 +18,7 @@
 #include <vulkan/vk_draw_package.h>
 #include <vulkan/vk_image.h>
 #include <vulkan/vk_instance_buffer.h>
+#include <vulkan/vk_model_3D_system.h>
 #include <vulkan/vk_pipeline.h>
 #include <vulkan/vk_ring_buffer.h>
 #include <vulkan/vk_static_buffer.h>
@@ -75,11 +76,9 @@ namespace Vulkan {
 
 	extern std::map<Const::DRAW_ID, Draw_Package*> draw_packages;
 
-	extern std::map<Const::DRAW_ID, Instance_Buffer> instancing_buffers;
-
 	extern std::map<Const::VERTEX_BUFFER_TYPE, Static_Buffer> global_vertex_buffers;
 
-	extern Static_Buffer global_indices_buffer;
+	extern std::map<Const::VERTEX_BUFFER_TYPE, Static_Buffer> global_indices_buffers;
 
 	extern std::vector<Buffer> uniform_buffers;
 
@@ -90,6 +89,8 @@ namespace Vulkan {
 	extern std::vector<VkSemaphore> render_finish_semaphores;
 
 	extern std::vector<VkCommandBuffer> draw_command_buffers;
+
+	extern Model_3D_System model_3D_system;
 
 	extern bool frame_buffer_resize;
 
@@ -157,6 +158,8 @@ namespace Vulkan {
 			std::string texture_path, glm::vec2 position, glm::vec2 scale, float rotation = 0,
 			glm::vec2 anchor = {0.f, 0.f}, Geometry::Texture_Rect_2D texture_rect = {0.f, 0.f, 1.f, 1.f}
 		);
+
+		void draw_model_3D(std::string path, glm::vec3 position, glm::vec3 scale, glm::vec3 rotation);
 
 	} // namespace API
 } // namespace Vulkan

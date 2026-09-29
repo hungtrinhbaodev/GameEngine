@@ -4,3 +4,4 @@ build/*
 .vscode*
 res/shader/glslc
 vendor/ktx/*
+docs/gltf_parser_guide.md

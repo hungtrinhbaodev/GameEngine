@@ -52,6 +52,8 @@ namespace Vulkan {
 
 		uint32_t load_texture(std::string file);
 
+		uint32_t load_texture(std::string file, void* pixels, int width, int height, int channels);
+
 		Texture_View view_texture(uint32_t id);
 
 		Texture_Storage_Info view_texture_storage_info(uint32_t id);

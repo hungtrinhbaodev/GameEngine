@@ -4,7 +4,7 @@
 namespace Vulkan {
 
 	void Static_Buffer::init(
-		Ring_Buffer* global_staging_buffer, uint32_t initialize_size, VkBufferUsageFlags usage_flags
+		Ring_Buffer* global_staging_buffer, uint32_t initialize_size, VkBufferUsageFlags usage_flags, bool track_log
 	) {
 
 		available_size = initialize_size;
@@ -14,6 +14,7 @@ namespace Vulkan {
 
 		id_counter = 0;
 		current_offset = 0;
+		this->track_log = track_log;
 	}
 
 	uint32_t Static_Buffer::upload_data(uint32_t size, void* data) {
@@ -54,7 +55,7 @@ namespace Vulkan {
 		}
 
 		ranges_by_id[id] = using_range;
-		staging_buffer->upload_data(inner_buffer.buffer, using_range.offset, size, data);
+		staging_buffer->upload_data(inner_buffer.buffer, using_range.offset, size, data, this->track_log);
 
 		if (id < 0) {
 			throw std::runtime_error("Vulkan fail to upload static data: fail to get id!");
@@ -85,7 +86,6 @@ namespace Vulkan {
 	}
 
 	void Static_Buffer::destroy() {
-
 		inner_buffer.destroy();
 	}
 } // namespace Vulkan

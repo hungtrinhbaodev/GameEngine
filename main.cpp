@@ -7,6 +7,8 @@
 
 #include <core.h>
 #include <log.h>
+#include <math_custom.h>
+#include <parser/gltf_parser.h>
 #include <utils.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_texture_array.h>
@@ -16,17 +18,22 @@
 
 #define VK_A 0x41
 
-struct Instance_Data {
-	float b;
-	int c;
-	char k;
-	friend std::ostream& operator<<(std::ostream& os, const Instance_Data& data) {
-		os << data.b << "|" << data.c << "|" << data.k;
-		return os;
-	}
-};
+const std::string texture_a = "res/AddonIcon7.png";
+const std::string texture_b = "res/AddonIcon5.png";
 
 int main() {
+	// {
+	// 	// Parser::Gltf_Model model = Parser::parse_gltf_model("res/CesiumMan.gltf", true);
+	// 	Parser::Gltf_Model model = Parser::parse_gltf_model("res/cat 7.glb", true);
+	// 	auto meshes_transform_by_scene = model.make_meshes_global_transform();
+	// 	Log::info("What is meshes_transform_by_scene", meshes_transform_by_scene.size());
+	// 	for (auto& [scene_idx, meshes_transform] : meshes_transform_by_scene) {
+	// 		for (auto& [mesh_idx, transforms] : meshes_transform) {
+	// 			Log::info("What is transform of", scene_idx, mesh_idx, transforms);
+	// 		}
+	// 	}
+	// }
+
 	if (!glfwInit()) {
 		throw std::runtime_error("fail to init glfw!");
 	}
@@ -36,10 +43,24 @@ int main() {
 
 	Vulkan::Init::init_vulkan_core(window, Core::global_thread_pool, Core::global_scheduler);
 
-	uint32_t texture_id = Vulkan::texture_system.load_texture(Utils::get_root_path() + "res\\texture\\texture4.png");
+	std::vector<glm::vec3> model_positions{};
+	for (int i = 0; i < 1; i++) {
+		model_positions.push_back(glm::vec3(0.f, 0.f, 0.f));
+	}
+
+	std::vector<glm::vec2> texture_positions{};
+	std::vector<std::string> texture_paths{};
+	for (int i = 0; i < 30; i++) {
+		texture_positions.push_back(
+			glm::vec2(
+				Math::random_float(0.f, Vulkan::swapchain_extent.width),
+				Math::random_float(0.f, Vulkan::swapchain_extent.height)
+			)
+		);
+		texture_paths.push_back(Math::random_float() >= 0.5f ? texture_a : texture_b);
+	}
 
 	while (!glfwWindowShouldClose(window)) {
-
 		glfwPollEvents();
 
 		// Set up all component when start frame (reset frame of ring buffer, ...).
@@ -53,8 +74,13 @@ int main() {
 		Vulkan::API::draw_rectangle_2D(150.f, 250.f, 250.f, 300.f, {0.f, 0.f, 1.f});
 
 		Vulkan::API::draw_rectangle_2D(320.f, 300.f, 121.f, 126.f, {0.f, 1.f, 0.f}, 0.f, {0.f, 0.f});
-		Vulkan::API::draw_texture_2D("res/AddonIcon7.png", {320.f, 300.f}, {1.f, 1.f}, 30.f, {0.5, 0.5});
-		Vulkan::API::draw_texture_2D("res/AddonIcon5.png", {500.f, 240.f}, {1.f, 1.f}, 0.f, {0.5, 0.5});
+		for (int i = 0; i < texture_positions.size(); i++) {
+			const std::string& path = texture_paths[i];
+			Vulkan::API::draw_texture_2D(path, texture_positions[i], {1.f, 1.f}, 30.f, {0.5, 0.5});
+		}
+		for (const glm::vec3& position : model_positions) {
+			Vulkan::API::draw_model_3D("res/CesiumMan.gltf", position, {1.f, 1.f, 1.f}, {0.f, 0.f, 0.f});
+		}
 
 		// Draw all information of this current frame.
 		Vulkan::Process::draw_frame();

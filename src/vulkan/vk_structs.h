@@ -133,7 +133,7 @@ namespace Vulkan {
 		}
 
 		inline VkPipelineRasterizationStateCreateInfo make_pipeline_rasterization_create_info(
-
+			VkFrontFace triangle_trp_order
 		) {
 			VkPipelineRasterizationStateCreateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
@@ -141,7 +141,7 @@ namespace Vulkan {
 			create_info.rasterizerDiscardEnable = VK_FALSE;
 			create_info.polygonMode = VK_POLYGON_MODE_FILL;
 			create_info.cullMode = VK_CULL_MODE_BACK_BIT;
-			create_info.frontFace = VK_FRONT_FACE_CLOCKWISE;
+			create_info.frontFace = triangle_trp_order;
 			create_info.depthBiasEnable = VK_FALSE;
 			create_info.lineWidth = 1.0f;
 			return create_info;

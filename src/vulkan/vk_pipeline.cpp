@@ -48,7 +48,8 @@ namespace Vulkan {
 			Structs::make_pipeline_view_port_create_info(config.swapchain_extent, viewport, scissor);
 
 		// Make rasterization create info
-		VkPipelineRasterizationStateCreateInfo rasterization_info = Structs::make_pipeline_rasterization_create_info();
+		VkPipelineRasterizationStateCreateInfo rasterization_info =
+			Structs::make_pipeline_rasterization_create_info(config.triangle_trip_order);
 
 		// Make multisampling create info
 		VkPipelineMultisampleStateCreateInfo multi_sampling_info =

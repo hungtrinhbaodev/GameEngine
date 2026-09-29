@@ -1,10 +1,9 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
-
+#include <set>
 #include <vector>
-
 #include <vulkan/vk_buffer.h>
+#include <vulkan/vulkan.h>
 
 namespace Vulkan {
 
@@ -41,11 +40,13 @@ namespace Vulkan {
 
 		std::vector<Ring_Buffer_Allocate_Info> queue_upload_transfer;
 
+		std::set<VkBuffer> track_log_buffers;
+
 		void init(int max_frame, uint32_t initialize_size);
 
 		void start_frame(int current_fame);
 
-		void upload_data(VkBuffer dst_buffer, uint32_t dst_offset, uint32_t size, void* data);
+		void upload_data(VkBuffer dst_buffer, uint32_t dst_offset, uint32_t size, void* data, bool track_log = false);
 
 		void flush_frame();
 

@@ -9,6 +9,7 @@
 #include <vulkan/vk_descriptor.h>
 #include <vulkan/vk_device.h>
 #include <vulkan/vk_draw_geometry_2D_package.h>
+#include <vulkan/vk_draw_model_3D_package.h>
 #include <vulkan/vk_draw_texture_2D_package.h>
 #include <vulkan/vk_fences.h>
 #include <vulkan/vk_frame_buffers.h>
@@ -90,11 +91,9 @@ namespace Vulkan {
 
 	std::map<Const::DRAW_ID, Draw_Package*> draw_packages = {};
 
-	std::map<Const::DRAW_ID, Instance_Buffer> instancing_buffers = {};
-
 	std::map<Const::VERTEX_BUFFER_TYPE, Static_Buffer> global_vertex_buffers = {};
 
-	Static_Buffer global_indices_buffer = {};
+	std::map<Const::VERTEX_BUFFER_TYPE, Static_Buffer> global_indices_buffers = {};
 
 	std::vector<Buffer> uniform_buffers = {};
 
@@ -106,6 +105,8 @@ namespace Vulkan {
 
 	std::vector<VkCommandBuffer> draw_command_buffers = {};
 
+	Model_3D_System model_3D_system = {};
+
 	bool frame_buffer_resize = false;
 
 	float global_draw_2D_order = 0.f;
@@ -114,26 +115,40 @@ namespace Vulkan {
 
 		void _init_draw_packages() {
 			/**
-			 * Initialize geometry 2D draw package
+			 * Initialize geometry 2D draw package.
 			 */
 			{
 				Draw_Geometry_2D_Package* draw_package = new Draw_Geometry_2D_Package();
 				draw_package->init(
 					global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D],
-					&global_indices_buffer, uniform_buffers, &global_draw_2D_order
+					&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D], uniform_buffers,
+					&global_draw_2D_order
 				);
 				draw_packages[Const::DRAW_ID::DRAW_2D_MESH] = draw_package;
 			}
 			/**
-			 * Initialize texture 2D draw package
+			 * Initialize texture 2D draw package.
 			 */
 			{
 				Draw_Texture_2D_Package* draw_package = new Draw_Texture_2D_Package();
 				draw_package->init(
 					global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D],
-					&global_indices_buffer, uniform_buffers, &global_draw_2D_order, &texture_system
+					&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D], uniform_buffers,
+					&global_draw_2D_order, &texture_system
 				);
 				draw_packages[Const::DRAW_ID::DRAW_2D_RECTANGLE_WITH_TEXTURE] = draw_package;
+			}
+			/**
+			 * Initialize texture 3D draw package.
+			 */
+			{
+				Draw_Model_3D_Package* draw_package = new Draw_Model_3D_Package();
+				draw_package->init(
+					global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D],
+					&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D], uniform_buffers, &model_3D_system,
+					&texture_system
+				);
+				draw_packages[Const::DRAW_ID::DRAW_3D_MODEL] = draw_package;
 			}
 		}
 
@@ -175,21 +190,24 @@ namespace Vulkan {
 			/**
 			 * Init vertex static buffer to specific layout 2D and 3D vertex
 			 */
-			auto make_vertex_buffer = []() {
+			auto make_static_buffer = [](VkBufferUsageFlagBits buffer_flags, bool track_log) {
 				Static_Buffer vertex_buffer{};
 				vertex_buffer.init(
-					global_staging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+					global_staging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE, buffer_flags, track_log
 				);
 				return vertex_buffer;
 			};
-			global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D] = make_vertex_buffer();
-			global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D] = make_vertex_buffer();
+			global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D] =
+				make_static_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, false);
+			global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D] =
+				make_static_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, true);
 			/**
 			 * Initialize indices buffer using to all layout vertex
 			 */
-			global_indices_buffer.init(
-				global_staging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE, VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-			);
+			global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D] =
+				make_static_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, false);
+			global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D] =
+				make_static_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, true);
 		}
 
 		void init_vulkan_core(
@@ -261,6 +279,12 @@ namespace Vulkan {
 			// Initialize Vulkan static buffer to storage prototype like vertex data, index data,...
 			_init_static_buffers();
 
+			// Initialize model 3D system to loading and storage model
+			model_3D_system.init(
+				&global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D],
+				&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D], &texture_system
+			);
+
 			// Initialize Vulkan Pipeline by each draw ID
 			_init_draw_packages();
 		}
@@ -271,6 +295,16 @@ namespace Vulkan {
 		void _update_uniform_buffer() {
 			const Buffer& uniform_buffer = uniform_buffers[current_frame];
 			Uniform uniform{};
+			glm::mat4 projection = glm::perspective(
+				glm::radians(45.0f), (float)swapchain_extent.width / (float)swapchain_extent.height, 0.1f, 100.f
+			);
+			float radius = 3.0f;
+			float angle = (float)glfwGetTime();
+			glm::vec3 eye = glm::vec3(radius * sin(angle), 0.0f, radius * cos(angle));
+			projection[1][1] *= -1.f;
+			glm::mat4 view = glm::lookAt(eye, glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+			uniform.projection = projection;
+			uniform.view = view;
 			global_staging_buffer->upload_data(uniform_buffer.buffer, 0, sizeof(Uniform), &uniform);
 		}
 
@@ -281,7 +315,7 @@ namespace Vulkan {
 		}
 
 		void start_frame() {
-			global_draw_2D_order = 0.f;
+			global_draw_2D_order = 1.f;
 			global_staging_buffer->start_frame(current_frame);
 			_update_uniform_buffer();
 			for (auto& [draw_id, draw_package] : draw_packages) {
@@ -344,13 +378,6 @@ namespace Vulkan {
 				vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 				{
 					Const::VERTEX_BUFFER_TYPE current_vertex_buffer_type = Const::VERTEX_BUFFER_TYPE::NONE;
-					/**
-					 * Bind indices buffer first
-					 * because it use for all pipeline!
-					 */
-					vkCmdBindIndexBuffer(
-						command_buffer, global_indices_buffer.inner_buffer.buffer, 0, VK_INDEX_TYPE_UINT16
-					);
 					for (auto& [draw_id, draw_package] : draw_packages) {
 						/**
 						 * Bind vertex buffer that using in all pipeline at a first binding position
@@ -358,7 +385,20 @@ namespace Vulkan {
 						Const::VERTEX_BUFFER_TYPE pipeline_vertex_buffer_type = draw_package->get_using_vertex_type();
 						if (pipeline_vertex_buffer_type != current_vertex_buffer_type) {
 							Static_Buffer& pipeline_vertex_buffer = global_vertex_buffers[pipeline_vertex_buffer_type];
+							Static_Buffer& pipeline_indices_buffer =
+								global_indices_buffers[pipeline_vertex_buffer_type];
 							VkDeviceSize binding_offset = 0;
+							VkIndexType buffer_index_type = VK_INDEX_TYPE_UINT16;
+							/**
+							 * @Note: with 3D layout vertex we use uint32_t indices
+							 * type to make with gltf and other 3D format model
+							 */
+							if (pipeline_vertex_buffer_type == Const::VERTEX_BUFFER_TYPE::VERTEX_3D) {
+								buffer_index_type = VK_INDEX_TYPE_UINT32;
+							}
+							vkCmdBindIndexBuffer(
+								command_buffer, pipeline_indices_buffer.inner_buffer.buffer, 0, buffer_index_type
+							);
 							vkCmdBindVertexBuffers(
 								command_buffer, 0, 1, &pipeline_vertex_buffer.inner_buffer.buffer, &binding_offset
 							);
@@ -400,9 +440,11 @@ namespace Vulkan {
 	namespace Destroy {
 
 		void _destroy_static_buffers() {
-			global_indices_buffer.destroy();
 			for (auto& [vertex_type, vertex_buffer] : global_vertex_buffers) {
 				vertex_buffer.destroy();
+			}
+			for (auto& [vertex_type, indices_buffer] : global_indices_buffers) {
+				indices_buffer.destroy();
 			}
 			Log::info("Destroy static buffers successfully!");
 		}
@@ -502,6 +544,13 @@ namespace Vulkan {
 			);
 			draw_package->draw_texture_2D(texture_path, position, scale, rotation, anchor, texture_rect);
 		}
+
+		void draw_model_3D(std::string path, glm::vec3 position, glm::vec3 scale, glm::vec3 rotation) {
+			Draw_Model_3D_Package* draw_package =
+				reinterpret_cast<Draw_Model_3D_Package*>(draw_packages[Const::DRAW_ID::DRAW_3D_MODEL]);
+			draw_package->draw_model_3D(path, position, scale, rotation);
+		}
+
 	} // namespace API
 
 } // namespace Vulkan

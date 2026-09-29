@@ -1,3 +1,4 @@
+#include <geometry_structs.h>
 #include <vulkan/vk_consts.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_descriptor.h>
@@ -33,14 +34,14 @@ namespace Vulkan {
 		/**
 		 * Init descriptor sets to uniform buffer
 		 */
+		this->descriptors.push_back({});
 		for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-			this->descriptors.push_back({});
 			Buffer& uniform_buffer = uniform_buffers[i];
-			std::vector<VkDescriptorSet> uniform_descriptor_set =
+			std::vector<VkDescriptorSet> uniform_descriptor_sets =
 				Structs::make_descriptor_set(descriptor_pools[i], 1, &this->descriptor_set_layouts[0], device);
 			Descriptor_Set_Writer writer{};
-			writer.add_buffer_write(0, &uniform_buffer.descriptor, uniform_descriptor_set[0]);
-			this->descriptors[i].push_back(uniform_descriptor_set[0]);
+			writer.add_buffer_write(0, &uniform_buffer.descriptor, uniform_descriptor_sets[0]).write();
+			this->descriptors[0].push_back(uniform_descriptor_sets[0]);
 		}
 
 		this->pipeline_config.depth_image = Vulkan::depth_image;
@@ -75,7 +76,14 @@ namespace Vulkan {
 	}
 
 	Vertex_Input_Builder Draw_Package::make_vertex_3D_builder() {
-		return {};
+		Vertex_Input_Builder vertex_builder{};
+		vertex_builder.add_binding_description(0, sizeof(Geometry::Vertex_3D), VK_VERTEX_INPUT_RATE_VERTEX)
+			.add_attribute_description(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Geometry::Vertex_3D, position))
+			.add_attribute_description(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Geometry::Vertex_3D, normal))
+			.add_attribute_description(0, VK_FORMAT_R32G32_SFLOAT, offsetof(Geometry::Vertex_3D, tex_coord))
+			.add_attribute_description(0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Geometry::Vertex_3D, tangent))
+			.add_attribute_description(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Geometry::Vertex_3D, color));
+		return vertex_builder;
 	}
 
 	Const::VERTEX_BUFFER_TYPE Draw_Package::get_using_vertex_type() {

@@ -39,7 +39,7 @@ namespace Vulkan {
 		return (max_size_width >= width) && (max_size_height >= height);
 	}
 
-	uint32_t Texture_System::load_texture(std::string file) {
+	uint32_t Texture_System::load_texture(std::string file, void* pixels, int width, int height, int channels) {
 		// this texture was loaded success!
 		if (files_to_ids.find(file) != files_to_ids.end()) {
 			return files_to_ids[file];
@@ -52,14 +52,6 @@ namespace Vulkan {
 			available_ids.pop();
 		} else {
 			id = ++counter_id;
-		}
-
-		// load texture from disk
-		int width = 0, height = 0, channels = 0;
-		stbi_uc* pixels = nullptr;
-		pixels = stbi_load(file.data(), &width, &height, &channels, STBI_rgb_alpha);
-		if (!pixels) {
-			throw std::runtime_error("Vulkan fail to load texture from file!");
 		}
 
 		// TODO: we will implement async load texture later ?
@@ -129,10 +121,30 @@ namespace Vulkan {
 		files_to_ids[file] = id;
 		ids_to_storages[id] = storage_info;
 
+		return static_cast<uint32_t>(id);
+	}
+
+	uint32_t Texture_System::load_texture(std::string file) {
+		// this texture was loaded success!
+		if (files_to_ids.find(file) != files_to_ids.end()) {
+			return files_to_ids[file];
+		}
+
+		// load texture from disk
+		int width = 0, height = 0, channels = 0;
+		stbi_uc* pixels = nullptr;
+		pixels = stbi_load(file.data(), &width, &height, &channels, STBI_rgb_alpha);
+		if (!pixels) {
+			throw std::runtime_error("Vulkan fail to load texture from file!");
+		}
+
+		// load texture with raw pixels
+		uint32_t texture_id = load_texture(file, pixels, width, height, channels);
+
 		// release texture loaded on ram
 		delete (pixels);
 
-		return static_cast<uint32_t>(id);
+		return static_cast<uint32_t>(texture_id);
 	}
 
 	Texture_View Texture_System::view_texture(uint32_t id) {

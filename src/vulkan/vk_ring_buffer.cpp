@@ -1,12 +1,12 @@
-#include <vulkan/vk_ring_buffer.h>
-#include <vulkan/vk_fences.h>
-#include <vulkan/vk_utils.h>
-#include <vulkan/vk_core.h>
-#include <vulkan/vk_command_pool.h>
-#include <vulkan/vk_queues.h>
-#include <vulkan/vk_structs.h>
-#include <map>
 #include <log.h>
+#include <map>
+#include <vulkan/vk_command_pool.h>
+#include <vulkan/vk_core.h>
+#include <vulkan/vk_fences.h>
+#include <vulkan/vk_queues.h>
+#include <vulkan/vk_ring_buffer.h>
+#include <vulkan/vk_structs.h>
+#include <vulkan/vk_utils.h>
 
 namespace Vulkan {
 
@@ -29,7 +29,7 @@ namespace Vulkan {
 		current_frame_offsets[this->current_frame] = 0;
 	}
 
-	void Ring_Buffer::upload_data(VkBuffer dst_buffer, uint32_t dst_offset, uint32_t size, void* data) {
+	void Ring_Buffer::upload_data(VkBuffer dst_buffer, uint32_t dst_offset, uint32_t size, void* data, bool track_log) {
 
 		uint32_t max_frame_size = max_frame_sizes[current_frame];
 		uint32_t current_frame_offset = current_frame_offsets[current_frame];
@@ -51,6 +51,10 @@ namespace Vulkan {
 		// Update current offset at this frame
 		current_frame_offset += size;
 		current_frame_offsets[current_frame] = current_frame_offset;
+
+		if (track_log && track_log_buffers.find(dst_buffer) == track_log_buffers.end()) {
+			track_log_buffers.insert(dst_buffer);
+		}
 	}
 
 	void Ring_Buffer::flush_frame() {
@@ -77,7 +81,8 @@ namespace Vulkan {
 
 		_global_thread_pool
 			->enqueue(
-				[](std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data, VkBuffer src_buffer) {
+				[](const std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data, VkBuffer src_buffer,
+				   const std::set<VkBuffer>& track_log_buffers) {
 					std::thread::id thread_id = std::this_thread::get_id();
 					VkCommandBuffer command_buffer = API::request_command_buffer();
 					VkFence fence = API::request_fence();
@@ -85,6 +90,9 @@ namespace Vulkan {
 					VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
 					vkBeginCommandBuffer(command_buffer, &begin_info);
 					for (auto& [dst_buffer, copied_ranges] : copied_data) {
+						if (track_log_buffers.find(dst_buffer) != track_log_buffers.end()) {
+							Log::info("Ring_Buffer::flush_frame", src_buffer, dst_buffer, copied_ranges);
+						}
 						vkCmdCopyBuffer(
 							command_buffer, src_buffer, dst_buffer, copied_ranges.size(), copied_ranges.data()
 						);
@@ -103,7 +111,7 @@ namespace Vulkan {
 					)
 						.get();
 				},
-				copied_data, inner_buffer.buffer
+				copied_data, inner_buffer.buffer, track_log_buffers
 			)
 			.get();
 
@@ -111,7 +119,6 @@ namespace Vulkan {
 	}
 
 	void Ring_Buffer::destroy() {
-
 		for (Buffer& buffer : inner_buffers) {
 			buffer.destroy();
 		}

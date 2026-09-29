@@ -61,9 +61,11 @@ namespace Vulkan {
 
 		std::vector<Static_Buffer_Range> ranges_can_use;
 
+		bool track_log = false;
+
 		void init(
 			Ring_Buffer* global_staging_buffer, uint32_t initialize_size,
-			VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+			VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bool track_log = false
 		);
 
 		uint32_t upload_data(uint32_t size, void* data);

@@ -6,6 +6,13 @@
 #include <thread>
 #include <type_traits>
 #include <vector>
+#include <vulkan/vulkan.h>
+
+inline std::ostream& operator<<(std::ostream& os, const VkBufferCopy& copy) {
+	os << "Buffer_Copy_Info: {src_offset: " << copy.srcOffset << ", dst_offset: " << copy.dstOffset
+	   << ", size: " << copy.size << "}";
+	return os;
+}
 
 template <typename T> inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
 	os << '{';
@@ -30,7 +37,7 @@ namespace glm {
 				os << matrix[j][i] << " ";
 			}
 			if (i < R - 1) {
-				os << std::endl;
+				os << "|";
 			}
 		}
 		os << '}';
