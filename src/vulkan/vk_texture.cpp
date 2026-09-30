@@ -22,8 +22,6 @@ namespace Vulkan {
 			inner_image.transition_image_layout(
 				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
 			);
-			inner_image.make_sampler();
-			inner_image.update_descriptor();
 		} catch (std::exception e) {
 			throw std::runtime_error(std::string("Fail to upload texture data in texture: ") + e.what());
 		}

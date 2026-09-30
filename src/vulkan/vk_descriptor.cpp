@@ -48,14 +48,14 @@ namespace Vulkan {
 	}
 
 	Descriptor_Set_Writer& Descriptor_Set_Writer::add_image_write(
-		uint32_t binding, VkDescriptorImageInfo* descriptor_image_info, VkDescriptorSet dst_set
+		uint32_t binding, int image_count, VkDescriptorImageInfo* descriptor_image_info, VkDescriptorSet dst_set
 	) {
 		VkWriteDescriptorSet write{};
 		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		write.dstSet = dst_set;
 		write.dstBinding = binding;
 		write.dstArrayElement = 0;
-		write.descriptorCount = 1;
+		write.descriptorCount = image_count;
 		write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		write.pImageInfo = descriptor_image_info;
 		writes.push_back(write);

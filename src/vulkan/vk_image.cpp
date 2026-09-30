@@ -20,17 +20,17 @@ namespace Vulkan {
 		format = other.format;
 		sampler = other.sampler;
 		aspect_flags = other.aspect_flags;
-		descriptor = other.descriptor;
 		physical_device = other.physical_device;
 		device = other.device;
 		array_layers = other.array_layers;
-		descriptor = other.descriptor;
+		image_view_type = other.image_view_type;
+		descriptor_image_layers = other.descriptor_image_layers;
 	}
 
 	void Image::make_image(
 		uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
 		VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags, uint32_t array_layers,
-		VkPhysicalDevice physical_device, VkDevice device
+		VkImageViewType image_view_type, VkPhysicalDevice physical_device, VkDevice device
 	) {
 
 		if (device == VK_NULL_HANDLE) {
@@ -52,6 +52,8 @@ namespace Vulkan {
 		this->width = width;
 		this->height = height;
 		this->array_layers = array_layers;
+		this->image_view_type = image_view_type;
+		descriptor_image_layers.resize(array_layers, {VK_NULL_HANDLE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED});
 
 		VkImageCreateInfo create_info{};
 		create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -87,99 +89,105 @@ namespace Vulkan {
 
 		vkBindImageMemory(device, image, memory, 0);
 
-		view = Utils::create_imageview_from_image(image, format, aspect_flags, device);
+		view = Utils::create_imageview_from_image(
+			image, format, aspect_flags, device, this->array_layers, image_view_type
+		);
+		if (usage | VK_IMAGE_USAGE_SAMPLED_BIT) {
+			make_sampler();
+		}
+	}
+
+	void Image::record_transition_image_layout(
+		VkCommandBuffer command_buffer, VkImageLayout old_layout, VkImageLayout new_layout, uint32_t layer_index
+	) {
+
+		VkImageMemoryBarrier barrier_info{};
+		barrier_info.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		barrier_info.oldLayout = old_layout;
+		barrier_info.newLayout = new_layout;
+		barrier_info.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier_info.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		barrier_info.image = image;
+		barrier_info.subresourceRange.aspectMask = aspect_flags;
+		barrier_info.subresourceRange.baseArrayLayer = layer_index;
+		barrier_info.subresourceRange.baseMipLevel = 0;
+		barrier_info.subresourceRange.levelCount = 1;
+		barrier_info.subresourceRange.layerCount = 1;
+
+		VkPipelineStageFlags src_stage;
+		VkPipelineStageFlags dst_stage;
+
+		if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+			barrier_info.srcAccessMask = 0;
+			barrier_info.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+			src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		} else if (
+			old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		) {
+			barrier_info.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier_info.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+			src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		} else if (
+			old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+		) {
+			barrier_info.srcAccessMask = 0;
+			barrier_info.dstAccessMask =
+				VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+			src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			dst_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+		} else if (
+			old_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+		) {
+			barrier_info.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+			barrier_info.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+			src_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		} else if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
+			barrier_info.srcAccessMask = 0;
+			barrier_info.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+			src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		} else {
+			throw std::runtime_error("Vulkan transfer layout are not supported!");
+		}
+
+		vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier_info);
 	}
 
 	void Image::transition_image_layout(VkImageLayout old_layout, VkImageLayout new_layout, uint32_t layer_index) {
-		auto result = _global_thread_pool
-						  ->enqueue(
-							  [this](VkImageLayout old_layout, VkImageLayout new_layout, uint32_t layer_index) {
-								  auto thread_id = std::this_thread::get_id();
-								  VkCommandBuffer command_buffer = API::request_command_buffer();
-								  VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
+		auto thread_id = std::this_thread::get_id();
+		VkCommandBuffer command_buffer = API::request_command_buffer();
+		VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
+		vkBeginCommandBuffer(command_buffer, &begin_info);
+		{
+			record_transition_image_layout(command_buffer, old_layout, new_layout, layer_index);
+		}
+		vkEndCommandBuffer(command_buffer);
 
-								  vkBeginCommandBuffer(command_buffer, &begin_info);
-
-								  VkImageMemoryBarrier barrier_info{};
-								  barrier_info.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-								  barrier_info.oldLayout = old_layout;
-								  barrier_info.newLayout = new_layout;
-								  barrier_info.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-								  barrier_info.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-								  barrier_info.image = image;
-								  barrier_info.subresourceRange.aspectMask = aspect_flags;
-								  barrier_info.subresourceRange.baseArrayLayer = layer_index;
-								  barrier_info.subresourceRange.baseMipLevel = 0;
-								  barrier_info.subresourceRange.levelCount = 1;
-								  barrier_info.subresourceRange.layerCount = 1;
-
-								  VkPipelineStageFlags src_stage;
-								  VkPipelineStageFlags dst_stage;
-
-								  if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED &&
-									  new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-									  barrier_info.srcAccessMask = 0;
-									  barrier_info.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-									  src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-									  dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-								  } else if (
-									  old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
-									  new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-								  ) {
-									  barrier_info.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-									  barrier_info.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-									  src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-									  dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-								  } else if (
-									  old_layout == VK_IMAGE_LAYOUT_UNDEFINED &&
-									  new_layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-								  ) {
-									  barrier_info.srcAccessMask = 0;
-									  barrier_info.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
-																   VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-									  src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-									  dst_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-								  } else {
-									  throw std::runtime_error("Vulkan transfer layout are not supported!");
-								  }
-
-								  vkCmdPipelineBarrier(
-									  command_buffer, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier_info
-								  );
-
-								  vkEndCommandBuffer(command_buffer);
-
-								  VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
-								  VkFence fence = API::request_fence();
-								  API::submit(submit_info, fence);
-
-								  return API::on_fence_success(
-									  fence,
-									  [this](
-										  VkFence fence, VkCommandBuffer command_buffer, std::thread::id thread_id,
-										  VkImageLayout new_layout
-									  ) {
-										  API::release_command_buffer(command_buffer, thread_id);
-										  API::release_fence(fence);
-										  /*
-										   *Update layout when transition successfully
-										   */
-										  {
-											  layout = new_layout;
-											  update_descriptor();
-										  }
-									  },
-									  fence, command_buffer, thread_id, new_layout
-								  );
-							  },
-							  old_layout, new_layout, layer_index
-						  )
-						  .get();
-
-		result.get();
+		VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
+		VkFence fence = API::request_fence();
+		API::submit(submit_info, fence);
+		auto success = [this](
+						   VkFence fence, VkCommandBuffer command_buffer, std::thread::id thread_id,
+						   VkImageLayout new_layout, int layer_index
+					   ) {
+			API::release_command_buffer(command_buffer, thread_id);
+			API::release_fence(fence);
+			/*
+			 *Update layout when transition successfully
+			 */
+			{
+				update_descriptor(new_layout, layer_index);
+			}
+		};
+		return API::on_fence_success(fence, success, fence, command_buffer, thread_id, new_layout, layer_index).get();
 	}
 
 	void Image::copy_image_data(uint32_t width, uint32_t height, void* pixels, uint32_t layer_index) {
@@ -188,61 +196,44 @@ namespace Vulkan {
 			throw std::runtime_error("Vulkan fail to copy image data: wrong size image!");
 		}
 
-		auto result =
-			_global_thread_pool
-				->enqueue(
-					[this](uint32_t width, uint32_t height, void* pixels, uint32_t layer_index) {
-						VkDeviceSize image_size = width * height * 4;
-						Buffer staging{};
-						staging.make_buffer(
-							image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-							VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-						);
-						staging.copy_data(image_size, pixels);
+		VkDeviceSize image_size = width * height * 4;
+		Buffer staging{};
+		staging.make_buffer(
+			image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+		);
+		staging.copy_data(image_size, pixels);
 
-						auto thread_id = std::this_thread::get_id();
-						VkCommandBuffer command_buffer = API::request_command_buffer();
-						VkCommandBufferBeginInfo begin_command = Structs::make_command_begin_info();
+		auto thread_id = std::this_thread::get_id();
+		VkCommandBuffer command_buffer = API::request_command_buffer();
+		VkCommandBufferBeginInfo begin_command = Structs::make_command_begin_info();
 
-						vkBeginCommandBuffer(command_buffer, &begin_command);
+		vkBeginCommandBuffer(command_buffer, &begin_command);
 
-						VkBufferImageCopy region{};
-						region.bufferOffset = 0;
-						region.bufferRowLength = 0;
-						region.bufferImageHeight = 0;
-						region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-						region.imageSubresource.mipLevel = 0;
-						region.imageSubresource.baseArrayLayer = layer_index;
-						region.imageSubresource.layerCount = 1;
-						region.imageOffset = {0, 0, 0};
-						region.imageExtent = {(uint32_t)width, (uint32_t)height, 1};
+		VkBufferImageCopy region{};
+		region.bufferOffset = 0;
+		region.bufferRowLength = 0;
+		region.bufferImageHeight = 0;
+		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.imageSubresource.mipLevel = 0;
+		region.imageSubresource.baseArrayLayer = layer_index;
+		region.imageSubresource.layerCount = 1;
+		region.imageOffset = {0, 0, 0};
+		region.imageExtent = {(uint32_t)width, (uint32_t)height, 1};
 
-						vkCmdCopyBufferToImage(
-							command_buffer, staging.buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region
-						);
+		vkCmdCopyBufferToImage(command_buffer, staging.buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
-						vkEndCommandBuffer(command_buffer);
+		vkEndCommandBuffer(command_buffer);
 
-						VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
-						VkFence fence = API::request_fence();
-						API::submit(submit_info, fence);
-
-						return API::on_fence_success(
-							fence,
-							[](VkFence fence, VkCommandBuffer command_buffer, Buffer buffer,
-							   std::thread::id thread_id) {
-								buffer.destroy();
-								API::release_fence(fence);
-								API::release_command_buffer(command_buffer, thread_id);
-							},
-							fence, command_buffer, std::move(staging), thread_id
-						);
-					},
-					width, height, pixels, layer_index
-				)
-				.get();
-
-		result.get();
+		VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
+		VkFence fence = API::request_fence();
+		API::submit(submit_info, fence);
+		auto success = [](VkFence fence, VkCommandBuffer command_buffer, Buffer buffer, std::thread::id thread_id) {
+			buffer.destroy();
+			API::release_fence(fence);
+			API::release_command_buffer(command_buffer, thread_id);
+		};
+		return API::on_fence_success(fence, success, fence, command_buffer, std::move(staging), thread_id).get();
 	}
 
 	void Image::make_sampler() {
@@ -270,10 +261,17 @@ namespace Vulkan {
 		);
 	}
 
-	void Image::update_descriptor() {
-		descriptor.imageLayout = layout;
+	void Image::update_descriptor(VkImageLayout image_layout, int layer_index) {
+		layer_index = std::max(0, layer_index);
+		VkDescriptorImageInfo& descriptor = descriptor_image_layers[layer_index];
+		descriptor.imageLayout = image_layout;
 		descriptor.imageView = view;
 		descriptor.sampler = sampler;
+	}
+
+	VkDescriptorImageInfo& Image::get_descriptor_info(int layer_index) {
+		layer_index = std::max(0, layer_index);
+		return descriptor_image_layers[layer_index];
 	}
 
 	void Image::destroy() const {

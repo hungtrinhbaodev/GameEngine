@@ -1,4 +1,8 @@
 #include <stdexcept>
+#include <vulkan/vk_command_pool.h>
+#include <vulkan/vk_fences.h>
+#include <vulkan/vk_queues.h>
+#include <vulkan/vk_structs.h>
 #include <vulkan/vk_texture_array.h>
 
 namespace Vulkan {
@@ -9,8 +13,32 @@ namespace Vulkan {
 		inner_image.make_image(
 			width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			VK_IMAGE_ASPECT_COLOR_BIT, number_layer
+			VK_IMAGE_ASPECT_COLOR_BIT, number_layer, VK_IMAGE_VIEW_TYPE_2D_ARRAY
 		);
+		VkCommandBuffer command_buffer = API::request_command_buffer();
+		VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
+		vkBeginCommandBuffer(command_buffer, &begin_info);
+		{
+			for (int i = 0; i < number_layer; i++) {
+				inner_image.record_transition_image_layout(
+					command_buffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, i
+				);
+			}
+		}
+		vkEndCommandBuffer(command_buffer);
+		VkFence fence = API::request_fence();
+		VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
+		API::submit(submit_info, fence);
+		std::thread::id thread_id = std::this_thread::get_id();
+		auto result = API::on_fence_success(
+			fence,
+			[](std::thread::id thread_id, VkCommandBuffer command_buffer, VkFence fence) {
+				API::release_command_buffer(command_buffer, thread_id);
+				API::release_fence(fence);
+			},
+			thread_id, command_buffer, fence
+		);
+		result.get();
 	}
 
 	int Texture_Array::find_availale_slot() const {
@@ -30,7 +58,10 @@ namespace Vulkan {
 			throw std::runtime_error("Fail to upload data textrue in texture array: layer index upload is using");
 		}
 		try {
-			inner_image.transition_image_layout(inner_image.layout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layer_index);
+			inner_image.transition_image_layout(
+				inner_image.get_descriptor_info(layer_index).imageLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				layer_index
+			);
 			inner_image.copy_image_data(inner_image.width, inner_image.height, data, layer_index);
 			inner_image.transition_image_layout(
 				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL

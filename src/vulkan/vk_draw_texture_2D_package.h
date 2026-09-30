@@ -20,6 +20,11 @@ namespace Vulkan {
 		std::array<glm::vec2, 4> tex_coord{{{0.f, 0.f}, {0.f, 0.f}, {0.f, 0.f}, {0.f, 0.f}}};
 		float rotation = 0.f;
 		float z_depth = 0.f;
+		/**
+		 * @Using for texture bucket
+		 */
+		int bucket_index = -1;
+		int slot_index = -1;
 		friend std::ostream& operator<<(std::ostream& os, const Texture_2D_Instance_Data& instance) {
 			std::vector<glm::vec2> tex_coord = {};
 			for (int i = 0; i < instance.tex_coord.size(); i++) {
@@ -28,7 +33,7 @@ namespace Vulkan {
 			os << "{Vertex: translation: " << instance.translation << ",  tex_size: " << instance.tex_size
 			   << ", anchor: " << instance.anchor << ", tex_coord: " << tex_coord << ", rotation: " << instance.rotation
 			   << ", z_depth: " << std::setprecision(std::numeric_limits<float>::max_digits10) << instance.z_depth
-			   << "}";
+			   << ", bucket_index: " << instance.bucket_index << ", slot_index: " << instance.slot_index << "}";
 			return os;
 		}
 	};
@@ -43,6 +48,7 @@ namespace Vulkan {
 
 		float* global_z_depth_2D = nullptr;
 		Texture_System* texture_system = nullptr;
+		std::vector<VkDescriptorSet> textures_bucket_descriptor_sets;
 
 		uint32_t texture_vertex_id = 0;
 		uint32_t texture_indices_id = 0;

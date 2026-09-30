@@ -133,7 +133,9 @@ namespace Vulkan {
 							this->descriptor_pools[i], 1, &this->descriptor_set_layouts[1], this->device
 						);
 						Descriptor_Set_Writer writer{};
-						writer.add_image_write(0, &view.image.descriptor, descriptor_sets[0]).write();
+						writer
+							.add_image_write(0, 1, &view.image.get_descriptor_info(view.slot_index), descriptor_sets[0])
+							.write();
 						texture_descriptor_sets.push_back(descriptor_sets[0]);
 					}
 					this->texture_descriptor_sets[primitive.texture_id] = std::move(texture_descriptor_sets);

@@ -87,41 +87,28 @@ namespace Vulkan {
 			return;
 		}
 
-		_global_thread_pool
-			->enqueue(
-				[](const std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data, VkBuffer src_buffer,
-				   const std::set<VkBuffer>& track_log_buffers) {
-					std::thread::id thread_id = std::this_thread::get_id();
-					VkCommandBuffer command_buffer = API::request_command_buffer();
-					VkFence fence = API::request_fence();
+		std::thread::id thread_id = std::this_thread::get_id();
+		VkCommandBuffer command_buffer = API::request_command_buffer();
+		VkFence fence = API::request_fence();
 
-					VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
-					vkBeginCommandBuffer(command_buffer, &begin_info);
-					for (auto& [dst_buffer, copied_ranges] : copied_data) {
-						if (track_log_buffers.find(dst_buffer) != track_log_buffers.end()) {
-							Log::info("Ring_Buffer::flush_frame", src_buffer, dst_buffer, copied_ranges);
-						}
-						vkCmdCopyBuffer(
-							command_buffer, src_buffer, dst_buffer, copied_ranges.size(), copied_ranges.data()
-						);
-					}
-					vkEndCommandBuffer(command_buffer);
-					VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
-
-					API::submit(submit_info, fence);
-					API::on_fence_success(
-						fence,
-						[](std::thread::id thread_id, VkCommandBuffer command_buffer, VkFence fence) {
-							API::release_command_buffer(command_buffer, thread_id);
-							API::release_fence(fence);
-						},
-						thread_id, command_buffer, fence
-					)
-						.get();
-				},
-				copied_data, inner_buffer.buffer, track_log_buffers
-			)
-			.get();
+		VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
+		vkBeginCommandBuffer(command_buffer, &begin_info);
+		for (auto& [dst_buffer, copied_ranges] : copied_data) {
+			if (track_log_buffers.find(dst_buffer) != track_log_buffers.end()) {
+				Log::info("Ring_Buffer::flush_frame", inner_buffer.buffer, dst_buffer, copied_ranges);
+			}
+			vkCmdCopyBuffer(
+				command_buffer, inner_buffer.buffer, dst_buffer, copied_ranges.size(), copied_ranges.data()
+			);
+		}
+		vkEndCommandBuffer(command_buffer);
+		VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
+		auto success = [](std::thread::id thread_id, VkCommandBuffer command_buffer, VkFence fence) {
+			API::release_command_buffer(command_buffer, thread_id);
+			API::release_fence(fence);
+		};
+		API::submit(submit_info, fence);
+		API::on_fence_success(fence, success, thread_id, command_buffer, fence).get();
 
 		queue_upload_transfer.clear();
 	}

@@ -148,35 +148,23 @@ namespace Vulkan {
 			vkUnmapMemory(src_buffer.device, src_buffer.memory);
 		} else {
 			VkBufferCopy region{0, 0, size};
-			_global_thread_pool
-				->enqueue(
-					[](Buffer& src, Buffer& dst, VkBufferCopy& region) {
-						std::thread::id thread_id = std::this_thread::get_id();
-						VkCommandBuffer command_buffer = API::request_command_buffer();
-						VkFence fence = API::request_fence();
+			std::thread::id thread_id = std::this_thread::get_id();
+			VkCommandBuffer command_buffer = API::request_command_buffer();
+			VkFence fence = API::request_fence();
 
-						VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
+			VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
 
-						vkBeginCommandBuffer(command_buffer, &begin_info);
-						vkCmdCopyBuffer(command_buffer, src.buffer, dst.buffer, 1, &region);
-						vkEndCommandBuffer(command_buffer);
+			vkBeginCommandBuffer(command_buffer, &begin_info);
+			vkCmdCopyBuffer(command_buffer, src_buffer.buffer, dst_buffer.buffer, 1, &region);
+			vkEndCommandBuffer(command_buffer);
 
-						VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
-
-						API::submit(submit_info, fence);
-						API::on_fence_success(
-							fence,
-							[](VkCommandBuffer command_buffer, std::thread::id thread_id, VkFence fence) {
-								API::release_command_buffer(command_buffer, thread_id);
-								API::release_fence(fence);
-							},
-							command_buffer, thread_id, fence
-						)
-							.get();
-					},
-					src_buffer, dst_buffer, region
-				)
-				.get();
+			VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
+			API::submit(submit_info, fence);
+			auto success = [](VkCommandBuffer command_buffer, std::thread::id thread_id, VkFence fence) {
+				API::release_command_buffer(command_buffer, thread_id);
+				API::release_fence(fence);
+			};
+			API::on_fence_success(fence, success, command_buffer, thread_id, fence).get();
 		}
 	}
 

@@ -220,18 +220,19 @@ namespace Vulkan {
 		}
 
 		inline VkImageView create_imageview_from_image(
-			VkImage image, const VkFormat& format, VkImageAspectFlags aspect_flags, VkDevice device
+			VkImage image, const VkFormat& format, VkImageAspectFlags aspect_flags, VkDevice device,
+			uint32_t layer_count = 1, VkImageViewType view_type = VK_IMAGE_VIEW_TYPE_2D
 		) {
 
 			VkImageViewCreateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 			create_info.image = image;
 			create_info.format = format;
-			create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+			create_info.viewType = view_type;
 			create_info.subresourceRange.aspectMask = aspect_flags;
 			create_info.subresourceRange.baseMipLevel = 0;
 			create_info.subresourceRange.baseArrayLayer = 0;
-			create_info.subresourceRange.layerCount = 1;
+			create_info.subresourceRange.layerCount = layer_count;
 			create_info.subresourceRange.levelCount = 1;
 
 			VkImageView image_view;
@@ -290,6 +291,8 @@ namespace Vulkan {
 		inline float calculate_z_depth_2D(float current_z_depth) {
 			return std::clamp(1.f - (current_z_depth / Const::MAX_Z_LAYER_2D), 0.f, 1.f);
 		}
+
+		glm::vec2 get_window_size();
 
 	} // namespace Utils
 

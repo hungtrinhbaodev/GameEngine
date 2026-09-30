@@ -18,6 +18,8 @@ layout (location = 8) in vec2 in_tex_coord2;
 layout (location = 9) in vec2 in_tex_coord3;
 layout (location = 10) in float in_rotation;
 layout (location = 11) in float in_z_depth;
+layout (location = 12) in int in_bucket_index;
+layout (location = 13) in int in_slot_index;
 
 layout (push_constant) uniform constants {
     layout(offset = 0) vec2 screen_size;
@@ -25,6 +27,8 @@ layout (push_constant) uniform constants {
 } push_constant;
 
 layout (location = 0) out vec2 frag_tex_coord;
+layout (location = 1) out flat int bucket_index;
+layout (location = 2) out flat int slot_index;
 
 vec2 norm_position(vec2 position) {
     return vec2(position.x / push_constant.screen_size.x, position.y / push_constant.screen_size.y);
@@ -52,4 +56,6 @@ void main() {
     vec2 rectangle_position = in_translation + rotate(in_rotation, translate_anchor);
     gl_Position = vec4(flipped_position(norm_position(rectangle_position)), in_z_depth, 1.f);
     frag_tex_coord = vec2(tex_coord[vertex_index].x, 1.f - tex_coord[vertex_index].y);
+    bucket_index = in_bucket_index;
+    slot_index = in_slot_index;
 }

@@ -274,7 +274,9 @@ namespace Vulkan {
 			global_staging_buffer->init(Const::MAX_FRAMES_IN_FLIGHT, Const::INITIALIZE_SIZE_STAGING_BUFFER);
 
 			// Initialize texture system to loading texture
-			texture_system.init(Const::TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_TEXTURE_PER_BUCKETS);
+			texture_system.init(
+				Const::TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_TEXTURE_PER_BUCKETS, device, descriptor_pools
+			);
 
 			// Initialize Vulkan static buffer to storage prototype like vertex data, index data,...
 			_init_static_buffers();

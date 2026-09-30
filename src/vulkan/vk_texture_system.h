@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <vulkan/vk_consts.h>
+#include <vulkan/vk_descriptor.h>
 #include <vulkan/vk_texture.h>
 #include <vulkan/vk_texture_array.h>
 #include <vulkan/vulkan.h>
@@ -15,20 +16,23 @@ namespace Vulkan {
 		std::string file = "";
 
 		Image image;
-	};
 
-	struct Texture_Storage_Info {
+		float width;
 
-		uint32_t bucket_index = 0;
-
-		uint32_t slot_index = 0;
+		float height;
 
 		Const::TEXTURE_STORAGE_MODE storage_mode = Const::TEXTURE_STORAGE_MODE::BUCKET;
 
-		Const::ASSETS_LOAD_STATE load_state = Const::ASSETS_LOAD_STATE::LOADED;
+		int bucket_index;
+
+		int slot_index;
 	};
 
 	struct Texture_System {
+
+		VkDevice device = VK_NULL_HANDLE;
+
+		std::vector<VkDescriptorPool> descriptor_pools;
 
 		std::vector<Texture_Array> texture_buckets;
 
@@ -44,19 +48,24 @@ namespace Vulkan {
 
 		std::map<uint32_t, Texture_View> ids_to_views;
 
-		std::map<uint32_t, Texture_Storage_Info> ids_to_storages;
+		void init(
+			std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets, VkDevice device,
+			std::vector<VkDescriptorPool> descriptor_pools
+		);
 
-		void init(std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets);
+		VkDescriptorSetLayout get_bucket_descriptor_set_layout();
+
+		std::vector<VkDescriptorSet> make_bucket_descriptor_sets(VkDescriptorSetLayout layout);
 
 		bool can_use_bucket(uint32_t width, uint32_t heihgt);
 
-		uint32_t load_texture(std::string file);
+		uint32_t load_texture(std::string file, bool use_bucket = false);
 
-		uint32_t load_texture(std::string file, void* pixels, int width, int height, int channels);
+		uint32_t load_texture(
+			std::string file, void* pixels, int width, int height, int channels, bool use_bucket = false
+		);
 
 		Texture_View view_texture(uint32_t id);
-
-		Texture_Storage_Info view_texture_storage_info(uint32_t id);
 
 		void remove_texture(uint32_t id);
 

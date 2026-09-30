@@ -30,11 +30,16 @@ namespace Vulkan {
 			.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Texture_2D_Instance_Data, anchor))
 			.add_array_vec2_attribute_description(1, offsetof(Texture_2D_Instance_Data, tex_coord), 4)
 			.add_attribute_description(1, VK_FORMAT_R32_SFLOAT, offsetof(Texture_2D_Instance_Data, rotation))
-			.add_attribute_description(1, VK_FORMAT_R32_SFLOAT, offsetof(Texture_2D_Instance_Data, z_depth));
+			.add_attribute_description(1, VK_FORMAT_R32_SFLOAT, offsetof(Texture_2D_Instance_Data, z_depth))
+			.add_attribute_description(1, VK_FORMAT_R32_SINT, offsetof(Texture_2D_Instance_Data, bucket_index))
+			.add_attribute_description(1, VK_FORMAT_R32_SINT, offsetof(Texture_2D_Instance_Data, slot_index));
 
 		Descriptor_Set_Layout_Builder layout_builder{};
 		layout_builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 		this->descriptor_set_layouts.push_back(layout_builder.build());
+		this->descriptor_set_layouts.push_back(this->texture_system->get_bucket_descriptor_set_layout());
+		this->textures_bucket_descriptor_sets =
+			this->texture_system->make_bucket_descriptor_sets(this->descriptor_set_layouts[2]);
 
 		this->pipeline_config.attribute_descriptions = vertex_builder.build_attribute_descriptions();
 		this->pipeline_config.vertex_descriptions = vertex_builder.build_binding_descriptions();
@@ -74,10 +79,17 @@ namespace Vulkan {
 		vkCmdBindVertexBuffers(
 			command_buffer, 1, 1, &this->texture_instance_buffer.inner_buffer.buffer, &instance_buffer_offset
 		);
-		glm::vec2 screen_size{swapchain_extent.width, swapchain_extent.height};
+		glm::vec2 screen_size = Utils::get_window_size();
 		vkCmdPushConstants(
 			command_buffer, pipeline_info.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
 			sizeof(glm::vec2), &screen_size
+		);
+		/**
+		 * Bind descriptor set for bucket texture.
+		 */
+		vkCmdBindDescriptorSets(
+			command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_info.layout, 2, 1,
+			&this->textures_bucket_descriptor_sets[frame_index], 0, VK_NULL_HANDLE
 		);
 		/**
 		 * Draw all textures.
@@ -90,12 +102,15 @@ namespace Vulkan {
 			offsetof(Push_Constants, texture_index_offset), sizeof(uint32_t), &texture_index_offset
 		);
 		for (const auto& [texture_id, instances] : this->texture_instance_by_id) {
-			std::vector<VkDescriptorSet>& descriptor_sets = this->texture_descriptor_sets_at_frame[texture_id];
-			VkDescriptorSet using_descriptor = descriptor_sets[frame_index];
-			vkCmdBindDescriptorSets(
-				command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_info.layout, 1, 1, &using_descriptor, 0,
-				VK_NULL_HANDLE
-			);
+			Texture_View texture_view = this->texture_system->view_texture(texture_id);
+			if (texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::INDIVIDUAL) {
+				std::vector<VkDescriptorSet>& descriptor_sets = this->texture_descriptor_sets_at_frame[texture_id];
+				VkDescriptorSet using_descriptor = descriptor_sets[frame_index];
+				vkCmdBindDescriptorSets(
+					command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_info.layout, 1, 1, &using_descriptor, 0,
+					VK_NULL_HANDLE
+				);
+			}
 			for (const auto instance_id : instances) {
 				uint32_t instance_index = this->texture_instance_buffer.get_index_by(instance_id);
 				vkCmdDrawIndexed(
@@ -128,27 +143,31 @@ namespace Vulkan {
 		std::string texture_path, glm::vec2 position, glm::vec2 scale, float rotation, glm::vec2 anchor,
 		Geometry::Texture_Rect_2D texture_rect
 	) {
-		uint32_t texture_id = this->texture_system->load_texture(::Utils::get_root_path() + texture_path);
+		uint32_t texture_id = this->texture_system->load_texture(::Utils::get_root_path() + texture_path, true);
 		Texture_View texture_view = this->texture_system->view_texture(texture_id);
-		if (this->texture_descriptor_sets_at_frame.find(texture_id) == this->texture_descriptor_sets_at_frame.end()) {
+		if (this->texture_descriptor_sets_at_frame.find(texture_id) == this->texture_descriptor_sets_at_frame.end() &&
+			texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::INDIVIDUAL) {
 			/**
 			 * Allocate new descriptor set to this new texture.
 			 */
 			std::vector<VkDescriptorSet> texture_descriptor_sets{};
 			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-				std::vector<VkDescriptorSet> texture_descriptor_set = Structs::make_descriptor_set(
+				VkDescriptorSet texture_descriptor_set = Structs::make_descriptor_set(
 					this->descriptor_pools[i], 1, &this->descriptor_set_layouts[1], this->device
-				);
+				)[0];
 				Descriptor_Set_Writer writer{};
-				writer.add_image_write(0, &texture_view.image.descriptor, texture_descriptor_set[0]).write();
-				texture_descriptor_sets.push_back(texture_descriptor_set[0]);
+				writer
+					.add_image_write(
+						0, 1, &texture_view.image.get_descriptor_info(texture_view.slot_index), texture_descriptor_set
+					)
+					.write();
+				texture_descriptor_sets.push_back(texture_descriptor_set);
 			}
 			this->texture_descriptor_sets_at_frame[texture_id] = texture_descriptor_sets;
 		}
 		glm::vec2 tex_size = {
 			texture_rect.ratio_width * texture_view.image.width, texture_rect.ratio_height * texture_view.image.height
 		};
-		float z_depth = Utils::calculate_z_depth_2D(*this->global_z_depth_2D);
 		Texture_2D_Instance_Data instance_data{
 			tex_size,
 			position,
@@ -157,6 +176,8 @@ namespace Vulkan {
 			Math::make_tex_coord_from(texture_rect),
 			rotation,
 			Utils::calculate_z_depth_2D(*this->global_z_depth_2D),
+			texture_view.bucket_index,
+			texture_view.slot_index
 		};
 		if (this->texture_instance_by_id.find(texture_id) == this->texture_instance_by_id.end()) {
 			this->texture_instance_by_id[texture_id] = {};
