@@ -135,7 +135,7 @@ namespace Vulkan {
 		stbi_uc* pixels = nullptr;
 		pixels = stbi_load(file.data(), &width, &height, &channels, STBI_rgb_alpha);
 		if (!pixels) {
-			throw std::runtime_error("Vulkan fail to load texture from file!");
+			throw std::runtime_error("Vulkan fail to load texture from file: " + file + "!");
 		}
 
 		// load texture with raw pixels

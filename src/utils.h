@@ -79,7 +79,7 @@ namespace Utils {
 		if (DEFAULT_PATH == "") {
 			DEFAULT_PATH = get_root().string();
 		}
-		return DEFAULT_PATH + "\\";
+		return DEFAULT_PATH + "/";
 	}
 
 	inline long now() {

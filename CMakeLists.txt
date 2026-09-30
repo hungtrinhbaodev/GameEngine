@@ -6,18 +6,31 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 
-set(GLM_DIR "D:/Dev/glm/")
-set(GLFW_DIR "D:/Dev/glfw-3.4.bin.WIN64/glfw-3.4.bin.WIN64")
 find_package(Vulkan REQUIRED)
-add_subdirectory(${GLM_DIR} ${CMAKE_BINARY_DIR}/glm_build)
+
+if(APPLE)
+    # brew install glfw glm molten-vk vulkan-headers vulkan-loader
+    find_package(glfw3 REQUIRED)
+    find_package(glm REQUIRED)
+else()
+    set(GLM_DIR "D:/Dev/glm/")
+    set(GLFW_DIR "D:/Dev/glfw-3.4.bin.WIN64/glfw-3.4.bin.WIN64")
+    add_subdirectory(${GLM_DIR} ${CMAKE_BINARY_DIR}/glm_build)
+endif()
 
 
 file(GLOB_RECURSE SOURCES "main.cpp" "src/*.cpp")
 add_executable(main ${SOURCES})
 
 target_compile_definitions(main PRIVATE $<$<CONFIG:Debug>:_DEBUG>)
-target_include_directories(main PRIVATE src vendor "${GLFW_DIR}/include/")
-target_link_libraries(main PRIVATE glm::glm Vulkan::Vulkan "${GLFW_DIR}/lib-mingw-w64/libglfw3.a")
+target_include_directories(main PRIVATE src vendor)
+
+if(APPLE)
+    target_link_libraries(main PRIVATE glm::glm Vulkan::Vulkan glfw)
+else()
+    target_include_directories(main PRIVATE "${GLFW_DIR}/include/")
+    target_link_libraries(main PRIVATE glm::glm Vulkan::Vulkan "${GLFW_DIR}/lib-mingw-w64/libglfw3.a")
+endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)
     
@@ -40,15 +53,15 @@ find_program(PYTHON_EXEC
     NAMES python python3
 )
 
-if(PYTHON_EXEC)
-    add_custom_target(sync_resource ALL
-        COMMAND ${PYTHON_EXEC}
-            "${CMAKE_SOURCE_DIR}/scripts/copy_res.py"
-            "${CMAKE_SOURCE_DIR}/res"
-            "$<TARGET_FILE_DIR:main>/res"
-        COMMENT "Syncing res and shader/ to build output..."
-    )
-    add_dependencies(sync_resource main)
-else()
-    message(WARNING "Python not found — res/ and shader/ will not be copied to build output.")
+if(NOT PYTHON_EXEC)
+    message(FATAL_ERROR "Python not found — required to compile shaders and copy res/ to build output.")
 endif()
+
+add_custom_target(sync_resource ALL
+    COMMAND ${PYTHON_EXEC}
+        "${CMAKE_SOURCE_DIR}/scripts/copy_res.py"
+        "${CMAKE_SOURCE_DIR}/res"
+        "$<TARGET_FILE_DIR:main>/res"
+    COMMENT "Syncing res and shader/ to build output..."
+)
+add_dependencies(sync_resource main)

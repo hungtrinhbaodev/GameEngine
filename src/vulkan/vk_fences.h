@@ -87,13 +87,16 @@ namespace Vulkan {
 	} // namespace Destroy
 
 	namespace API {
-		inline VkFence request_fence() {
+		inline VkFence request_fence(bool signaled = false) {
 			VkFence fence = _fences_pool.request_item();
-			vkResetFences(device, 1, &fence);
+			if (!signaled && vkGetFenceStatus(device, fence) == VK_SUCCESS) {
+				vkResetFences(device, 1, &fence);
+			}
 			return fence;
 		}
 
 		inline void release_fence(VkFence fence) {
+			vkResetFences(device, 1, &fence);
 			_fences_pool.pooling_item(fence);
 		}
 

@@ -167,7 +167,7 @@ namespace Vulkan {
 
 		void _request_draw_fences() {
 			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-				draw_fences.push_back(API::request_fence());
+				draw_fences.push_back(API::request_fence(true));
 			}
 			Log::info("Create draw fences successfully!");
 		}
