@@ -16,9 +16,11 @@ namespace Vulkan {
 
 	void Draw_Texture_2D_Package::init(
 		Ring_Buffer* global_staging_buffer, Static_Buffer* vertices_buffer, Static_Buffer* indices_buffer,
-		std::vector<Buffer>& uniform_buffers, float* global_z_depth_2D, Texture_System* texture_system
+		std::vector<Buffer>& uniform_buffers, float* global_z_depth_2D, Texture_System* texture_system,
+		bool using_texture_bucket
 	) {
 		Draw_Package::init(global_staging_buffer, vertices_buffer, indices_buffer, uniform_buffers);
+		this->using_texture_bucket = using_texture_bucket;
 		this->global_z_depth_2D = global_z_depth_2D;
 		this->texture_system = texture_system;
 
@@ -37,17 +39,34 @@ namespace Vulkan {
 		Descriptor_Set_Layout_Builder layout_builder{};
 		layout_builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 		this->descriptor_set_layouts.push_back(layout_builder.build());
-		this->descriptor_set_layouts.push_back(this->texture_system->get_bucket_descriptor_set_layout());
-		this->textures_bucket_descriptor_sets =
-			this->texture_system->make_bucket_descriptor_sets(this->descriptor_set_layouts[2]);
 
+		this->pipeline_config.vertex_shader_path = Const::PATH_VERT_SHADERD_DRAW_TEXTURE_2D;
+		this->pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_TEXTURE_2D;
+		/**
+		 * Set up descriptor to bucket texture.
+		 */
+		if (using_texture_bucket) {
+			this->descriptor_set_layouts.push_back(this->texture_system->get_bucket_descriptor_set_layout());
+			this->textures_bucket_descriptor_sets =
+				this->texture_system->make_bucket_descriptor_sets(this->descriptor_set_layouts[2]);
+			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+				VkDescriptorSet default_texture_descriptor_set = Structs::make_descriptor_set(
+					this->descriptor_pools[i], 1, &this->descriptor_set_layouts[1], this->device
+				)[0];
+				Texture_View texture_view =
+					this->texture_system->view_texture(this->texture_system->get_default_texture_id());
+				Descriptor_Set_Writer writer{};
+				writer.add_image_write(0, 1, &texture_view.image.get_descriptor_info(), default_texture_descriptor_set)
+					.write();
+				this->default_texture_descriptor_sets.push_back(default_texture_descriptor_set);
+			}
+			this->pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_TEXTURE_2D_USING_BUCKET;
+		}
 		this->pipeline_config.attribute_descriptions = vertex_builder.build_attribute_descriptions();
 		this->pipeline_config.vertex_descriptions = vertex_builder.build_binding_descriptions();
 		this->pipeline_config.descriptor_set_layouts = this->descriptor_set_layouts;
 		this->pipeline_config.depth_compare_op = VK_COMPARE_OP_LESS_OR_EQUAL;
 		this->pipeline_config.push_constants_size = sizeof(Push_Constants);
-		this->pipeline_config.vertex_shader_path = Const::PATH_VERT_SHADERD_DRAW_TEXTURE_2D;
-		this->pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_TEXTURE_2D;
 
 		this->pipeline_info.init(this->pipeline_config);
 		/**
@@ -87,10 +106,15 @@ namespace Vulkan {
 		/**
 		 * Bind descriptor set for bucket texture.
 		 */
-		vkCmdBindDescriptorSets(
-			command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_info.layout, 2, 1,
-			&this->textures_bucket_descriptor_sets[frame_index], 0, VK_NULL_HANDLE
-		);
+		if (this->using_texture_bucket) {
+			VkDescriptorSet bucket_descriptor_sets[2] = {
+				this->default_texture_descriptor_sets[frame_index], this->textures_bucket_descriptor_sets[frame_index]
+			};
+			vkCmdBindDescriptorSets(
+				command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_info.layout, 1, 2, bucket_descriptor_sets, 0,
+				VK_NULL_HANDLE
+			);
+		}
 		/**
 		 * Draw all textures.
 		 */
@@ -143,7 +167,8 @@ namespace Vulkan {
 		std::string texture_path, glm::vec2 position, glm::vec2 scale, float rotation, glm::vec2 anchor,
 		Geometry::Texture_Rect_2D texture_rect
 	) {
-		uint32_t texture_id = this->texture_system->load_texture(::Utils::get_root_path() + texture_path, true);
+		uint32_t texture_id =
+			this->texture_system->load_texture(::Utils::get_root_path() + texture_path, this->using_texture_bucket);
 		Texture_View texture_view = this->texture_system->view_texture(texture_id);
 		if (this->texture_descriptor_sets_at_frame.find(texture_id) == this->texture_descriptor_sets_at_frame.end() &&
 			texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::INDIVIDUAL) {
@@ -166,7 +191,7 @@ namespace Vulkan {
 			this->texture_descriptor_sets_at_frame[texture_id] = texture_descriptor_sets;
 		}
 		glm::vec2 tex_size = {
-			texture_rect.ratio_width * texture_view.image.width, texture_rect.ratio_height * texture_view.image.height
+			texture_rect.ratio_width * texture_view.width, texture_rect.ratio_height * texture_view.height
 		};
 		Texture_2D_Instance_Data instance_data{
 			tex_size,

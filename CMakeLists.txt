@@ -23,6 +23,7 @@ file(GLOB_RECURSE SOURCES "main.cpp" "src/*.cpp")
 add_executable(main ${SOURCES})
 
 target_compile_definitions(main PRIVATE $<$<CONFIG:Debug>:_DEBUG>)
+target_compile_definitions(main PRIVATE $<$<CONFIG:Debug>:_GLIBCXX_ASSERTIONS>)
 target_include_directories(main PRIVATE src vendor)
 
 if(APPLE)
@@ -33,18 +34,18 @@ else()
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)
-    
+
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
-    
+
     add_compile_definitions(_DEBUG)
 
     add_compile_options(/fsanitize=address /Zi)
-    
+
     add_link_options(
         "clang_rt.asan_dynamic-x86_64.lib"
         "clang_rt.asan_dynamic_runtime_thunk-x86_64.lib"
     )
-    
+
 endif()
 
 

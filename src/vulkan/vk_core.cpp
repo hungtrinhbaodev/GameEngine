@@ -134,7 +134,7 @@ namespace Vulkan {
 				draw_package->init(
 					global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D],
 					&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D], uniform_buffers,
-					&global_draw_2D_order, &texture_system
+					&global_draw_2D_order, &texture_system, Const::ENABLED_TEXTURE_BUCKETS
 				);
 				draw_packages[Const::DRAW_ID::DRAW_2D_RECTANGLE_WITH_TEXTURE] = draw_package;
 			}

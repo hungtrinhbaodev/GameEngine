@@ -10,12 +10,21 @@
 
 namespace Vulkan {
 
+	const std::string Texture_System::TEXTURE_DEFAULT_PATH = "Texture_System::TEXTURE_DEFAULT_PATH/**.png";
+
 	void Texture_System::init(
 		std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets, VkDevice device,
 		std::vector<VkDescriptorPool> descriptor_pools
 	) {
 		this->device = device;
 		this->descriptor_pools = descriptor_pools;
+
+		/**
+		 * @Note: Add texture default using to binding with the texture bucket or draw
+		 * 3D need draw for model with empty texture.
+		 */
+		uint8_t texture_default_bytes[4] = {255, 255, 255, 255};
+		default_texture_id = load_texture(TEXTURE_DEFAULT_PATH, texture_default_bytes, 1, 1, 4);
 
 		// @note: From now we disabled texture bucket to have full flow texture to test program first!
 		if (!Const::ENABLED_TEXTURE_BUCKETS)
@@ -38,9 +47,9 @@ namespace Vulkan {
 
 	VkDescriptorSetLayout Texture_System::get_bucket_descriptor_set_layout() {
 		Descriptor_Set_Layout_Builder layout_builder{};
-		layout_builder.add_binding(
-			0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texture_buckets.size(), VK_SHADER_STAGE_FRAGMENT_BIT
-		);
+		for (int i = 0; i < texture_buckets.size(); i++) {
+			layout_builder.add_binding(i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
+		}
 		return layout_builder.build();
 	}
 
@@ -53,7 +62,9 @@ namespace Vulkan {
 		for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
 			VkDescriptorSet descriptor_set = Structs::make_descriptor_set(descriptor_pools[i], 1, &layout, device)[0];
 			Descriptor_Set_Writer writer{};
-			writer.add_image_write(0, bucket_descriptors.size(), bucket_descriptors.data(), descriptor_set).write();
+			for (int j = 0; j < texture_buckets.size(); j++) {
+				writer.add_image_write(j, 1, &bucket_descriptors[j], descriptor_set).write();
+			}
 			descriptor_sets.push_back(descriptor_set);
 		}
 		return descriptor_sets;
@@ -188,6 +199,10 @@ namespace Vulkan {
 			return {""};
 		}
 		return ids_to_views[id];
+	}
+
+	uint32_t Texture_System::get_default_texture_id() {
+		return default_texture_id;
 	}
 
 	void Texture_System::remove_texture(uint32_t id) {

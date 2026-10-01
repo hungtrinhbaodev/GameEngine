@@ -30,15 +30,14 @@ namespace Vulkan {
 		VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
 		API::submit(submit_info, fence);
 		std::thread::id thread_id = std::this_thread::get_id();
-		auto result = API::on_fence_success(
-			fence,
-			[](std::thread::id thread_id, VkCommandBuffer command_buffer, VkFence fence) {
-				API::release_command_buffer(command_buffer, thread_id);
-				API::release_fence(fence);
-			},
-			thread_id, command_buffer, fence
-		);
-		result.get();
+		auto success = [this](std::thread::id thread_id, VkCommandBuffer command_buffer, VkFence fence) {
+			for (int i = 0; i < this->inner_image.array_layers; i++) {
+				this->inner_image.update_descriptor(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, i);
+			}
+			API::release_command_buffer(command_buffer, thread_id);
+			API::release_fence(fence);
+		};
+		return API::on_fence_success(fence, success, thread_id, command_buffer, fence).get();
 	}
 
 	int Texture_Array::find_availale_slot() const {

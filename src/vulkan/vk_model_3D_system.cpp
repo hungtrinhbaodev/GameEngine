@@ -3,10 +3,6 @@
 
 namespace Vulkan {
 
-	std::string Model_3D_System::DEFAULT_TEXTURE_PATH = "Model_3D_System::DEFAULT_TEXTURE_PATH::KEY";
-
-	uint32_t Model_3D_System::default_texture_id = -1;
-
 	glm::vec3 Model_Mesh_Information::get_mesh_origin() const {
 		return (this->max_bounding_box + this->min_bounding_box) * 0.5f;
 	}
@@ -17,12 +13,6 @@ namespace Vulkan {
 		this->global_vertex_buffer = global_vertex_buffer;
 		this->global_indices_buffer = global_indices_buffer;
 		this->texture_system = texture_system;
-		/**
-		 * Make a default texture full white 1x1 pixel.
-		 */
-		uint8_t default_texture_bytes[4] = {255, 255, 255, 255};
-		this->default_texture_id =
-			this->texture_system->load_texture(DEFAULT_TEXTURE_PATH, default_texture_bytes, 1, 1, 4);
 	}
 
 	uint32_t Model_3D_System::load_model(std::string path) {
@@ -50,7 +40,7 @@ namespace Vulkan {
 					sizeof(uint32_t) * primitive.indices.size(), primitive.indices.data()
 				);
 				std::string texture = model.get_primitive_texture_path(mesh_index, primitive_index);
-				uint32_t texture_id = this->default_texture_id;
+				uint32_t texture_id = this->texture_system->get_default_texture_id();
 				if (texture != "") {
 					texture_id = this->texture_system->load_texture(texture);
 				}

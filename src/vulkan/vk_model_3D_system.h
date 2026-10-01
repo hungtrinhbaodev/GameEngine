@@ -28,10 +28,6 @@ namespace Vulkan {
 
 	struct Model_3D_System {
 
-		static std::string DEFAULT_TEXTURE_PATH;
-
-		static uint32_t default_texture_id;
-
 		Static_Buffer* global_vertex_buffer = nullptr;
 
 		Static_Buffer* global_indices_buffer = nullptr;

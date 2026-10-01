@@ -16,6 +16,7 @@ namespace Vulkan {
 	Image::Image(const Image& other) {
 		width = other.width;
 		height = other.height;
+		image = other.image;
 		view = other.view;
 		format = other.format;
 		sampler = other.sampler;

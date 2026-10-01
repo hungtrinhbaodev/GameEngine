@@ -46,11 +46,11 @@ namespace Vulkan {
 			LOADED = 1
 		};
 
-		const inline bool ENABLED_TEXTURE_BUCKETS = false;
+		const inline bool ENABLED_TEXTURE_BUCKETS = true;
 
-		const inline std::vector<uint32_t> TEXTURE_BUCKET_SIZES{{32, 64, 128, 256, 512, 1024, 2048}};
+		const inline std::vector<uint32_t> TEXTURE_BUCKET_SIZES{{16, 32, 64, 128, 256, 512, 1024, 2048}};
 
-		const inline std::vector<uint32_t> NUMBER_LAYER_TEXTURE_PER_BUCKETS{{256, 64, 64, 32, 32, 16, 4}};
+		const inline std::vector<uint32_t> NUMBER_LAYER_TEXTURE_PER_BUCKETS{{128, 128, 64, 64, 64, 32, 16, 4}};
 
 		enum DRAW_ID {
 			DRAW_2D_MESH,					// draw primitive with raw color that user input.
@@ -86,6 +86,9 @@ namespace Vulkan {
 
 		const inline std::string PATH_FRAG_SHADERD_DRAW_TEXTURE_2D =
 			"res/shader/draw_texture_2D/fragment_shader.frag.spv";
+
+		const inline std::string PATH_FRAG_SHADERD_DRAW_TEXTURE_2D_USING_BUCKET =
+			"res/shader/draw_texture_2D/fragment_shader_using_bucket.frag.spv";
 
 		const inline std::string PATH_VERT_SHADERD_DRAW_MODEL_3D = "res/shader/draw_model_3D/vert_shader.vert.spv";
 

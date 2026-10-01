@@ -88,7 +88,7 @@ namespace Vulkan {
 				create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 				create_info.poolSizeCount = pool_size.size();
 				create_info.pPoolSizes = pool_size.data();
-				create_info.maxSets = 50;
+				create_info.maxSets = 9997;
 
 				VkDescriptorPool pool{};
 				Utils::vk_check_result(

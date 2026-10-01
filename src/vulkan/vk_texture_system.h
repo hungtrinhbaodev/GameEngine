@@ -30,6 +30,8 @@ namespace Vulkan {
 
 	struct Texture_System {
 
+		static const std::string TEXTURE_DEFAULT_PATH;
+
 		VkDevice device = VK_NULL_HANDLE;
 
 		std::vector<VkDescriptorPool> descriptor_pools;
@@ -47,6 +49,8 @@ namespace Vulkan {
 		std::map<uint32_t, std::string> ids_to_files;
 
 		std::map<uint32_t, Texture_View> ids_to_views;
+
+		uint32_t default_texture_id = 0;
 
 		void init(
 			std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets, VkDevice device,
@@ -66,6 +70,8 @@ namespace Vulkan {
 		);
 
 		Texture_View view_texture(uint32_t id);
+
+		uint32_t get_default_texture_id();
 
 		void remove_texture(uint32_t id);
 

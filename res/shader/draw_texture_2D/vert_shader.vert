@@ -27,8 +27,8 @@ layout (push_constant) uniform constants {
 } push_constant;
 
 layout (location = 0) out vec2 frag_tex_coord;
-layout (location = 1) out flat int bucket_index;
-layout (location = 2) out flat int slot_index;
+layout (location = 1) out int bucket_index;
+layout (location = 2) out int slot_index;
 
 vec2 norm_position(vec2 position) {
     return vec2(position.x / push_constant.screen_size.x, position.y / push_constant.screen_size.y);

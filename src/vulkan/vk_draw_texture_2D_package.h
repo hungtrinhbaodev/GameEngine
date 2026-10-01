@@ -46,9 +46,11 @@ namespace Vulkan {
 		static std::vector<Vertex_2D> TEXTRUE_MAPPING_VERTICES;
 		static std::vector<uint16_t> TEXTURE_MAPPING_INDICES;
 
+		bool using_texture_bucket = false;
 		float* global_z_depth_2D = nullptr;
 		Texture_System* texture_system = nullptr;
 		std::vector<VkDescriptorSet> textures_bucket_descriptor_sets;
+		std::vector<VkDescriptorSet> default_texture_descriptor_sets;
 
 		uint32_t texture_vertex_id = 0;
 		uint32_t texture_indices_id = 0;
@@ -58,7 +60,8 @@ namespace Vulkan {
 
 		void init(
 			Ring_Buffer* global_staging_buffer, Static_Buffer* vertices_buffer, Static_Buffer* indices_buffer,
-			std::vector<Buffer>& uniform_buffers, float* global_z_depth_2D, Texture_System* texture_system
+			std::vector<Buffer>& uniform_buffers, float* global_z_depth_2D, Texture_System* texture_system,
+			bool using_texture_bucket
 		);
 		void setup_first_frame() override;
 		void flush_data() override;
