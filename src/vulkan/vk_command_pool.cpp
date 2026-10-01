@@ -7,6 +7,8 @@
 
 namespace Vulkan {
 
+	std::unordered_map<uint64_t, std::shared_ptr<_Command_Pool_Thread>> _command_pool_threads;
+
 	VkCommandBuffer _Command_Pool_Thread::_create_item() {
 
 		VkCommandBuffer command_buffer = VK_NULL_HANDLE;

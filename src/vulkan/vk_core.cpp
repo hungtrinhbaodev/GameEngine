@@ -190,24 +190,22 @@ namespace Vulkan {
 			/**
 			 * Init vertex static buffer to specific layout 2D and 3D vertex
 			 */
-			auto make_static_buffer = [](VkBufferUsageFlagBits buffer_flags, bool track_log) {
+			auto make_static_buffer = [](VkBufferUsageFlagBits buffer_flags) {
 				Static_Buffer vertex_buffer{};
-				vertex_buffer.init(
-					global_staging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE, buffer_flags, track_log
-				);
+				vertex_buffer.init(global_staging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE, buffer_flags);
 				return vertex_buffer;
 			};
 			global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D] =
-				make_static_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, false);
+				make_static_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 			global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D] =
-				make_static_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, true);
+				make_static_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 			/**
 			 * Initialize indices buffer using to all layout vertex
 			 */
 			global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D] =
-				make_static_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, false);
+				make_static_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 			global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D] =
-				make_static_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, true);
+				make_static_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 		}
 
 		void init_vulkan_core(

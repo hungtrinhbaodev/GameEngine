@@ -40,15 +40,13 @@ namespace Vulkan {
 
 		std::vector<Ring_Buffer_Allocate_Info> queue_upload_transfer;
 
-		std::set<VkBuffer> track_log_buffers;
-
 		void init(int max_frame, uint32_t initialize_size);
 
 		void start_frame(int current_fame);
 
 		void update_dst_buffer_transfer(VkBuffer from, VkBuffer to);
 
-		void upload_data(VkBuffer dst_buffer, uint32_t dst_offset, uint32_t size, void* data, bool track_log = false);
+		void upload_data(VkBuffer dst_buffer, uint32_t dst_offset, uint32_t size, void* data);
 
 		void flush_frame();
 

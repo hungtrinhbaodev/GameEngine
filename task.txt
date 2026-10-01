@@ -3,6 +3,6 @@
 []: Add static device buffer to storage instancing data each draw call.
 []: Add pipeline draw all primitive geomentries like rectangle, triangle, circle, line, box, pile, cube,...
 
-[]: Add full flow texture system load with mipmap and bucket.
+[Done]: Add full flow texture system load with mipmap and bucket.
 []: Set up one SSBO buffer and one Instance buffer to every draw call.
 []: Add draw font to 2D.

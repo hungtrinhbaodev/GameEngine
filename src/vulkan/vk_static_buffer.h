@@ -18,14 +18,12 @@ namespace Vulkan {
 
 		uint32_t size;
 
-		uint32_t using_size;
-
-		template <typename T> uint32_t size_as() { return using_size / sizeof(T); }
+		template <typename T> uint32_t size_as() { return size / sizeof(T); }
 
 		template <typename T> uint32_t offset_as() { return offset / sizeof(T); }
 
 		friend std::ostream& operator<<(std::ostream& os, const Static_Buffer_Range& range) {
-			os << "Offset: " << range.offset << " Size: " << range.size << " Using size: " << range.using_size;
+			os << "Offset: " << range.offset << " Size: " << range.size;
 			return os;
 		}
 	};
@@ -59,13 +57,11 @@ namespace Vulkan {
 
 		Ring_Buffer* staging_buffer;
 
-		std::vector<Static_Buffer_Range> ranges_can_use;
-
 		bool track_log = false;
 
 		void init(
 			Ring_Buffer* global_staging_buffer, uint32_t initialize_size,
-			VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bool track_log = false
+			VkBufferUsageFlags usage_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT
 		);
 
 		uint32_t upload_data(uint32_t size, void* data);

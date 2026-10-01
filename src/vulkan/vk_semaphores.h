@@ -10,8 +10,6 @@ namespace Vulkan {
 		void _delete_item(VkSemaphore& item) override;
 	};
 
-	extern _Semaphore_Pool _semaphore_pool;
-
 	namespace API {
 
 		VkSemaphore request_semaphore();

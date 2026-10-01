@@ -7,3 +7,13 @@ Draw information contain:
     - Instancing buffer if need.
 * Function:
     - draw bind vertex, index buffer to draw.
+* Draw 2D all material: 
+ - Draw type (pipeline).
+ - Resource using in that type (texture bucket or individual, font resource ???).
+ - From draw object id we query:
+    - draw type id.
+    - draw material unique id (resource need to using in that type example texture bucket or texture individual).
+    - draw instancing id.
+ - Each draw component (draw type) need to implement the unique material id.
+    - Texture draw material unique id will have storage mode and individual texture id.
+    - Triangle, Rectangle and Cirle or other geometry 2D.

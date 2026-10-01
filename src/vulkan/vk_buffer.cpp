@@ -25,6 +25,8 @@ namespace Vulkan {
 		descriptor = other.descriptor;
 	};
 
+	Buffer::~Buffer() {}
+
 	void Buffer::make_buffer(
 		uint32_t size, VkBufferUsageFlags usage_flags, VkMemoryPropertyFlags property_flags,
 		VkPhysicalDevice physical_device, VkDevice device

@@ -294,6 +294,10 @@ namespace Vulkan {
 
 		glm::vec2 get_window_size();
 
+		void copy_data_to_multi_buffer(
+			VkBuffer src_buffer, const std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data
+		);
+
 	} // namespace Utils
 
 } // namespace Vulkan

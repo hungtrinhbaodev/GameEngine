@@ -64,21 +64,21 @@ int main() {
 		Vulkan::Process::start_frame();
 
 		// TODO: logic of all component will be place here in future.
-		// Vulkan::API::draw_triangle_2D({220.f, 100.f}, {400.f, 160.f}, {320.f, 110.f}, {1.f, 0.f, 0.f});
-		// Vulkan::API::draw_triangle_2D({100.f, 100.f}, {130.f, 140.f}, {155.f, 120.f}, {1.f, 0.f, 0.f});
-		// Vulkan::API::draw_rectangle_2D(100.f, 200.f, 200.f, 100.f, {0.f, 1.f, 0.f}, 30.f, {0.2f, 0.5f});
-		// Vulkan::API::draw_triangle_2D({300.f, 450.f}, {500.f, 600.f}, {580.f, 120.f}, {1.f, 0.f, 0.f});
-		// Vulkan::API::draw_rectangle_2D(150.f, 250.f, 250.f, 300.f, {0.f, 0.f, 1.f});
+		Vulkan::API::draw_triangle_2D({220.f, 100.f}, {400.f, 160.f}, {320.f, 110.f}, {1.f, 0.f, 0.f});
+		Vulkan::API::draw_triangle_2D({100.f, 100.f}, {130.f, 140.f}, {155.f, 120.f}, {1.f, 0.f, 0.f});
+		Vulkan::API::draw_rectangle_2D(100.f, 200.f, 200.f, 100.f, {0.f, 1.f, 0.f}, 30.f, {0.2f, 0.5f});
+		Vulkan::API::draw_triangle_2D({300.f, 450.f}, {500.f, 600.f}, {580.f, 120.f}, {1.f, 0.f, 0.f});
+		Vulkan::API::draw_rectangle_2D(150.f, 250.f, 250.f, 300.f, {0.f, 0.f, 1.f});
 
-		// Vulkan::API::draw_rectangle_2D(320.f, 300.f, 121.f, 126.f, {0.f, 1.f, 0.f}, 0.f, {0.f, 0.f});
+		Vulkan::API::draw_rectangle_2D(320.f, 300.f, 121.f, 126.f, {0.f, 1.f, 0.f}, 0.f, {0.f, 0.f});
 		for (int i = 0; i < texture_positions.size(); i++) {
 			const std::string& path = texture_paths[i];
 			Vulkan::API::draw_texture_2D(path, texture_positions[i], {1.f, 1.f}, 0.f, {0.5, 0.5});
 		}
-		// for (const glm::vec3& position : model_positions) {
-		// 	Vulkan::API::draw_model_3D("res/CesiumMan.gltf", {-0.7f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {0.f, 0.f, 0.f});
-		// 	Vulkan::API::draw_model_3D("res/cat 7.glb", {0.7f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {0.f, 0.f, 0.f});
-		// }
+		for (const glm::vec3& position : model_positions) {
+			Vulkan::API::draw_model_3D("res/CesiumMan.gltf", {-0.7f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {0.f, 0.f, 0.f});
+			Vulkan::API::draw_model_3D("res/cat 7.glb", {0.7f, 0.f, 0.f}, {1.f, 1.f, 1.f}, {0.f, 0.f, 0.f});
+		}
 
 		// Draw all information of this current frame.
 		Vulkan::Process::draw_frame();

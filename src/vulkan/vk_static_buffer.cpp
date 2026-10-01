@@ -4,7 +4,7 @@
 namespace Vulkan {
 
 	void Static_Buffer::init(
-		Ring_Buffer* global_staging_buffer, uint32_t initialize_size, VkBufferUsageFlags usage_flags, bool track_log
+		Ring_Buffer* global_staging_buffer, uint32_t initialize_size, VkBufferUsageFlags usage_flags
 	) {
 
 		available_size = initialize_size;
@@ -14,7 +14,6 @@ namespace Vulkan {
 
 		id_counter = 0;
 		current_offset = 0;
-		this->track_log = track_log;
 	}
 
 	uint32_t Static_Buffer::upload_data(uint32_t size, void* data) {
@@ -27,26 +26,19 @@ namespace Vulkan {
 			id = id_counter++;
 		}
 
-		Static_Buffer_Range using_range{0, 0, 0};
+		Static_Buffer_Range using_range{0, 0};
 		if (available_ranges.size() > 0 && available_ranges.top().size >= size) {
-
-			ranges_can_use.clear();
-			while (available_ranges.size() > 0 && available_ranges.top().size >= size) {
-				ranges_can_use.push_back(available_ranges.top());
-				available_ranges.pop();
+			Static_Buffer_Range optimal_range = available_ranges.top();
+			available_ranges.pop();
+			if (optimal_range.size > size) {
+				Static_Buffer_Range remain_range{optimal_range.offset + size, optimal_range.size - size};
+				available_ranges.push(remain_range);
+				optimal_range.size = size;
 			}
-
-			Static_Buffer_Range optimal_range = ranges_can_use.back();
-			ranges_can_use.pop_back();
 			using_range = optimal_range;
-			using_range.using_size = size;
-
-			for (int i = 0; i < ranges_can_use.size(); i++) {
-				available_ranges.push(ranges_can_use[i]);
-			}
 
 		} else {
-			using_range = {current_offset, size, size};
+			using_range = {current_offset, size};
 			if (current_offset + size > available_size) {
 				available_size = (uint32_t)((current_offset + size) * 1.5f);
 				VkBuffer current_buffer = inner_buffer.buffer;
@@ -58,7 +50,7 @@ namespace Vulkan {
 		}
 
 		ranges_by_id[id] = using_range;
-		staging_buffer->upload_data(inner_buffer.buffer, using_range.offset, size, data, this->track_log);
+		staging_buffer->upload_data(inner_buffer.buffer, using_range.offset, size, data);
 
 		if (id < 0) {
 			throw std::runtime_error("Vulkan fail to upload static data: fail to get id!");

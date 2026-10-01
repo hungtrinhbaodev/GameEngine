@@ -1,6 +1,8 @@
 #pragma once
+#include <id_generator.h>
 #include <vulkan/vulkan.h>
 
+#include <map>
 #include <vector>
 
 namespace Vulkan {
@@ -26,6 +28,8 @@ namespace Vulkan {
 		Buffer();
 
 		Buffer(const Buffer& other);
+
+		~Buffer();
 
 		void make_buffer(
 			uint32_t size, VkBufferUsageFlags usage_flags, VkMemoryPropertyFlags property_flags,

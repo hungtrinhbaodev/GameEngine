@@ -55,7 +55,11 @@ namespace Vulkan {
 		enum DRAW_ID {
 			DRAW_2D_MESH,					// draw primitive with raw color that user input.
 			DRAW_2D_RECTANGLE_WITH_TEXTURE, // draw a rectange with texture (ui image, sprite object, ...).
-			DRAW_3D_MODEL
+			DRAW_3D_MODEL,
+			DRAW_RECTANGLE_2D,
+			DRAW_TRIANGLE_2D,
+			DRAW_TEXTURE_2D,
+			UNDEFINED
 		};
 
 		enum VERTEX_BUFFER_TYPE {
