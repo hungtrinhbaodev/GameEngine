@@ -389,38 +389,38 @@ namespace Vulkan {
 
 				vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 				{
-					Const::VERTEX_BUFFER_TYPE current_vertex_buffer_type = Const::VERTEX_BUFFER_TYPE::NONE;
-					for (auto& [draw_id, draw_package] : draw_packages) {
-						/**
-						 * Bind vertex buffer that using in all pipeline at a first binding position
-						 */
-						Const::VERTEX_BUFFER_TYPE pipeline_vertex_buffer_type = draw_package->get_using_vertex_type();
-						if (pipeline_vertex_buffer_type != current_vertex_buffer_type) {
-							Static_Buffer& pipeline_vertex_buffer = global_vertex_buffers[pipeline_vertex_buffer_type];
-							Static_Buffer& pipeline_indices_buffer =
-								global_indices_buffers[pipeline_vertex_buffer_type];
-							VkDeviceSize binding_offset = 0;
-							VkIndexType buffer_index_type = VK_INDEX_TYPE_UINT16;
-							/**
-							 * @Note: with 3D layout vertex we use uint32_t indices
-							 * type to make with gltf and other 3D format model
-							 */
-							if (pipeline_vertex_buffer_type == Const::VERTEX_BUFFER_TYPE::VERTEX_3D) {
-								buffer_index_type = VK_INDEX_TYPE_UINT32;
-							}
-							vkCmdBindIndexBuffer(
-								command_buffer, pipeline_indices_buffer.inner_buffer.buffer, 0, buffer_index_type
-							);
-							vkCmdBindVertexBuffers(
-								command_buffer, 0, 1, &pipeline_vertex_buffer.inner_buffer.buffer, &binding_offset
-							);
-							current_vertex_buffer_type = pipeline_vertex_buffer_type;
-						}
-						/**
-						 * Draw specific type of graphic by draw package
-						 */
-						draw_package->draw(command_buffer, swapchain_extent, current_frame);
-					}
+					// 	Const::VERTEX_BUFFER_TYPE current_vertex_buffer_type = Const::VERTEX_BUFFER_TYPE::NONE;
+					// 	for (auto& [draw_id, draw_package] : draw_packages) {
+					// 		/**
+					// 		 * Bind vertex buffer that using in all pipeline at a first binding position
+					// 		 */
+					// 		Const::VERTEX_BUFFER_TYPE pipeline_vertex_buffer_type =
+					// draw_package->get_using_vertex_type(); 		if (pipeline_vertex_buffer_type !=
+					// current_vertex_buffer_type) { 			Static_Buffer& pipeline_vertex_buffer =
+					// global_vertex_buffers[pipeline_vertex_buffer_type]; 			Static_Buffer&
+					// pipeline_indices_buffer = 				global_indices_buffers[pipeline_vertex_buffer_type];
+					// VkDeviceSize binding_offset = 0; 			VkIndexType buffer_index_type =
+					// VK_INDEX_TYPE_UINT16;
+					// 			/**
+					// 			 * @Note: with 3D layout vertex we use uint32_t indices
+					// 			 * type to make with gltf and other 3D format model
+					// 			 */
+					// 			if (pipeline_vertex_buffer_type == Const::VERTEX_BUFFER_TYPE::VERTEX_3D) {
+					// 				buffer_index_type = VK_INDEX_TYPE_UINT32;
+					// 			}
+					// 			vkCmdBindIndexBuffer(
+					// 				command_buffer, pipeline_indices_buffer.inner_buffer.buffer, 0, buffer_index_type
+					// 			);
+					// 			vkCmdBindVertexBuffers(
+					// 				command_buffer, 0, 1, &pipeline_vertex_buffer.inner_buffer.buffer, &binding_offset
+					// 			);
+					// 			current_vertex_buffer_type = pipeline_vertex_buffer_type;
+					// 		}
+					// 		/**
+					// 		 * Draw specific type of graphic by draw package
+					// 		 */
+					// 		draw_package->draw(command_buffer, swapchain_extent, current_frame);
+					// 	}
 					Draw_2D::draw(command_buffer);
 				}
 				vkCmdEndRenderPass(command_buffer);

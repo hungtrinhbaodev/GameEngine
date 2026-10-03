@@ -83,8 +83,8 @@ namespace Vulkan {
 
 				pipeline.init(pipeline_config);
 
-				Static_Buffer& vertex_buffer = get_vertex_buffer();
-				Static_Buffer& indices_buffer = get_indices_buffer();
+				Static_Buffer& vertex_buffer = get_vertex_buffer(sizeof(Geometry::Vertex_2D));
+				Static_Buffer& indices_buffer = get_indices_buffer(sizeof(uint16_t));
 				vertex_id = vertex_buffer.upload_data(
 					sizeof(Geometry::Vertex_2D) * RECTANGLE_VERTICES.size(), RECTANGLE_VERTICES.data()
 				);
@@ -114,24 +114,26 @@ namespace Vulkan {
 				VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t number_instance,
 				uint32_t first_instance_offset
 			) {
-				vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.pipeline);
-				Static_Buffer& indices_buffer = get_indices_buffer();
+				Static_Buffer& indices_buffer = get_indices_buffer(sizeof(uint16_t));
+				Static_Buffer& vertex_buffer = get_vertex_buffer(sizeof(Geometry::Vertex_2D));
 				Static_Buffer_Range indices_range = indices_buffer.view_slot_info(indices_id);
-				vkCmdBindIndexBuffer(
-					command_buffer, indices_buffer.inner_buffer.buffer, indices_range.offset, VK_INDEX_TYPE_UINT16
-				);
+				Static_Buffer_Range vertex_range = vertex_buffer.view_slot_info(vertex_id);
+				Buffer instance_buffer = get_instance_buffer();
 				glm::vec2 screen_size = Utils::get_window_size();
 				vkCmdPushConstants(
 					command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
 					offsetof(Push_Constants, screen_size), sizeof(glm::vec2), &screen_size
 				);
-				Buffer instance_buffer = get_instance_buffer();
-				Static_Buffer& vertex_buffer = get_vertex_buffer();
-				Static_Buffer_Range vertex_range = vertex_buffer.view_slot_info(vertex_id);
-				VkBuffer binding_buffers[] = {vertex_buffer.inner_buffer.buffer, instance_buffer.buffer};
-				VkDeviceSize buffer_offsets[] = {vertex_range.offset, first_instance_offset};
-				vkCmdBindVertexBuffers(command_buffer, 0, 2, binding_buffers, buffer_offsets);
-				vkCmdDrawIndexed(command_buffer, indices_range.size_as<uint16_t>(), number_instance, 0, 0, 0);
+				VkBuffer binding_buffers[2] = {vertex_buffer.inner_buffer.buffer, instance_buffer.buffer};
+				VkDeviceSize buffer_offsets[2] = {0, first_instance_offset};
+				bind_draw_resource(
+					command_buffer, pipeline.pipeline, pipeline.layout, indices_buffer.inner_buffer.buffer, 0,
+					VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, 0, nullptr
+				);
+				vkCmdDrawIndexed(
+					command_buffer, indices_range.size_as<uint16_t>(), number_instance,
+					indices_range.offset_as<uint16_t>(), vertex_range.offset_as<Geometry::Vertex_2D>(), 0
+				);
 			}
 
 			void destroy() {

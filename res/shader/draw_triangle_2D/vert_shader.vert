@@ -11,6 +11,7 @@ layout (location = 0) out vec3 frag_color;
 
 layout (push_constant) uniform constants {
     layout (offset = 0) vec2 screen_size;
+    layout (offset = 8) int vertex_offset;
 } push_constant;
 
 vec2 norm_position(vec2 position) {
@@ -40,7 +41,7 @@ vec2 map_vertex_point(int index) {
 }
 
 void main() {
-    vec2 point_position = in_position + map_vertex_point(gl_VertexIndex);
+    vec2 point_position = in_position + map_vertex_point(gl_VertexIndex - push_constant.vertex_offset);
     gl_Position = vec4(flipped_position(norm_position(point_position)), 0.f, 1.f);
     frag_color = in_color;
 }

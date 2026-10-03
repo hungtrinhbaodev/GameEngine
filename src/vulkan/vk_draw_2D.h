@@ -37,6 +37,11 @@ namespace Vulkan {
 			uint32_t create_index = 0;
 		};
 
+		/**
+		 * @Note: using to debug.
+		 */
+		extern long long frame_count;
+
 		void init();
 
 		void draw(VkCommandBuffer command_buffer);
@@ -45,11 +50,18 @@ namespace Vulkan {
 
 		SSBO_Buffer& get_ssbo();
 
-		Static_Buffer& get_vertex_buffer();
+		Static_Buffer& get_vertex_buffer(size_t vertex_size);
 
-		Static_Buffer& get_indices_buffer();
+		Static_Buffer& get_indices_buffer(size_t indices_size);
 
 		Buffer& get_instance_buffer();
+
+		void bind_draw_resource(
+			VkCommandBuffer command_buffer, VkPipeline pipeline, VkPipelineLayout pipline_layout,
+			VkBuffer indices_buffer, uint32_t indices_offset, VkIndexType index_type, uint32_t number_vertex_buffer,
+			VkBuffer* binding_vertex_buffers, VkDeviceSize* vertex_buffer_offsets, uint32_t number_descriptor,
+			VkDescriptorSet* binding_descriptor_sets
+		);
 
 		uint32_t make_rectange(const Draw_2D_Attribute& draw_attributes, Rectangle_Attributes rectangle_attributes);
 

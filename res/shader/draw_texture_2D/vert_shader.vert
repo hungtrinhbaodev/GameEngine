@@ -13,6 +13,7 @@ layout (location = 8) in int in_slot_index;
 
 layout (push_constant) uniform constants {
     layout(offset = 0) vec2 screen_size;
+    layout(offset = 8) int vertex_offset;
 } push_constant;
 
 layout (location = 0) out vec2 frag_tex_coord;
@@ -57,7 +58,7 @@ void main() {
     vec2 translate_anchor = (in_position - in_anchor_point) * in_tex_size * in_scale;
     vec2 rectangle_position = in_translation + rotate(in_rotation, translate_anchor);
     gl_Position = vec4(flipped_position(norm_position(rectangle_position)), 0.f, 1.f);
-    vec2 mapped_tex_coord = map_tex_coord(gl_VertexIndex);
+    vec2 mapped_tex_coord = map_tex_coord(gl_VertexIndex - push_constant.vertex_offset);
     frag_tex_coord = vec2(mapped_tex_coord.x, 1.f - mapped_tex_coord.y);
     bucket_index = in_bucket_index;
     slot_index = in_slot_index;

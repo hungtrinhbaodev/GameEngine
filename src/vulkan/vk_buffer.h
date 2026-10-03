@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include <map>
+#include <utils.h>
 #include <vector>
 
 namespace Vulkan {
@@ -47,6 +48,11 @@ namespace Vulkan {
 		bool is_host_visible_buffer() const;
 
 		std::vector<char> parse_buffer(int offset = 0, int parse_size = -1) const;
+
+		template <typename T> inline std::vector<T> parse_to(int offset, int parse_size, int number_instance) {
+			auto bytes = parse_buffer(offset, parse_size);
+			return ::Utils::parse_char<T>(bytes, number_instance);
+		}
 
 		static void copy_buffer(
 			Buffer src_buffer, Buffer dst_buffer, uint32_t src_offset, uint32_t dst_offset, uint32_t size

@@ -57,31 +57,31 @@ int main() {
 		textures.push_back(Vulkan::Draw_2D::make_texture_2D(draw_attributes, texture_attributes));
 	}
 
-	std::vector<uint32_t> triangles{};
-	Vulkan::Draw_2D_Attribute triangle_draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
-	Vulkan::Triangle_Attribultes triangle_attributes{
-		{220.f, 100.f},
-		{400.f, 160.f},
-		{320.f, 110.f},
-		{Math::random_float(), Math::random_float(), Math::random_float()}
-	};
-	triangles.push_back(Vulkan::Draw_2D::make_triangle(triangle_draw_attributes, triangle_attributes));
-	triangle_draw_attributes = {(uint32_t)Math::random_int(1, 1000), true};
-	triangle_attributes = {
-		{100.f, 100.f},
-		{130.f, 140.f},
-		{155.f, 120.f},
-		{Math::random_float(), Math::random_float(), Math::random_float()}
-	};
-	triangles.push_back(Vulkan::Draw_2D::make_triangle(triangle_draw_attributes, triangle_attributes));
-	triangle_draw_attributes = {(uint32_t)Math::random_int(1, 1000), true};
-	triangle_attributes = {
-		{300.f, 450.f},
-		{500.f, 600.f},
-		{580.f, 120.f},
-		{Math::random_float(), Math::random_float(), Math::random_float()}
-	};
-	triangles.push_back(Vulkan::Draw_2D::make_triangle(triangle_draw_attributes, triangle_attributes));
+	// std::vector<uint32_t> triangles{};
+	// Vulkan::Draw_2D_Attribute triangle_draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
+	// Vulkan::Triangle_Attribultes triangle_attributes{
+	// 	{220.f, 100.f},
+	// 	{400.f, 160.f},
+	// 	{320.f, 110.f},
+	// 	{Math::random_float(), Math::random_float(), Math::random_float()}
+	// };
+	// triangles.push_back(Vulkan::Draw_2D::make_triangle(triangle_draw_attributes, triangle_attributes));
+	// triangle_draw_attributes = {(uint32_t)Math::random_int(1, 1000), true};
+	// triangle_attributes = {
+	// 	{100.f, 100.f},
+	// 	{130.f, 140.f},
+	// 	{155.f, 120.f},
+	// 	{Math::random_float(), Math::random_float(), Math::random_float()}
+	// };
+	// triangles.push_back(Vulkan::Draw_2D::make_triangle(triangle_draw_attributes, triangle_attributes));
+	// triangle_draw_attributes = {(uint32_t)Math::random_int(1, 1000), true};
+	// triangle_attributes = {
+	// 	{300.f, 450.f},
+	// 	{500.f, 600.f},
+	// 	{580.f, 120.f},
+	// 	{Math::random_float(), Math::random_float(), Math::random_float()}
+	// };
+	// triangles.push_back(Vulkan::Draw_2D::make_triangle(triangle_draw_attributes, triangle_attributes));
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();

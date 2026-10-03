@@ -2,6 +2,7 @@
 #include <id_generator.h>
 #include <map>
 #include <queue>
+#include <sparse_set.h>
 #include <vulkan/vk_buffer.h>
 #include <vulkan/vulkan.h>
 
@@ -27,8 +28,6 @@ namespace Vulkan {
 
 		Buffer dst_instance_buffer{};
 
-		Id_Generator id_generator{};
-
 		Buffer inner_buffer{};
 
 		std::priority_queue<SSBO_Buffer_Range, std::vector<SSBO_Buffer_Range>, SSBO_Buffer_Range_Compare>
@@ -38,7 +37,7 @@ namespace Vulkan {
 
 		uint32_t current_offset = 0;
 
-		std::map<uint32_t, SSBO_Buffer_Range> ranges_by_id;
+		Sparse_Set<SSBO_Buffer_Range> ranges_by_id;
 
 		void init(uint32_t initialize_size);
 

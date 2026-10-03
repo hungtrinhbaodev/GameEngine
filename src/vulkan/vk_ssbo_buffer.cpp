@@ -12,7 +12,6 @@ namespace Vulkan {
 	}
 
 	uint32_t SSBO_Buffer::upload_data(void* data, uint32_t size) {
-		uint32_t id = id_generator.gen_id();
 		SSBO_Buffer_Range using_range{0, 0};
 		if (available_ranges.size() > 0 && available_ranges.top().size >= size) {
 			SSBO_Buffer_Range optimal_range = available_ranges.top();
@@ -32,8 +31,7 @@ namespace Vulkan {
 			current_offset += size;
 		}
 		inner_buffer.copy_data(using_range.size, data, using_range.offset);
-		ranges_by_id[id] = using_range;
-		return id;
+		return ranges_by_id.insert(using_range);
 	}
 
 	void SSBO_Buffer::update_data(uint32_t id, void* data, uint32_t offset, uint32_t size) {
@@ -48,22 +46,20 @@ namespace Vulkan {
 	}
 
 	void SSBO_Buffer::remove_data(uint32_t id) {
-		if (ranges_by_id.find(id) == ranges_by_id.end()) {
+		if (!ranges_by_id.has(id))
 			return;
-		}
-		SSBO_Buffer_Range range = ranges_by_id[id];
+		const SSBO_Buffer_Range& range = ranges_by_id.get(id);
 		available_ranges.push(range);
-		id_generator.release_id(id);
 		ranges_by_id.erase(id);
 	}
 
 	SSBO_Buffer_Range SSBO_Buffer::view_slot(uint32_t id) {
-		if (ranges_by_id.find(id) == ranges_by_id.end()) {
+		if (!ranges_by_id.has(id)) {
 			throw std::runtime_error(
 				"Fail to view SSBO buffer range with id: " + std::to_string(id) + " please check!"
 			);
 		}
-		return ranges_by_id[id];
+		return ranges_by_id.get(id);
 	}
 
 	void SSBO_Buffer::transfer_data_to(uint32_t id, VkBuffer dst_buffer, uint32_t dst_offset) {
@@ -94,7 +90,6 @@ namespace Vulkan {
 			copied_data[dst_buffer].push_back(region);
 		}
 		if (copied_data.size() <= 0) {
-			queue_transfer.clear();
 			return;
 		}
 		Utils::copy_data_to_multi_buffer(inner_buffer.buffer, copied_data);
