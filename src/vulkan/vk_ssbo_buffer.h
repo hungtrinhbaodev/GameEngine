@@ -55,6 +55,8 @@ namespace Vulkan {
 		void transfer_data_to(uint32_t id, VkBuffer dst_buffer, uint32_t dst_offset);
 
 		void flush_transfer_data();
+
+		void destroy();
 	};
 
 } // namespace Vulkan

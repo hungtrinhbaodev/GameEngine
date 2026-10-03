@@ -12,10 +12,19 @@ namespace Geometry {
 	};
 
 	struct Texture_Rect_2D {
-		float x = 0.f;
-		float y = 0.f;
+		float raito_x = 0.f;
+		float ratio_y = 0.f;
 		float ratio_width = 0.f;
 		float ratio_height = 0.f;
+		glm::vec4 to_vec4() { return glm::vec4(raito_x, ratio_y, ratio_width, ratio_height); }
+	};
+
+	struct Vertex_2D {
+		glm::vec2 position{0.f, 0.f};
+		inline friend std::ostream& operator<<(std::ostream& os, const Vertex_2D& vertex) {
+			os << "{position: " << vertex.position << "}" << std::endl;
+			return os;
+		}
 	};
 
 	struct Vertex_3D {
@@ -24,7 +33,7 @@ namespace Geometry {
 		glm::vec2 tex_coord{0.f, 0.f};
 		glm::vec4 tangent{0.f, 0.f, 0.f, 0.f};
 		glm::vec3 color{1.f, 1.f, 1.f};
-		friend std::ostream& operator<<(std::ostream& os, const Vertex_3D& vertex) {
+		inline friend std::ostream& operator<<(std::ostream& os, const Vertex_3D& vertex) {
 			os << "{Vertex: position: " << vertex.position << ",  tex_coord: " << vertex.tex_coord
 			   << ", normal: " << vertex.normal << ", color: " << vertex.color << ", tangent: " << vertex.tangent
 			   << "}";

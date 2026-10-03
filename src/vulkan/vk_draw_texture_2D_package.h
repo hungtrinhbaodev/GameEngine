@@ -25,7 +25,7 @@ namespace Vulkan {
 		 */
 		int bucket_index = -1;
 		int slot_index = -1;
-		friend std::ostream& operator<<(std::ostream& os, const Texture_2D_Instance_Data& instance) {
+		inline friend std::ostream& operator<<(std::ostream& os, const Texture_2D_Instance_Data& instance) {
 			std::vector<glm::vec2> tex_coord = {};
 			for (int i = 0; i < instance.tex_coord.size(); i++) {
 				tex_coord.push_back(instance.tex_coord[i]);

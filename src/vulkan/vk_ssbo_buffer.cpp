@@ -31,7 +31,8 @@ namespace Vulkan {
 			}
 			current_offset += size;
 		}
-		inner_buffer.copy_data(using_range.offset, data, using_range.size);
+		inner_buffer.copy_data(using_range.size, data, using_range.offset);
+		ranges_by_id[id] = using_range;
 		return id;
 	}
 
@@ -43,7 +44,7 @@ namespace Vulkan {
 		if (offset <= 0) {
 			offset = range.offset;
 		}
-		inner_buffer.copy_data(offset, data, size);
+		inner_buffer.copy_data(size, data, offset);
 	}
 
 	void SSBO_Buffer::remove_data(uint32_t id) {
@@ -98,6 +99,10 @@ namespace Vulkan {
 		}
 		Utils::copy_data_to_multi_buffer(inner_buffer.buffer, copied_data);
 		queue_transfer.clear();
+	}
+
+	void SSBO_Buffer::destroy() {
+		inner_buffer.destroy();
 	}
 
 } // namespace Vulkan

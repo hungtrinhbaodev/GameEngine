@@ -96,6 +96,8 @@ namespace Vulkan {
 
 	extern float global_draw_2D_order;
 
+	Pipeline_Config make_default_pipeline_config();
+
 	namespace Init {
 
 		void _init_draw_packages();

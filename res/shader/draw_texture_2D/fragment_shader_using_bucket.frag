@@ -1,13 +1,13 @@
 #version 450
 
-layout (set = 1, binding = 0) uniform sampler2D tex_sampler;
-layout (set = 2, binding = 0) uniform sampler2DArray bucket_tex_sampler_0;
-layout (set = 2, binding = 1) uniform sampler2DArray bucket_tex_sampler_1;
-layout (set = 2, binding = 2) uniform sampler2DArray bucket_tex_sampler_2;
-layout (set = 2, binding = 3) uniform sampler2DArray bucket_tex_sampler_3;
-layout (set = 2, binding = 4) uniform sampler2DArray bucket_tex_sampler_4;
-layout (set = 2, binding = 5) uniform sampler2DArray bucket_tex_sampler_5;
-layout (set = 2, binding = 6) uniform sampler2DArray bucket_tex_sampler_6;
+layout (set = 0, binding = 0) uniform sampler2D tex_sampler;
+layout (set = 1, binding = 0) uniform sampler2DArray bucket_tex_sampler_0;
+layout (set = 1, binding = 1) uniform sampler2DArray bucket_tex_sampler_1;
+layout (set = 1, binding = 2) uniform sampler2DArray bucket_tex_sampler_2;
+layout (set = 1, binding = 3) uniform sampler2DArray bucket_tex_sampler_3;
+layout (set = 1, binding = 4) uniform sampler2DArray bucket_tex_sampler_4;
+layout (set = 1, binding = 5) uniform sampler2DArray bucket_tex_sampler_5;
+layout (set = 1, binding = 6) uniform sampler2DArray bucket_tex_sampler_6;
 
 layout (location = 0) in vec2 in_tex_coord;
 layout (location = 1) in flat int bucket_index;

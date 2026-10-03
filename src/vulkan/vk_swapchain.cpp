@@ -128,6 +128,7 @@ namespace Vulkan {
 			swapchain_extent = extent;
 
 			_create_swapchain_image_views(swapchain_images, swapchain_format, device);
+			Utils::save_window_size();
 		}
 
 	} // namespace Init

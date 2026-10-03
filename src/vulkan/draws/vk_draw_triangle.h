@@ -1,5 +1,5 @@
 #pragma once
-#include <glm/glm.hpp>
+#include <vulkan/draws/draw_structs.h>
 #include <vulkan/vk_draw_2D.h>
 #include <vulkan/vulkan.h>
 
@@ -7,15 +7,15 @@ namespace Vulkan {
 
 	namespace Draw_2D {
 
-		namespace Rectangle {
+		namespace Triangle {
 
 			bool is_material_equal(uint32_t a, uint32_t b);
 
 			void init();
 
-			Draw_2D_Information make_draw(const Rectangle_Attributes& rectangle_attributes);
+			Draw_2D_Information make_triangle(const Triangle_Attribultes& attributes);
 
-			void update_draw(uint32_t instance_id, const Rectangle_Attributes& rectangle_attributes);
+			void update_triangle(uint32_t instance_id, const Triangle_Attribultes& attributes);
 
 			void draw(
 				VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t number_instance,
@@ -24,7 +24,7 @@ namespace Vulkan {
 
 			void destroy();
 
-		} // namespace Rectangle
+		} // namespace Triangle
 
 	} // namespace Draw_2D
 

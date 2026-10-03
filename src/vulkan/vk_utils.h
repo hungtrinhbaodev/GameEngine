@@ -292,6 +292,8 @@ namespace Vulkan {
 			return std::clamp(1.f - (current_z_depth / Const::MAX_Z_LAYER_2D), 0.f, 1.f);
 		}
 
+		void save_window_size();
+
 		glm::vec2 get_window_size();
 
 		void copy_data_to_multi_buffer(

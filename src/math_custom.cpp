@@ -52,12 +52,12 @@ namespace Math {
 	}
 
 	std::array<glm::vec2, 4> make_tex_coord_from(const Geometry::Texture_Rect_2D& texture_rect) {
-		glm::vec2 frist_coord = {texture_rect.x, texture_rect.y};
+		glm::vec2 frist_coord = {texture_rect.raito_x, texture_rect.ratio_y};
 		return {
-			{{texture_rect.x, texture_rect.y},
-			 {texture_rect.x, texture_rect.y + texture_rect.ratio_height},
-			 {texture_rect.x + texture_rect.ratio_width, texture_rect.y + texture_rect.ratio_height},
-			 {texture_rect.x + texture_rect.ratio_width, texture_rect.y}},
+			{{texture_rect.raito_x, texture_rect.ratio_y},
+			 {texture_rect.raito_x, texture_rect.ratio_y + texture_rect.ratio_height},
+			 {texture_rect.raito_x + texture_rect.ratio_width, texture_rect.ratio_y + texture_rect.ratio_height},
+			 {texture_rect.raito_x + texture_rect.ratio_width, texture_rect.ratio_y}},
 		};
 	}
 } // namespace Math

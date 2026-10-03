@@ -14,7 +14,7 @@ namespace Parser {
 		glm::mat4 transform{};
 		std::vector<uint32_t> children_indices;
 		int mesh_index = -1;
-		friend std::ostream& operator<<(std::ostream& os, const Gltf_Node& node) {
+		inline friend std::ostream& operator<<(std::ostream& os, const Gltf_Node& node) {
 			os << "Parser::Node: {Node name: " << node.name << ", transform: " << node.transform
 			   << ", children: " << node.children_indices << ", mesh index: " << node.mesh_index << "}";
 			return os;
@@ -23,7 +23,7 @@ namespace Parser {
 
 	struct Gltf_Scene {
 		std::vector<uint32_t> node_indices;
-		friend std::ostream& operator<<(std::ostream& os, const Gltf_Scene& scene) {
+		inline friend std::ostream& operator<<(std::ostream& os, const Gltf_Scene& scene) {
 			os << "Parser::Scene {Node indices: " << scene.node_indices << "}";
 			return os;
 		}

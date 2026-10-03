@@ -22,7 +22,7 @@ namespace Vulkan {
 
 		template <typename T> uint32_t offset_as() { return offset / sizeof(T); }
 
-		friend std::ostream& operator<<(std::ostream& os, const Static_Buffer_Range& range) {
+		inline friend std::ostream& operator<<(std::ostream& os, const Static_Buffer_Range& range) {
 			os << "Offset: " << range.offset << " Size: " << range.size;
 			return os;
 		}

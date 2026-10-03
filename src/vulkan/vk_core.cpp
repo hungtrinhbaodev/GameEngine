@@ -8,6 +8,7 @@
 #include <vulkan/vk_depth_image.h>
 #include <vulkan/vk_descriptor.h>
 #include <vulkan/vk_device.h>
+#include <vulkan/vk_draw_2D.h>
 #include <vulkan/vk_draw_geometry_2D_package.h>
 #include <vulkan/vk_draw_model_3D_package.h>
 #include <vulkan/vk_draw_texture_2D_package.h>
@@ -111,6 +112,15 @@ namespace Vulkan {
 
 	float global_draw_2D_order = 0.f;
 
+	Pipeline_Config make_default_pipeline_config() {
+		Pipeline_Config pipeline_config{};
+		pipeline_config.depth_image = depth_image;
+		pipeline_config.device = device;
+		pipeline_config.swapchain_extent = swapchain_extent;
+		pipeline_config.render_pass = render_pass;
+		return pipeline_config;
+	}
+
 	namespace Init {
 
 		void _init_draw_packages() {
@@ -130,13 +140,13 @@ namespace Vulkan {
 			 * Initialize texture 2D draw package.
 			 */
 			{
-				Draw_Texture_2D_Package* draw_package = new Draw_Texture_2D_Package();
-				draw_package->init(
-					global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D],
-					&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D], uniform_buffers,
-					&global_draw_2D_order, &texture_system, Const::ENABLED_TEXTURE_BUCKETS
-				);
-				draw_packages[Const::DRAW_ID::DRAW_2D_RECTANGLE_WITH_TEXTURE] = draw_package;
+				// Draw_Texture_2D_Package* draw_package = new Draw_Texture_2D_Package();
+				// draw_package->init(
+				// 	global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D],
+				// 	&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D], uniform_buffers,
+				// 	&global_draw_2D_order, &texture_system, Const::ENABLED_TEXTURE_BUCKETS
+				// );
+				// draw_packages[Const::DRAW_ID::DRAW_2D_RECTANGLE_WITH_TEXTURE] = draw_package;
 			}
 			/**
 			 * Initialize texture 3D draw package.
@@ -287,6 +297,8 @@ namespace Vulkan {
 
 			// Initialize Vulkan Pipeline by each draw ID
 			_init_draw_packages();
+
+			Draw_2D::init();
 		}
 	} // namespace Init
 
@@ -409,6 +421,7 @@ namespace Vulkan {
 						 */
 						draw_package->draw(command_buffer, swapchain_extent, current_frame);
 					}
+					Draw_2D::draw(command_buffer);
 				}
 				vkCmdEndRenderPass(command_buffer);
 			}
@@ -466,6 +479,9 @@ namespace Vulkan {
 		void destroy_vulkan() {
 			// Wait to queue idle first before destroy anything
 			vkQueueWaitIdle(graphics_queue);
+
+			// Descrtroy all 2D draw component.
+			Draw_2D::destroy();
 
 			// Destroy static buffers
 			_destroy_static_buffers();
@@ -539,10 +555,10 @@ namespace Vulkan {
 			std::string texture_path, glm::vec2 position, glm::vec2 scale, float rotation, glm::vec2 anchor,
 			Geometry::Texture_Rect_2D texture_rect
 		) {
-			Draw_Texture_2D_Package* draw_package = reinterpret_cast<Draw_Texture_2D_Package*>(
-				draw_packages[Const::DRAW_ID::DRAW_2D_RECTANGLE_WITH_TEXTURE]
-			);
-			draw_package->draw_texture_2D(texture_path, position, scale, rotation, anchor, texture_rect);
+			// Draw_Texture_2D_Package* draw_package = reinterpret_cast<Draw_Texture_2D_Package*>(
+			// 	draw_packages[Const::DRAW_ID::DRAW_2D_RECTANGLE_WITH_TEXTURE]
+			// );
+			// draw_package->draw_texture_2D(texture_path, position, scale, rotation, anchor, texture_rect);
 		}
 
 		void draw_model_3D(std::string path, glm::vec3 position, glm::vec3 scale, glm::vec3 rotation) {

@@ -73,6 +73,9 @@ namespace Vulkan {
 			vkAllocateMemory(device, &allocate_info, nullptr, &memory), "", "Vulkan fail to allocate buffer's memory!"
 		);
 
+		if (size <= 0) {
+			int a = 5;
+		}
 		vkBindBufferMemory(device, buffer, memory, 0);
 		update_descriptor();
 	}
@@ -141,6 +144,10 @@ namespace Vulkan {
 
 		if (dst_offset + size > dst_buffer.size) {
 			throw std::runtime_error("Vulkan fail to copy buffer: make sure destination buffer is enough size!");
+		}
+
+		if (src_buffer.size <= 0) {
+			int a = 5;
 		}
 
 		if (src_buffer.is_host_visible_buffer() && dst_buffer.is_host_visible_buffer()) {

@@ -8,10 +8,19 @@
 
 namespace Vulkan {
 	namespace Utils {
-		glm::vec2 get_window_size() {
+
+		float window_size_width = 0.f;
+		float window_size_height = 0.f;
+
+		void save_window_size() {
 			int width, height;
 			glfwGetWindowSize(Vulkan::_window, &width, &height);
-			return glm::vec2(width, height);
+			window_size_width = (float)width;
+			window_size_height = (float)height;
+		}
+
+		glm::vec2 get_window_size() {
+			return glm::vec2(window_size_width, window_size_height);
 		}
 
 		void copy_data_to_multi_buffer(

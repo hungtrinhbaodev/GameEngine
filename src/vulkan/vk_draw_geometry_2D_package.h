@@ -15,7 +15,7 @@ namespace Vulkan {
 		glm::vec3 color{1.f, 1.f, 1.f};
 		float rotation = 0.f;
 		float z_depth = 0.f;
-		friend std::ostream& operator<<(std::ostream& os, const Geometry_2D_Instance_Data& instance) {
+		inline friend std::ostream& operator<<(std::ostream& os, const Geometry_2D_Instance_Data& instance) {
 			os << "{Vertex: translation: " << instance.translation << ",  scale: " << instance.size
 			   << ", anchor: " << instance.anchor << ", color: " << instance.color
 			   << ", rotation: " << instance.rotation

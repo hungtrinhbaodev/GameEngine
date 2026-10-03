@@ -14,7 +14,7 @@ namespace Vulkan {
 	namespace Const {
 
 #ifdef _DEBUG
-		const inline bool IS_ENABLE_VALIDATION_LAYERS = true;
+		const inline bool IS_ENABLE_VALIDATION_LAYERS = false;
 #elif __APPLE__
 		const inline bool IS_ENABLE_VALIDATION_LAYERS = true;
 #else
@@ -97,6 +97,18 @@ namespace Vulkan {
 		const inline std::string PATH_VERT_SHADERD_DRAW_MODEL_3D = "res/shader/draw_model_3D/vert_shader.vert.spv";
 
 		const inline std::string PATH_FRAG_SHADERD_DRAW_MODEL_3D = "res/shader/draw_model_3D/fragment_shader.frag.spv";
+
+		const inline std::string PATH_VERT_SHADERD_DRAW_RECTANGLE_2D =
+			"res/shader/draw_rectangle_2D/vert_shader.vert.spv";
+
+		const inline std::string PATH_FRAG_SHADERD_DRAW_RECTANGLE_2D =
+			"res/shader/draw_rectangle_2D/fragment_shader.frag.spv";
+
+		const inline std::string PATH_VERT_SHADERD_DRAW_TRIANGLE_2D =
+			"res/shader/draw_triangle_2D/vert_shader.vert.spv";
+
+		const inline std::string PATH_FRAG_SHADERD_DRAW_TRIANGLE_2D =
+			"res/shader/draw_triangle_2D/fragment_shader.frag.spv";
 
 	} // namespace Const
 
