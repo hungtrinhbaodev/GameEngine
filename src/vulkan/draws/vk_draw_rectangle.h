@@ -13,6 +13,8 @@ namespace Vulkan {
 
 			void init();
 
+			size_t get_instance_size();
+
 			Draw_2D_Information make_draw(const Rectangle_Attributes& rectangle_attributes);
 
 			void update_draw(uint32_t instance_id, const Rectangle_Attributes& rectangle_attributes);

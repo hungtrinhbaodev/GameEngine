@@ -125,26 +125,55 @@ namespace Vulkan {
 			Profiler::end_scope(SCOPE_SORT_DRAW);
 		}
 
+		size_t get_instance_size(Const::DRAW_ID draw_type) {
+			switch (draw_type) {
+				case Const::DRAW_ID::DRAW_RECTANGLE_2D: {
+					return Rectangle::get_instance_size();
+				}
+				case Const::DRAW_ID::DRAW_TEXTURE_2D: {
+					return Texture_2D::get_instance_size();
+				}
+				case Const::DRAW_ID::DRAW_TRIANGLE_2D: {
+					return Triangle::get_instance_size();
+				}
+				default: {
+					throw std::runtime_error("Fail to get instance size, unsupport draw type!");
+				}
+			}
+		}
+
 		void setup_instance_buffer() {
 			Profiler::start_scope(SCOPE_SET_UP_BUFFER);
-			uint32_t size_reqiure = 0;
+			size_t size_reqiure = 0;
 			for (int i = 0; i < sorted_draws.size(); i++) {
 				uint32_t draw_id = sorted_draws[i];
 				const Draw_2D_Information& draw_info = draws.get(draw_id);
 				SSBO_Buffer_Range range = ssbo_buffer.view_slot(draw_info.instance_id);
-				size_reqiure += range.size;
+				size_t instance_size = get_instance_size(draw_info.draw_type);
+				if (size_reqiure % instance_size == 0) {
+					size_reqiure += range.size;
+				} else {
+					size_t remain_size = instance_size - (size_reqiure % instance_size);
+					size_reqiure += instance_size - remain_size + range.size;
+				}
 			}
 			if (instance_buffer.size < size_reqiure) {
 				uint32_t size = (uint32_t)(size_reqiure * 1.5f);
 				instance_buffer.resize(size);
 			}
-			uint32_t offset = 0;
+			size_t offset = 0;
 			for (int i = 0; i < sorted_draws.size(); i++) {
 				uint32_t draw_id = sorted_draws[i];
 				const Draw_2D_Information& draw_info = draws.get(draw_id);
 				SSBO_Buffer_Range range = ssbo_buffer.view_slot(draw_info.instance_id);
-				ssbo_buffer.transfer_data_to(draw_info.instance_id, instance_buffer.buffer, offset);
-				offset += range.size;
+				ssbo_buffer.transfer_data_to(draw_info.instance_id, instance_buffer.buffer, (uint32_t)offset);
+				size_t instance_size = get_instance_size(draw_info.draw_type);
+				if (offset % instance_size == 0) {
+					offset += range.size;
+				} else {
+					size_t remain_size = instance_size - (size_reqiure % instance_size);
+					offset += remain_size + range.size;
+				}
 			}
 			ssbo_buffer.flush_transfer_data();
 			Profiler::end_scope(SCOPE_SET_UP_BUFFER);

@@ -12,6 +12,8 @@ namespace Vulkan {
 
 			void init();
 
+			size_t get_instance_size();
+
 			Draw_2D_Information make_texture_2D(const Texture_2D_Attributes& texture_attributes);
 
 			void update_texture_2D(

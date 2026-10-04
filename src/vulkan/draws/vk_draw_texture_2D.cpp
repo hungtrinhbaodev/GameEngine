@@ -151,6 +151,10 @@ namespace Vulkan {
 				Vulkan::global_staging_buffer->flush_frame();
 			}
 
+			size_t get_instance_size() {
+				return sizeof(Instance_Data);
+			}
+
 			Draw_2D_Information make_texture_2D(const Texture_2D_Attributes& texture_attributes) {
 				uint32_t texture_id =
 					Vulkan::texture_system.load_texture(texture_attributes.path, Const::ENABLED_TEXTURE_BUCKETS);
@@ -234,14 +238,15 @@ namespace Vulkan {
 					descriptor_sets = bind_descriptor_sets;
 				}
 				VkBuffer binding_buffers[2] = {vertex_buffer.inner_buffer.buffer, instance_buffer.buffer};
-				VkDeviceSize buffer_offsets[2] = {0, first_instance_offset};
+				VkDeviceSize buffer_offsets[2] = {0, 0};
 				bind_draw_resource(
 					command_buffer, pipeline.pipeline, pipeline.layout, indices_buffer.inner_buffer.buffer, 0,
 					VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, number_descriptor_set, descriptor_sets
 				);
 				vkCmdDrawIndexed(
 					command_buffer, indices_range.size_as<uint16_t>(), number_instance,
-					indices_range.offset_as<uint16_t>(), vertex_range.offset_as<Geometry::Vertex_2D>(), 0
+					indices_range.offset_as<uint16_t>(), vertex_range.offset_as<Geometry::Vertex_2D>(),
+					first_instance_offset / (uint32_t)(get_instance_size())
 				);
 			}
 
