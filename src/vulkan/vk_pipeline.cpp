@@ -90,7 +90,7 @@ namespace Vulkan {
 
 		// pipeline fix function state
 		VkPipelineVertexInputStateCreateInfo vertex_input_state = Structs::make_pipeline_vertex_input_state_create_info(
-			config.vertex_descriptions, config.attribute_descriptions
+			config.vertex_binding_descriptions, config.attribute_descriptions
 		);
 		create_info.pVertexInputState = &vertex_input_state;
 		create_info.pInputAssemblyState = &input_assembly_info;

@@ -25,7 +25,7 @@ namespace Vulkan {
 
 		Image depth_image;
 
-		std::vector<VkVertexInputBindingDescription> vertex_descriptions;
+		std::vector<VkVertexInputBindingDescription> vertex_binding_descriptions;
 
 		std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
 

@@ -4,12 +4,12 @@
 
 namespace Vulkan {
 
-	void Texture::init(uint32_t width, uint32_t height) {
+	void Texture::init(uint32_t width, uint32_t height, VkFormat format) {
 
 		this->width = width;
 		this->height = height;
 		inner_image.make_image(
-			width, height, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+			width, height, format, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			VK_IMAGE_ASPECT_COLOR_BIT, 1
 		);

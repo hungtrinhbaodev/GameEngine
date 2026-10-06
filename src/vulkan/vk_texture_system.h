@@ -52,9 +52,11 @@ namespace Vulkan {
 
 		uint32_t default_texture_id = 0;
 
+		VkFormat format;
+
 		void init(
 			std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets, VkDevice device,
-			std::vector<VkDescriptorPool> descriptor_pools
+			std::vector<VkDescriptorPool> descriptor_pools, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB
 		);
 
 		VkDescriptorSetLayout get_bucket_descriptor_set_layout();

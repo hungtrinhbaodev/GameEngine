@@ -36,6 +36,7 @@ namespace Vulkan {
 
 			struct Push_Constants {
 				glm::vec2 screen_size{0.f, 0.f};
+				uint32_t vertex_offset = 0;
 			};
 
 			std::vector<Geometry::Vertex_2D> RECTANGLE_VERTICES = {
@@ -73,7 +74,7 @@ namespace Vulkan {
 				layouts.push_back(layout_builder.build());
 
 				pipeline_config = make_default_pipeline_config();
-				pipeline_config.vertex_descriptions = vertex_builder.build_binding_descriptions();
+				pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
 				pipeline_config.attribute_descriptions = vertex_builder.build_attribute_descriptions();
 				pipeline_config.descriptor_set_layouts = layouts;
 				pipeline_config.push_constants_size = sizeof(Push_Constants);

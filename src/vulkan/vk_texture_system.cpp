@@ -7,6 +7,7 @@
 #include <stb_image_resize2.h>
 #include <stdexcept>
 #include <vulkan/vk_structs.h>
+#include <vulkan/vk_utils.h>
 
 namespace Vulkan {
 
@@ -14,17 +15,22 @@ namespace Vulkan {
 
 	void Texture_System::init(
 		std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets, VkDevice device,
-		std::vector<VkDescriptorPool> descriptor_pools
+		std::vector<VkDescriptorPool> descriptor_pools, VkFormat format
 	) {
 		this->device = device;
 		this->descriptor_pools = descriptor_pools;
+		this->format = format;
 
 		/**
 		 * @Note: Add texture default using to binding with the texture bucket or draw
 		 * 3D need draw for model with empty texture.
 		 */
-		uint8_t texture_default_bytes[4] = {255, 255, 255, 255};
-		default_texture_id = load_texture(TEXTURE_DEFAULT_PATH, texture_default_bytes, 1, 1, 4);
+		int number_channel = Utils::get_number_channel_by(format);
+		std::vector<uint8_t> texture_default_bytes(number_channel);
+		for (int i = 0; i < number_channel; i++) {
+			texture_default_bytes[i] = 255;
+		}
+		default_texture_id = load_texture(TEXTURE_DEFAULT_PATH, texture_default_bytes.data(), 1, 1, number_channel);
 
 		// @note: From now we disabled texture bucket to have full flow texture to test program first!
 		if (!Const::ENABLED_TEXTURE_BUCKETS)
@@ -41,7 +47,7 @@ namespace Vulkan {
 		for (int i = 0; i < bucket_sizes.size(); i++) {
 			uint32_t number_texture_per_bucket = number_texture_per_buckets[i];
 			uint32_t texture_size = bucket_sizes[i];
-			texture_buckets[i].init(number_texture_per_bucket, texture_size, texture_size);
+			texture_buckets[i].init(number_texture_per_bucket, texture_size, texture_size, format);
 		}
 	}
 
@@ -130,11 +136,19 @@ namespace Vulkan {
 					// fill padding into image to fix with bucket
 					uint32_t texture_size_width = using_bucket.inner_image.width;
 					uint32_t texture_size_height = using_bucket.inner_image.height;
-					std::vector<uint8_t> pixels_sized(texture_size_width * texture_size_height * 4);
-					void* result = stbir_resize(
-						pixels, width, height, 0, pixels_sized.data(), texture_size_width, texture_size_height, 0,
-						STBIR_RGBA, STBIR_TYPE_UINT8, STBIR_EDGE_CLAMP, STBIR_FILTER_DEFAULT
-					);
+					std::vector<uint8_t> pixels_sized(texture_size_width * texture_size_height * channels);
+					void* result = nullptr;
+					if (channels == 1) {
+						result = stbir_resize_uint8_linear(
+							(const unsigned char*)pixels, width, height, 0, pixels_sized.data(), texture_size_width,
+							texture_size_height, 0, STBIR_1CHANNEL
+						);
+					} else {
+						result = stbir_resize(
+							pixels, width, height, 0, pixels_sized.data(), texture_size_width, texture_size_height, 0,
+							STBIR_RGBA, STBIR_TYPE_UINT8, STBIR_EDGE_CLAMP, STBIR_FILTER_DEFAULT
+						);
+					}
 					if (result == nullptr) {
 						throw std::runtime_error("Failt to resize texture to bucket: " + file + "!");
 					}
@@ -154,7 +168,7 @@ namespace Vulkan {
 		if (need_use_individual_texture) {
 			// load single individual texture
 			Texture texture{};
-			texture.init(width, height);
+			texture.init(width, height, format);
 			texture.upload_data(pixels);
 			ids_to_individual_textures[id] = texture;
 

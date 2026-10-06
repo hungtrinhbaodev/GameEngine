@@ -63,7 +63,7 @@ namespace Vulkan {
 				layouts.push_back(layout_builder.build());
 
 				pipeline_config = Vulkan::make_default_pipeline_config();
-				pipeline_config.vertex_descriptions = vertex_builder.build_binding_descriptions();
+				pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
 				pipeline_config.attribute_descriptions = vertex_builder.build_attribute_descriptions();
 				pipeline_config.descriptor_set_layouts = layouts;
 				pipeline_config.push_constants_size = sizeof(Push_Constants);

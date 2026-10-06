@@ -3,6 +3,7 @@
 #include <profiler.h>
 #include <sparse_set.h>
 #include <tuple>
+#include <vulkan/draws/vk_draw_font_2D.h>
 #include <vulkan/draws/vk_draw_rectangle.h>
 #include <vulkan/draws/vk_draw_texture_2D.h>
 #include <vulkan/draws/vk_draw_triangle.h>
@@ -98,6 +99,9 @@ namespace Vulkan {
 				case Const::DRAW_ID::DRAW_TRIANGLE_2D: {
 					return Triangle::is_material_equal(a.draw_material_id, b.draw_material_id);
 				}
+				case Const::DRAW_ID::DRAW_FONT_2D: {
+					return Font_2D::is_material_equal(a.draw_material_id, b.draw_material_id);
+				}
 				default: {
 					return false;
 				}
@@ -136,6 +140,9 @@ namespace Vulkan {
 				case Const::DRAW_ID::DRAW_TRIANGLE_2D: {
 					return Triangle::get_instance_size();
 				}
+				case Const::DRAW_ID::DRAW_FONT_2D: {
+					return Font_2D::get_instance_size();
+				}
 				default: {
 					throw std::runtime_error("Fail to get instance size, unsupport draw type!");
 				}
@@ -166,12 +173,15 @@ namespace Vulkan {
 				uint32_t draw_id = sorted_draws[i];
 				const Draw_2D_Information& draw_info = draws.get(draw_id);
 				SSBO_Buffer_Range range = ssbo_buffer.view_slot(draw_info.instance_id);
-				ssbo_buffer.transfer_data_to(draw_info.instance_id, instance_buffer.buffer, (uint32_t)offset);
 				size_t instance_size = get_instance_size(draw_info.draw_type);
 				if (offset % instance_size == 0) {
+					ssbo_buffer.transfer_data_to(draw_info.instance_id, instance_buffer.buffer, (uint32_t)offset);
 					offset += range.size;
 				} else {
-					size_t remain_size = instance_size - (size_reqiure % instance_size);
+					size_t remain_size = instance_size - (offset % instance_size);
+					ssbo_buffer.transfer_data_to(
+						draw_info.instance_id, instance_buffer.buffer, (uint32_t)(offset + remain_size)
+					);
 					offset += remain_size + range.size;
 				}
 			}
@@ -187,26 +197,36 @@ namespace Vulkan {
 			}
 			uint32_t first_id = sorted_draws[0];
 			Draw_2D_Information last_draw_info = draws.get(first_id);
-			Group_Draw_Batching group{last_draw_info.draw_type, last_draw_info.draw_material_id, 0, 1};
+			size_t instance_size = get_instance_size(last_draw_info.draw_type);
 			SSBO_Buffer_Range first_range = ssbo_buffer.view_slot(last_draw_info.instance_id);
+			Group_Draw_Batching group{
+				last_draw_info.draw_type, last_draw_info.draw_material_id, 0,
+				(uint32_t)(first_range.size / instance_size)
+			};
 			draw_groups.push_back(group);
 			int current_group = 0;
 			uint32_t current_instance_offset = first_range.size;
 			for (int i = 1; i < sorted_draws.size(); i++) {
 				uint32_t draw_id = sorted_draws[i];
 				const Draw_2D_Information& draw_info = draws.get(draw_id);
+				size_t instance_size = get_instance_size(draw_info.draw_type);
+				size_t remain = 0;
+				SSBO_Buffer_Range range = ssbo_buffer.view_slot(draw_info.instance_id);
 				if (is_same_draw(last_draw_info, draw_info)) {
-					draw_groups[current_group].number_instance++;
+					draw_groups[current_group].number_instance += (uint32_t)(range.size / instance_size);
 				} else {
+					if (current_instance_offset % instance_size != 0) {
+						remain = instance_size - (current_instance_offset % instance_size);
+					}
 					Group_Draw_Batching group{
-						draw_info.draw_type, draw_info.draw_material_id, current_instance_offset, 1
+						draw_info.draw_type, draw_info.draw_material_id, current_instance_offset + (uint32_t)remain,
+						(uint32_t)(range.size / instance_size)
 					};
 					last_draw_info = draw_info;
 					draw_groups.push_back(group);
 					current_group++;
 				}
-				SSBO_Buffer_Range range = ssbo_buffer.view_slot(draw_info.instance_id);
-				current_instance_offset += range.size;
+				current_instance_offset += (uint32_t)remain + range.size;
 			}
 			Profiler::end_scope(SCOPE_BATCHING_GROUP);
 		}
@@ -301,6 +321,7 @@ namespace Vulkan {
 			Texture_2D::init();
 			Rectangle::init();
 			Triangle::init();
+			Font_2D::init();
 		}
 
 		void draw(VkCommandBuffer command_buffer) {
@@ -331,6 +352,13 @@ namespace Vulkan {
 						);
 						break;
 					}
+					case Const::DRAW_ID::DRAW_FONT_2D: {
+						Font_2D::draw(
+							command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
+							Vulkan::current_frame
+						);
+						break;
+					}
 				}
 			}
 			Profiler::end_scope(SCOPE_DRAW);
@@ -344,6 +372,7 @@ namespace Vulkan {
 		}
 
 		void destroy() {
+			Font_2D::destroy();
 			Triangle::destroy();
 			Texture_2D::destroy();
 			Rectangle::destroy();
@@ -404,6 +433,14 @@ namespace Vulkan {
 			const Draw_2D_Attribute& draw_attributes, const Triangle_Attribultes& triangle_attributes
 		) {
 			Draw_2D_Information draw_info = Triangle::make_triangle(triangle_attributes);
+			draw_info.draw_index = draw_attributes.draw_index;
+			draw_info.visible = draw_attributes.is_visible;
+			draw_info.create_index = ++current_create_index;
+			return draws.insert(draw_info);
+		}
+
+		uint32_t make_font_2D(const Draw_2D_Attribute& draw_attributes, const Font_2D_Attributes& font_attributes) {
+			Draw_2D_Information draw_info = Font_2D::make_font_2D(font_attributes);
 			draw_info.draw_index = draw_attributes.draw_index;
 			draw_info.visible = draw_attributes.is_visible;
 			draw_info.create_index = ++current_create_index;

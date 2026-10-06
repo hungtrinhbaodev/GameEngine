@@ -63,7 +63,7 @@ namespace Vulkan {
 			this->pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_TEXTURE_2D_USING_BUCKET;
 		}
 		this->pipeline_config.attribute_descriptions = vertex_builder.build_attribute_descriptions();
-		this->pipeline_config.vertex_descriptions = vertex_builder.build_binding_descriptions();
+		this->pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
 		this->pipeline_config.descriptor_set_layouts = this->descriptor_set_layouts;
 		this->pipeline_config.depth_compare_op = VK_COMPARE_OP_LESS_OR_EQUAL;
 		this->pipeline_config.push_constants_size = sizeof(Push_Constants);

@@ -16,6 +16,7 @@
 #include <geometry_structs.h>
 #include <vulkan/vk_buffer.h>
 #include <vulkan/vk_draw_package.h>
+#include <vulkan/vk_font_system.h>
 #include <vulkan/vk_image.h>
 #include <vulkan/vk_instance_buffer.h>
 #include <vulkan/vk_model_3D_system.h>
@@ -91,6 +92,8 @@ namespace Vulkan {
 	extern std::vector<VkCommandBuffer> draw_command_buffers;
 
 	extern Model_3D_System model_3D_system;
+
+	extern Font_System font_system;
 
 	extern bool frame_buffer_resize;
 

@@ -197,7 +197,7 @@ namespace Vulkan {
 			throw std::runtime_error("Vulkan fail to copy image data: wrong size image!");
 		}
 
-		VkDeviceSize image_size = width * height * 4;
+		VkDeviceSize image_size = width * height * Utils::get_number_channel_by(format);
 		Buffer staging{};
 		staging.make_buffer(
 			image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,

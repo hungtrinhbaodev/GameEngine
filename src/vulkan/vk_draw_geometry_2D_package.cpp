@@ -42,7 +42,7 @@ namespace Vulkan {
 		/**
 		 * Create config pipeline.
 		 */
-		this->pipeline_config.vertex_descriptions = vertex_builder.build_binding_descriptions();
+		this->pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
 		this->pipeline_config.attribute_descriptions = vertex_builder.build_attribute_descriptions();
 		this->pipeline_config.descriptor_set_layouts = this->descriptor_set_layouts;
 		this->pipeline_config.vertex_shader_path = Const::PATH_VERT_SHADERD_DRAW_GEOMETRY_2D;

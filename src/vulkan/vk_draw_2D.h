@@ -79,6 +79,8 @@ namespace Vulkan {
 
 		void update_triangle(uint32_t id, const Triangle_Attribultes& triangle_attributes);
 
+		uint32_t make_font_2D(const Draw_2D_Attribute& draw_attributes, const Font_2D_Attributes& font_attributes);
+
 		void update_draw(uint32_t id, Draw_2D_Attribute draw_attributes);
 
 	} // namespace Draw_2D

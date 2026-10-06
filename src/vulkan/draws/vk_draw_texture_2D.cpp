@@ -25,7 +25,10 @@ namespace Vulkan {
 				uint32_t bucket_index = 0;
 				uint32_t slot_index = 0;
 				void make(Texture_2D_Attributes attributes, Texture_View texture_view) {
-					tex_size = glm::vec2(texture_view.width, texture_view.height);
+					tex_size = glm::vec2(
+						texture_view.width * attributes.texture_rect.ratio_width,
+						texture_view.height * attributes.texture_rect.ratio_height
+					);
 					translation = attributes.position;
 					scale = attributes.scale;
 					anchor = attributes.anchor;
@@ -65,7 +68,7 @@ namespace Vulkan {
 
 			std::vector<VkDescriptorSetLayout> layouts{};
 
-			std::map<uint32_t, std::vector<VkDescriptorSet>> texture_descriptor_sets{};
+			std::unordered_map<uint32_t, std::vector<VkDescriptorSet>> texture_descriptor_sets{};
 
 			Id_Generator material_id_generator{};
 
@@ -80,19 +83,7 @@ namespace Vulkan {
 			uint32_t indices_id = 0;
 
 			bool is_material_equal(uint32_t a, uint32_t b) {
-				if (material_by_ids.find(a) == material_by_ids.end() ||
-					material_by_ids.find(b) == material_by_ids.end()) {
-					return false;
-				}
-				const Materital_Data& material_a = material_by_ids[a];
-				const Materital_Data& material_b = material_by_ids[b];
-				if (material_a.storage_mode == material_b.storage_mode) {
-					if (material_a.storage_mode == Const::TEXTURE_STORAGE_MODE::BUCKET) {
-						return true;
-					}
-					return material_a.texture_id == material_b.texture_id;
-				}
-				return false;
+				return a == b;
 			}
 
 			void init() {
@@ -131,7 +122,7 @@ namespace Vulkan {
 
 				pipeline_config = Vulkan::make_default_pipeline_config();
 				pipeline_config.attribute_descriptions = vertex_builder.build_attribute_descriptions();
-				pipeline_config.vertex_descriptions = vertex_builder.build_binding_descriptions();
+				pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
 				pipeline_config.descriptor_set_layouts = layouts;
 				pipeline_config.vertex_shader_path = Const::PATH_VERT_SHADERD_DRAW_TEXTURE_2D;
 				pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_TEXTURE_2D;
@@ -210,11 +201,6 @@ namespace Vulkan {
 				Static_Buffer_Range indices_range = indices_buffer.view_slot_info(indices_id);
 				Static_Buffer_Range vertex_range = vertex_buffer.view_slot_info(vertex_id);
 				Buffer instance_buffer = get_instance_buffer();
-				Push_Constants constants{Utils::get_window_size(), indices_range.offset_as<uint16_t>()};
-				vkCmdPushConstants(
-					command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-					sizeof(Push_Constants), &constants
-				);
 				Materital_Data material = material_by_ids[material_draw_id];
 				VkDescriptorSet* descriptor_sets = nullptr;
 				uint32_t number_descriptor_set = 1;
@@ -242,6 +228,11 @@ namespace Vulkan {
 				bind_draw_resource(
 					command_buffer, pipeline.pipeline, pipeline.layout, indices_buffer.inner_buffer.buffer, 0,
 					VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, number_descriptor_set, descriptor_sets
+				);
+				Push_Constants constants{Utils::get_window_size(), vertex_range.offset_as<Geometry::Vertex_2D>()};
+				vkCmdPushConstants(
+					command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+					sizeof(Push_Constants), &constants
 				);
 				vkCmdDrawIndexed(
 					command_buffer, indices_range.size_as<uint16_t>(), number_instance,

@@ -14,8 +14,8 @@ namespace Geometry {
 	struct Texture_Rect_2D {
 		float raito_x = 0.f;
 		float ratio_y = 0.f;
-		float ratio_width = 0.f;
-		float ratio_height = 0.f;
+		float ratio_width = 1.f;
+		float ratio_height = 1.f;
 		glm::vec4 to_vec4() { return glm::vec4(raito_x, ratio_y, ratio_width, ratio_height); }
 	};
 
