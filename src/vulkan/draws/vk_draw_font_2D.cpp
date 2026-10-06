@@ -80,7 +80,6 @@ namespace Vulkan {
 						char_positions[i].x += start_x + local_offset.x;
 						char_positions[i].y += local_offset.y;
 						glm::vec2 char_bound_box = font.get_char_bounding_box(line[i]);
-						auto char_rect = font.get_char_rect(line[i]);
 						start_x += char_bound_box.x;
 					}
 					return char_positions;
@@ -88,6 +87,9 @@ namespace Vulkan {
 
 				bool make(const Font_2D_Attributes& attributes, const Font& font, Texture_System& texture_system) {
 					if (this->attributes == attributes) {
+						return false;
+					}
+					if (attributes.text == "") {
 						return false;
 					}
 					std::string text = attributes.text;
@@ -98,7 +100,6 @@ namespace Vulkan {
 						auto size = get_line_size(line, font);
 						max_width_line = std::max(size.x, max_width_line);
 					}
-					width = max_width_line;
 					float total_height = 0;
 					for (int i = lines.size() - 1; i > -1; i--) {
 						const std::string& line = lines[i];
@@ -121,6 +122,7 @@ namespace Vulkan {
 						start_line_positions[i] = {line_x, total_height};
 						total_height += line_size.y;
 					}
+					width = max_width_line;
 					height = total_height;
 					glm::vec2 origin = -glm::vec2(width, height) * attributes.anchor;
 					chars.clear();

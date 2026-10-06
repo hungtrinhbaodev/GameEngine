@@ -56,7 +56,7 @@ int main() {
 	font_attributes.path = "res/fonts/default.otf";
 	font_attributes.text = "toi la hung!\nhaha\n12323-~yy";
 	font_attributes.color = {Math::random_float(), Math::random_float(), Math::random_float()};
-	font_attributes.align = 2;
+	font_attributes.align = 1;
 	font_attributes.position = {0, 0};
 	font_attributes.scale = {1.f, 1.f};
 	font_attributes.rotation = 0;
