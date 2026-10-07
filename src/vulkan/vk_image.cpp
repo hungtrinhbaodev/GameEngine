@@ -158,6 +158,22 @@ namespace Vulkan {
 
 			src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 			dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		} else if (
+			old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+		) {
+			barrier_info.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier_info.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+			src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+		} else if (
+			old_layout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		) {
+			barrier_info.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+			barrier_info.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+			src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+			dst_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 		} else {
 			throw std::runtime_error("Vulkan transfer layout are not supported!");
 		}
@@ -173,40 +189,43 @@ namespace Vulkan {
 		update_descriptor(new_layout, layer_index);
 	}
 
-	std::vector<Buffer> Image::record_generate_mipmap(VkCommandBuffer command_buffer, void* data, int layer_index) {
+	std::vector<Buffer> Image::record_generate_mipmap(
+		VkCommandBuffer command_buffer, void* data, bool can_gpu_blit_image, int layer_index
+	) {
 		/**
 		 * Note: case blit enabled in GPU we use this scope.
-		 * TODO: add check device support here for blit image.
 		 */
-		// {
-		// 	int mip_width = width, mip_height = height;
-		// 	for (int i = 1; i < mip_level; i++) {
-		// 		int src_mip_level = i - 1;
-		// 		record_transition_image_layout(
-		// 			command_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-		// 			layer_index, 1, src_mip_level, 1
-		// 		);
-		// 		{
-		// 			VkImageBlit blit = Structs::make_image_blit(mip_width, mip_height, src_mip_level, layer_index, 1);
-		// 			vkCmdBlitImage(
-		// 				command_buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, image,
-		// 				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, &blit, VK_FILTER_LINEAR
-		// 			);
-		// 		}
-		// 		record_transition_image_layout(
-		// 			command_buffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-		// 			layer_index, 1, src_mip_level, 1
-		// 		);
-		// 		mip_width = mip_width > 1 ? mip_width / 2 : mip_width;
-		// 		mip_height = mip_height > 1 ? mip_height / 2 : mip_height;
-		// 	}
-		// }
 		/**
 		 * @Note: if not support we make an image by resize and copy it into GPU.
 		 */
 		std::vector<Buffer> staging_buffers{};
-		{
-
+		if (can_gpu_blit_image) {
+			int mip_width = width, mip_height = height;
+			for (int i = 1; i < mip_level; i++) {
+				int src_mip_level = i - 1;
+				record_transition_image_layout(
+					command_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					layer_index, 1, src_mip_level, 1
+				);
+				{
+					VkImageBlit blit = Structs::make_image_blit(mip_width, mip_height, src_mip_level, layer_index, 1);
+					vkCmdBlitImage(
+						command_buffer, image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, image,
+						VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR
+					);
+				}
+				record_transition_image_layout(
+					command_buffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					layer_index, 1, src_mip_level, 1
+				);
+				mip_width = mip_width > 1 ? mip_width / 2 : mip_width;
+				mip_height = mip_height > 1 ? mip_height / 2 : mip_height;
+			}
+			record_transition_image_layout(
+				command_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				layer_index, 1, mip_level - 1, 1
+			);
+		} else {
 			std::vector<std::future<Buffer>> tasks{};
 			std::vector<uint32_t> mip_widths{};
 			std::vector<uint32_t> mip_heights{};

@@ -32,7 +32,7 @@ int main() {
 
 	glm::vec2 window_size = Vulkan::Utils::get_window_size();
 	std::vector<uint32_t> rectangles{};
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < 200; i++) {
 		Vulkan::Draw_2D_Attribute draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
 		Vulkan::Rectangle_Attributes rectangle_attributes{
 			200, 100, {Math::random_float(0, window_size.x), Math::random_float(0, window_size.y)}
@@ -42,7 +42,7 @@ int main() {
 	}
 
 	std::vector<uint32_t> textures{};
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < 200; i++) {
 		std::string path = Math::random_float() >= 0.5f ? "res/AddonIcon7.png" : "res/AddonIcon5.png";
 		Vulkan::Draw_2D_Attribute draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
 		Vulkan::Texture_2D_Attributes texture_attributes{
@@ -60,7 +60,7 @@ int main() {
 	font_attributes.position = {0, 0};
 	font_attributes.scale = {1.f, 1.f};
 	font_attributes.rotation = 0;
-	font_attributes.font_size = 12;
+	font_attributes.font_size = 16;
 	Vulkan::Draw_2D::make_font_2D(font_draw_attributes, font_attributes);
 
 	while (!glfwWindowShouldClose(window)) {

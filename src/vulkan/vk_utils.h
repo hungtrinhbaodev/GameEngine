@@ -325,6 +325,16 @@ namespace Vulkan {
 			return (uint32_t)(std::log2(std::max(width, height))) + 1;
 		}
 
+		inline bool can_gpu_blit_image(VkPhysicalDevice physical_device, VkFormat format, VkFilter filter) {
+			VkFormatProperties props;
+			VkFormatFeatureFlags require = VK_FORMAT_FEATURE_BLIT_SRC_BIT | VK_FORMAT_FEATURE_BLIT_DST_BIT;
+			vkGetPhysicalDeviceFormatProperties(physical_device, format, &props);
+			if (filter == VK_FILTER_LINEAR) {
+				require |= VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
+			}
+			return (props.optimalTilingFeatures & require) == require;
+		}
+
 	} // namespace Utils
 
 } // namespace Vulkan

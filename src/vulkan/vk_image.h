@@ -53,7 +53,9 @@ namespace Vulkan {
 
 		void transition_image_layout(VkImageLayout old_layout, VkImageLayout new_layout, uint32_t layer_index = 0);
 
-		std::vector<Buffer> record_generate_mipmap(VkCommandBuffer command_buffer, void* data, int layer_index = 0);
+		std::vector<Buffer> record_generate_mipmap(
+			VkCommandBuffer command_buffer, void* data, bool can_gpu_blit_image, int layer_index = 0
+		);
 
 		void record_copy_image_data_with_buffer(
 			VkCommandBuffer command_buffer, uint32_t width_copy, uint32_t height_copy, Buffer staging_buffer,

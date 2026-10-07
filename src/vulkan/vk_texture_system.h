@@ -54,9 +54,12 @@ namespace Vulkan {
 
 		VkFormat format;
 
+		bool can_gpu_blit = false;
+
 		void init(
 			std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets, VkDevice device,
-			std::vector<VkDescriptorPool> descriptor_pools, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB
+			std::vector<VkDescriptorPool> descriptor_pools, VkPhysicalDevice physical_device,
+			VkFormat format = VK_FORMAT_R8G8B8A8_SRGB
 		);
 
 		VkDescriptorSetLayout get_bucket_descriptor_set_layout();

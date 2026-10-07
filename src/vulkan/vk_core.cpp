@@ -285,11 +285,12 @@ namespace Vulkan {
 
 			// Initialize texture system to loading texture
 			texture_system.init(
-				Const::TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_TEXTURE_PER_BUCKETS, device, descriptor_pools
+				Const::TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_TEXTURE_PER_BUCKETS, device, descriptor_pools,
+				physical_device
 			);
 
 			// Initialize font system to loading font
-			font_system.init(device, descriptor_pools);
+			font_system.init(device, descriptor_pools, physical_device);
 
 			// Initialize Vulkan static buffer to storage prototype like vertex data, index data,...
 			_init_static_buffers();

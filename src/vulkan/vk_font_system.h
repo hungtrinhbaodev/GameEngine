@@ -23,7 +23,7 @@ namespace Vulkan {
 
 		std::unordered_map<std::string, uint32_t> file_to_ids{};
 
-		void init(VkDevice device, std::vector<VkDescriptorPool> descriptor_pools);
+		void init(VkDevice device, std::vector<VkDescriptorPool> descriptor_pools, VkPhysicalDevice physical_device);
 
 		uint32_t load_font(std::string font_path);
 

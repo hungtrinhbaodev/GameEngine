@@ -15,11 +15,13 @@ namespace Vulkan {
 
 	void Texture_System::init(
 		std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets, VkDevice device,
-		std::vector<VkDescriptorPool> descriptor_pools, VkFormat format
+		std::vector<VkDescriptorPool> descriptor_pools, VkPhysicalDevice physical_device, VkFormat format
 	) {
 		this->device = device;
 		this->descriptor_pools = descriptor_pools;
 		this->format = format;
+		this->can_gpu_blit =
+			Utils::can_gpu_blit_image(physical_device, format, VK_FILTER_LINEAR) && Const::ENEABLED_IMAGE_MIPMAP;
 
 		/**
 		 * @Note: Add texture default using to binding with the texture bucket or draw
@@ -49,7 +51,9 @@ namespace Vulkan {
 			uint32_t texture_size = bucket_sizes[i];
 			uint32_t mip_level =
 				Const::ENEABLED_IMAGE_MIPMAP ? Utils::calculate_mip_level(texture_size, texture_size) : 1;
-			texture_buckets[i].init(number_texture_per_bucket, texture_size, texture_size, format, mip_level);
+			texture_buckets[i].init(
+				number_texture_per_bucket, texture_size, texture_size, this->can_gpu_blit, format, mip_level
+			);
 		}
 	}
 
@@ -171,7 +175,7 @@ namespace Vulkan {
 			// load single individual texture
 			Texture texture{};
 			uint32_t mip_level = Const::ENEABLED_IMAGE_MIPMAP ? Utils::calculate_mip_level(width, height) : 1;
-			texture.init(width, height, format, mip_level);
+			texture.init(width, height, can_gpu_blit, format, mip_level);
 			texture.upload_data(pixels);
 			ids_to_individual_textures[id] = texture;
 
