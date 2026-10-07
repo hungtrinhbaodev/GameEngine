@@ -23,8 +23,6 @@ namespace Vulkan {
 		void destroy();
 	};
 
-	std::shared_ptr<_Command_Pool_Thread> _get_command_thread_pool();
-
 	namespace Init {
 
 		void _init_command_pool_threads();
@@ -41,7 +39,7 @@ namespace Vulkan {
 
 		VkCommandBuffer request_command_buffer();
 
-		void release_command_buffer(VkCommandBuffer& command_buffer, std::thread::id thread_id);
+		void release_command_buffer(VkCommandBuffer& command_buffer);
 
 	} // namespace API
 

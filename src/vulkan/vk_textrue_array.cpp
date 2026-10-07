@@ -4,40 +4,32 @@
 #include <vulkan/vk_queues.h>
 #include <vulkan/vk_structs.h>
 #include <vulkan/vk_texture_array.h>
+#include <vulkan/vk_utils.h>
 
 namespace Vulkan {
 
-	void Texture_Array::init(uint32_t number_layer, uint32_t width, uint32_t height, VkFormat format) {
+	void Texture_Array::init(
+		uint32_t number_layer, uint32_t width, uint32_t height, VkFormat format, uint32_t mip_level
+	) {
 		this->number_layer = number_layer;
+		this->mip_level = mip_level;
 		used_indices.resize(number_layer, false);
 		inner_image.make_image(
 			width, height, format, VK_IMAGE_TILING_OPTIMAL,
 			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			VK_IMAGE_ASPECT_COLOR_BIT, number_layer, VK_IMAGE_VIEW_TYPE_2D_ARRAY
+			VK_IMAGE_ASPECT_COLOR_BIT, number_layer, VK_IMAGE_VIEW_TYPE_2D_ARRAY, mip_level
 		);
-		VkCommandBuffer command_buffer = API::request_command_buffer();
-		VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
-		vkBeginCommandBuffer(command_buffer, &begin_info);
+		VkCommandBuffer command_buffer = Utils::start_commands();
 		{
-			for (int i = 0; i < number_layer; i++) {
-				inner_image.record_transition_image_layout(
-					command_buffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, i
-				);
-			}
+			inner_image.record_transition_image_layout(
+				command_buffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, number_layer, 0,
+				mip_level
+			);
 		}
-		vkEndCommandBuffer(command_buffer);
-		VkFence fence = API::request_fence();
-		VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
-		API::submit(submit_info, fence);
-		std::thread::id thread_id = std::this_thread::get_id();
-		auto success = [this](std::thread::id thread_id, VkCommandBuffer command_buffer, VkFence fence) {
-			for (int i = 0; i < this->inner_image.array_layers; i++) {
-				this->inner_image.update_descriptor(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, i);
-			}
-			API::release_command_buffer(command_buffer, thread_id);
-			API::release_fence(fence);
-		};
-		return API::on_fence_success(fence, success, thread_id, command_buffer, fence).get();
+		Utils::finish_commands(command_buffer);
+		for (int i = 0; i < number_layer; i++) {
+			inner_image.update_descriptor(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, i);
+		}
 	}
 
 	int Texture_Array::find_availale_slot() const {
@@ -56,18 +48,31 @@ namespace Vulkan {
 		if (used_indices[layer_index]) {
 			throw std::runtime_error("Fail to upload data textrue in texture array: layer index upload is using");
 		}
-		try {
-			inner_image.transition_image_layout(
-				inner_image.get_descriptor_info(layer_index).imageLayout, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				layer_index
+		VkCommandBuffer command_buffer = Utils::start_commands();
+		Buffer staging_buffer{};
+		std::vector<Buffer> mip_staging_buffers{};
+		{
+			inner_image.record_transition_image_layout(
+				command_buffer, inner_image.get_descriptor_info(layer_index).imageLayout,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layer_index, 1, 0, mip_level
 			);
-			inner_image.copy_image_data(inner_image.width, inner_image.height, data, layer_index);
-			inner_image.transition_image_layout(
-				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+			staging_buffer = inner_image.record_copy_image_data(
+				command_buffer, inner_image.width, inner_image.height, data, layer_index
 			);
-		} catch (std::exception e) {
-			throw std::runtime_error(std::string("Fail to upload texture data in texture array: ") + e.what());
+			if (this->mip_level > 1) {
+				mip_staging_buffers = inner_image.record_generate_mipmap(command_buffer, data, layer_index);
+			}
+			inner_image.record_transition_image_layout(
+				command_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				layer_index, 1, 0, mip_level
+			);
 		}
+		Utils::finish_commands(command_buffer);
+		staging_buffer.destroy();
+		for (Buffer buffer : mip_staging_buffers) {
+			buffer.destroy();
+		}
+		inner_image.update_descriptor(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, layer_index);
 		used_indices[layer_index] = true;
 	}
 

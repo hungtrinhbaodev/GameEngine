@@ -1,6 +1,6 @@
 #include <future>
 
-#include <vulkan/vk_buffer.h>
+#include <stb_image_resize2.h>
 #include <vulkan/vk_command_pool.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_fences.h>
@@ -26,12 +26,13 @@ namespace Vulkan {
 		array_layers = other.array_layers;
 		image_view_type = other.image_view_type;
 		descriptor_image_layers = other.descriptor_image_layers;
+		mip_level = other.mip_level;
 	}
 
 	void Image::make_image(
 		uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
 		VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags, uint32_t array_layers,
-		VkImageViewType image_view_type, VkPhysicalDevice physical_device, VkDevice device
+		VkImageViewType image_view_type, uint32_t mip_level, VkPhysicalDevice physical_device, VkDevice device
 	) {
 
 		if (device == VK_NULL_HANDLE) {
@@ -54,7 +55,8 @@ namespace Vulkan {
 		this->height = height;
 		this->array_layers = array_layers;
 		this->image_view_type = image_view_type;
-		descriptor_image_layers.resize(array_layers, {VK_NULL_HANDLE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED});
+		this->mip_level = mip_level;
+		this->descriptor_image_layers.resize(array_layers, {VK_NULL_HANDLE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED});
 
 		VkImageCreateInfo create_info{};
 		create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -65,7 +67,7 @@ namespace Vulkan {
 		create_info.arrayLayers = array_layers;
 		create_info.format = format;
 		create_info.tiling = tiling;
-		create_info.mipLevels = 1;
+		create_info.mipLevels = mip_level;
 		create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		create_info.usage = usage;
 		create_info.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -99,7 +101,8 @@ namespace Vulkan {
 	}
 
 	void Image::record_transition_image_layout(
-		VkCommandBuffer command_buffer, VkImageLayout old_layout, VkImageLayout new_layout, uint32_t layer_index
+		VkCommandBuffer command_buffer, VkImageLayout old_layout, VkImageLayout new_layout, uint32_t base_layer,
+		uint32_t number_layer, uint32_t base_mip_level, uint32_t number_mip_level
 	) {
 
 		VkImageMemoryBarrier barrier_info{};
@@ -110,10 +113,10 @@ namespace Vulkan {
 		barrier_info.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier_info.image = image;
 		barrier_info.subresourceRange.aspectMask = aspect_flags;
-		barrier_info.subresourceRange.baseArrayLayer = layer_index;
-		barrier_info.subresourceRange.baseMipLevel = 0;
-		barrier_info.subresourceRange.levelCount = 1;
-		barrier_info.subresourceRange.layerCount = 1;
+		barrier_info.subresourceRange.baseArrayLayer = base_layer;
+		barrier_info.subresourceRange.baseMipLevel = base_mip_level;
+		barrier_info.subresourceRange.levelCount = number_mip_level;
+		barrier_info.subresourceRange.layerCount = number_layer;
 
 		VkPipelineStageFlags src_stage;
 		VkPipelineStageFlags dst_stage;
@@ -158,45 +161,139 @@ namespace Vulkan {
 		} else {
 			throw std::runtime_error("Vulkan transfer layout are not supported!");
 		}
-
 		vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, nullptr, 0, nullptr, 1, &barrier_info);
 	}
 
 	void Image::transition_image_layout(VkImageLayout old_layout, VkImageLayout new_layout, uint32_t layer_index) {
-		auto thread_id = std::this_thread::get_id();
-		VkCommandBuffer command_buffer = API::request_command_buffer();
-		VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
-		vkBeginCommandBuffer(command_buffer, &begin_info);
+		VkCommandBuffer command_buffer = Utils::start_commands();
 		{
 			record_transition_image_layout(command_buffer, old_layout, new_layout, layer_index);
 		}
-		vkEndCommandBuffer(command_buffer);
-
-		VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
-		VkFence fence = API::request_fence();
-		API::submit(submit_info, fence);
-		auto success = [this](
-						   VkFence fence, VkCommandBuffer command_buffer, std::thread::id thread_id,
-						   VkImageLayout new_layout, int layer_index
-					   ) {
-			API::release_command_buffer(command_buffer, thread_id);
-			API::release_fence(fence);
-			/*
-			 *Update layout when transition successfully
-			 */
-			{
-				update_descriptor(new_layout, layer_index);
-			}
-		};
-		return API::on_fence_success(fence, success, fence, command_buffer, thread_id, new_layout, layer_index).get();
+		Utils::finish_commands(command_buffer);
+		update_descriptor(new_layout, layer_index);
 	}
 
-	void Image::copy_image_data(uint32_t width, uint32_t height, void* pixels, uint32_t layer_index) {
+	std::vector<Buffer> Image::record_generate_mipmap(VkCommandBuffer command_buffer, void* data, int layer_index) {
+		/**
+		 * Note: case blit enabled in GPU we use this scope.
+		 * TODO: add check device support here for blit image.
+		 */
+		// {
+		// 	int mip_width = width, mip_height = height;
+		// 	for (int i = 1; i < mip_level; i++) {
+		// 		int src_mip_level = i - 1;
+		// 		record_transition_image_layout(
+		// 			command_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+		// 			layer_index, 1, src_mip_level, 1
+		// 		);
+		// 		{
+		// 			VkImageBlit blit = Structs::make_image_blit(mip_width, mip_height, src_mip_level, layer_index, 1);
+		// 			vkCmdBlitImage(
+		// 				command_buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, image,
+		// 				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, &blit, VK_FILTER_LINEAR
+		// 			);
+		// 		}
+		// 		record_transition_image_layout(
+		// 			command_buffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		// 			layer_index, 1, src_mip_level, 1
+		// 		);
+		// 		mip_width = mip_width > 1 ? mip_width / 2 : mip_width;
+		// 		mip_height = mip_height > 1 ? mip_height / 2 : mip_height;
+		// 	}
+		// }
+		/**
+		 * @Note: if not support we make an image by resize and copy it into GPU.
+		 */
+		std::vector<Buffer> staging_buffers{};
+		{
 
-		if (this->width != width || this->height != height) {
+			std::vector<std::future<Buffer>> tasks{};
+			std::vector<uint32_t> mip_widths{};
+			std::vector<uint32_t> mip_heights{};
+			uint32_t mip_width = width;
+			uint32_t mip_height = height;
+			for (int i = 1; i < mip_level; i++) {
+				mip_width = mip_width > 1 ? mip_width / 2 : mip_width;
+				mip_height = mip_height > 1 ? mip_height / 2 : mip_height;
+				mip_widths.push_back(mip_width);
+				mip_heights.push_back(mip_height);
+			}
+			for (int i = 0; i < mip_widths.size(); i++) {
+				uint32_t mip_width = mip_widths[i];
+				uint32_t mip_height = mip_heights[i];
+				auto blit =
+					[this](uint32_t mip_width, uint32_t mip_height, void* data, VkCommandBuffer command_buffer) {
+						int channels = Utils::get_number_channel_by(format);
+						std::vector<uint8_t> pixels_mip(mip_width * mip_height * channels);
+						void* result = nullptr;
+						if (channels == 1) {
+							result = stbir_resize_uint8_linear(
+								(const unsigned char*)data, width, height, 0, pixels_mip.data(), mip_width, mip_height,
+								0, STBIR_1CHANNEL
+							);
+						} else {
+							result = stbir_resize(
+								data, width, height, 0, pixels_mip.data(), mip_width, mip_height, 0, STBIR_RGBA,
+								STBIR_TYPE_UINT8, STBIR_EDGE_CLAMP, STBIR_FILTER_DEFAULT
+							);
+						}
+						Buffer staging{};
+						if (result == nullptr) {
+							throw std::runtime_error("Fail to resize texture to blit image!");
+						}
+						VkDeviceSize image_size = mip_width * mip_height * channels;
+						staging.make_buffer(
+							image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+							VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+						);
+						staging.copy_data(image_size, pixels_mip.data());
+						return staging;
+					};
+				auto task = _global_thread_pool->enqueue(blit, mip_width, mip_height, data, command_buffer);
+				tasks.push_back(std::move(task));
+			}
+			for (int i = 0; i < mip_widths.size(); i++) {
+				uint32_t mip_width = mip_widths[i];
+				uint32_t mip_height = mip_heights[i];
+				Buffer staging_buffer = tasks[i].get();
+				if (staging_buffer.size <= 0) {
+					throw std::runtime_error("Fail to resize texture to blit image!");
+				}
+				record_copy_image_data_with_buffer(
+					command_buffer, mip_width, mip_height, staging_buffer, layer_index, i + 1
+				);
+				staging_buffers.push_back(staging_buffer);
+			}
+		}
+		return staging_buffers;
+	}
+
+	void Image::record_copy_image_data_with_buffer(
+		VkCommandBuffer command_buffer, uint32_t width_copy, uint32_t height_copy, Buffer staging_buffer,
+		uint32_t layer_index, uint32_t mip_level_index
+	) {
+		VkBufferImageCopy region{};
+		region.bufferOffset = 0;
+		region.bufferRowLength = 0;
+		region.bufferImageHeight = 0;
+		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.imageSubresource.mipLevel = mip_level_index;
+		region.imageSubresource.baseArrayLayer = layer_index;
+		region.imageSubresource.layerCount = 1;
+		region.imageOffset = {0, 0, 0};
+		region.imageExtent = {(uint32_t)width_copy, (uint32_t)height_copy, 1};
+		vkCmdCopyBufferToImage(
+			command_buffer, staging_buffer.buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region
+		);
+	}
+
+	Buffer Image::record_copy_image_data(
+		VkCommandBuffer command_buffer, uint32_t width, uint32_t height, void* pixels, uint32_t layer_index,
+		uint32_t mip_level_index
+	) {
+		if ((this->width != width || this->height != height) && mip_level_index == 0) {
 			throw std::runtime_error("Vulkan fail to copy image data: wrong size image!");
 		}
-
 		VkDeviceSize image_size = width * height * Utils::get_number_channel_by(format);
 		Buffer staging{};
 		staging.make_buffer(
@@ -204,37 +301,18 @@ namespace Vulkan {
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
 		);
 		staging.copy_data(image_size, pixels);
+		record_copy_image_data_with_buffer(command_buffer, width, height, staging, layer_index, mip_level_index);
+		return staging;
+	}
 
-		auto thread_id = std::this_thread::get_id();
-		VkCommandBuffer command_buffer = API::request_command_buffer();
-		VkCommandBufferBeginInfo begin_command = Structs::make_command_begin_info();
-
-		vkBeginCommandBuffer(command_buffer, &begin_command);
-
-		VkBufferImageCopy region{};
-		region.bufferOffset = 0;
-		region.bufferRowLength = 0;
-		region.bufferImageHeight = 0;
-		region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		region.imageSubresource.mipLevel = 0;
-		region.imageSubresource.baseArrayLayer = layer_index;
-		region.imageSubresource.layerCount = 1;
-		region.imageOffset = {0, 0, 0};
-		region.imageExtent = {(uint32_t)width, (uint32_t)height, 1};
-
-		vkCmdCopyBufferToImage(command_buffer, staging.buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-		vkEndCommandBuffer(command_buffer);
-
-		VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
-		VkFence fence = API::request_fence();
-		API::submit(submit_info, fence);
-		auto success = [](VkFence fence, VkCommandBuffer command_buffer, Buffer buffer, std::thread::id thread_id) {
-			buffer.destroy();
-			API::release_fence(fence);
-			API::release_command_buffer(command_buffer, thread_id);
-		};
-		return API::on_fence_success(fence, success, fence, command_buffer, std::move(staging), thread_id).get();
+	void Image::copy_image_data(uint32_t width, uint32_t height, void* pixels, uint32_t layer_index) {
+		Buffer staging{};
+		VkCommandBuffer command_buffer = Utils::start_commands();
+		{
+			staging = record_copy_image_data(command_buffer, width, height, pixels, layer_index);
+		}
+		Utils::finish_commands(command_buffer);
+		staging.destroy();
 	}
 
 	void Image::make_sampler() {
@@ -256,6 +334,8 @@ namespace Vulkan {
 		create_info.compareEnable = VK_FALSE;
 		create_info.compareOp = VK_COMPARE_OP_ALWAYS;
 		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		create_info.minLod = 0.f;
+		create_info.maxLod = VK_LOD_CLAMP_NONE;
 
 		Utils::vk_check_result(
 			vkCreateSampler(device, &create_info, nullptr, &sampler), "", "Vulkan fail to create image sampler!"

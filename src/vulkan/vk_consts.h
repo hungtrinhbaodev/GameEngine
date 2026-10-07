@@ -56,6 +56,8 @@ namespace Vulkan {
 
 		const inline std::vector<uint32_t> NUMBER_LAYER_FONT_TEXTURE_PER_BUCKETS{16, 8, 4};
 
+		const inline bool ENEABLED_IMAGE_MIPMAP = true;
+
 		enum DRAW_ID {
 			DRAW_2D_MESH,					// draw primitive with raw color that user input.
 			DRAW_2D_RECTANGLE_WITH_TEXTURE, // draw a rectange with texture (ui image, sprite object, ...).

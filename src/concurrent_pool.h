@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector>
 #include <mutex>
+#include <vector>
 
 template <typename T> class Concurent_Pool {
 
@@ -17,20 +17,19 @@ template <typename T> class Concurent_Pool {
 	virtual void _delete_item(T& item) {}
 
   public:
-	T& request_item() {
-
-		std::unique_lock<std::mutex> lock(_pool_lock);
-
-		if (_pool.size() <= 0) {
-			T item = _create_item();
-			_pool.push_back(item);
-			_all_items_created.push_back(item);
+	T request_item() {
+		T found;
+		{
+			std::unique_lock<std::mutex> lock(_pool_lock);
+			if (_pool.size() <= 0) {
+				T item = _create_item();
+				_pool.push_back(item);
+				_all_items_created.push_back(item);
+			}
+			found = _pool.back();
+			_pool.pop_back();
 		}
-
-		T& item = _pool.back();
-		_pool.pop_back();
-
-		return item;
+		return found;
 	}
 
 	void pooling_item(const T& item) {

@@ -286,6 +286,28 @@ namespace Vulkan {
 			descriptor_buffer_info.range = range;
 			return descriptor_buffer_info;
 		}
+
+		inline VkImageBlit make_image_blit(
+			uint32_t src_width, uint32_t src_height, uint32_t src_mip_level, uint32_t base_layer = 0,
+			uint32_t layer_count = 1, VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT
+		) {
+			uint32_t dst_width = src_width > 1 ? src_width / 2 : 1;
+			uint32_t dst_height = src_height > 1 ? src_height / 2 : 1;
+			VkImageBlit blit{};
+			blit.srcOffsets[0] = {0, 0, 0};
+			blit.srcOffsets[1] = {(int32_t)src_width, (int32_t)src_height, 1};
+			blit.srcSubresource.aspectMask = aspect;
+			blit.srcSubresource.baseArrayLayer = base_layer;
+			blit.srcSubresource.layerCount = layer_count;
+			blit.srcSubresource.mipLevel = src_mip_level;
+			blit.dstOffsets[0] = {0, 0, 0};
+			blit.dstOffsets[1] = {(int32_t)dst_width, (int32_t)dst_height, 1};
+			blit.dstSubresource.aspectMask = aspect;
+			blit.dstSubresource.baseArrayLayer = base_layer;
+			blit.dstSubresource.layerCount = layer_count;
+			blit.dstSubresource.mipLevel = src_mip_level + 1;
+			return blit;
+		}
 	} // namespace Structs
 
 } // namespace Vulkan

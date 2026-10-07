@@ -251,9 +251,9 @@ namespace Vulkan {
 			vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
 
 			for (int i = 0; i < memory_properties.memoryTypeCount; i++) {
-				Log::info(
-					"find_suitable_memory_type", type_filter, memory_properties.memoryTypes[i].propertyFlags, properties
-				);
+				// Log::info(
+				// 	"find_suitable_memory_type", type_filter, memory_properties.memoryTypes[i].propertyFlags, properties
+				// );
 				if ((type_filter & (1 << i)) &&
 					(memory_properties.memoryTypes[i].propertyFlags & properties) == properties) {
 					return i;
@@ -315,6 +315,14 @@ namespace Vulkan {
 					throw std::runtime_error("Fail to get number channel unsupport image format!");
 				}
 			}
+		}
+
+		VkCommandBuffer start_commands();
+
+		void finish_commands(VkCommandBuffer command_buffer);
+
+		inline uint32_t calculate_mip_level(uint32_t width, uint32_t height) {
+			return (uint32_t)(std::log2(std::max(width, height))) + 1;
 		}
 
 	} // namespace Utils

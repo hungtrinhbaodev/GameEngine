@@ -1,21 +1,16 @@
 #pragma once
-#ifndef SCHEDULER_H
-#define SCHEDULER_H
 
-#include <vector>
-#include <thread>
-#include <functional>
-#include <mutex>
+#include <ThreadPool.h>
 #include <chrono>
-#include <string>
 #include <condition_variable>
+#include <functional>
 #include <future>
 #include <iostream>
 #include <log.h>
-
-#ifdef THREAD_POOL_H
-#include <ThreadPool.h>
-#endif // THREAD_POOL_H
+#include <mutex>
+#include <string>
+#include <thread>
+#include <vector>
 
 constexpr auto TIME_NULL = long(-1);
 
@@ -46,17 +41,13 @@ class Scheduler {
 		long long required_time = 0; // in milliseconds
 		Schedule_Type type = REPEAT_FOREVER;
 		Excute_State excute_state = Excute_State::IDLE;
-#ifdef THREAD_POOL_H
 		std::future<void> excute_finish;
-#endif // THREAD_POOL_H
 	};
 
   private:
-#ifdef THREAD_POOL_H
 	std::shared_ptr<ThreadPool> _global_thread_pool = nullptr;
-#endif // THREAD_POOL_H
 
-	std::timed_mutex tasks_mutex;
+	std::mutex tasks_mutex;
 
 	std::vector<Scheduled_Task> tasks;
 
@@ -80,7 +71,7 @@ class Scheduler {
 		task_data.task(current_time - start_time);
 		task_data.start_time = _get_current_time_ms();
 		{
-			std::unique_lock<std::timed_mutex> lock(tasks_mutex);
+			std::unique_lock<std::mutex> lock(tasks_mutex);
 			if (task_data.excute_state != Excute_State::PAUSE) {
 				task_data.excute_state = Excute_State::IDLE;
 			}
@@ -89,7 +80,6 @@ class Scheduler {
 
 	void process_task(Scheduled_Task& task_data, long long start_time) {
 		task_data.excute_state = Excute_State::EXCUTING;
-#ifdef THREAD_POOL_H
 		if (_global_thread_pool != nullptr) {
 			task_data.excute_finish = _global_thread_pool->enqueue(
 				[this, &task_data](long long start_time) { do_task(task_data, start_time); }, start_time
@@ -97,10 +87,6 @@ class Scheduler {
 		} else {
 			do_task(task_data, start_time);
 		}
-#else
-		// When no thread pool is used, execute synchronously using the provided start_time
-		do_task(task_data, start_time);
-#endif // THREAD_POOL_H
 	}
 
 	void push_task(
@@ -108,7 +94,7 @@ class Scheduler {
 		Schedule_Type scheduled_type = Schedule_Type::REPEAT_FOREVER
 	) {
 		{
-			std::unique_lock<std::timed_mutex> lock(tasks_mutex);
+			std::unique_lock<std::mutex> lock(tasks_mutex);
 			long long current_time = _get_current_time_ms();
 			tasks.push_back(Scheduled_Task{task_key, task, current_time, delay_ms, scheduled_type});
 		}
@@ -122,7 +108,7 @@ class Scheduler {
 				 * Note: don't let the sleep in the lock!
 				 */
 				{
-					std::unique_lock<std::timed_mutex> lock_task(tasks_mutex);
+					std::unique_lock<std::mutex> lock_task(tasks_mutex);
 					condition_variable.wait(lock_task, [this]() {
 						return this->is_stop || (!this->tasks.empty() && !this->is_all_tasks_pause());
 					});
@@ -212,18 +198,11 @@ class Scheduler {
 	}
 
   public:
-#ifdef THREAD_POOL_H
 	Scheduler(std::shared_ptr<ThreadPool> global_thread_pool = nullptr, int min_loop_time_micrs = 1000)
 		: _global_thread_pool(global_thread_pool)
 		, min_loop_time_micrs(min_loop_time_micrs) {
 		start();
 	}
-#else
-	Scheduler(int min_loop_time_micrs = 1000)
-		: min_loop_time_micrs(min_loop_time_micrs) {
-		start();
-	}
-#endif // THREAD_POOL_H
 	~Scheduler() { stop(); }
 
 	bool is_contain_task(const std::string& task_name) {
@@ -244,10 +223,9 @@ class Scheduler {
 	}
 
 	void remove_task_by_name(const std::string& task_name) {
-		std::unique_lock<std::timed_mutex> lock(tasks_mutex);
+		std::unique_lock<std::mutex> lock(tasks_mutex);
 		for (int i = 0; i < tasks.size(); ++i) {
 			if (tasks[i].task_name == task_name) {
-#ifdef THREAD_POOL_H
 				/*
 					In case use core thread pool we need wait the task is excuted finish
 					and erease it!
@@ -255,7 +233,6 @@ class Scheduler {
 				if (tasks[i].excute_state == Excute_State::EXCUTING) {
 					tasks[i].excute_finish.get();
 				}
-#endif
 				tasks.erase(tasks.begin() + i);
 				--i;
 			}
@@ -265,17 +242,15 @@ class Scheduler {
 	void push_pause_task(const std::string& task_name, bool pause_or_unpause) {}
 
 	void pause_scheduler_task(const std::string& task_name) {
-		std::unique_lock<std::timed_mutex> lock(tasks_mutex);
+		std::unique_lock<std::mutex> lock(tasks_mutex);
 		tasks_need_pause.push_back(Pause_Task_Info{task_name, true});
 	}
 
 	void unpause_scheduler_task(const std::string& task_name) {
 		{
-			std::unique_lock<std::timed_mutex> lock(tasks_mutex);
+			std::unique_lock<std::mutex> lock(tasks_mutex);
 			tasks_need_pause.push_back(Pause_Task_Info{task_name, false});
 		}
 		condition_variable.notify_one();
 	}
 };
-
-#endif

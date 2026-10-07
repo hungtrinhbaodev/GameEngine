@@ -1,6 +1,7 @@
 #include <exception>
 #include <functional>
 #include <log.h>
+#include <mutex>
 #include <vulkan/vk_command_pool.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_utils.h>
@@ -8,6 +9,8 @@
 namespace Vulkan {
 
 	std::unordered_map<uint64_t, std::shared_ptr<_Command_Pool_Thread>> _command_pool_threads;
+	std::mutex commands_mutex{};
+	std::unordered_map<VkCommandBuffer, uint64_t> command_to_thread_ids{};
 
 	VkCommandBuffer _Command_Pool_Thread::_create_item() {
 
@@ -123,12 +126,24 @@ namespace Vulkan {
 
 		VkCommandBuffer request_command_buffer() {
 			VkCommandBuffer command_buffer = _get_command_thread_pool()->request_item();
+			{
+				std::unique_lock<std::mutex> lock(commands_mutex);
+				if (command_to_thread_ids.find(command_buffer) == command_to_thread_ids.end()) {
+					auto thread_id = std::this_thread::get_id();
+					uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
+					command_to_thread_ids[command_buffer] = hash_thread_id;
+				}
+			}
 			vkResetCommandBuffer(command_buffer, 0);
 			return command_buffer;
 		}
 
-		void release_command_buffer(VkCommandBuffer& command_buffer, std::thread::id thread_id) {
-			uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
+		void release_command_buffer(VkCommandBuffer& command_buffer) {
+			uint64_t hash_thread_id = 0;
+			{
+				std::unique_lock<std::mutex> lock(commands_mutex);
+				hash_thread_id = command_to_thread_ids[command_buffer];
+			}
 			if (_command_pool_threads.find(hash_thread_id) == _command_pool_threads.end()) {
 				throw std::runtime_error("Vulkan fail to release command buffer: can't find command pool at thread!");
 			}

@@ -47,7 +47,9 @@ namespace Vulkan {
 		for (int i = 0; i < bucket_sizes.size(); i++) {
 			uint32_t number_texture_per_bucket = number_texture_per_buckets[i];
 			uint32_t texture_size = bucket_sizes[i];
-			texture_buckets[i].init(number_texture_per_bucket, texture_size, texture_size, format);
+			uint32_t mip_level =
+				Const::ENEABLED_IMAGE_MIPMAP ? Utils::calculate_mip_level(texture_size, texture_size) : 1;
+			texture_buckets[i].init(number_texture_per_bucket, texture_size, texture_size, format, mip_level);
 		}
 	}
 
@@ -168,7 +170,8 @@ namespace Vulkan {
 		if (need_use_individual_texture) {
 			// load single individual texture
 			Texture texture{};
-			texture.init(width, height, format);
+			uint32_t mip_level = Const::ENEABLED_IMAGE_MIPMAP ? Utils::calculate_mip_level(width, height) : 1;
+			texture.init(width, height, format, mip_level);
 			texture.upload_data(pixels);
 			ids_to_individual_textures[id] = texture;
 

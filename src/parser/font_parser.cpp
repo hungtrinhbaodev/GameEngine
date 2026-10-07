@@ -16,6 +16,8 @@ namespace Parser {
 
 	const int MIN_FONT_SIZE = 6;
 
+	const int ATLAS_PADDING = 2;
+
 	Font parse_font(std::string file_path) {
 		Font font{};
 		font.bytes = Files::read_file(file_path);
@@ -27,13 +29,16 @@ namespace Parser {
 		int base_atlas_size = 512;
 		int max_atlas_size = 2048;
 		int result = -1;
-		stbtt_bakedchar baked_char[NUM_CHAR] = {};
+		stbtt_packedchar packed_chars[NUM_CHAR] = {};
 		while (result <= 0 && base_atlas_size <= max_atlas_size) {
 			font.atlas.resize(base_atlas_size * base_atlas_size);
-			result = stbtt_BakeFontBitmap(
-				(const unsigned char*)font.bytes.data(), font_info.fontstart, MAX_PIXEL_HEIGHT, font.atlas.data(),
-				base_atlas_size, base_atlas_size, START_CHAR, NUM_CHAR, baked_char
+			stbtt_pack_context pc;
+			stbtt_PackBegin(&pc, font.atlas.data(), base_atlas_size, base_atlas_size, 0, ATLAS_PADDING, nullptr);
+			result = stbtt_PackFontRange(
+				&pc, (const unsigned char*)font.bytes.data(), font_info.fontstart, MAX_PIXEL_HEIGHT, START_CHAR,
+				NUM_CHAR, packed_chars
 			);
+			stbtt_PackEnd(&pc);
 			if (result <= 0) {
 				base_atlas_size *= 2;
 			}
@@ -55,7 +60,7 @@ namespace Parser {
 		float min_offset_y = 0;
 		for (int i = 0; i < NUM_CHAR; i++) {
 			char current_char = (char)(START_CHAR + i);
-			stbtt_bakedchar baked = baked_char[i];
+			stbtt_packedchar baked = packed_chars[i];
 			Char_Rect rect{};
 			rect.tex_coord_x = baked.x0 / (float)base_atlas_size;
 			rect.tex_coord_y = 1.f - baked.y1 / (float)base_atlas_size;
