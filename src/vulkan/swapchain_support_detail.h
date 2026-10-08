@@ -15,6 +15,6 @@ namespace Vulkan {
 		std::vector<VkPresentModeKHR> present_modes;
 
 		void log_info() const;
-	};
+	}; 
 
 } // namespace Vulkan

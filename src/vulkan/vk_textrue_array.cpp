@@ -51,9 +51,9 @@ namespace Vulkan {
 		if (used_indices[layer_index]) {
 			throw std::runtime_error("Fail to upload data textrue in texture array: layer index upload is using");
 		}
-		VkCommandBuffer command_buffer = Utils::start_commands();
 		Buffer staging_buffer{};
 		std::vector<Buffer> mip_staging_buffers{};
+		VkCommandBuffer command_buffer = Utils::start_commands();
 		{
 			inner_image.record_transition_image_layout(
 				command_buffer, inner_image.get_descriptor_info(layer_index).imageLayout,

@@ -1,13 +1,11 @@
 #pragma once
 #include <algorithm>
-#include <id_generator.h>
 #include <set>
 #include <stdexcept>
 #include <vector>
 
 template <typename T> class Sparse_Set {
   private:
-	Id_Generator id_generator{};
 	std::vector<uint32_t> ids;
 	std::vector<T> dense;
 	std::vector<int> id_to_index;
@@ -15,8 +13,7 @@ template <typename T> class Sparse_Set {
 	float size_factor = 1.5f;
 
   public:
-	uint32_t insert(const T& data) {
-		uint32_t id = id_generator.gen_id();
+	uint32_t insert(uint32_t id, const T& data) {
 		if (id_to_index.size() <= id + 1) {
 			uint32_t new_size = (uint32_t)((id + 1) * size_factor);
 			id_to_index.resize(new_size, -1);
@@ -61,6 +58,5 @@ template <typename T> class Sparse_Set {
 		index_to_id[last_index] = -1;
 		dense.pop_back();
 		ids.pop_back();
-		id_generator.release_id(id);
 	}
 };

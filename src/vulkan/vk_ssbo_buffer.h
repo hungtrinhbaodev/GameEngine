@@ -37,6 +37,8 @@ namespace Vulkan {
 
 		uint32_t current_offset = 0;
 
+		Id_Generator range_id_generator{};
+
 		Sparse_Set<SSBO_Buffer_Range> ranges_by_id;
 
 		void init(uint32_t initialize_size);

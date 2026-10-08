@@ -1,5 +1,6 @@
 #pragma once
 #include <geometry_structs.h>
+#include <id_generator.h>
 #include <map>
 #include <parser/font_parser.h>
 #include <sparse_set.h>
@@ -16,6 +17,8 @@ namespace Vulkan {
 	};
 
 	struct Font_System {
+
+		Id_Generator font_id_generator{};
 
 		Texture_System texture_system{};
 

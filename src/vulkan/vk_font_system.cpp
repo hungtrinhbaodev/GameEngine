@@ -49,13 +49,13 @@ namespace Vulkan {
 		if (file_to_ids.find(font_path) != file_to_ids.end()) {
 			return file_to_ids[font_path];
 		}
+		uint32_t font_id = font_id_generator.gen_id();
 		Parser::Font font = Parser::parse_font(::Utils::get_root_path() + font_path);
 		uint32_t texture_id = texture_system.load_texture(
 			font_path, font.atlas.data(), font.size_atlas, font.size_atlas, 1, Const::ENABLED_TEXTURE_BUCKETS
 		);
-		uint32_t font_id = fonts.insert({std::move(font), texture_id});
 		file_to_ids[font_path] = font_id;
-		return font_id;
+		return fonts.insert(font_id, {std::move(font), texture_id});
 	}
 
 	const Font& Font_System::view_font(uint32_t font_id) {

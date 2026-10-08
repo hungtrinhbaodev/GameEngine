@@ -312,6 +312,7 @@ namespace Vulkan {
 				SSBO_Buffer& ssbo = get_ssbo();
 				draw_info.instance_id = ssbo.upload_data(text.chars.data(), text.chars.size() * sizeof(Instance_Data));
 				draw_info.draw_material_id = font_id;
+				texts.insert(draw_info.instance_id, text);
 				return draw_info;
 			}
 

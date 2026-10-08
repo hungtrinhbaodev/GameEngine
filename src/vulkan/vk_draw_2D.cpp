@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <id_generator.h>
 #include <map>
 #include <profiler.h>
 #include <sparse_set.h>
@@ -16,6 +17,14 @@ namespace Vulkan {
 	namespace Draw_2D {
 
 		long long frame_count = 0;
+
+		const std::string SCOPE_SORT_DRAW = "2D SORT_DRAW";
+
+		const std::string SCOPE_SET_UP_BUFFER = "2D SET_UP_BUFFER";
+
+		const std::string SCOPE_BATCHING_GROUP = "2D BATCHING_GROUP";
+
+		const std::string SCOPE_DRAW = "2D DRAW";
 
 		struct Group_Draw_Batching {
 			Const::DRAW_ID draw_type = Const::DRAW_ID::UNDEFINED;
@@ -58,11 +67,13 @@ namespace Vulkan {
 			}
 		};
 
-		Sparse_Set<Draw_2D_Information> draws;
+		Id_Generator draw_id_generator{};
 
-		std::vector<uint32_t> sorted_draws;
+		Sparse_Set<Draw_2D_Information> draws{};
 
-		std::vector<Group_Draw_Batching> draw_groups;
+		std::vector<uint32_t> sorted_draws{};
+
+		std::vector<Group_Draw_Batching> draw_groups{};
 
 		Buffer instance_buffer{};
 
@@ -77,14 +88,6 @@ namespace Vulkan {
 		Binding_Draw_Info current_binding_draw_info{};
 
 		std::map<Draw_Order_Information, uint32_t> draw_order_to_ids;
-
-		const std::string SCOPE_SORT_DRAW = "2D SORT_DRAW";
-
-		const std::string SCOPE_SET_UP_BUFFER = "2D SET_UP_BUFFER";
-
-		const std::string SCOPE_BATCHING_GROUP = "2D BATCHING_GROUP";
-
-		const std::string SCOPE_DRAW = "2D DRAW";
 
 		bool is_same_draw(const Draw_2D_Information& a, const Draw_2D_Information& b) {
 			if (a.draw_type != b.draw_type)
@@ -396,11 +399,12 @@ namespace Vulkan {
 		}
 
 		uint32_t make_rectange(const Draw_2D_Attribute& draw_attributes, Rectangle_Attributes rectangle_attributes) {
+			uint32_t draw_id = draw_id_generator.gen_id();
 			Draw_2D_Information draw_info = Rectangle::make_draw(rectangle_attributes);
 			draw_info.draw_index = draw_attributes.draw_index;
 			draw_info.visible = draw_attributes.is_visible;
 			draw_info.create_index = ++current_create_index;
-			return draws.insert(draw_info);
+			return draws.insert(draw_id, draw_info);
 		}
 
 		void update_rectangle(uint32_t id, Rectangle_Attributes rectangle_attributes) {
@@ -414,11 +418,12 @@ namespace Vulkan {
 		uint32_t make_texture_2D(
 			const Draw_2D_Attribute& draw_attributes, const Texture_2D_Attributes& texture_attributes
 		) {
+			uint32_t draw_id = draw_id_generator.gen_id();
 			Draw_2D_Information draw_info = Texture_2D::make_texture_2D(texture_attributes);
 			draw_info.draw_index = draw_attributes.draw_index;
 			draw_info.visible = draw_attributes.is_visible;
 			draw_info.create_index = ++current_create_index;
-			return draws.insert(draw_info);
+			return draws.insert(draw_id, draw_info);
 		}
 
 		void update_texture_2D(uint32_t id, const Texture_2D_Attributes& texture_attributes) {
@@ -432,19 +437,21 @@ namespace Vulkan {
 		uint32_t make_triangle(
 			const Draw_2D_Attribute& draw_attributes, const Triangle_Attribultes& triangle_attributes
 		) {
+			uint32_t draw_id = draw_id_generator.gen_id();
 			Draw_2D_Information draw_info = Triangle::make_triangle(triangle_attributes);
 			draw_info.draw_index = draw_attributes.draw_index;
 			draw_info.visible = draw_attributes.is_visible;
 			draw_info.create_index = ++current_create_index;
-			return draws.insert(draw_info);
+			return draws.insert(draw_id, draw_info);
 		}
 
 		uint32_t make_font_2D(const Draw_2D_Attribute& draw_attributes, const Font_2D_Attributes& font_attributes) {
+			uint32_t draw_id = draw_id_generator.gen_id();
 			Draw_2D_Information draw_info = Font_2D::make_font_2D(font_attributes);
 			draw_info.draw_index = draw_attributes.draw_index;
 			draw_info.visible = draw_attributes.is_visible;
 			draw_info.create_index = ++current_create_index;
-			return draws.insert(draw_info);
+			return draws.insert(draw_id, draw_info);
 		}
 
 		void update_triangle(uint32_t id, const Triangle_Attribultes& triangle_attributes) {

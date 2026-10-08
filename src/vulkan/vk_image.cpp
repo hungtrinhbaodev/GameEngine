@@ -192,16 +192,24 @@ namespace Vulkan {
 	std::vector<Buffer> Image::record_generate_mipmap(
 		VkCommandBuffer command_buffer, void* data, bool can_gpu_blit_image, int layer_index
 	) {
+		std::vector<Buffer> staging_buffers{};
+		std::vector<uint32_t> mip_widths{};
+		std::vector<uint32_t> mip_heights{};
+		uint32_t mip_width = width;
+		uint32_t mip_height = height;
+		for (int i = 1; i < mip_level; i++) {
+			mip_width = mip_width > 1 ? mip_width / 2 : mip_width;
+			mip_height = mip_height > 1 ? mip_height / 2 : mip_height;
+			mip_widths.push_back(mip_width);
+			mip_heights.push_back(mip_height);
+		}
 		/**
 		 * Note: case blit enabled in GPU we use this scope.
 		 */
-		/**
-		 * @Note: if not support we make an image by resize and copy it into GPU.
-		 */
-		std::vector<Buffer> staging_buffers{};
 		if (can_gpu_blit_image) {
-			int mip_width = width, mip_height = height;
 			for (int i = 1; i < mip_level; i++) {
+				int mip_width = mip_widths[i - 1];
+				int mip_height = mip_heights[i - 1];
 				int src_mip_level = i - 1;
 				record_transition_image_layout(
 					command_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -218,25 +226,16 @@ namespace Vulkan {
 					command_buffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 					layer_index, 1, src_mip_level, 1
 				);
-				mip_width = mip_width > 1 ? mip_width / 2 : mip_width;
-				mip_height = mip_height > 1 ? mip_height / 2 : mip_height;
 			}
 			record_transition_image_layout(
 				command_buffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 				layer_index, 1, mip_level - 1, 1
 			);
 		} else {
+			/**
+			 * @Note: if not support we make an image by resize and copy it into GPU.
+			 */
 			std::vector<std::future<Buffer>> tasks{};
-			std::vector<uint32_t> mip_widths{};
-			std::vector<uint32_t> mip_heights{};
-			uint32_t mip_width = width;
-			uint32_t mip_height = height;
-			for (int i = 1; i < mip_level; i++) {
-				mip_width = mip_width > 1 ? mip_width / 2 : mip_width;
-				mip_height = mip_height > 1 ? mip_height / 2 : mip_height;
-				mip_widths.push_back(mip_width);
-				mip_heights.push_back(mip_height);
-			}
 			for (int i = 0; i < mip_widths.size(); i++) {
 				uint32_t mip_width = mip_widths[i];
 				uint32_t mip_height = mip_heights[i];
@@ -258,7 +257,7 @@ namespace Vulkan {
 						}
 						Buffer staging{};
 						if (result == nullptr) {
-							throw std::runtime_error("Fail to resize texture to blit image!");
+							return staging;
 						}
 						VkDeviceSize image_size = mip_width * mip_height * channels;
 						staging.make_buffer(

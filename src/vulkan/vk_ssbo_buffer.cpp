@@ -12,6 +12,7 @@ namespace Vulkan {
 	}
 
 	uint32_t SSBO_Buffer::upload_data(void* data, uint32_t size) {
+		uint32_t range_id = range_id_generator.gen_id();
 		SSBO_Buffer_Range using_range{0, 0};
 		if (available_ranges.size() > 0 && available_ranges.top().size >= size) {
 			SSBO_Buffer_Range optimal_range = available_ranges.top();
@@ -31,7 +32,7 @@ namespace Vulkan {
 			current_offset += size;
 		}
 		inner_buffer.copy_data(using_range.size, data, using_range.offset);
-		return ranges_by_id.insert(using_range);
+		return ranges_by_id.insert(range_id, using_range);
 	}
 
 	void SSBO_Buffer::update_data(uint32_t id, void* data, uint32_t offset, uint32_t size) {
@@ -51,6 +52,7 @@ namespace Vulkan {
 		const SSBO_Buffer_Range& range = ranges_by_id.get(id);
 		available_ranges.push(range);
 		ranges_by_id.erase(id);
+		range_id_generator.release_id(id);
 	}
 
 	SSBO_Buffer_Range SSBO_Buffer::view_slot(uint32_t id) {

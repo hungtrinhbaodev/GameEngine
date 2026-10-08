@@ -34,7 +34,6 @@ namespace Vulkan {
 		}
 		default_texture_id = load_texture(TEXTURE_DEFAULT_PATH, texture_default_bytes.data(), 1, 1, number_channel);
 
-		// @note: From now we disabled texture bucket to have full flow texture to test program first!
 		if (!Const::ENABLED_TEXTURE_BUCKETS)
 			return;
 
