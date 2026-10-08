@@ -10,7 +10,7 @@ namespace Vulkan {
 			depth_image.make_image(
 				swapchain_extent.width, swapchain_extent.height, Utils::find_depth_format(physical_device),
 				VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_DEPTH_BIT
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_DEPTH_BIT, Vulkan::physical_device, Vulkan::device
 			);
 			Log::info("Vulkan init depth image successfully!");
 		}

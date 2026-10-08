@@ -34,7 +34,7 @@ namespace Vulkan {
 
 		void make_buffer(
 			uint32_t size, VkBufferUsageFlags usage_flags, VkMemoryPropertyFlags property_flags,
-			VkPhysicalDevice physical_device = VK_NULL_HANDLE, VkDevice device = VK_NULL_HANDLE
+			VkPhysicalDevice physical_device, VkDevice device
 		);
 
 		void copy_data(uint32_t size, void* data, uint32_t offset = 0) const;

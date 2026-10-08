@@ -1,5 +1,6 @@
 #include <math_custom.h>
 #include <utils.h>
+#include <vulkan/vk_core.h>
 #include <vulkan/vk_descriptor.h>
 #include <vulkan/vk_draw_texture_2D_package.h>
 #include <vulkan/vk_structs.h>
@@ -73,7 +74,8 @@ namespace Vulkan {
 		 * Initialize instance texture 2D
 		 */
 		this->texture_instance_buffer.init(
-			this->global_staging_buffer, Const::INITIALIZE_SIZE_INSTANCING_BUFFER, sizeof(Texture_2D_Instance_Data)
+			this->global_staging_buffer, Const::INITIALIZE_SIZE_INSTANCING_BUFFER, sizeof(Texture_2D_Instance_Data),
+			Vulkan::physical_device, Vulkan::device
 		);
 	}
 

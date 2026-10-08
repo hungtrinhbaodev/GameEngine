@@ -32,6 +32,8 @@ namespace Vulkan {
 
 		static const std::string TEXTURE_DEFAULT_PATH;
 
+		VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+
 		VkDevice device = VK_NULL_HANDLE;
 
 		std::vector<VkDescriptorPool> descriptor_pools;

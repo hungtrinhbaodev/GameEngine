@@ -6,7 +6,7 @@ namespace Vulkan {
 
 	namespace Init {
 
-		void _init_instance();
+		void _init_instance(VkInstance& instance, VkDebugUtilsMessengerEXT& debug_messenger);
 
 		VkResult _create_debug_messeger_ext(
 			VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* p_create_info,
@@ -31,6 +31,6 @@ namespace Vulkan {
 			VkInstance instance, VkDebugUtilsMessengerEXT debug_messenger, const VkAllocationCallbacks* p_allocator
 		);
 
-		void _destroy_instance();
+		void _destroy_instance(VkInstance instance, VkDebugUtilsMessengerEXT debug_messenger);
 	} // namespace Destroy
 } // namespace Vulkan

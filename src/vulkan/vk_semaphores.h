@@ -10,6 +10,8 @@ namespace Vulkan {
 		void _delete_item(VkSemaphore& item) override;
 	};
 
+	void init_semaphores(VkDevice device);
+
 	namespace API {
 
 		VkSemaphore request_semaphore();

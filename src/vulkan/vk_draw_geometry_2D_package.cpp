@@ -2,6 +2,7 @@
 #include <array>
 #include <math_custom.h>
 #include <utils.h>
+#include <vulkan/vk_core.h>
 #include <vulkan/vk_draw_geometry_2D_package.h>
 #include <vulkan/vk_utils.h>
 #include <vulkan/vk_vertex_input_builder.h>
@@ -59,14 +60,16 @@ namespace Vulkan {
 		 * Init triangle instance buffer.
 		 */
 		this->triangle_instance_buffer.init(
-			this->global_staging_buffer, sizeof(Geometry_2D_Instance_Data), sizeof(Geometry_2D_Instance_Data)
+			this->global_staging_buffer, sizeof(Geometry_2D_Instance_Data), sizeof(Geometry_2D_Instance_Data),
+			Vulkan::physical_device, Vulkan::device
 		);
 
 		/**
 		 * Init rectangle instance buffer.
 		 */
 		this->rectangle_instance_buffer.init(
-			this->global_staging_buffer, Const::INITIALIZE_SIZE_INSTANCING_BUFFER, sizeof(Geometry_2D_Instance_Data)
+			this->global_staging_buffer, Const::INITIALIZE_SIZE_INSTANCING_BUFFER, sizeof(Geometry_2D_Instance_Data),
+			Vulkan::physical_device, Vulkan::device
 		);
 	}
 

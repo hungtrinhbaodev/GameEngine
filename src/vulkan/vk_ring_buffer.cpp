@@ -10,14 +10,14 @@
 
 namespace Vulkan {
 
-	void Ring_Buffer::init(int max_frame, uint32_t initialize_size) {
+	void Ring_Buffer::init(int max_frame, uint32_t initialize_size, VkPhysicalDevice physical_device, VkDevice device) {
 		this->max_frame = max_frame;
 		for (int i = 0; i < this->max_frame; i++) {
 			max_frame_sizes.push_back(initialize_size);
 			Buffer inner_buffer{};
 			inner_buffer.make_buffer(
 				initialize_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-				VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+				VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, physical_device, device
 			);
 			inner_buffers.push_back(inner_buffer);
 			current_frame_offsets.push_back(0);

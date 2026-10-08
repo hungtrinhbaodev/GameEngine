@@ -36,7 +36,10 @@ namespace Vulkan {
 
 		Instance_Buffer();
 
-		void init(Ring_Buffer* global_staging_buffer, uint32_t initialize_buffer_size, uint32_t instance_size);
+		void init(
+			Ring_Buffer* global_staging_buffer, uint32_t initialize_buffer_size, uint32_t instance_size,
+			VkPhysicalDevice physical_device, VkDevice device
+		);
 
 		uint32_t add_data(void* data);
 

@@ -1,11 +1,8 @@
 #include <future>
 
+#include <core.h>
 #include <stb_image_resize2.h>
-#include <vulkan/vk_command_pool.h>
-#include <vulkan/vk_core.h>
-#include <vulkan/vk_fences.h>
 #include <vulkan/vk_image.h>
-#include <vulkan/vk_queues.h>
 #include <vulkan/vk_structs.h>
 #include <vulkan/vk_utils.h>
 
@@ -31,17 +28,9 @@ namespace Vulkan {
 
 	void Image::make_image(
 		uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-		VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags, uint32_t array_layers,
-		VkImageViewType image_view_type, uint32_t mip_level, VkPhysicalDevice physical_device, VkDevice device
+		VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags, VkPhysicalDevice physical_device,
+		VkDevice device, uint32_t array_layers, VkImageViewType image_view_type, uint32_t mip_level
 	) {
-
-		if (device == VK_NULL_HANDLE) {
-			device = Vulkan::device;
-		}
-
-		if (physical_device == VK_NULL_HANDLE) {
-			physical_device = Vulkan::physical_device;
-		}
 
 		if (device == VK_NULL_HANDLE || physical_device == VK_NULL_HANDLE) {
 			throw std::runtime_error("Vulkan fail to make image: try to init device and physical device first!");
@@ -262,12 +251,13 @@ namespace Vulkan {
 						VkDeviceSize image_size = mip_width * mip_height * channels;
 						staging.make_buffer(
 							image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-							VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+							VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, physical_device,
+							device
 						);
 						staging.copy_data(image_size, pixels_mip.data());
 						return staging;
 					};
-				auto task = _global_thread_pool->enqueue(blit, mip_width, mip_height, data, command_buffer);
+				auto task = Core::global_thread_pool->enqueue(blit, mip_width, mip_height, data, command_buffer);
 				tasks.push_back(std::move(task));
 			}
 			for (int i = 0; i < mip_widths.size(); i++) {
@@ -316,7 +306,7 @@ namespace Vulkan {
 		Buffer staging{};
 		staging.make_buffer(
 			image_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, physical_device, device
 		);
 		staging.copy_data(image_size, pixels);
 		record_copy_image_data_with_buffer(command_buffer, width, height, staging, layer_index, mip_level_index);

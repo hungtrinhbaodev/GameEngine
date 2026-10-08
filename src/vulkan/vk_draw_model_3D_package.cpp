@@ -2,6 +2,7 @@
 #include <log.h>
 #include <math_custom.h>
 #include <utils.h>
+#include <vulkan/vk_core.h>
 #include <vulkan/vk_descriptor.h>
 #include <vulkan/vk_draw_model_3D_package.h>
 #include <vulkan/vk_structs.h>
@@ -38,7 +39,8 @@ namespace Vulkan {
 		this->pipeline_info.init(this->pipeline_config);
 
 		this->model_instance_buffer.init(
-			this->global_staging_buffer, Const::INITIALIZE_SIZE_INSTANCING_BUFFER, sizeof(glm::mat4)
+			this->global_staging_buffer, Const::INITIALIZE_SIZE_INSTANCING_BUFFER, sizeof(glm::mat4),
+			Vulkan::physical_device, Vulkan::device
 		);
 	}
 

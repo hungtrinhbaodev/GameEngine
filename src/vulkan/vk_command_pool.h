@@ -24,23 +24,16 @@ namespace Vulkan {
 	};
 
 	namespace Init {
-
-		void _init_command_pool_threads();
-
+		void _init_command_pool_threads(VkSurfaceKHR surface, VkPhysicalDevice physical_device, VkDevice device);
 	}
 
 	namespace Destroy {
-
 		void _destroy_command_pool_threads();
-
 	}
 
 	namespace API {
-
 		VkCommandBuffer request_command_buffer();
-
 		void release_command_buffer(VkCommandBuffer& command_buffer);
-
 	} // namespace API
 
 } // namespace Vulkan

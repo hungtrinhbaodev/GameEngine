@@ -170,7 +170,7 @@ namespace Vulkan {
 				Buffer uniform_buffer{};
 				uniform_buffer.make_buffer(
 					uniform_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, Vulkan::physical_device, Vulkan::device
 				);
 				uniform_buffers.push_back(uniform_buffer);
 			}
@@ -204,7 +204,10 @@ namespace Vulkan {
 			 */
 			auto make_static_buffer = [](VkBufferUsageFlagBits buffer_flags) {
 				Static_Buffer vertex_buffer{};
-				vertex_buffer.init(global_staging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE, buffer_flags);
+				vertex_buffer.init(
+					global_staging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE, buffer_flags, physical_device,
+					device
+				);
 				return vertex_buffer;
 			};
 			global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D] =
@@ -233,22 +236,25 @@ namespace Vulkan {
 			_global_scheduler = global_scheduler;
 
 			// Initialize Vulkan Instance
-			_init_instance();
+			_init_instance(instance, debug_messenger);
 
 			// Initialize Vulkan Surface
-			_init_surface();
+			_init_surface(surface, instance, _window);
 
 			// Initialize Vulkan Physical Device
-			_init_physical_device();
+			_init_physical_device(physical_device, instance, surface);
 
 			// Initialize Vulkan Device
-			_init_device();
+			_init_device(device, surface, physical_device);
 
 			// Initialize Vulkan Queues
-			_init_queues();
+			_init_queues(graphics_queue, present_queue, surface, physical_device, device);
 
 			// Initialize Vulkan Fence Pool
-			_init_fences();
+			_init_fences(device);
+
+			// Initialize Vulkan Semaphores Pool
+			init_semaphores(device);
 
 			// Initialize Vulkan semaphore to draw
 			_request_draw_semaphores();
@@ -257,7 +263,7 @@ namespace Vulkan {
 			_request_draw_fences();
 
 			// Initialize Vulkan Command Pool By Threads
-			_init_command_pool_threads();
+			_init_command_pool_threads(surface, physical_device, device);
 
 			// Initialize Vulkan Swapchain
 			_init_swapchain();
@@ -281,7 +287,10 @@ namespace Vulkan {
 			_request_draw_command_buffers();
 
 			// Initialize global staging buffer
-			global_staging_buffer->init(Const::MAX_FRAMES_IN_FLIGHT, Const::INITIALIZE_SIZE_STAGING_BUFFER);
+			global_staging_buffer->init(
+				Const::MAX_FRAMES_IN_FLIGHT, Const::INITIALIZE_SIZE_STAGING_BUFFER, Vulkan::physical_device,
+				Vulkan::device
+			);
 
 			// Initialize texture system to loading texture
 			texture_system.init(
@@ -404,10 +413,10 @@ namespace Vulkan {
 			VkSubmitInfo submit_info = Structs::make_submit_info(
 				&command_buffer, 1, 1, &draw_semaphore, &wait_stage, 1, &finish_render_semaphore
 			);
-			API::submit(submit_info, draw_fence);
+			API::submit(submit_info, graphics_queue, draw_fence);
 			VkPresentInfoKHR present_info =
 				Structs::make_present_info(1, &finish_render_semaphore, 1, &swapchain, &image_index);
-			result = API::submit_present(present_info);
+			result = API::submit_present(present_info, present_queue);
 			if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || frame_buffer_resize) {
 				frame_buffer_resize = false;
 				_on_window_resize();
@@ -500,13 +509,13 @@ namespace Vulkan {
 			_destroy_command_pool_threads();
 
 			// Destroy Vulkan Device
-			_destroy_device();
+			_destroy_device(device);
 
 			// Destroy Vulkan Surface
-			_destroy_surface();
+			_destroy_surface(surface, instance);
 
 			// Destroy Vulkan Instance
-			_destroy_instance();
+			_destroy_instance(instance, debug_messenger);
 		}
 
 	} // namespace Destroy

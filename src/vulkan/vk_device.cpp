@@ -2,7 +2,6 @@
 
 #include <log.h>
 #include <vulkan/vk_consts.h>
-#include <vulkan/vk_core.h>
 #include <vulkan/vk_device.h>
 #include <vulkan/vk_utils.h>
 
@@ -10,7 +9,7 @@ namespace Vulkan {
 
 	namespace Init {
 
-		void _init_device() {
+		void _init_device(VkDevice& device, VkSurfaceKHR surface, VkPhysicalDevice physical_device) {
 
 			Queue_Family_Indices indices = Utils::query_suitable_queue_family_indices(physical_device, surface);
 
@@ -56,7 +55,7 @@ namespace Vulkan {
 
 	namespace Destroy {
 
-		void _destroy_device() {
+		void _destroy_device(VkDevice device) {
 
 			vkDestroyDevice(device, nullptr);
 			Log::info("Vulkan destroy logical device success!");

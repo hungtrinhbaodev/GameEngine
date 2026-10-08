@@ -1,6 +1,5 @@
 #include <log.h>
 #include <vulkan/vk_consts.h>
-#include <vulkan/vk_core.h>
 #include <vulkan/vk_physical_device.h>
 #include <vulkan/vk_utils.h>
 
@@ -8,7 +7,7 @@ namespace Vulkan {
 
 	namespace Init {
 
-		void _init_physical_device() {
+		void _init_physical_device(VkPhysicalDevice& physical_device, VkInstance instance, VkSurfaceKHR surface) {
 
 			uint32_t device_count = 0;
 			vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
@@ -28,19 +27,19 @@ namespace Vulkan {
 			}
 			Log::info("Vulkan list physical device:", physical_device_infos);
 
-			for (VkPhysicalDevice physical_device : physical_devices) {
-				if (Utils::is_suitable_physical_device(physical_device, surface)) {
-					Vulkan::physical_device = physical_device;
+			for (VkPhysicalDevice current_physical_device : physical_devices) {
+				if (Utils::is_suitable_physical_device(current_physical_device, surface)) {
+					physical_device = current_physical_device;
 					break;
 				}
 			}
 
-			if (Vulkan::physical_device == VK_NULL_HANDLE) {
+			if (physical_device == VK_NULL_HANDLE) {
 				Utils::vk_check_result(VK_INCOMPLETE, "", "Vulkan fail to find a suitable GPU!");
 			} else {
 				VkPhysicalDeviceProperties property;
-				vkGetPhysicalDeviceProperties(Vulkan::physical_device, &property);
-				Log::info("Vulkan chosed deviced: ", Vulkan::physical_device, property.deviceName);
+				vkGetPhysicalDeviceProperties(physical_device, &property);
+				Log::info("Vulkan chosed deviced: ", physical_device, property.deviceName);
 			}
 		}
 

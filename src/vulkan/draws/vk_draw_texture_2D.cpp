@@ -132,14 +132,14 @@ namespace Vulkan {
 				}
 				pipeline.init(pipeline_config);
 
-				Static_Buffer& vertex_buffer = get_vertex_buffer(sizeof(Geometry::Vertex_2D));
-				Static_Buffer& indices_buffer = get_indices_buffer(sizeof(uint16_t));
-				vertex_id = vertex_buffer.upload_data(
-					sizeof(Geometry::Vertex_2D) * TEXTURE_VERTICES.size(), TEXTURE_VERTICES.data()
+				Static_Buffer_2& static_buffer = get_static_buffer();
+				vertex_id = static_buffer.upload_data(
+					TEXTURE_VERTICES.data(), sizeof(Geometry::Vertex_2D) * TEXTURE_VERTICES.size(),
+					sizeof(Geometry::Vertex_2D)
 				);
-				indices_id =
-					indices_buffer.upload_data(sizeof(uint16_t) * TEXTURE_INDICES.size(), TEXTURE_INDICES.data());
-				Vulkan::global_staging_buffer->flush_frame();
+				indices_id = static_buffer.upload_data(
+					TEXTURE_INDICES.data(), sizeof(uint16_t) * TEXTURE_INDICES.size(), sizeof(uint16_t)
+				);
 			}
 
 			size_t get_instance_size() {
@@ -196,10 +196,9 @@ namespace Vulkan {
 				VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t number_instance,
 				uint32_t first_instance_offset, uint32_t frame_index
 			) {
-				Static_Buffer& indices_buffer = get_indices_buffer(sizeof(uint16_t));
-				Static_Buffer& vertex_buffer = get_vertex_buffer(sizeof(Geometry::Vertex_2D));
-				Static_Buffer_Range indices_range = indices_buffer.view_slot_info(indices_id);
-				Static_Buffer_Range vertex_range = vertex_buffer.view_slot_info(vertex_id);
+				Static_Buffer_2& static_buffer = get_static_buffer();
+				Static_Buffer_Range_2 indices_range = static_buffer.view_slot_info(indices_id);
+				Static_Buffer_Range_2 vertex_range = static_buffer.view_slot_info(vertex_id);
 				Buffer instance_buffer = get_instance_buffer();
 				Materital_Data material = material_by_ids[material_draw_id];
 				VkDescriptorSet* descriptor_sets = nullptr;
@@ -223,10 +222,10 @@ namespace Vulkan {
 					number_descriptor_set = 1;
 					descriptor_sets = bind_descriptor_sets;
 				}
-				VkBuffer binding_buffers[2] = {vertex_buffer.inner_buffer.buffer, instance_buffer.buffer};
+				VkBuffer binding_buffers[2] = {static_buffer.inner_buffer.buffer, instance_buffer.buffer};
 				VkDeviceSize buffer_offsets[2] = {0, 0};
 				bind_draw_resource(
-					command_buffer, pipeline.pipeline, pipeline.layout, indices_buffer.inner_buffer.buffer, 0,
+					command_buffer, pipeline.pipeline, pipeline.layout, static_buffer.inner_buffer.buffer, 0,
 					VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, number_descriptor_set, descriptor_sets
 				);
 				Push_Constants constants{Utils::get_window_size(), vertex_range.offset_as<Geometry::Vertex_2D>()};

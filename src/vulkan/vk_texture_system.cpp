@@ -18,6 +18,7 @@ namespace Vulkan {
 		std::vector<VkDescriptorPool> descriptor_pools, VkPhysicalDevice physical_device, VkFormat format
 	) {
 		this->device = device;
+		this->physical_device = physical_device;
 		this->descriptor_pools = descriptor_pools;
 		this->format = format;
 		this->can_gpu_blit =
@@ -51,7 +52,8 @@ namespace Vulkan {
 			uint32_t mip_level =
 				Const::ENEABLED_IMAGE_MIPMAP ? Utils::calculate_mip_level(texture_size, texture_size) : 1;
 			texture_buckets[i].init(
-				number_texture_per_bucket, texture_size, texture_size, this->can_gpu_blit, format, mip_level
+				number_texture_per_bucket, texture_size, texture_size, this->can_gpu_blit, physical_device, device,
+				format, mip_level
 			);
 		}
 	}
@@ -174,7 +176,7 @@ namespace Vulkan {
 			// load single individual texture
 			Texture texture{};
 			uint32_t mip_level = Const::ENEABLED_IMAGE_MIPMAP ? Utils::calculate_mip_level(width, height) : 1;
-			texture.init(width, height, can_gpu_blit, format, mip_level);
+			texture.init(width, height, can_gpu_blit, physical_device, device, format, mip_level);
 			texture.upload_data(pixels);
 			ids_to_individual_textures[id] = texture;
 

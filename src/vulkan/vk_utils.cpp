@@ -50,7 +50,7 @@ namespace Vulkan {
 				API::release_command_buffer(command_buffer);
 				API::release_fence(fence);
 			};
-			API::submit(submit_info, fence);
+			API::submit(submit_info, Vulkan::graphics_queue, fence);
 			API::on_fence_success(fence, success, command_buffer, fence).get();
 		}
 	} // namespace Utils

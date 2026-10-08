@@ -2,10 +2,6 @@
 
 #include <log.h>
 #include <vulkan/vk_buffer.h>
-#include <vulkan/vk_command_pool.h>
-#include <vulkan/vk_core.h>
-#include <vulkan/vk_fences.h>
-#include <vulkan/vk_queues.h>
 #include <vulkan/vk_structs.h>
 #include <vulkan/vk_utils.h>
 
@@ -31,15 +27,6 @@ namespace Vulkan {
 		uint32_t size, VkBufferUsageFlags usage_flags, VkMemoryPropertyFlags property_flags,
 		VkPhysicalDevice physical_device, VkDevice device
 	) {
-
-		if (device == VK_NULL_HANDLE) {
-			device = Vulkan::device;
-		}
-
-		if (physical_device == VK_NULL_HANDLE) {
-			physical_device = Vulkan::physical_device;
-		}
-
 		if (device == VK_NULL_HANDLE || physical_device == VK_NULL_HANDLE) {
 			throw std::runtime_error("Vulkan fail to make buffer: try to init device and physical device first!");
 		}
@@ -73,9 +60,6 @@ namespace Vulkan {
 			vkAllocateMemory(device, &allocate_info, nullptr, &memory), "", "Vulkan fail to allocate buffer's memory!"
 		);
 
-		if (size <= 0) {
-			int a = 5;
-		}
 		vkBindBufferMemory(device, buffer, memory, 0);
 		update_descriptor();
 	}
@@ -90,7 +74,7 @@ namespace Vulkan {
 			Buffer staging{};
 			staging.make_buffer(
 				size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-				VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+				VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, physical_device, device
 			);
 			staging.copy_data(size, data, offset);
 			Buffer::copy_buffer(staging, *this, 0, 0, size);
@@ -189,7 +173,7 @@ namespace Vulkan {
 			Buffer host_visible_buffer{};
 			host_visible_buffer.make_buffer(
 				size, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-				VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+				VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, physical_device, device
 			);
 			Buffer::copy_buffer(*this, host_visible_buffer, 0, 0, size);
 			auto parse_data = host_visible_buffer.parse_buffer(offset, parse_size);

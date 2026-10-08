@@ -1,19 +1,26 @@
+#include <core.h>
 #include <exception>
 #include <functional>
 #include <log.h>
 #include <mutex>
 #include <vulkan/vk_command_pool.h>
-#include <vulkan/vk_core.h>
 #include <vulkan/vk_utils.h>
 
 namespace Vulkan {
 
-	std::unordered_map<uint64_t, std::shared_ptr<_Command_Pool_Thread>> _command_pool_threads;
+	VkDevice commands_device = VK_NULL_HANDLE;
+
+	VkPhysicalDevice commands_physical_device = VK_NULL_HANDLE;
+
+	VkSurfaceKHR commands_surface = VK_NULL_HANDLE;
+
+	std::unordered_map<uint64_t, std::shared_ptr<_Command_Pool_Thread>> _command_pool_threads{};
+
 	std::mutex commands_mutex{};
+
 	std::unordered_map<VkCommandBuffer, uint64_t> command_to_thread_ids{};
 
 	VkCommandBuffer _Command_Pool_Thread::_create_item() {
-
 		VkCommandBuffer command_buffer = VK_NULL_HANDLE;
 		VkCommandBufferAllocateInfo allocate_info{};
 		allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -22,7 +29,7 @@ namespace Vulkan {
 		allocate_info.commandBufferCount = 1;
 
 		Utils::vk_check_result(
-			vkAllocateCommandBuffers(device, &allocate_info, &command_buffer), "",
+			vkAllocateCommandBuffers(commands_device, &allocate_info, &command_buffer), "",
 			"Vulkan fail to create command buffer!"
 		);
 
@@ -30,13 +37,13 @@ namespace Vulkan {
 	}
 
 	void _Command_Pool_Thread::_delete_item(VkCommandBuffer& command_buffer) {
-
 		vkResetCommandBuffer(command_buffer, 0);
 	}
 
 	void _Command_Pool_Thread::init_pool() {
 
-		Queue_Family_Indices indices = Utils::query_suitable_queue_family_indices(physical_device, surface);
+		Queue_Family_Indices indices =
+			Utils::query_suitable_queue_family_indices(commands_physical_device, commands_surface);
 
 		VkCommandPoolCreateInfo pool_info{};
 		pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -45,7 +52,8 @@ namespace Vulkan {
 
 		// init vulkan command pool
 		Utils::vk_check_result(
-			vkCreateCommandPool(device, &pool_info, nullptr, &_command_pool), "", "Vulkan fail to create command pool!"
+			vkCreateCommandPool(commands_device, &pool_info, nullptr, &_command_pool), "",
+			"Vulkan fail to create command pool!"
 		);
 
 		Log::info("Vulkan create command pool at thread", std::this_thread::get_id(), _command_pool, " successfully!");
@@ -55,7 +63,7 @@ namespace Vulkan {
 
 		Concurent_Pool<VkCommandBuffer>::destroy();
 
-		vkDestroyCommandPool(device, _command_pool, nullptr);
+		vkDestroyCommandPool(commands_device, _command_pool, nullptr);
 
 		Log::info("Vulkan delete command pool at thread", std::this_thread::get_id(), "successfully!");
 	}
@@ -74,7 +82,11 @@ namespace Vulkan {
 
 	namespace Init {
 
-		void _init_command_pool_threads() {
+		void _init_command_pool_threads(VkSurfaceKHR surface, VkPhysicalDevice physical_device, VkDevice device) {
+
+			commands_physical_device = physical_device;
+			commands_device = device;
+			commands_surface = surface;
 
 			std::shared_ptr<std::mutex> init_pool_lock = std::make_shared<std::mutex>();
 
@@ -88,7 +100,7 @@ namespace Vulkan {
 				}
 			};
 
-			auto results = _global_thread_pool->loop_all_threads(create_command_pool_thread, init_pool_lock);
+			auto results = Core::global_thread_pool->loop_all_threads(create_command_pool_thread, init_pool_lock);
 
 			for (auto& [_, result] : results) {
 				result.get();
@@ -111,7 +123,7 @@ namespace Vulkan {
 					_command_pool_threads[hash_thread_id]->destroy();
 				}
 			};
-			auto results = _global_thread_pool->loop_all_threads(destroy_command_pool_thread, destroy_pool_lock);
+			auto results = Core::global_thread_pool->loop_all_threads(destroy_command_pool_thread, destroy_pool_lock);
 
 			for (auto& [_, result] : results) {
 				result.get();

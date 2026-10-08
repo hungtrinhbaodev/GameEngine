@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <log.h>
+#include <map>
 #include <vulkan/queue_family_indices.h>
 #include <vulkan/swapchain_support_detail.h>
 #include <vulkan/vk_consts.h>

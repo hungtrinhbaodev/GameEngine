@@ -59,4 +59,11 @@ template <typename T> class Sparse_Set {
 		dense.pop_back();
 		ids.pop_back();
 	}
+
+	void clear() {
+		ids.clear();
+		dense.clear();
+		index_to_id.clear();
+		id_to_index.clear();
+	}
 };

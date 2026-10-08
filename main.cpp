@@ -32,7 +32,7 @@ int main() {
 
 	glm::vec2 window_size = Vulkan::Utils::get_window_size();
 	std::vector<uint32_t> rectangles{};
-	for (int i = 0; i < 200; i++) {
+	for (int i = 0; i < 5000; i++) {
 		Vulkan::Draw_2D_Attribute draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
 		Vulkan::Rectangle_Attributes rectangle_attributes{
 			200, 100, {Math::random_float(0, window_size.x), Math::random_float(0, window_size.y)}
@@ -42,7 +42,7 @@ int main() {
 	}
 
 	std::vector<uint32_t> textures{};
-	for (int i = 0; i < 200; i++) {
+	for (int i = 0; i < 5000; i++) {
 		std::string path = Math::random_float() >= 0.5f ? "res/AddonIcon7.png" : "res/AddonIcon5.png";
 		Vulkan::Draw_2D_Attribute draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
 		Vulkan::Texture_2D_Attributes texture_attributes{
@@ -50,6 +50,12 @@ int main() {
 		};
 		textures.push_back(Vulkan::Draw_2D::make_texture_2D(draw_attributes, texture_attributes));
 	}
+
+	std::vector<uint32_t> triangles{};
+	Vulkan::Draw_2D_Attribute triangle_draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
+	Vulkan::Triangle_Attribultes triangle_attributes{{200.f, 220.f}, {430.f, 340.f}, {520.f, 120.f}};
+	triangle_attributes.color = {Math::random_float(), Math::random_float(), Math::random_float()};
+	triangles.push_back(Vulkan::Draw_2D::make_triangle(triangle_draw_attributes, triangle_attributes));
 
 	Vulkan::Draw_2D_Attribute font_draw_attributes{1000, true};
 	Vulkan::Font_2D_Attributes font_attributes{};

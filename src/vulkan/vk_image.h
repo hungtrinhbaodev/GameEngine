@@ -41,9 +41,9 @@ namespace Vulkan {
 
 		void make_image(
 			uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-			VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags, uint32_t array_layers = 1,
-			VkImageViewType image_view_type = VK_IMAGE_VIEW_TYPE_2D, uint32_t mip_level = 1,
-			VkPhysicalDevice physical_device = VK_NULL_HANDLE, VkDevice device = VK_NULL_HANDLE
+			VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags, VkPhysicalDevice physical_device,
+			VkDevice device, uint32_t array_layers = 1, VkImageViewType image_view_type = VK_IMAGE_VIEW_TYPE_2D,
+			uint32_t mip_level = 1
 		);
 
 		void record_transition_image_layout(

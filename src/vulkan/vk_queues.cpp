@@ -1,6 +1,6 @@
 #include <log.h>
+#include <mutex>
 #include <vulkan/queue_family_indices.h>
-#include <vulkan/vk_core.h>
 #include <vulkan/vk_queues.h>
 #include <vulkan/vk_utils.h>
 
@@ -9,7 +9,10 @@ namespace Vulkan {
 	std::mutex _submit_mutex;
 
 	namespace Init {
-		void _init_queues() {
+		void _init_queues(
+			VkQueue& graphics_queue, VkQueue& present_queue, VkSurfaceKHR surface, VkPhysicalDevice physical_device,
+			VkDevice device
+		) {
 			Queue_Family_Indices indices = Utils::query_suitable_queue_family_indices(physical_device, surface);
 
 			vkGetDeviceQueue(device, indices.graphic_family.value(), 0, &graphics_queue);
@@ -22,15 +25,12 @@ namespace Vulkan {
 	} // namespace Init
 
 	namespace API {
-		void submit(const VkSubmitInfo& submit_info, VkFence fence, VkQueue submit_queue) {
-			if (submit_queue == VK_NULL_HANDLE) {
-				submit_queue = graphics_queue;
-			}
+		void submit(const VkSubmitInfo& submit_info, VkQueue submit_queue, VkFence fence) {
 			std::lock_guard<std::mutex> lock(_submit_mutex);
 			vkQueueSubmit(submit_queue, 1, &submit_info, fence);
 		}
 
-		VkResult submit_present(const VkPresentInfoKHR& present_info) {
+		VkResult submit_present(const VkPresentInfoKHR& present_info, VkQueue present_queue) {
 			VkResult submit_result = VK_INCOMPLETE;
 			{
 				std::lock_guard<std::mutex> lock(_submit_mutex);

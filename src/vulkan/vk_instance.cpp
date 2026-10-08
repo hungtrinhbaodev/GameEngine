@@ -1,5 +1,4 @@
 #include <vulkan/vk_consts.h>
-#include <vulkan/vk_core.h>
 #include <vulkan/vk_instance.h>
 #include <vulkan/vk_utils.h>
 
@@ -9,7 +8,7 @@ namespace Vulkan {
 
 	namespace Init {
 
-		void _init_instance() {
+		void _init_instance(VkInstance& instance, VkDebugUtilsMessengerEXT& debug_messenger) {
 
 			// check layer debug is supported
 			if (Const::IS_ENABLE_VALIDATION_LAYERS && !Utils::is_validation_layer_enabled()) {
@@ -132,7 +131,7 @@ namespace Vulkan {
 			}
 		}
 
-		void _destroy_instance() {
+		void _destroy_instance(VkInstance instance, VkDebugUtilsMessengerEXT debug_messenger) {
 			if (Const::IS_ENABLE_VALIDATION_LAYERS) {
 				_destroy_debug_messeger_ext(instance, debug_messenger, nullptr);
 				Log::info("Vulkan debug messenger destroyed successfully!");

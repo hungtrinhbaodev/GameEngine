@@ -40,7 +40,7 @@ namespace Vulkan {
 
 		std::vector<Ring_Buffer_Allocate_Info> queue_upload_transfer;
 
-		void init(int max_frame, uint32_t initialize_size);
+		void init(int max_frame, uint32_t initialize_size, VkPhysicalDevice physical_device, VkDevice device);
 
 		void start_frame(int current_fame);
 

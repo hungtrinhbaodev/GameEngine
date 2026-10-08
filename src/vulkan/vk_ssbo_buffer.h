@@ -26,8 +26,6 @@ namespace Vulkan {
 			VkBuffer dst_buffer = 0;
 		};
 
-		Buffer dst_instance_buffer{};
-
 		Buffer inner_buffer{};
 
 		std::priority_queue<SSBO_Buffer_Range, std::vector<SSBO_Buffer_Range>, SSBO_Buffer_Range_Compare>
@@ -41,7 +39,7 @@ namespace Vulkan {
 
 		Sparse_Set<SSBO_Buffer_Range> ranges_by_id;
 
-		void init(uint32_t initialize_size);
+		void init(uint32_t initialize_size, VkPhysicalDevice physical_device, VkDevice device);
 
 		uint32_t upload_data(void* data, uint32_t size);
 
@@ -56,6 +54,8 @@ namespace Vulkan {
 		void transfer_data_to(uint32_t id, VkBuffer dst_buffer, uint32_t dst_offset);
 
 		void flush_transfer_data();
+
+		void clear();
 
 		void destroy();
 	};

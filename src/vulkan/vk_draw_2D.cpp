@@ -79,15 +79,11 @@ namespace Vulkan {
 
 		SSBO_Buffer ssbo_buffer{};
 
-		std::map<size_t, Static_Buffer> vertex_buffers{};
-
-		std::map<size_t, Static_Buffer> indices_buffers{};
-
 		uint32_t current_create_index = 0;
 
 		Binding_Draw_Info current_binding_draw_info{};
 
-		std::map<Draw_Order_Information, uint32_t> draw_order_to_ids;
+		Static_Buffer_2 static_buffer{};
 
 		bool is_same_draw(const Draw_2D_Information& a, const Draw_2D_Information& b) {
 			if (a.draw_type != b.draw_type)
@@ -288,35 +284,20 @@ namespace Vulkan {
 			}
 		}
 
-		Static_Buffer& get_vertex_buffer(size_t vertex_size) {
-			if (vertex_buffers.find(vertex_size) == vertex_buffers.end()) {
-				Static_Buffer vertex_buffer{};
-				vertex_buffer.init(
-					Vulkan::global_staging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE,
-					VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
-				);
-				vertex_buffers[vertex_size] = vertex_buffer;
-			}
-			return vertex_buffers[vertex_size];
-		}
-
-		Static_Buffer& get_indices_buffer(size_t indices_size) {
-			if (indices_buffers.find(indices_size) == indices_buffers.end()) {
-				Static_Buffer indices_buffer{};
-				indices_buffer.init(
-					Vulkan::global_staging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE,
-					VK_BUFFER_USAGE_INDEX_BUFFER_BIT
-				);
-				indices_buffers[indices_size] = indices_buffer;
-			}
-			return indices_buffers[indices_size];
+		Static_Buffer_2& get_static_buffer() {
+			return static_buffer;
 		}
 
 		void init() {
-			ssbo_buffer.init(Const::INITIALIZE_SIZE_STAGING_BUFFER);
+			ssbo_buffer.init(Const::INITIALIZE_SIZE_STAGING_BUFFER, Vulkan::physical_device, Vulkan::device);
 			instance_buffer.make_buffer(
 				Const::INITIALIZE_SIZE_INSTANCING_BUFFER, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, Vulkan::physical_device, Vulkan::device
+			);
+			static_buffer.init(
+				Const::INITIALIZE_STATIC_BUFFER_SIZE, Const::INITIALIZE_STATIC_BUFFER_SIZE,
+				VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, Vulkan::physical_device,
+				Vulkan::device
 			);
 			/**
 			 * Initialize all draw type.
@@ -328,6 +309,7 @@ namespace Vulkan {
 		}
 
 		void draw(VkCommandBuffer command_buffer) {
+			static_buffer.flush_data();
 			sort_draws();
 			setup_instance_buffer();
 			batching_draw_groups();
@@ -381,12 +363,7 @@ namespace Vulkan {
 			Rectangle::destroy();
 			instance_buffer.destroy();
 			ssbo_buffer.destroy();
-			for (auto& [size, buffer] : vertex_buffers) {
-				buffer.destroy();
-			}
-			for (auto& [size, buffer] : indices_buffers) {
-				buffer.destroy();
-			}
+			static_buffer.destroy();
 		}
 
 		void update_draw(uint32_t id, Draw_2D_Attribute draw_attributes) {

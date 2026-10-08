@@ -32,4 +32,15 @@ struct Id_Generator {
 		}
 		available_ids.push(id);
 	}
+
+	void clear() {
+		if (is_concurent) {
+			std::unique_lock<std::mutex> lock(gen_lock);
+			counter_id = 0;
+			available_ids = std::stack<uint32_t>();
+			return;
+		}
+		counter_id = 0;
+		available_ids = std::stack<uint32_t>();
+	}
 };

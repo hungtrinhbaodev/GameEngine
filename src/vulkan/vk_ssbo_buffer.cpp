@@ -4,10 +4,10 @@
 
 namespace Vulkan {
 
-	void SSBO_Buffer::init(uint32_t initialize_size) {
+	void SSBO_Buffer::init(uint32_t initialize_size, VkPhysicalDevice physical_device, VkDevice device) {
 		inner_buffer.make_buffer(
 			initialize_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, physical_device, device
 		);
 	}
 
@@ -86,8 +86,8 @@ namespace Vulkan {
 				copied_data[dst_buffer] = {};
 			}
 			VkBufferCopy region{
-				static_cast<VkDeviceSize>(transfer.src_offset), static_cast<VkDeviceSize>(transfer.dst_offset),
-				static_cast<VkDeviceSize>(transfer.size_transfer)
+				(VkDeviceSize)(transfer.src_offset), (VkDeviceSize)(transfer.dst_offset),
+				(VkDeviceSize)(transfer.size_transfer)
 			};
 			copied_data[dst_buffer].push_back(region);
 		}
@@ -96,6 +96,13 @@ namespace Vulkan {
 		}
 		Utils::copy_data_to_multi_buffer(inner_buffer.buffer, copied_data);
 		queue_transfer.clear();
+	}
+
+	void SSBO_Buffer::clear() {
+		queue_transfer.clear();
+		ranges_by_id.clear();
+		range_id_generator.clear();
+		current_offset = 0;
 	}
 
 	void SSBO_Buffer::destroy() {

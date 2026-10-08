@@ -50,9 +50,7 @@ namespace Vulkan {
 
 		SSBO_Buffer& get_ssbo();
 
-		Static_Buffer& get_vertex_buffer(size_t vertex_size);
-
-		Static_Buffer& get_indices_buffer(size_t indices_size);
+		Static_Buffer_2& get_static_buffer();
 
 		Buffer& get_instance_buffer();
 
