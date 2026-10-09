@@ -47,7 +47,7 @@ namespace Vulkan {
 		 * Set up descriptor to bucket texture.
 		 */
 		if (using_texture_bucket) {
-			this->descriptor_set_layouts.push_back(this->texture_system->get_bucket_descriptor_set_layout());
+			this->descriptor_set_layouts.push_back(this->texture_system->make_bucket_descriptor_set_layout());
 			this->textures_bucket_descriptor_sets =
 				this->texture_system->make_bucket_descriptor_sets(this->descriptor_set_layouts[2]);
 			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {

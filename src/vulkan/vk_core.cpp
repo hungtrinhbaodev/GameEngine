@@ -8,7 +8,7 @@
 #include <vulkan/vk_depth_image.h>
 #include <vulkan/vk_descriptor.h>
 #include <vulkan/vk_device.h>
-#include <vulkan/vk_draw_2D.h>
+#include <vulkan/vk_draw.h>
 #include <vulkan/vk_draw_geometry_2D_package.h>
 #include <vulkan/vk_draw_model_3D_package.h>
 #include <vulkan/vk_draw_texture_2D_package.h>
@@ -219,7 +219,7 @@ namespace Vulkan {
 		GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool, std::shared_ptr<Scheduler> global_scheduler
 	) {
 
-		window = window;
+		Vulkan::window = window;
 		glfwSetFramebufferSizeCallback(window, [](GLFWwindow*, int, int) { Vulkan::frame_buffer_resize = true; });
 
 		// Initialize Vulkan Instance
@@ -302,7 +302,7 @@ namespace Vulkan {
 		// Initialize Vulkan Pipeline by each draw ID
 		_init_draw_packages();
 
-		Draw_2D::init();
+		init_draw();
 	}
 
 	void _update_uniform_buffer() {
@@ -395,7 +395,7 @@ namespace Vulkan {
 
 			vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 			{
-				Draw_2D::draw(command_buffer);
+				draw(command_buffer);
 			}
 			vkCmdEndRenderPass(command_buffer);
 		}
@@ -451,7 +451,7 @@ namespace Vulkan {
 		vkQueueWaitIdle(graphics_queue);
 
 		// Descrtroy all 2D draw component.
-		Draw_2D::destroy();
+		destroy_draw();
 
 		// Destroy static buffers
 		_destroy_static_buffers();

@@ -64,9 +64,11 @@ namespace Vulkan {
 			VkFormat format = VK_FORMAT_R8G8B8A8_SRGB
 		);
 
-		VkDescriptorSetLayout get_bucket_descriptor_set_layout();
+		VkDescriptorSetLayout make_bucket_descriptor_set_layout();
 
 		std::vector<VkDescriptorSet> make_bucket_descriptor_sets(VkDescriptorSetLayout layout);
+
+		std::vector<VkDescriptorSet> make_default_texture_descriptor_sets(VkDescriptorSetLayout layout);
 
 		bool can_use_bucket(uint32_t width, uint32_t heihgt);
 

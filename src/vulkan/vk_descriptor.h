@@ -13,6 +13,8 @@ namespace Vulkan {
 		);
 
 		VkDescriptorSetLayout build(VkDevice device);
+
+		void clear();
 	};
 
 	struct Descriptor_Set_Writer {

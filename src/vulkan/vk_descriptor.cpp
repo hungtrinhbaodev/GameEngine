@@ -28,6 +28,10 @@ namespace Vulkan {
 		return layout;
 	}
 
+	void Descriptor_Set_Layout_Builder::clear() {
+		bindings.clear();
+	}
+
 	Descriptor_Set_Writer& Descriptor_Set_Writer::add_buffer_write(
 		uint32_t binding, VkDescriptorBufferInfo* descriptor_buffer_info, VkDescriptorSet dst_set
 	) {

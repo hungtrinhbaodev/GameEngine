@@ -39,6 +39,13 @@ template <typename T> class Sparse_Set {
 		return dense[id_to_index[id]];
 	}
 
+	T& modify(uint32_t id) {
+		if (!has(id)) {
+			throw std::runtime_error("Fail to modify value with id: " + std::to_string(id) + "!");
+		}
+		return dense[id_to_index[id]];
+	}
+
 	const std::vector<uint32_t>& keys() { return ids; }
 
 	const std::vector<T>& values() { return dense; }

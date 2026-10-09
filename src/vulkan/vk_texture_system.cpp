@@ -58,7 +58,7 @@ namespace Vulkan {
 		}
 	}
 
-	VkDescriptorSetLayout Texture_System::get_bucket_descriptor_set_layout() {
+	VkDescriptorSetLayout Texture_System::make_bucket_descriptor_set_layout() {
 		Descriptor_Set_Layout_Builder layout_builder{};
 		for (int i = 0; i < texture_buckets.size(); i++) {
 			layout_builder.add_binding(i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -81,6 +81,18 @@ namespace Vulkan {
 			descriptor_sets.push_back(descriptor_set);
 		}
 		return descriptor_sets;
+	}
+
+	std::vector<VkDescriptorSet> Texture_System::make_default_texture_descriptor_sets(VkDescriptorSetLayout layout) {
+		std::vector<VkDescriptorSet> default_texture_descriptor_sets{};
+		for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+			VkDescriptorSet descriptor_set = Structs::make_descriptor_set(descriptor_pools[i], 1, &layout, device)[0];
+			Texture_View texture_view = view_texture(get_default_texture_id());
+			Descriptor_Set_Writer writer{};
+			writer.add_image_write(0, 1, &texture_view.image.get_descriptor_info(), descriptor_set).write(device);
+			default_texture_descriptor_sets.push_back(descriptor_set);
+		}
+		return default_texture_descriptor_sets;
 	}
 
 	bool Texture_System::can_use_bucket(uint32_t width, uint32_t height) {
