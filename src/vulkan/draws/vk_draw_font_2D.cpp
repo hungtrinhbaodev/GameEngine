@@ -201,7 +201,7 @@ namespace Vulkan {
 				layout_builder.add_binding(
 					0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT
 				);
-				layouts.push_back(layout_builder.build());
+				layouts.push_back(layout_builder.build(Vulkan::device));
 				if (Const::ENABLED_TEXTURE_BUCKETS) {
 					layouts.push_back(font_system.texture_system.get_bucket_descriptor_set_layout());
 					for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
@@ -212,7 +212,8 @@ namespace Vulkan {
 						Texture_View texture_view = font_system.texture_system.view_texture(
 							font_system.texture_system.get_default_texture_id()
 						);
-						writer.add_image_write(0, 1, &texture_view.image.get_descriptor_info(), descriptor_set).write();
+						writer.add_image_write(0, 1, &texture_view.image.get_descriptor_info(), descriptor_set)
+							.write(Vulkan::device);
 						texture_default_descriptor.push_back(descriptor_set);
 					}
 					texture_bucket_descriptor_sets = font_system.texture_system.make_bucket_descriptor_sets(layouts[1]);
@@ -279,7 +280,7 @@ namespace Vulkan {
 					VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, number_descriptor_set,
 					binding_descriptor_sets
 				);
-				Push_Constants constants{Utils::get_window_size(), vertex_range.offset_as<Geometry::Vertex_2D>()};
+				Push_Constants constants{Utils::get_window_size(device), vertex_range.offset_as<Geometry::Vertex_2D>()};
 				vkCmdPushConstants(
 					command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
 					sizeof(Push_Constants), &constants
@@ -303,7 +304,8 @@ namespace Vulkan {
 							Vulkan::descriptor_pools[i], 1, &layouts[0], Vulkan::device
 						)[0];
 						Descriptor_Set_Writer writer{};
-						writer.add_image_write(0, 1, &texture_view.image.get_descriptor_info(), descriptor_set).write();
+						writer.add_image_write(0, 1, &texture_view.image.get_descriptor_info(), descriptor_set)
+							.write(Vulkan::device);
 						descriptor_sets[font.texture_id].push_back(descriptor_set);
 					}
 				}

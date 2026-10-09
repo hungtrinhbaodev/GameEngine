@@ -12,7 +12,7 @@ namespace Vulkan {
 			uint32_t binding, VkDescriptorType type, uint32_t count, VkShaderStageFlags stage_flags
 		);
 
-		VkDescriptorSetLayout build(VkDevice device = VK_NULL_HANDLE);
+		VkDescriptorSetLayout build(VkDevice device);
 	};
 
 	struct Descriptor_Set_Writer {
@@ -27,15 +27,15 @@ namespace Vulkan {
 			uint32_t binding, int image_count, VkDescriptorImageInfo* descriptor_image_info, VkDescriptorSet dst_set
 		);
 
-		void write(VkDevice device = VK_NULL_HANDLE);
+		void write(VkDevice device);
 	};
 
 	namespace Init {
-		void _init_descriptor_pools();
+		void _init_descriptor_pools(std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device);
 	}
 
 	namespace Destroy {
-		void _destroy_descriptor_pools();
+		void _destroy_descriptor_pools(const std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device);
 	}
 
 } // namespace Vulkan

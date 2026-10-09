@@ -5,25 +5,18 @@
 
 namespace Vulkan {
 
-	namespace Init {
+	void init_surface(VkSurfaceKHR& surface, VkInstance instance, GLFWwindow* window) {
+		// init vulkan surface
+		Utils::vk_check_result(
+			glfwCreateWindowSurface(instance, window, nullptr, &surface), "Vulkan window surface created successfully!",
+			"Vulkan fail to create window surface!"
+		);
+	}
 
-		void _init_surface(VkSurfaceKHR& surface, VkInstance instance, GLFWwindow* window) {
-			// init vulkan surface
-			Utils::vk_check_result(
-				glfwCreateWindowSurface(instance, window, nullptr, &surface),
-				"Vulkan window surface created successfully!", "Vulkan fail to create window surface!"
-			);
-		}
+	void destroy_surface(VkSurfaceKHR surface, VkInstance instance) {
+		// clean surface KHR
+		vkDestroySurfaceKHR(instance, surface, nullptr);
+		Log::info("Vulkan destroy surface success!");
+	}
 
-	} // namespace Init
-
-	namespace Destroy {
-
-		void _destroy_surface(VkSurfaceKHR surface, VkInstance instance) {
-			// clean surface KHR
-			vkDestroySurfaceKHR(instance, surface, nullptr);
-			Log::info("Vulkan destroy surface success!");
-		}
-
-	} // namespace Destroy
 } // namespace Vulkan

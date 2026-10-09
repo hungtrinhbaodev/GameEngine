@@ -8,6 +8,8 @@ namespace Vulkan {
 
 	struct Texture {
 
+		VkDevice device = VK_NULL_HANDLE;
+
 		uint32_t width = 0;
 
 		uint32_t height = 0;

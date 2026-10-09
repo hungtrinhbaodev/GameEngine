@@ -10,6 +10,8 @@ namespace Vulkan {
 
 	struct Texture_Array {
 
+		VkDevice device = VK_NULL_HANDLE;
+
 		uint32_t number_layer = 0;
 
 		std::vector<bool> used_indices;

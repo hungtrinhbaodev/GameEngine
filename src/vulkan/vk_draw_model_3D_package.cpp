@@ -25,7 +25,7 @@ namespace Vulkan {
 		texture_layout_builder.add_binding(
 			0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT
 		);
-		this->descriptor_set_layouts.push_back(texture_layout_builder.build());
+		this->descriptor_set_layouts.push_back(texture_layout_builder.build(Vulkan::device));
 
 		this->pipeline_config.attribute_descriptions = vertex_builder.build_attribute_descriptions();
 		this->pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
@@ -137,7 +137,7 @@ namespace Vulkan {
 						Descriptor_Set_Writer writer{};
 						writer
 							.add_image_write(0, 1, &view.image.get_descriptor_info(view.slot_index), descriptor_sets[0])
-							.write();
+							.write(Vulkan::device);
 						texture_descriptor_sets.push_back(descriptor_sets[0]);
 					}
 					this->texture_descriptor_sets[primitive.texture_id] = std::move(texture_descriptor_sets);

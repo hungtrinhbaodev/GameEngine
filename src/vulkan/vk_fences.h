@@ -15,16 +15,26 @@
 
 namespace Vulkan {
 
-	inline VkDevice fence_device = VK_NULL_HANDLE;
+	inline std::unordered_map<VkDevice, std::shared_ptr<std::mutex>> fences_callback_locks{};
 
-	inline std::mutex fences_callback_lock{};
+	inline std::unordered_map<VkDevice, std::unordered_map<VkFence, std::function<void()>>> fences_callbacks{};
 
-	inline std::unordered_map<VkFence, std::function<void()>> fences_callback{};
+	inline std::string get_scheduler_key(VkDevice device) {
+		uint64_t device_hash = std::hash<VkDevice>()(device);
+		return Const::VULKAN_FENCES_SCHEDULER_TASK_NAME + std::to_string(device_hash);
+	}
+
+	struct Fence_Information {
+		VkDevice device = VK_NULL_HANDLE;
+	};
 
 	class _Fence_Pool : public Concurent_Pool<VkFence> {
+	  private:
+		Fence_Information information{};
+
 		VkFence _create_item() override {
 
-			if (fence_device == VK_NULL_HANDLE) {
+			if (information.device == VK_NULL_HANDLE) {
 				throw std::runtime_error("Vulkan fail to create fence: try to create device first!");
 			}
 
@@ -33,7 +43,7 @@ namespace Vulkan {
 			fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 			VkFence fence = VK_NULL_HANDLE;
 			Utils::vk_check_result(
-				vkCreateFence(fence_device, &fence_info, nullptr, &fence), "", "Vulkan fail to create fence!"
+				vkCreateFence(information.device, &fence_info, nullptr, &fence), "", "Vulkan fail to create fence!"
 			);
 
 			return fence;
@@ -41,69 +51,88 @@ namespace Vulkan {
 
 		void _delete_item(VkFence& fence) override {
 			if (fence != VK_NULL_HANDLE) {
-				vkDestroyFence(fence_device, fence, nullptr);
+				vkDestroyFence(information.device, fence, nullptr);
 			}
 		}
+
+	  public:
+		_Fence_Pool() {}
+
+		_Fence_Pool(Fence_Information information) { this->information = information; };
 	};
 
-	inline _Fence_Pool fences_pool{};
+	inline std::unordered_map<VkDevice, std::shared_ptr<_Fence_Pool>> fences_pools{};
 
-	inline void _update_fences_callback() {
-		std::unique_lock<std::mutex> lock(fences_callback_lock);
+	inline void _update_fences_callback(VkDevice device) {
+		std::unique_lock<std::mutex> lock(*fences_callback_locks[device]);
 		std::vector<VkFence> fences_need_remove;
 
-		for (auto& [fence, callback] : fences_callback) {
-			if (vkGetFenceStatus(fence_device, fence) == VK_SUCCESS) {
+		for (auto& [fence, callback] : fences_callbacks[device]) {
+			if (vkGetFenceStatus(device, fence) == VK_SUCCESS) {
 				Core::global_thread_pool->enqueue(std::move(callback));
 				fences_need_remove.push_back(fence);
 			}
 		}
 
 		for (auto& fence : fences_need_remove) {
-			fences_callback.erase(fence);
+			fences_callbacks[device].erase(fence);
 		}
 
-		if (fences_callback.size() <= 0) {
-			Core::global_scheduler->pause_scheduler_task(Const::VULKAN_FENCES_SCHEDULER_TASK_NAME);
+		if (fences_callbacks[device].size() <= 0) {
+			Core::global_scheduler->pause_scheduler_task(get_scheduler_key(device));
 		}
 	}
 
 	namespace Init {
 		inline void _init_fences(VkDevice device) {
-			fence_device = device;
+			fences_pools[device] = std::make_shared<_Fence_Pool>(Fence_Information{device});
+			fences_callback_locks[device] = std::make_shared<std::mutex>();
+			fences_callbacks[device] = {};
 			Core::global_scheduler->schedule(
-				[](long long dt) { _update_fences_callback(); }, Const::VULKAN_FENCES_SCHEDULER_TASK_NAME
+				[device](long long dt) { _update_fences_callback(device); }, get_scheduler_key(device)
 			);
 		}
 
 	} // namespace Init
 
 	namespace Destroy {
-		inline void _destroy_fences() {
-			if (Core::global_scheduler->is_contain_task(Const::VULKAN_FENCES_SCHEDULER_TASK_NAME)) {
-				Core::global_scheduler->remove_task_by_name(Const::VULKAN_FENCES_SCHEDULER_TASK_NAME);
+		inline void _destroy_fences(VkDevice device) {
+			if (Core::global_scheduler->is_contain_task(get_scheduler_key(device))) {
+				Core::global_scheduler->remove_task_by_name(get_scheduler_key(device));
 			}
-			fences_pool.destroy();
+			fences_pools[device]->destroy();
 		}
 
 	} // namespace Destroy
 
 	namespace API {
-		inline VkFence request_fence(bool signaled = false) {
-			VkFence fence = fences_pool.request_item();
-			if (!signaled && vkGetFenceStatus(fence_device, fence) == VK_SUCCESS) {
-				vkResetFences(fence_device, 1, &fence);
+		inline VkFence request_fence(VkDevice device, bool signaled = false) {
+			if (fences_pools.find(device) == fences_pools.end()) {
+				throw std::runtime_error(
+					"Fail to request fence try to init fences with this device " + std::to_string((uint64_t)device) +
+					" first!"
+				);
+			}
+			VkFence fence = fences_pools[device]->request_item();
+			if (!signaled && vkGetFenceStatus(device, fence) == VK_SUCCESS) {
+				vkResetFences(device, 1, &fence);
 			}
 			return fence;
 		}
 
-		inline void release_fence(VkFence fence) {
-			vkResetFences(fence_device, 1, &fence);
-			fences_pool.pooling_item(fence);
+		inline void release_fence(VkDevice device, VkFence fence) {
+			if (fences_pools.find(device) == fences_pools.end()) {
+				throw std::runtime_error(
+					"Fail to release fence try to init fences with this device " + std::to_string((uint64_t)device) +
+					" first!"
+				);
+			}
+			vkResetFences(device, 1, &fence);
+			fences_pools[device]->pooling_item(fence);
 		}
 
 		template <class F, class... Args>
-		inline auto on_fence_success(VkFence fence, F&& f, Args&&... args)
+		inline auto on_fence_success(VkDevice device, VkFence fence, F&& f, Args&&... args)
 			-> std::future<typename std::invoke_result<F, Args...>::type> {
 
 			using result_type = typename std::invoke_result<F, Args...>::type;
@@ -112,14 +141,20 @@ namespace Vulkan {
 				std::bind(std::forward<F>(f), std::forward<Args>(args)...)
 			);
 
-			if (vkGetFenceStatus(fence_device, fence) == VK_SUCCESS) {
+			if (vkGetFenceStatus(device, fence) == VK_SUCCESS) {
 				(*task)();
 			} else {
 				{
+					if (fences_callback_locks.find(device) == fences_callback_locks.end()) {
+						throw std::runtime_error(
+							"Fail to release fence try to init fences with this device " +
+							std::to_string((uint64_t)device) + " first!"
+						);
+					}
 					// add task to list callback when fence excute success
-					std::unique_lock<std::mutex> lock(fences_callback_lock);
-					fences_callback.emplace(fence, [task]() { (*task)(); });
-					Core::global_scheduler->unpause_scheduler_task(Const::VULKAN_FENCES_SCHEDULER_TASK_NAME);
+					std::unique_lock<std::mutex> lock(*fences_callback_locks[device]);
+					fences_callbacks[device].emplace(fence, [task]() { (*task)(); });
+					Core::global_scheduler->unpause_scheduler_task(get_scheduler_key(device));
 				}
 			}
 

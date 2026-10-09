@@ -1,26 +1,19 @@
 #pragma once
-#include <concurrent_pool.h>
 #include <vulkan/vulkan.h>
 
 namespace Vulkan {
-	class _Semaphore_Pool : public Concurent_Pool<VkSemaphore> {
-
-		VkSemaphore _create_item() override;
-
-		void _delete_item(VkSemaphore& item) override;
-	};
 
 	void init_semaphores(VkDevice device);
 
 	namespace API {
 
-		VkSemaphore request_semaphore();
+		VkSemaphore request_semaphore(VkDevice device);
 
-		void release_semaphore(VkSemaphore semaphore);
+		void release_semaphore(VkDevice device, VkSemaphore semaphore);
 
 	} // namespace API
 
 	namespace Destroy {
-		void _destroy_semaphores();
+		void _destroy_semaphores(VkDevice device);
 	}
 } // namespace Vulkan

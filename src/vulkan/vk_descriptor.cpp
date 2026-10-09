@@ -1,6 +1,5 @@
 #include <log.h>
 #include <vulkan/vk_consts.h>
-#include <vulkan/vk_core.h>
 #include <vulkan/vk_descriptor.h>
 #include <vulkan/vk_utils.h>
 
@@ -14,9 +13,6 @@ namespace Vulkan {
 	}
 
 	VkDescriptorSetLayout Descriptor_Set_Layout_Builder::build(VkDevice device) {
-		if (device == VK_NULL_HANDLE) {
-			device = Vulkan::device;
-		}
 		if (device == VK_NULL_HANDLE) {
 			throw std::runtime_error("Vulkan fail to build descriptor set layout: try to init device first!");
 		}
@@ -64,9 +60,6 @@ namespace Vulkan {
 
 	void Descriptor_Set_Writer::write(VkDevice device) {
 		if (device == VK_NULL_HANDLE) {
-			device = Vulkan::device;
-		}
-		if (device == VK_NULL_HANDLE) {
 			throw std::runtime_error("Vulkan fail to write descriptor set: try to init device first!");
 		}
 		vkUpdateDescriptorSets(device, writes.size(), writes.data(), 0, nullptr);
@@ -74,13 +67,14 @@ namespace Vulkan {
 
 	namespace Init {
 
-		void _init_descriptor_pools() {
+		void _init_descriptor_pools(std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device) {
 
 			std::vector<VkDescriptorPoolSize> pool_size{};
 			pool_size.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10000});
 			pool_size.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10000});
 			pool_size.push_back({VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10000});
 
+			descriptor_pools.clear();
 			descriptor_pools.reserve(Const::MAX_FRAMES_IN_FLIGHT);
 			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
 
@@ -103,7 +97,7 @@ namespace Vulkan {
 
 	namespace Destroy {
 
-		void _destroy_descriptor_pools() {
+		void _destroy_descriptor_pools(const std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device) {
 
 			for (auto& pool : descriptor_pools) {
 				vkDestroyDescriptorPool(device, pool, nullptr);

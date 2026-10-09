@@ -1,5 +1,4 @@
 #include <log.h>
-#include <vulkan/vk_core.h>
 #include <vulkan/vk_frame_buffers.h>
 #include <vulkan/vk_utils.h>
 
@@ -7,7 +6,10 @@ namespace Vulkan {
 
 	namespace Init {
 
-		void _init_frame_buffers() {
+		void _init_frame_buffers(
+			std::vector<VkFramebuffer>& frame_buffers, VkRenderPass render_pass, VkDevice device,
+			const std::vector<VkImageView>& swapchain_image_views, Image depth_image, VkExtent2D swapchain_extent
+		) {
 
 			frame_buffers.resize(swapchain_image_views.size());
 
@@ -36,15 +38,20 @@ namespace Vulkan {
 	} // namespace Init
 
 	namespace Process {
-		void _recreate_frame_buffers() {
-			Destroy::_destroy_frame_buffers();
-			Init::_init_frame_buffers();
+		void _recreate_frame_buffers(
+			std::vector<VkFramebuffer>& frame_buffers, VkRenderPass render_pass, VkDevice device,
+			const std::vector<VkImageView>& swapchain_image_views, Image depth_image, VkExtent2D swapchain_extent
+		) {
+			Destroy::_destroy_frame_buffers(frame_buffers, device);
+			Init::_init_frame_buffers(
+				frame_buffers, render_pass, device, swapchain_image_views, depth_image, swapchain_extent
+			);
 		}
 	} // namespace Process
 
 	namespace Destroy {
 
-		void _destroy_frame_buffers() {
+		void _destroy_frame_buffers(const std::vector<VkFramebuffer>& frame_buffers, VkDevice device) {
 
 			for (auto& frame_buffer : frame_buffers) {
 				vkDestroyFramebuffer(device, frame_buffer, nullptr);

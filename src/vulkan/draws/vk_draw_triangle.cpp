@@ -60,7 +60,7 @@ namespace Vulkan {
 					.add_attribute_description(1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Instance_Data, color));
 
 				Descriptor_Set_Layout_Builder layout_builder{};
-				layouts.push_back(layout_builder.build());
+				layouts.push_back(layout_builder.build(Vulkan::device));
 
 				pipeline_config = Vulkan::make_default_pipeline_config();
 				pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
@@ -119,7 +119,7 @@ namespace Vulkan {
 				Static_Buffer_Range_2 indices_range = static_buffer.view_slot_info(indices_id);
 				Static_Buffer_Range_2 vertex_range = static_buffer.view_slot_info(vertex_id);
 				Buffer& instance_buffer = get_instance_buffer();
-				Push_Constants constants{Utils::get_window_size(), vertex_range.offset_as<Geometry::Vertex_2D>()};
+				Push_Constants constants{Utils::get_window_size(device), vertex_range.offset_as<Geometry::Vertex_2D>()};
 				vkCmdPushConstants(
 					command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
 					sizeof(Push_Constants), &constants

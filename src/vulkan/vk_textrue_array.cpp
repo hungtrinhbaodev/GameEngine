@@ -12,6 +12,7 @@ namespace Vulkan {
 		uint32_t number_layer, uint32_t width, uint32_t height, bool can_gpu_blit_image,
 		VkPhysicalDevice physical_device, VkDevice device, VkFormat format, uint32_t mip_level
 	) {
+		this->device = device;
 		this->number_layer = number_layer;
 		this->mip_level = mip_level;
 		this->can_gpu_blit_image = can_gpu_blit_image;
@@ -22,14 +23,14 @@ namespace Vulkan {
 			width, height, format, VK_IMAGE_TILING_OPTIMAL, image_usages, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			VK_IMAGE_ASPECT_COLOR_BIT, physical_device, device, number_layer, VK_IMAGE_VIEW_TYPE_2D_ARRAY, mip_level
 		);
-		VkCommandBuffer command_buffer = Utils::start_commands();
+		VkCommandBuffer command_buffer = Utils::start_commands(device);
 		{
 			inner_image.record_transition_image_layout(
 				command_buffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 0, number_layer, 0,
 				mip_level
 			);
 		}
-		Utils::finish_commands(command_buffer);
+		Utils::finish_commands(device, command_buffer);
 		for (int i = 0; i < number_layer; i++) {
 			inner_image.update_descriptor(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, i);
 		}
@@ -53,7 +54,7 @@ namespace Vulkan {
 		}
 		Buffer staging_buffer{};
 		std::vector<Buffer> mip_staging_buffers{};
-		VkCommandBuffer command_buffer = Utils::start_commands();
+		VkCommandBuffer command_buffer = Utils::start_commands(device);
 		{
 			inner_image.record_transition_image_layout(
 				command_buffer, inner_image.get_descriptor_info(layer_index).imageLayout,
@@ -73,7 +74,7 @@ namespace Vulkan {
 				);
 			}
 		}
-		Utils::finish_commands(command_buffer);
+		Utils::finish_commands(device, command_buffer);
 		staging_buffer.destroy();
 		for (Buffer buffer : mip_staging_buffers) {
 			buffer.destroy();

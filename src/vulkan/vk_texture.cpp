@@ -10,6 +10,7 @@ namespace Vulkan {
 		uint32_t width, uint32_t height, bool can_gpu_blit_image, VkPhysicalDevice physical_device, VkDevice device,
 		VkFormat format, uint32_t mip_level
 	) {
+		this->device = device;
 		this->width = width;
 		this->height = height;
 		this->mip_level = mip_level;
@@ -25,7 +26,7 @@ namespace Vulkan {
 	void Texture::upload_data(void* data) {
 		Buffer staging_buffer{};
 		std::vector<Buffer> mip_staging_buffers{};
-		VkCommandBuffer command_buffer = Utils::start_commands();
+		VkCommandBuffer command_buffer = Utils::start_commands(device);
 		{
 			inner_image.record_transition_image_layout(
 				command_buffer, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 0, 1, 0, mip_level
@@ -41,7 +42,7 @@ namespace Vulkan {
 				);
 			}
 		}
-		Utils::finish_commands(command_buffer);
+		Utils::finish_commands(device, command_buffer);
 		staging_buffer.destroy();
 		for (Buffer buffer : mip_staging_buffers) {
 			buffer.destroy();

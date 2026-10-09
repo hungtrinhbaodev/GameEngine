@@ -5,6 +5,7 @@
 namespace Vulkan {
 
 	void SSBO_Buffer::init(uint32_t initialize_size, VkPhysicalDevice physical_device, VkDevice device) {
+		this->device = device;
 		inner_buffer.make_buffer(
 			initialize_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, physical_device, device
@@ -94,7 +95,7 @@ namespace Vulkan {
 		if (copied_data.size() <= 0) {
 			return;
 		}
-		Utils::copy_data_to_multi_buffer(inner_buffer.buffer, copied_data);
+		Utils::copy_data_to_multi_buffer(inner_buffer.buffer, copied_data, device);
 		queue_transfer.clear();
 	}
 

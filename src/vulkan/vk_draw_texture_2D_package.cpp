@@ -39,7 +39,7 @@ namespace Vulkan {
 
 		Descriptor_Set_Layout_Builder layout_builder{};
 		layout_builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
-		this->descriptor_set_layouts.push_back(layout_builder.build());
+		this->descriptor_set_layouts.push_back(layout_builder.build(Vulkan::device));
 
 		this->pipeline_config.vertex_shader_path = Const::PATH_VERT_SHADERD_DRAW_TEXTURE_2D;
 		this->pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_TEXTURE_2D;
@@ -58,7 +58,7 @@ namespace Vulkan {
 					this->texture_system->view_texture(this->texture_system->get_default_texture_id());
 				Descriptor_Set_Writer writer{};
 				writer.add_image_write(0, 1, &texture_view.image.get_descriptor_info(), default_texture_descriptor_set)
-					.write();
+					.write(Vulkan::device);
 				this->default_texture_descriptor_sets.push_back(default_texture_descriptor_set);
 			}
 			this->pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_TEXTURE_2D_USING_BUCKET;
@@ -100,7 +100,7 @@ namespace Vulkan {
 		vkCmdBindVertexBuffers(
 			command_buffer, 1, 1, &this->texture_instance_buffer.inner_buffer.buffer, &instance_buffer_offset
 		);
-		glm::vec2 screen_size = Utils::get_window_size();
+		glm::vec2 screen_size = Utils::get_window_size(device);
 		vkCmdPushConstants(
 			command_buffer, pipeline_info.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
 			sizeof(glm::vec2), &screen_size
@@ -187,7 +187,7 @@ namespace Vulkan {
 					.add_image_write(
 						0, 1, &texture_view.image.get_descriptor_info(texture_view.slot_index), texture_descriptor_set
 					)
-					.write();
+					.write(Vulkan::device);
 				texture_descriptor_sets.push_back(texture_descriptor_set);
 			}
 			this->texture_descriptor_sets_at_frame[texture_id] = texture_descriptor_sets;

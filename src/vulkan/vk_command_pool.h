@@ -1,39 +1,19 @@
 #pragma once
-
-#include <functional>
-#include <thread>
-#include <unordered_map>
-
-#include <ThreadPool.h>
 #include <vulkan/vulkan.h>
 
-#include <concurrent_pool.h>
-
 namespace Vulkan {
-
-	class _Command_Pool_Thread : public Concurent_Pool<VkCommandBuffer> {
-
-	  private:
-		VkCommandPool _command_pool;
-		VkCommandBuffer _create_item() override;
-		void _delete_item(VkCommandBuffer& command_buffer) override;
-
-	  public:
-		void init_pool();
-		void destroy();
-	};
 
 	namespace Init {
 		void _init_command_pool_threads(VkSurfaceKHR surface, VkPhysicalDevice physical_device, VkDevice device);
 	}
 
 	namespace Destroy {
-		void _destroy_command_pool_threads();
+		void _destroy_command_pool_threads(VkDevice device);
 	}
 
 	namespace API {
-		VkCommandBuffer request_command_buffer();
-		void release_command_buffer(VkCommandBuffer& command_buffer);
+		VkCommandBuffer request_command_buffer(VkDevice device);
+		void release_command_buffer(VkDevice device, VkCommandBuffer& command_buffer);
 	} // namespace API
 
 } // namespace Vulkan

@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <log.h>
-#include <vulkan/vk_core.h>
 #include <vulkan/vk_swapchain.h>
 #include <vulkan/vk_utils.h>
 
@@ -40,7 +39,8 @@ namespace Vulkan {
 	}
 
 	void _create_swapchain_image_views(
-		const std::vector<VkImage>& swapchain_images, const VkFormat& format, VkDevice vk_device
+		const std::vector<VkImage>& swapchain_images, std::vector<VkImageView>& swapchain_image_views,
+		const VkFormat& format, VkDevice device
 	) {
 		swapchain_image_views.resize(swapchain_images.size());
 
@@ -52,15 +52,18 @@ namespace Vulkan {
 
 	namespace Init {
 
-		void _init_swapchain() {
+		void _init_swapchain(
+			GLFWwindow* window, VkSwapchainKHR& swapchain, VkFormat& swapchain_format, VkExtent2D& swapchain_extent,
+			std::vector<VkImage>& swapchain_images, std::vector<VkImageView>& swapchain_image_views,
+			VkSurfaceKHR surface, VkPhysicalDevice physical_device, VkDevice device
+		) {
 			Swapchain_Support_Detail swapchain_detail = Utils::query_swapchain_support_detail(physical_device, surface);
 			Log::info("Swapchain detail info:");
 			swapchain_detail.log_info();
 
 			VkSurfaceFormatKHR format = _choose_swapchain_format(swapchain_detail.formats);
 			VkPresentModeKHR present = _choose_swapchain_present_mode(swapchain_detail.present_modes);
-			VkExtent2D extent = _choose_swapchain_extent(swapchain_detail.capabilities, _window);
-			Log::info("What is my swapchain extent: ", extent.width, extent.height);
+			VkExtent2D extent = _choose_swapchain_extent(swapchain_detail.capabilities, window);
 			// log mode present is choosen
 			switch (present) {
 				case VK_PRESENT_MODE_MAILBOX_KHR: {
@@ -122,34 +125,42 @@ namespace Vulkan {
 			vkGetSwapchainImagesKHR(device, swapchain, &image_count, nullptr);
 			swapchain_images.resize(image_count);
 			vkGetSwapchainImagesKHR(device, swapchain, &image_count, swapchain_images.data());
-			Log::info("swapchain image count", image_count);
 
 			swapchain_format = format.format;
 			swapchain_extent = extent;
 
-			_create_swapchain_image_views(swapchain_images, swapchain_format, device);
-			Utils::save_window_size();
+			_create_swapchain_image_views(swapchain_images, swapchain_image_views, swapchain_format, device);
+			Utils::save_window_size(window, device);
 		}
 
 	} // namespace Init
 
 	namespace Process {
-		void _recreate_swapchain() {
+		void _recreate_swapchain(
+			GLFWwindow* window, VkSwapchainKHR& swapchain, VkFormat& swapchain_format, VkExtent2D& swapchain_extent,
+			std::vector<VkImage>& swapchain_images, std::vector<VkImageView>& swapchain_image_views,
+			VkSurfaceKHR surface, VkPhysicalDevice physical_device, VkDevice device
+		) {
 			int width = 0, height = 0;
-			glfwGetFramebufferSize(_window, &width, &height);
+			glfwGetFramebufferSize(window, &width, &height);
 			while (width == 0 || height == 0) {
-				glfwGetFramebufferSize(_window, &width, &height);
+				glfwGetFramebufferSize(window, &width, &height);
 				glfwWaitEvents();
 			}
 			vkDeviceWaitIdle(device);
-			Destroy::_destroy_swapchain();
-			Init::_init_swapchain();
+			Destroy::_destroy_swapchain(swapchain, swapchain_image_views, device);
+			Init::_init_swapchain(
+				window, swapchain, swapchain_format, swapchain_extent, swapchain_images, swapchain_image_views, surface,
+				physical_device, device
+			);
 		}
 	} // namespace Process
 
 	namespace Destroy {
 
-		void _destroy_swapchain() {
+		void _destroy_swapchain(
+			VkSwapchainKHR swapchain, const std::vector<VkImageView>& swapchain_image_views, VkDevice device
+		) {
 			for (auto& image_view : swapchain_image_views) {
 				vkDestroyImageView(device, image_view, nullptr);
 			}

@@ -24,6 +24,7 @@ namespace Vulkan {
 		image_view_type = other.image_view_type;
 		descriptor_image_layers = other.descriptor_image_layers;
 		mip_level = other.mip_level;
+		memory = other.memory;
 	}
 
 	void Image::make_image(
@@ -84,7 +85,7 @@ namespace Vulkan {
 		view = Utils::create_imageview_from_image(
 			image, format, aspect_flags, device, this->array_layers, image_view_type
 		);
-		if (usage | VK_IMAGE_USAGE_SAMPLED_BIT) {
+		if (usage & VK_IMAGE_USAGE_SAMPLED_BIT) {
 			make_sampler();
 		}
 	}
@@ -170,11 +171,11 @@ namespace Vulkan {
 	}
 
 	void Image::transition_image_layout(VkImageLayout old_layout, VkImageLayout new_layout, uint32_t layer_index) {
-		VkCommandBuffer command_buffer = Utils::start_commands();
+		VkCommandBuffer command_buffer = Utils::start_commands(device);
 		{
 			record_transition_image_layout(command_buffer, old_layout, new_layout, layer_index);
 		}
-		Utils::finish_commands(command_buffer);
+		Utils::finish_commands(device, command_buffer);
 		update_descriptor(new_layout, layer_index);
 	}
 
@@ -315,11 +316,11 @@ namespace Vulkan {
 
 	void Image::copy_image_data(uint32_t width, uint32_t height, void* pixels, uint32_t layer_index) {
 		Buffer staging{};
-		VkCommandBuffer command_buffer = Utils::start_commands();
+		VkCommandBuffer command_buffer = Utils::start_commands(device);
 		{
 			staging = record_copy_image_data(command_buffer, width, height, pixels, layer_index);
 		}
-		Utils::finish_commands(command_buffer);
+		Utils::finish_commands(device, command_buffer);
 		staging.destroy();
 	}
 

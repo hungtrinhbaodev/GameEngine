@@ -63,7 +63,7 @@ namespace Vulkan {
 		for (int i = 0; i < texture_buckets.size(); i++) {
 			layout_builder.add_binding(i, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
 		}
-		return layout_builder.build();
+		return layout_builder.build(device);
 	}
 
 	std::vector<VkDescriptorSet> Texture_System::make_bucket_descriptor_sets(VkDescriptorSetLayout layout) {
@@ -76,7 +76,7 @@ namespace Vulkan {
 			VkDescriptorSet descriptor_set = Structs::make_descriptor_set(descriptor_pools[i], 1, &layout, device)[0];
 			Descriptor_Set_Writer writer{};
 			for (int j = 0; j < texture_buckets.size(); j++) {
-				writer.add_image_write(j, 1, &bucket_descriptors[j], descriptor_set).write();
+				writer.add_image_write(j, 1, &bucket_descriptors[j], descriptor_set).write(device);
 			}
 			descriptor_sets.push_back(descriptor_set);
 		}

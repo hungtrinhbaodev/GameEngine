@@ -83,7 +83,7 @@ namespace Vulkan {
 			return;
 		}
 
-		Utils::copy_data_to_multi_buffer(inner_buffer.buffer, copied_data);
+		Utils::copy_data_to_multi_buffer(inner_buffer.buffer, copied_data, device);
 		queue_upload_transfer.clear();
 	}
 

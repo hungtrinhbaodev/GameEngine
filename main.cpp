@@ -30,7 +30,7 @@ int main() {
 
 	Vulkan::Init::init_vulkan_core(window, Core::global_thread_pool, Core::global_scheduler);
 
-	glm::vec2 window_size = Vulkan::Utils::get_window_size();
+	glm::vec2 window_size = Vulkan::Utils::get_window_size(Vulkan::device);
 	std::vector<uint32_t> rectangles{};
 	for (int i = 0; i < 5000; i++) {
 		Vulkan::Draw_2D_Attribute draw_attributes{(uint32_t)Math::random_int(1, 1000), true};

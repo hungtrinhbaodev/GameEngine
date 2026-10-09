@@ -71,7 +71,7 @@ namespace Vulkan {
 					.add_attribute_description(1, VK_FORMAT_R32_SFLOAT, offsetof(Instance_Data, rotation));
 
 				Descriptor_Set_Layout_Builder layout_builder{};
-				layouts.push_back(layout_builder.build());
+				layouts.push_back(layout_builder.build(Vulkan::device));
 
 				pipeline_config = make_default_pipeline_config();
 				pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
@@ -123,7 +123,7 @@ namespace Vulkan {
 				Static_Buffer_Range_2 indices_range = static_buffer.view_slot_info(indices_id);
 				Static_Buffer_Range_2 vertex_range = static_buffer.view_slot_info(vertex_id);
 				Buffer instance_buffer = get_instance_buffer();
-				glm::vec2 screen_size = Utils::get_window_size();
+				glm::vec2 screen_size = Utils::get_window_size(device);
 				vkCmdPushConstants(
 					command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
 					offsetof(Push_Constants, screen_size), sizeof(glm::vec2), &screen_size

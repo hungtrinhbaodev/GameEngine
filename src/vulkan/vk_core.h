@@ -147,19 +147,6 @@ namespace Vulkan {
 	Pipeline_Config make_default_pipeline_config();
 
 	namespace Init {
-
-		void _init_draw_packages();
-
-		void _init_uniform_buffers();
-
-		void _init_static_buffers();
-
-		void _request_draw_fences();
-
-		void _request_draw_semaphores();
-
-		void _request_draw_command_buffers();
-
 		void init_vulkan_core(
 			GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool,
 			std::shared_ptr<Scheduler> global_scheduler
@@ -168,10 +155,6 @@ namespace Vulkan {
 	} // namespace Init
 
 	namespace Process {
-
-		void _update_uniform_buffer();
-
-		void _on_window_resize();
 
 		void start_frame();
 
@@ -182,12 +165,6 @@ namespace Vulkan {
 	} // namespace Process
 
 	namespace Destroy {
-
-		void _destroy_static_buffers();
-
-		void _destroy_uniform_buffers();
-
-		void _destroy_draw_packages();
 
 		void destroy_vulkan();
 

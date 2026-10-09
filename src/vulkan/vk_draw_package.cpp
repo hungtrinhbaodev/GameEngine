@@ -29,7 +29,7 @@ namespace Vulkan {
 		 */
 		Descriptor_Set_Layout_Builder layout_builder{};
 		layout_builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
-		this->descriptor_set_layouts.push_back(layout_builder.build());
+		this->descriptor_set_layouts.push_back(layout_builder.build(Vulkan::device));
 
 		/**
 		 * Init descriptor sets to uniform buffer
@@ -40,7 +40,7 @@ namespace Vulkan {
 			std::vector<VkDescriptorSet> uniform_descriptor_sets =
 				Structs::make_descriptor_set(descriptor_pools[i], 1, &this->descriptor_set_layouts[0], device);
 			Descriptor_Set_Writer writer{};
-			writer.add_buffer_write(0, &uniform_buffer.descriptor, uniform_descriptor_sets[0]).write();
+			writer.add_buffer_write(0, &uniform_buffer.descriptor, uniform_descriptor_sets[0]).write(Vulkan::device);
 			this->descriptors[0].push_back(uniform_descriptor_sets[0]);
 		}
 

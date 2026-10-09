@@ -1,5 +1,4 @@
 #include <utils.h>
-#include <vulkan/vk_core.h>
 #include <vulkan/vk_font_system.h>
 
 namespace Vulkan {

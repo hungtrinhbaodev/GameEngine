@@ -3,12 +3,8 @@
 
 namespace Vulkan {
 
-	namespace Init {
-		void _init_surface(VkSurfaceKHR& surface, VkInstance instance, GLFWwindow* window);
-	}
+	void init_surface(VkSurfaceKHR& surface, VkInstance instance, GLFWwindow* window);
 
-	namespace Destroy {
-		void _destroy_surface(VkSurfaceKHR surface, VkInstance instance);
-	}
+	void destroy_surface(VkSurfaceKHR surface, VkInstance instance);
 
 } // namespace Vulkan

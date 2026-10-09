@@ -293,12 +293,12 @@ namespace Vulkan {
 			return std::clamp(1.f - (current_z_depth / Const::MAX_Z_LAYER_2D), 0.f, 1.f);
 		}
 
-		void save_window_size();
+		void save_window_size(GLFWwindow* window, VkDevice device);
 
-		glm::vec2 get_window_size();
+		glm::vec2 get_window_size(VkDevice device);
 
 		void copy_data_to_multi_buffer(
-			VkBuffer src_buffer, const std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data
+			VkBuffer src_buffer, const std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data, VkDevice device
 		);
 
 		inline int get_number_channel_by(VkFormat format) {
@@ -318,9 +318,9 @@ namespace Vulkan {
 			}
 		}
 
-		VkCommandBuffer start_commands();
+		VkCommandBuffer start_commands(VkDevice device);
 
-		void finish_commands(VkCommandBuffer command_buffer);
+		void finish_commands(VkDevice device, VkCommandBuffer command_buffer);
 
 		inline uint32_t calculate_mip_level(uint32_t width, uint32_t height) {
 			return (uint32_t)(std::log2(std::max(width, height))) + 1;

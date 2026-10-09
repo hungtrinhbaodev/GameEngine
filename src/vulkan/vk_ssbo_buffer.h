@@ -26,6 +26,8 @@ namespace Vulkan {
 			VkBuffer dst_buffer = 0;
 		};
 
+		VkDevice device = VK_NULL_HANDLE;
+
 		Buffer inner_buffer{};
 
 		std::priority_queue<SSBO_Buffer_Range, std::vector<SSBO_Buffer_Range>, SSBO_Buffer_Range_Compare>

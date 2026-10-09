@@ -11,9 +11,9 @@ namespace Vulkan {
 	}
 
 	namespace API {
-		void submit(const VkSubmitInfo& submit_info, VkQueue submit_queue, VkFence fence = VK_NULL_HANDLE);
+		void submit(const VkSubmitInfo& submit_info, VkDevice device, VkFence fence = VK_NULL_HANDLE);
 
-		VkResult submit_present(const VkPresentInfoKHR& present_info, VkQueue present_queue);
+		VkResult submit_present(const VkPresentInfoKHR& present_info, VkDevice device);
 	} // namespace API
 
 } // namespace Vulkan

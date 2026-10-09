@@ -103,7 +103,7 @@ namespace Vulkan {
 		/**
 		 * Bind pipeline use to draw.
 		 */
-		glm::vec2 screen_size = Utils::get_window_size();
+		glm::vec2 screen_size = Utils::get_window_size(device);
 		vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_info.pipeline);
 		vkCmdPushConstants(
 			command_buffer, pipeline_info.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,

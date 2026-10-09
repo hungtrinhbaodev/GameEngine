@@ -344,6 +344,9 @@ namespace Vulkan {
 						);
 						break;
 					}
+					default: {
+						break;
+					}
 				}
 			}
 			Profiler::end_scope(SCOPE_DRAW);

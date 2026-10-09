@@ -1,5 +1,4 @@
 #include <log.h>
-#include <vulkan/vk_core.h>
 #include <vulkan/vk_render_pass.h>
 #include <vulkan/vk_utils.h>
 
@@ -7,7 +6,9 @@ namespace Vulkan {
 
 	namespace Init {
 
-		void _init_render_pass() {
+		void _init_render_pass(
+			VkRenderPass& render_pass, VkPhysicalDevice physical_device, VkDevice device, VkFormat swapchain_format
+		) {
 			// color attachment info
 			VkAttachmentDescription color_attachment{};
 			color_attachment.format = swapchain_format;
@@ -83,8 +84,7 @@ namespace Vulkan {
 
 	namespace Destroy {
 
-		void _destroy_render_pass() {
-
+		void _destroy_render_pass(VkRenderPass render_pass, VkDevice device) {
 			vkDestroyRenderPass(device, render_pass, nullptr);
 			Log::info("Vulkan destroy render pass successfully!");
 		}

@@ -179,22 +179,22 @@ namespace Vulkan {
 
 		void _request_draw_fences() {
 			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-				draw_fences.push_back(API::request_fence(true));
+				draw_fences.push_back(API::request_fence(device, true));
 			}
 			Log::info("Create draw fences successfully!");
 		}
 
 		void _request_draw_semaphores() {
 			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-				draw_semaphores.push_back(API::request_semaphore());
-				render_finish_semaphores.push_back(API::request_semaphore());
+				draw_semaphores.push_back(API::request_semaphore(device));
+				render_finish_semaphores.push_back(API::request_semaphore(device));
 			}
 			Log::info("Create draw semaphores successfully!");
 		}
 
 		void _request_draw_command_buffers() {
 			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-				draw_command_buffers.push_back(API::request_command_buffer());
+				draw_command_buffers.push_back(API::request_command_buffer(device));
 			}
 		}
 
@@ -236,10 +236,10 @@ namespace Vulkan {
 			_global_scheduler = global_scheduler;
 
 			// Initialize Vulkan Instance
-			_init_instance(instance, debug_messenger);
+			init_instance(instance, debug_messenger);
 
 			// Initialize Vulkan Surface
-			_init_surface(surface, instance, _window);
+			init_surface(surface, instance, _window);
 
 			// Initialize Vulkan Physical Device
 			_init_physical_device(physical_device, instance, surface);
@@ -266,19 +266,24 @@ namespace Vulkan {
 			_init_command_pool_threads(surface, physical_device, device);
 
 			// Initialize Vulkan Swapchain
-			_init_swapchain();
+			_init_swapchain(
+				_window, swapchain, swapchain_format, swapchain_extent, swapchain_images, swapchain_image_views,
+				surface, physical_device, device
+			);
 
 			// Initialize Vulkan Depth Image
-			_init_depth_image();
+			_init_depth_image(depth_image, physical_device, device, swapchain_extent);
 
 			// Initialize Vulkan Render Pass
-			_init_render_pass();
+			_init_render_pass(render_pass, physical_device, device, swapchain_format);
 
 			// Initialize Vulkan Frame Buffer
-			_init_frame_buffers();
+			_init_frame_buffers(
+				frame_buffers, render_pass, device, swapchain_image_views, depth_image, swapchain_extent
+			);
 
 			// Initialize Vulkan Descriptor Pools
-			_init_descriptor_pools();
+			_init_descriptor_pools(descriptor_pools, device);
 
 			// Initialize Vulkan Uniform buffers
 			_init_uniform_buffers();
@@ -336,9 +341,14 @@ namespace Vulkan {
 		}
 
 		void _on_window_resize() {
-			_recreate_swapchain();
-			_recreate_depth_image();
-			_recreate_frame_buffers();
+			_recreate_swapchain(
+				_window, swapchain, swapchain_format, swapchain_extent, swapchain_images, swapchain_image_views,
+				surface, physical_device, device
+			);
+			_recreate_depth_image(depth_image, physical_device, device, swapchain_extent);
+			_recreate_frame_buffers(
+				frame_buffers, render_pass, device, swapchain_image_views, depth_image, swapchain_extent
+			);
 		}
 
 		void start_frame() {
@@ -413,10 +423,10 @@ namespace Vulkan {
 			VkSubmitInfo submit_info = Structs::make_submit_info(
 				&command_buffer, 1, 1, &draw_semaphore, &wait_stage, 1, &finish_render_semaphore
 			);
-			API::submit(submit_info, graphics_queue, draw_fence);
+			API::submit(submit_info, device, draw_fence);
 			VkPresentInfoKHR present_info =
 				Structs::make_present_info(1, &finish_render_semaphore, 1, &swapchain, &image_index);
-			result = API::submit_present(present_info, present_queue);
+			result = API::submit_present(present_info, device);
 			if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || frame_buffer_resize) {
 				frame_buffer_resize = false;
 				_on_window_resize();
@@ -485,37 +495,37 @@ namespace Vulkan {
 			_destroy_uniform_buffers();
 
 			// Destroy Vulkan Descriptor Pools
-			_destroy_descriptor_pools();
+			_destroy_descriptor_pools(descriptor_pools, device);
 
 			// Destroy Vulkan Frame Buffer
-			_destroy_frame_buffers();
+			_destroy_frame_buffers(frame_buffers, device);
 
 			// Destroy Vulkan Render Pass
-			_destroy_render_pass();
+			_destroy_render_pass(render_pass, device);
 
 			// Destroy Vulkan Depth Image
-			_destroy_depth_image();
+			_destroy_depth_image(depth_image);
 
 			// Destroy All Using Vulkan Semaphore
-			_destroy_semaphores();
+			_destroy_semaphores(device);
 
 			// Destroy All Using Vulkan Fence
-			_destroy_fences();
+			_destroy_fences(device);
 
 			// Destroy Vulkan Swapchain
-			_destroy_swapchain();
+			_destroy_swapchain(swapchain, swapchain_image_views, device);
 
 			// Destroy All Vulkan Command Pool
-			_destroy_command_pool_threads();
+			_destroy_command_pool_threads(device);
 
 			// Destroy Vulkan Device
 			_destroy_device(device);
 
 			// Destroy Vulkan Surface
-			_destroy_surface(surface, instance);
+			destroy_surface(surface, instance);
 
 			// Destroy Vulkan Instance
-			_destroy_instance(instance, debug_messenger);
+			destroy_instance(instance, debug_messenger);
 		}
 
 	} // namespace Destroy

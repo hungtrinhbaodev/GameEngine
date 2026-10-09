@@ -122,16 +122,17 @@ namespace Vulkan {
 			throw std::runtime_error("Vulkan fail to copy buffer: try to make buffer first!");
 		}
 
+		if (src_buffer.device == VK_NULL_HANDLE || dst_buffer.device == VK_NULL_HANDLE ||
+			src_buffer.device != dst_buffer.device) {
+			throw std::runtime_error("Vulkan fail to copy buffer: device invalid!");
+		}
+
 		if (src_offset + size > src_buffer.size) {
 			throw std::runtime_error("Vulkan fail to copy buffer: make sure source buffer is enough size!");
 		}
 
 		if (dst_offset + size > dst_buffer.size) {
 			throw std::runtime_error("Vulkan fail to copy buffer: make sure destination buffer is enough size!");
-		}
-
-		if (src_buffer.size <= 0) {
-			int a = 5;
 		}
 
 		if (src_buffer.is_host_visible_buffer() && dst_buffer.is_host_visible_buffer()) {
@@ -141,11 +142,11 @@ namespace Vulkan {
 			vkUnmapMemory(src_buffer.device, src_buffer.memory);
 		} else {
 			VkBufferCopy region{0, 0, size};
-			VkCommandBuffer command_buffer = Utils::start_commands();
+			VkCommandBuffer command_buffer = Utils::start_commands(src_buffer.device);
 			{
 				vkCmdCopyBuffer(command_buffer, src_buffer.buffer, dst_buffer.buffer, 1, &region);
 			}
-			Utils::finish_commands(command_buffer);
+			Utils::finish_commands(src_buffer.device, command_buffer);
 		}
 	}
 
