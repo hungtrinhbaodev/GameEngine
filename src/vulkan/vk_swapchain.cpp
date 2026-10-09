@@ -5,7 +5,7 @@
 
 namespace Vulkan {
 
-	VkSurfaceFormatKHR _choose_swapchain_format(const std::vector<VkSurfaceFormatKHR>& available_formats) {
+	VkSurfaceFormatKHR choose_swapchain_format(const std::vector<VkSurfaceFormatKHR>& available_formats) {
 		for (const VkSurfaceFormatKHR& available_format : available_formats) {
 			if (available_format.format == VK_FORMAT_B8G8R8_SRGB &&
 				available_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -15,7 +15,7 @@ namespace Vulkan {
 		return available_formats[0];
 	}
 
-	VkPresentModeKHR _choose_swapchain_present_mode(const std::vector<VkPresentModeKHR>& available_presents) {
+	VkPresentModeKHR choose_swapchain_present_mode(const std::vector<VkPresentModeKHR>& available_presents) {
 		for (const VkPresentModeKHR& available_present : available_presents) {
 			if (available_present == VK_PRESENT_MODE_MAILBOX_KHR) {
 				return VK_PRESENT_MODE_MAILBOX_KHR;
@@ -24,7 +24,7 @@ namespace Vulkan {
 		return VK_PRESENT_MODE_FIFO_KHR;
 	}
 
-	VkExtent2D _choose_swapchain_extent(const VkSurfaceCapabilitiesKHR& capabilites, GLFWwindow* window) {
+	VkExtent2D choose_swapchain_extent(const VkSurfaceCapabilitiesKHR& capabilites, GLFWwindow* window) {
 		if (capabilites.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
 			return capabilites.currentExtent;
 		}
@@ -38,7 +38,7 @@ namespace Vulkan {
 		return actual_extent;
 	}
 
-	void _create_swapchain_image_views(
+	void create_swapchain_image_views(
 		const std::vector<VkImage>& swapchain_images, std::vector<VkImageView>& swapchain_image_views,
 		const VkFormat& format, VkDevice device
 	) {
@@ -50,126 +50,116 @@ namespace Vulkan {
 		}
 	}
 
-	namespace Init {
+	void init_swapchain(
+		GLFWwindow* window, VkSwapchainKHR& swapchain, VkFormat& swapchain_format, VkExtent2D& swapchain_extent,
+		std::vector<VkImage>& swapchain_images, std::vector<VkImageView>& swapchain_image_views, VkSurfaceKHR surface,
+		VkPhysicalDevice physical_device, VkDevice device
+	) {
+		Swapchain_Support_Detail swapchain_detail = Utils::query_swapchain_support_detail(physical_device, surface);
+		Log::info("Swapchain detail info:");
+		swapchain_detail.log_info();
 
-		void _init_swapchain(
-			GLFWwindow* window, VkSwapchainKHR& swapchain, VkFormat& swapchain_format, VkExtent2D& swapchain_extent,
-			std::vector<VkImage>& swapchain_images, std::vector<VkImageView>& swapchain_image_views,
-			VkSurfaceKHR surface, VkPhysicalDevice physical_device, VkDevice device
-		) {
-			Swapchain_Support_Detail swapchain_detail = Utils::query_swapchain_support_detail(physical_device, surface);
-			Log::info("Swapchain detail info:");
-			swapchain_detail.log_info();
-
-			VkSurfaceFormatKHR format = _choose_swapchain_format(swapchain_detail.formats);
-			VkPresentModeKHR present = _choose_swapchain_present_mode(swapchain_detail.present_modes);
-			VkExtent2D extent = _choose_swapchain_extent(swapchain_detail.capabilities, window);
-			// log mode present is choosen
-			switch (present) {
-				case VK_PRESENT_MODE_MAILBOX_KHR: {
-					Log::info("Swapchain choose mode present: VK_PRESENT_MODE_MAILBOX_KHR");
-					break;
-				}
-				default: {
-					Log::info("Swapchain choose mode present: VK_PRESENT_MODE_FIFO_KHR");
-					break;
-				}
+		VkSurfaceFormatKHR format = choose_swapchain_format(swapchain_detail.formats);
+		VkPresentModeKHR present = choose_swapchain_present_mode(swapchain_detail.present_modes);
+		VkExtent2D extent = choose_swapchain_extent(swapchain_detail.capabilities, window);
+		// log mode present is choosen
+		switch (present) {
+			case VK_PRESENT_MODE_MAILBOX_KHR: {
+				Log::info("Swapchain choose mode present: VK_PRESENT_MODE_MAILBOX_KHR");
+				break;
 			}
-
-			uint32_t image_count = swapchain_detail.capabilities.minImageCount + 1;
-			if (swapchain_detail.capabilities.maxImageCount > 0 &&
-				image_count > swapchain_detail.capabilities.maxImageCount) {
-				image_count = swapchain_detail.capabilities.maxImageCount;
+			default: {
+				Log::info("Swapchain choose mode present: VK_PRESENT_MODE_FIFO_KHR");
+				break;
 			}
-
-			Log::info(
-				"Vulkan_Swapchain::init", swapchain_detail.capabilities.maxImageCount,
-				swapchain_detail.capabilities.minImageCount
-			);
-
-			VkSwapchainCreateInfoKHR create_info{};
-			create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-			create_info.surface = surface;
-
-			create_info.minImageCount = image_count;
-			create_info.imageFormat = format.format;
-			create_info.imageColorSpace = format.colorSpace;
-			create_info.imageExtent = extent;
-			create_info.imageArrayLayers = 1;
-			create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-			Queue_Family_Indices indices = Utils::query_suitable_queue_family_indices(physical_device, surface);
-			uint32_t queue_indices[] = {indices.graphic_family.value(), indices.present_family.value()};
-			if (indices.graphic_family != indices.present_family) {
-				create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-				create_info.queueFamilyIndexCount = 2;
-				create_info.pQueueFamilyIndices = queue_indices;
-				Log::info("Swapchain choose image sharing mode: VK_SHARING_MODE_CONCURRENT");
-			} else {
-				create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-				Log::info("Swapchain choose image sharing mode: VK_SHARING_MODE_EXCLUSIVE");
-			}
-
-			create_info.preTransform = swapchain_detail.capabilities.currentTransform;
-			create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-			create_info.presentMode = present;
-			create_info.clipped = VK_TRUE;
-
-			create_info.oldSwapchain = VK_NULL_HANDLE;
-
-			Utils::vk_check_result(
-				vkCreateSwapchainKHR(device, &create_info, nullptr, &swapchain), "", "failed to create swap chain!"
-			);
-			Log::info("Create swap chain successfully!");
-
-			vkGetSwapchainImagesKHR(device, swapchain, &image_count, nullptr);
-			swapchain_images.resize(image_count);
-			vkGetSwapchainImagesKHR(device, swapchain, &image_count, swapchain_images.data());
-
-			swapchain_format = format.format;
-			swapchain_extent = extent;
-
-			_create_swapchain_image_views(swapchain_images, swapchain_image_views, swapchain_format, device);
-			Utils::save_window_size(window, device);
 		}
 
-	} // namespace Init
+		uint32_t image_count = swapchain_detail.capabilities.minImageCount + 1;
+		if (swapchain_detail.capabilities.maxImageCount > 0 &&
+			image_count > swapchain_detail.capabilities.maxImageCount) {
+			image_count = swapchain_detail.capabilities.maxImageCount;
+		}
 
-	namespace Process {
-		void _recreate_swapchain(
-			GLFWwindow* window, VkSwapchainKHR& swapchain, VkFormat& swapchain_format, VkExtent2D& swapchain_extent,
-			std::vector<VkImage>& swapchain_images, std::vector<VkImageView>& swapchain_image_views,
-			VkSurfaceKHR surface, VkPhysicalDevice physical_device, VkDevice device
-		) {
-			int width = 0, height = 0;
+		Log::info(
+			"Vulkan_Swapchain::init", swapchain_detail.capabilities.maxImageCount,
+			swapchain_detail.capabilities.minImageCount
+		);
+
+		VkSwapchainCreateInfoKHR create_info{};
+		create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+		create_info.surface = surface;
+
+		create_info.minImageCount = image_count;
+		create_info.imageFormat = format.format;
+		create_info.imageColorSpace = format.colorSpace;
+		create_info.imageExtent = extent;
+		create_info.imageArrayLayers = 1;
+		create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+		Queue_Family_Indices indices = Utils::query_suitable_queue_family_indices(physical_device, surface);
+		uint32_t queue_indices[] = {indices.graphic_family.value(), indices.present_family.value()};
+		if (indices.graphic_family != indices.present_family) {
+			create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+			create_info.queueFamilyIndexCount = 2;
+			create_info.pQueueFamilyIndices = queue_indices;
+			Log::info("Swapchain choose image sharing mode: VK_SHARING_MODE_CONCURRENT");
+		} else {
+			create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+			Log::info("Swapchain choose image sharing mode: VK_SHARING_MODE_EXCLUSIVE");
+		}
+
+		create_info.preTransform = swapchain_detail.capabilities.currentTransform;
+		create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+		create_info.presentMode = present;
+		create_info.clipped = VK_TRUE;
+
+		create_info.oldSwapchain = VK_NULL_HANDLE;
+
+		Utils::vk_check_result(
+			vkCreateSwapchainKHR(device, &create_info, nullptr, &swapchain), "", "failed to create swap chain!"
+		);
+		Log::info("Create swap chain successfully!");
+
+		vkGetSwapchainImagesKHR(device, swapchain, &image_count, nullptr);
+		swapchain_images.resize(image_count);
+		vkGetSwapchainImagesKHR(device, swapchain, &image_count, swapchain_images.data());
+
+		swapchain_format = format.format;
+		swapchain_extent = extent;
+
+		create_swapchain_image_views(swapchain_images, swapchain_image_views, swapchain_format, device);
+		Utils::save_window_size(window, device);
+	}
+
+	void recreate_swapchain(
+		GLFWwindow* window, VkSwapchainKHR& swapchain, VkFormat& swapchain_format, VkExtent2D& swapchain_extent,
+		std::vector<VkImage>& swapchain_images, std::vector<VkImageView>& swapchain_image_views, VkSurfaceKHR surface,
+		VkPhysicalDevice physical_device, VkDevice device
+	) {
+		int width = 0, height = 0;
+		glfwGetFramebufferSize(window, &width, &height);
+		while (width == 0 || height == 0) {
 			glfwGetFramebufferSize(window, &width, &height);
-			while (width == 0 || height == 0) {
-				glfwGetFramebufferSize(window, &width, &height);
-				glfwWaitEvents();
-			}
-			vkDeviceWaitIdle(device);
-			Destroy::_destroy_swapchain(swapchain, swapchain_image_views, device);
-			Init::_init_swapchain(
-				window, swapchain, swapchain_format, swapchain_extent, swapchain_images, swapchain_image_views, surface,
-				physical_device, device
-			);
+			glfwWaitEvents();
 		}
-	} // namespace Process
+		vkDeviceWaitIdle(device);
+		destroy_swapchain(swapchain, swapchain_image_views, device);
+		init_swapchain(
+			window, swapchain, swapchain_format, swapchain_extent, swapchain_images, swapchain_image_views, surface,
+			physical_device, device
+		);
+	}
 
-	namespace Destroy {
-
-		void _destroy_swapchain(
-			VkSwapchainKHR swapchain, const std::vector<VkImageView>& swapchain_image_views, VkDevice device
-		) {
-			for (auto& image_view : swapchain_image_views) {
-				vkDestroyImageView(device, image_view, nullptr);
-			}
-			Log::info("Destroy swap chain image view success!");
-
-			vkDestroySwapchainKHR(device, swapchain, nullptr);
-			Log::info("Destroy swap chain success!");
+	void destroy_swapchain(
+		VkSwapchainKHR swapchain, const std::vector<VkImageView>& swapchain_image_views, VkDevice device
+	) {
+		for (auto& image_view : swapchain_image_views) {
+			vkDestroyImageView(device, image_view, nullptr);
 		}
+		Log::info("Destroy swap chain image view success!");
 
-	} // namespace Destroy
+		vkDestroySwapchainKHR(device, swapchain, nullptr);
+		Log::info("Destroy swap chain success!");
+	}
 
 } // namespace Vulkan

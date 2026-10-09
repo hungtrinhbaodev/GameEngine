@@ -42,11 +42,7 @@ namespace Vulkan {
 
 	std::vector<uint32_t> triangle_instancing{};
 
-	std::shared_ptr<ThreadPool> _global_thread_pool = nullptr;
-
-	std::shared_ptr<Scheduler> _global_scheduler = nullptr;
-
-	GLFWwindow* _window = nullptr;
+	GLFWwindow* window = nullptr;
 
 	VkInstance instance = VK_NULL_HANDLE;
 
@@ -123,446 +119,390 @@ namespace Vulkan {
 		return pipeline_config;
 	}
 
-	namespace Init {
-
-		void _init_draw_packages() {
-			/**
-			 * Initialize geometry 2D draw package.
-			 */
-			{
-				Draw_Geometry_2D_Package* draw_package = new Draw_Geometry_2D_Package();
-				draw_package->init(
-					global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D],
-					&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D], uniform_buffers,
-					&global_draw_2D_order
-				);
-				draw_packages[Const::DRAW_ID::DRAW_2D_MESH] = draw_package;
-			}
-			/**
-			 * Initialize texture 2D draw package.
-			 */
-			{
-				// Draw_Texture_2D_Package* draw_package = new Draw_Texture_2D_Package();
-				// draw_package->init(
-				// 	global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D],
-				// 	&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D], uniform_buffers,
-				// 	&global_draw_2D_order, &texture_system, Const::ENABLED_TEXTURE_BUCKETS
-				// );
-				// draw_packages[Const::DRAW_ID::DRAW_2D_RECTANGLE_WITH_TEXTURE] = draw_package;
-			}
-			/**
-			 * Initialize texture 3D draw package.
-			 */
-			{
-				Draw_Model_3D_Package* draw_package = new Draw_Model_3D_Package();
-				draw_package->init(
-					global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D],
-					&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D], uniform_buffers, &model_3D_system,
-					&texture_system
-				);
-				draw_packages[Const::DRAW_ID::DRAW_3D_MODEL] = draw_package;
-			}
-		}
-
-		void _init_uniform_buffers() {
-			size_t uniform_size = sizeof(Uniform);
-			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-				Buffer uniform_buffer{};
-				uniform_buffer.make_buffer(
-					uniform_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, Vulkan::physical_device, Vulkan::device
-				);
-				uniform_buffers.push_back(uniform_buffer);
-			}
-			Log::info("Create uniform buffers successfully!");
-		}
-
-		void _request_draw_fences() {
-			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-				draw_fences.push_back(API::request_fence(device, true));
-			}
-			Log::info("Create draw fences successfully!");
-		}
-
-		void _request_draw_semaphores() {
-			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-				draw_semaphores.push_back(API::request_semaphore(device));
-				render_finish_semaphores.push_back(API::request_semaphore(device));
-			}
-			Log::info("Create draw semaphores successfully!");
-		}
-
-		void _request_draw_command_buffers() {
-			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-				draw_command_buffers.push_back(API::request_command_buffer(device));
-			}
-		}
-
-		void _init_static_buffers() {
-			/**
-			 * Init vertex static buffer to specific layout 2D and 3D vertex
-			 */
-			auto make_static_buffer = [](VkBufferUsageFlagBits buffer_flags) {
-				Static_Buffer vertex_buffer{};
-				vertex_buffer.init(
-					global_staging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE, buffer_flags, physical_device,
-					device
-				);
-				return vertex_buffer;
-			};
-			global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D] =
-				make_static_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-			global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D] =
-				make_static_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-			/**
-			 * Initialize indices buffer using to all layout vertex
-			 */
-			global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D] =
-				make_static_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-			global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D] =
-				make_static_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-		}
-
-		void init_vulkan_core(
-			GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool,
-			std::shared_ptr<Scheduler> global_scheduler
-		) {
-
-			_window = window;
-			glfwSetFramebufferSizeCallback(_window, [](GLFWwindow*, int, int) { Vulkan::frame_buffer_resize = true; });
-
-			_global_thread_pool = global_thread_pool;
-
-			_global_scheduler = global_scheduler;
-
-			// Initialize Vulkan Instance
-			init_instance(instance, debug_messenger);
-
-			// Initialize Vulkan Surface
-			init_surface(surface, instance, _window);
-
-			// Initialize Vulkan Physical Device
-			_init_physical_device(physical_device, instance, surface);
-
-			// Initialize Vulkan Device
-			_init_device(device, surface, physical_device);
-
-			// Initialize Vulkan Queues
-			_init_queues(graphics_queue, present_queue, surface, physical_device, device);
-
-			// Initialize Vulkan Fence Pool
-			_init_fences(device);
-
-			// Initialize Vulkan Semaphores Pool
-			init_semaphores(device);
-
-			// Initialize Vulkan semaphore to draw
-			_request_draw_semaphores();
-
-			// Request some specific fences to draw
-			_request_draw_fences();
-
-			// Initialize Vulkan Command Pool By Threads
-			_init_command_pool_threads(surface, physical_device, device);
-
-			// Initialize Vulkan Swapchain
-			_init_swapchain(
-				_window, swapchain, swapchain_format, swapchain_extent, swapchain_images, swapchain_image_views,
-				surface, physical_device, device
+	void _init_draw_packages() {
+		/**
+		 * Initialize geometry 2D draw package.
+		 */
+		{
+			Draw_Geometry_2D_Package* draw_package = new Draw_Geometry_2D_Package();
+			draw_package->init(
+				global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D],
+				&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D], uniform_buffers, &global_draw_2D_order
 			);
-
-			// Initialize Vulkan Depth Image
-			_init_depth_image(depth_image, physical_device, device, swapchain_extent);
-
-			// Initialize Vulkan Render Pass
-			_init_render_pass(render_pass, physical_device, device, swapchain_format);
-
-			// Initialize Vulkan Frame Buffer
-			_init_frame_buffers(
-				frame_buffers, render_pass, device, swapchain_image_views, depth_image, swapchain_extent
-			);
-
-			// Initialize Vulkan Descriptor Pools
-			_init_descriptor_pools(descriptor_pools, device);
-
-			// Initialize Vulkan Uniform buffers
-			_init_uniform_buffers();
-
-			// Request some command buffer to draw
-			_request_draw_command_buffers();
-
-			// Initialize global staging buffer
-			global_staging_buffer->init(
-				Const::MAX_FRAMES_IN_FLIGHT, Const::INITIALIZE_SIZE_STAGING_BUFFER, Vulkan::physical_device,
-				Vulkan::device
-			);
-
-			// Initialize texture system to loading texture
-			texture_system.init(
-				Const::TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_TEXTURE_PER_BUCKETS, device, descriptor_pools,
-				physical_device
-			);
-
-			// Initialize font system to loading font
-			font_system.init(device, descriptor_pools, physical_device);
-
-			// Initialize Vulkan static buffer to storage prototype like vertex data, index data,...
-			_init_static_buffers();
-
-			// Initialize model 3D system to loading and storage model
-			model_3D_system.init(
-				&global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D],
-				&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D], &texture_system
-			);
-
-			// Initialize Vulkan Pipeline by each draw ID
-			_init_draw_packages();
-
-			Draw_2D::init();
+			draw_packages[Const::DRAW_ID::DRAW_2D_MESH] = draw_package;
 		}
-	} // namespace Init
-
-	namespace Process {
-
-		void _update_uniform_buffer() {
-			const Buffer& uniform_buffer = uniform_buffers[current_frame];
-			Uniform uniform{};
-			glm::mat4 projection = glm::perspective(
-				glm::radians(45.0f), (float)swapchain_extent.width / (float)swapchain_extent.height, 0.1f, 100.f
-			);
-			float radius = 3.0f;
-			float angle = (float)glfwGetTime();
-			glm::vec3 eye = glm::vec3(radius * sin(angle), 0.0f, radius * cos(angle));
-			projection[1][1] *= -1.f;
-			glm::mat4 view = glm::lookAt(eye, glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
-			uniform.projection = projection;
-			uniform.view = view;
-			global_staging_buffer->upload_data(uniform_buffer.buffer, 0, sizeof(Uniform), &uniform);
-		}
-
-		void _on_window_resize() {
-			_recreate_swapchain(
-				_window, swapchain, swapchain_format, swapchain_extent, swapchain_images, swapchain_image_views,
-				surface, physical_device, device
-			);
-			_recreate_depth_image(depth_image, physical_device, device, swapchain_extent);
-			_recreate_frame_buffers(
-				frame_buffers, render_pass, device, swapchain_image_views, depth_image, swapchain_extent
-			);
-		}
-
-		void start_frame() {
-			global_draw_2D_order = 1.f;
-			global_staging_buffer->start_frame(current_frame);
-			_update_uniform_buffer();
-			for (auto& [draw_id, draw_package] : draw_packages) {
-				if (!draw_package->is_setup_first_frame) {
-					draw_package->setup_first_frame();
-					draw_package->is_setup_first_frame = true;
-				}
-				draw_package->start_frame();
-			}
-		}
-
-		void draw_frame() {
-			/**
-			 * Flush stagging need to upload into local device buffer
-			 */
-			for (auto& [draw_id, draw_package] : draw_packages) {
-				draw_package->flush_data();
-			}
-			global_staging_buffer->flush_frame();
-			VkFence draw_fence = draw_fences[current_frame];
-			VkSemaphore draw_semaphore = draw_semaphores[current_frame];
-			VkSemaphore finish_render_semaphore = render_finish_semaphores[current_frame];
-
-			uint32_t image_index;
-			vkWaitForFences(device, 1, &draw_fence, VK_TRUE, UINT64_MAX);
-			VkResult result =
-				vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, draw_semaphore, VK_NULL_HANDLE, &image_index);
-			if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-				_on_window_resize();
-				return;
-			} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-				throw std::runtime_error("failed to acquire swap chain image!");
-			}
-
-			VkCommandBuffer command_buffer = draw_command_buffers[current_frame];
-			vkResetFences(device, 1, &draw_fence);
-			vkResetCommandBuffer(command_buffer, 0);
-
-			VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
-			vkBeginCommandBuffer(command_buffer, &begin_info);
-			{
-				/**
-				 * Clear color to background and depth image before draw.
-				 */
-				std::vector<VkClearValue> clear_colors(2);
-				clear_colors[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
-				clear_colors[1].depthStencil = {1.0f, 0};
-				VkRenderPassBeginInfo render_pass_info = Structs::make_render_pass_begin_info(
-					render_pass, frame_buffers[image_index], swapchain_extent, clear_colors
-				);
-				/**
-				 * Set viewport and scissor before draw.
-				 */
-				VkViewport viewport =
-					Structs::make_draw_viewport(0, 0, swapchain_extent.width, swapchain_extent.height, 0.f, 1.f);
-				VkRect2D scissor = Structs::make_scissor(swapchain_extent);
-				vkCmdSetViewport(command_buffer, 0, 1, &viewport);
-				vkCmdSetScissor(command_buffer, 0, 1, &scissor);
-
-				vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-				{
-					Draw_2D::draw(command_buffer);
-				}
-				vkCmdEndRenderPass(command_buffer);
-			}
-			vkEndCommandBuffer(command_buffer);
-			VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-			VkSubmitInfo submit_info = Structs::make_submit_info(
-				&command_buffer, 1, 1, &draw_semaphore, &wait_stage, 1, &finish_render_semaphore
-			);
-			API::submit(submit_info, device, draw_fence);
-			VkPresentInfoKHR present_info =
-				Structs::make_present_info(1, &finish_render_semaphore, 1, &swapchain, &image_index);
-			result = API::submit_present(present_info, device);
-			if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || frame_buffer_resize) {
-				frame_buffer_resize = false;
-				_on_window_resize();
-			} else if (result != VK_SUCCESS) {
-				throw std::runtime_error("failed to present swap chain image!");
-			}
-		}
-
-		void end_frame() {
-			current_frame = (current_frame + 1) % Const::MAX_FRAMES_IN_FLIGHT;
-			for (auto& [draw_id, draw_package] : draw_packages) {
-				draw_package->end_frame();
-			}
-		}
-	} // namespace Process
-
-	namespace Destroy {
-
-		void _destroy_static_buffers() {
-			for (auto& [vertex_type, vertex_buffer] : global_vertex_buffers) {
-				vertex_buffer.destroy();
-			}
-			for (auto& [vertex_type, indices_buffer] : global_indices_buffers) {
-				indices_buffer.destroy();
-			}
-			Log::info("Destroy static buffers successfully!");
-		}
-
-		void _destroy_uniform_buffers() {
-			for (auto& buffer : uniform_buffers) {
-				buffer.destroy();
-			}
-			Log::info("Destroy uniform buffers successfully!");
-		}
-
-		void _destroy_draw_packages() {
-			for (const auto& [draw_id, draw_package] : draw_packages) {
-				draw_package->destroy();
-				delete (draw_package);
-			}
-		}
-
-		void destroy_vulkan() {
-			// Wait to queue idle first before destroy anything
-			vkQueueWaitIdle(graphics_queue);
-
-			// Descrtroy all 2D draw component.
-			Draw_2D::destroy();
-
-			// Destroy static buffers
-			_destroy_static_buffers();
-
-			// Destroy all using pipeline
-			_destroy_draw_packages();
-
-			// Destroy font system
-			font_system.destroy();
-
-			// Destroy texture system
-			texture_system.destroy();
-
-			// Destroy global staging buffer
-			global_staging_buffer->destroy();
-
-			// Destroy uniform buffer
-			_destroy_uniform_buffers();
-
-			// Destroy Vulkan Descriptor Pools
-			_destroy_descriptor_pools(descriptor_pools, device);
-
-			// Destroy Vulkan Frame Buffer
-			_destroy_frame_buffers(frame_buffers, device);
-
-			// Destroy Vulkan Render Pass
-			_destroy_render_pass(render_pass, device);
-
-			// Destroy Vulkan Depth Image
-			_destroy_depth_image(depth_image);
-
-			// Destroy All Using Vulkan Semaphore
-			_destroy_semaphores(device);
-
-			// Destroy All Using Vulkan Fence
-			_destroy_fences(device);
-
-			// Destroy Vulkan Swapchain
-			_destroy_swapchain(swapchain, swapchain_image_views, device);
-
-			// Destroy All Vulkan Command Pool
-			_destroy_command_pool_threads(device);
-
-			// Destroy Vulkan Device
-			_destroy_device(device);
-
-			// Destroy Vulkan Surface
-			destroy_surface(surface, instance);
-
-			// Destroy Vulkan Instance
-			destroy_instance(instance, debug_messenger);
-		}
-
-	} // namespace Destroy
-
-	namespace API {
-		void draw_triangle_2D(
-			glm::vec2 first_position, glm::vec2 second_position, glm::vec2 third_position, glm::vec3 color
-		) {
-			Draw_Geometry_2D_Package* draw_package =
-				reinterpret_cast<Draw_Geometry_2D_Package*>(draw_packages[Const::DRAW_ID::DRAW_2D_MESH]);
-			draw_package->draw_triangle_2D(first_position, second_position, third_position, color);
-		}
-
-		void draw_rectangle_2D(
-			float x, float y, float width, float height, glm::vec3 color, float rotation, glm::vec2 anchor_point
-		) {
-			Draw_Geometry_2D_Package* draw_package =
-				reinterpret_cast<Draw_Geometry_2D_Package*>(draw_packages[Const::DRAW_ID::DRAW_2D_MESH]);
-			draw_package->draw_rectangle_2D(x, y, width, height, color, rotation, anchor_point);
-		}
-
-		void draw_texture_2D(
-			std::string texture_path, glm::vec2 position, glm::vec2 scale, float rotation, glm::vec2 anchor,
-			Geometry::Texture_Rect_2D texture_rect
-		) {
-			// Draw_Texture_2D_Package* draw_package = reinterpret_cast<Draw_Texture_2D_Package*>(
-			// 	draw_packages[Const::DRAW_ID::DRAW_2D_RECTANGLE_WITH_TEXTURE]
+		/**
+		 * Initialize texture 2D draw package.
+		 */
+		{
+			// Draw_Texture_2D_Package* draw_package = new Draw_Texture_2D_Package();
+			// draw_package->init(
+			// 	global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D],
+			// 	&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D], uniform_buffers,
+			// 	&global_draw_2D_order, &texture_system, Const::ENABLED_TEXTURE_BUCKETS
 			// );
-			// draw_package->draw_texture_2D(texture_path, position, scale, rotation, anchor, texture_rect);
+			// draw_packages[Const::DRAW_ID::DRAW_2D_RECTANGLE_WITH_TEXTURE] = draw_package;
+		}
+		/**
+		 * Initialize texture 3D draw package.
+		 */
+		{
+			Draw_Model_3D_Package* draw_package = new Draw_Model_3D_Package();
+			draw_package->init(
+				global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D],
+				&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D], uniform_buffers, &model_3D_system,
+				&texture_system
+			);
+			draw_packages[Const::DRAW_ID::DRAW_3D_MODEL] = draw_package;
+		}
+	}
+
+	void init_uniform_buffers() {
+		size_t uniform_size = sizeof(Uniform);
+		for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+			Buffer uniform_buffer{};
+			uniform_buffer.make_buffer(
+				uniform_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, Vulkan::physical_device, Vulkan::device
+			);
+			uniform_buffers.push_back(uniform_buffer);
+		}
+		Log::info("Create uniform buffers successfully!");
+	}
+
+	void request_draw_fences() {
+		for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+			draw_fences.push_back(request_fence(device, true));
+		}
+		Log::info("Create draw fences successfully!");
+	}
+
+	void request_draw_semaphores() {
+		for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+			draw_semaphores.push_back(request_semaphore(device));
+			render_finish_semaphores.push_back(request_semaphore(device));
+		}
+		Log::info("Create draw semaphores successfully!");
+	}
+
+	void request_draw_command_buffers() {
+		for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+			draw_command_buffers.push_back(request_command_buffer(device));
+		}
+	}
+
+	void init_static_buffers() {
+		/**
+		 * Init vertex static buffer to specific layout 2D and 3D vertex
+		 */
+		auto make_static_buffer = [](VkBufferUsageFlagBits buffer_flags) {
+			Static_Buffer vertex_buffer{};
+			vertex_buffer.init(
+				global_staging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE, buffer_flags, physical_device, device
+			);
+			return vertex_buffer;
+		};
+		global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D] =
+			make_static_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+		global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D] =
+			make_static_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+		/**
+		 * Initialize indices buffer using to all layout vertex
+		 */
+		global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D] =
+			make_static_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+		global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D] =
+			make_static_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+	}
+
+	void init_vulkan_core(
+		GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool, std::shared_ptr<Scheduler> global_scheduler
+	) {
+
+		window = window;
+		glfwSetFramebufferSizeCallback(window, [](GLFWwindow*, int, int) { Vulkan::frame_buffer_resize = true; });
+
+		// Initialize Vulkan Instance
+		init_instance(instance, debug_messenger);
+
+		// Initialize Vulkan Surface
+		init_surface(surface, instance, window);
+
+		// Initialize Vulkan Physical Device
+		init_physical_device(physical_device, instance, surface);
+
+		// Initialize Vulkan Device
+		init_device(device, surface, physical_device);
+
+		// Initialize Vulkan Queues
+		init_queues(graphics_queue, present_queue, surface, physical_device, device);
+
+		// Initialize Vulkan Fence Pool
+		init_fences(device);
+
+		// Initialize Vulkan Semaphores Pool
+		init_semaphores(device);
+
+		// Initialize Vulkan semaphore to draw
+		request_draw_semaphores();
+
+		// Request some specific fences to draw
+		request_draw_fences();
+
+		// Initialize Vulkan Command Pool By Threads
+		init_command_pool_threads(surface, physical_device, device);
+
+		// Initialize Vulkan Swapchain
+		init_swapchain(
+			window, swapchain, swapchain_format, swapchain_extent, swapchain_images, swapchain_image_views, surface,
+			physical_device, device
+		);
+
+		// Initialize Vulkan Depth Image
+		init_depth_image(depth_image, physical_device, device, swapchain_extent);
+
+		// Initialize Vulkan Render Pass
+		init_render_pass(render_pass, physical_device, device, swapchain_format);
+
+		// Initialize Vulkan Frame Buffer
+		init_frame_buffers(frame_buffers, render_pass, device, swapchain_image_views, depth_image, swapchain_extent);
+
+		// Initialize Vulkan Descriptor Pools
+		init_descriptor_pools(descriptor_pools, device);
+
+		// Initialize Vulkan Uniform buffers
+		init_uniform_buffers();
+
+		// Request some command buffer to draw
+		request_draw_command_buffers();
+
+		// Initialize global staging buffer
+		global_staging_buffer->init(
+			Const::MAX_FRAMES_IN_FLIGHT, Const::INITIALIZE_SIZE_STAGING_BUFFER, Vulkan::physical_device, Vulkan::device
+		);
+
+		// Initialize texture system to loading texture
+		texture_system.init(
+			Const::TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_TEXTURE_PER_BUCKETS, device, descriptor_pools,
+			physical_device
+		);
+
+		// Initialize font system to loading font
+		font_system.init(device, descriptor_pools, physical_device);
+
+		// Initialize Vulkan static buffer to storage prototype like vertex data, index data,...
+		init_static_buffers();
+
+		// Initialize model 3D system to loading and storage model
+		model_3D_system.init(
+			&global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D],
+			&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D], &texture_system
+		);
+
+		// Initialize Vulkan Pipeline by each draw ID
+		_init_draw_packages();
+
+		Draw_2D::init();
+	}
+
+	void _update_uniform_buffer() {
+		const Buffer& uniform_buffer = uniform_buffers[current_frame];
+		Uniform uniform{};
+		glm::mat4 projection = glm::perspective(
+			glm::radians(45.0f), (float)swapchain_extent.width / (float)swapchain_extent.height, 0.1f, 100.f
+		);
+		float radius = 3.0f;
+		float angle = (float)glfwGetTime();
+		glm::vec3 eye = glm::vec3(radius * sin(angle), 0.0f, radius * cos(angle));
+		projection[1][1] *= -1.f;
+		glm::mat4 view = glm::lookAt(eye, glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+		uniform.projection = projection;
+		uniform.view = view;
+		global_staging_buffer->upload_data(uniform_buffer.buffer, 0, sizeof(Uniform), &uniform);
+	}
+
+	void _on_window_resize() {
+		recreate_swapchain(
+			window, swapchain, swapchain_format, swapchain_extent, swapchain_images, swapchain_image_views, surface,
+			physical_device, device
+		);
+		recreate_depth_image(depth_image, physical_device, device, swapchain_extent);
+		recreate_frame_buffers(
+			frame_buffers, render_pass, device, swapchain_image_views, depth_image, swapchain_extent
+		);
+	}
+
+	void start_frame() {
+		global_draw_2D_order = 1.f;
+		global_staging_buffer->start_frame(current_frame);
+		_update_uniform_buffer();
+		for (auto& [draw_id, draw_package] : draw_packages) {
+			if (!draw_package->is_setup_first_frame) {
+				draw_package->setup_first_frame();
+				draw_package->is_setup_first_frame = true;
+			}
+			draw_package->start_frame();
+		}
+	}
+
+	void draw_frame() {
+		/**
+		 * Flush stagging need to upload into local device buffer
+		 */
+		for (auto& [draw_id, draw_package] : draw_packages) {
+			draw_package->flush_data();
+		}
+		global_staging_buffer->flush_frame();
+		VkFence draw_fence = draw_fences[current_frame];
+		VkSemaphore draw_semaphore = draw_semaphores[current_frame];
+		VkSemaphore finish_render_semaphore = render_finish_semaphores[current_frame];
+
+		uint32_t image_index;
+		vkWaitForFences(device, 1, &draw_fence, VK_TRUE, UINT64_MAX);
+		VkResult result =
+			vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, draw_semaphore, VK_NULL_HANDLE, &image_index);
+		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+			_on_window_resize();
+			return;
+		} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+			throw std::runtime_error("failed to acquire swap chain image!");
 		}
 
-		void draw_model_3D(std::string path, glm::vec3 position, glm::vec3 scale, glm::vec3 rotation) {
-			Draw_Model_3D_Package* draw_package =
-				reinterpret_cast<Draw_Model_3D_Package*>(draw_packages[Const::DRAW_ID::DRAW_3D_MODEL]);
-			draw_package->draw_model_3D(path, position, scale, rotation);
-		}
+		VkCommandBuffer command_buffer = draw_command_buffers[current_frame];
+		vkResetFences(device, 1, &draw_fence);
+		vkResetCommandBuffer(command_buffer, 0);
 
-	} // namespace API
+		VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
+		vkBeginCommandBuffer(command_buffer, &begin_info);
+		{
+			/**
+			 * Clear color to background and depth image before draw.
+			 */
+			std::vector<VkClearValue> clear_colors(2);
+			clear_colors[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+			clear_colors[1].depthStencil = {1.0f, 0};
+			VkRenderPassBeginInfo render_pass_info = Structs::make_render_pass_begin_info(
+				render_pass, frame_buffers[image_index], swapchain_extent, clear_colors
+			);
+			/**
+			 * Set viewport and scissor before draw.
+			 */
+			VkViewport viewport =
+				Structs::make_draw_viewport(0, 0, swapchain_extent.width, swapchain_extent.height, 0.f, 1.f);
+			VkRect2D scissor = Structs::make_scissor(swapchain_extent);
+			vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+			vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+
+			vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+			{
+				Draw_2D::draw(command_buffer);
+			}
+			vkCmdEndRenderPass(command_buffer);
+		}
+		vkEndCommandBuffer(command_buffer);
+		VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+		VkSubmitInfo submit_info =
+			Structs::make_submit_info(&command_buffer, 1, 1, &draw_semaphore, &wait_stage, 1, &finish_render_semaphore);
+		submit(submit_info, device, draw_fence);
+		VkPresentInfoKHR present_info =
+			Structs::make_present_info(1, &finish_render_semaphore, 1, &swapchain, &image_index);
+		result = submit_present(present_info, device);
+		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || frame_buffer_resize) {
+			frame_buffer_resize = false;
+			_on_window_resize();
+		} else if (result != VK_SUCCESS) {
+			throw std::runtime_error("failed to present swap chain image!");
+		}
+	}
+
+	void end_frame() {
+		current_frame = (current_frame + 1) % Const::MAX_FRAMES_IN_FLIGHT;
+		for (auto& [draw_id, draw_package] : draw_packages) {
+			draw_package->end_frame();
+		}
+	}
+
+	void _destroy_static_buffers() {
+		for (auto& [vertex_type, vertex_buffer] : global_vertex_buffers) {
+			vertex_buffer.destroy();
+		}
+		for (auto& [vertex_type, indices_buffer] : global_indices_buffers) {
+			indices_buffer.destroy();
+		}
+		Log::info("Destroy static buffers successfully!");
+	}
+
+	void _destroy_uniform_buffers() {
+		for (auto& buffer : uniform_buffers) {
+			buffer.destroy();
+		}
+		Log::info("Destroy uniform buffers successfully!");
+	}
+
+	void _destroy_draw_packages() {
+		for (const auto& [draw_id, draw_package] : draw_packages) {
+			draw_package->destroy();
+			delete (draw_package);
+		}
+	}
+
+	void destroy_vulkan() {
+		// Wait to queue idle first before destroy anything
+		vkQueueWaitIdle(graphics_queue);
+
+		// Descrtroy all 2D draw component.
+		Draw_2D::destroy();
+
+		// Destroy static buffers
+		_destroy_static_buffers();
+
+		// Destroy all using pipeline
+		_destroy_draw_packages();
+
+		// Destroy font system
+		font_system.destroy();
+
+		// Destroy texture system
+		texture_system.destroy();
+
+		// Destroy global staging buffer
+		global_staging_buffer->destroy();
+
+		// Destroy uniform buffer
+		_destroy_uniform_buffers();
+
+		// Destroy Vulkan Descriptor Pools
+		destroy_descriptor_pools(descriptor_pools, device);
+
+		// Destroy Vulkan Frame Buffer
+		destroy_frame_buffers(frame_buffers, device);
+
+		// Destroy Vulkan Render Pass
+		destroy_render_pass(render_pass, device);
+
+		// Destroy Vulkan Depth Image
+		destroy_depth_image(depth_image);
+
+		// Destroy All Using Vulkan Semaphore
+		destroy_semaphores(device);
+
+		// Destroy All Using Vulkan Fence
+		destroy_fences(device);
+
+		// Destroy Vulkan Swapchain
+		destroy_swapchain(swapchain, swapchain_image_views, device);
+
+		// Destroy All Vulkan Command Pool
+		destroy_command_pool_threads(device);
+
+		// Destroy Vulkan Device
+		destroy_device(device);
+
+		// Destroy Vulkan Surface
+		destroy_surface(surface, instance);
+
+		// Destroy Vulkan Instance
+		destroy_instance(instance, debug_messenger);
+	}
 
 } // namespace Vulkan

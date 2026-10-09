@@ -72,12 +72,6 @@ namespace Vulkan {
 		Texture_System texture_system{};
 	};
 
-	extern std::shared_ptr<ThreadPool> _global_thread_pool;
-
-	extern std::shared_ptr<Scheduler> _global_scheduler;
-
-	extern GLFWwindow* _window;
-
 	extern VkInstance instance;
 
 	extern VkDebugUtilsMessengerEXT debug_messenger;
@@ -146,47 +140,15 @@ namespace Vulkan {
 
 	Pipeline_Config make_default_pipeline_config();
 
-	namespace Init {
-		void init_vulkan_core(
-			GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool,
-			std::shared_ptr<Scheduler> global_scheduler
-		);
+	void init_vulkan_core(
+		GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool, std::shared_ptr<Scheduler> global_scheduler
+	);
 
-	} // namespace Init
+	void start_frame();
 
-	namespace Process {
+	void draw_frame();
 
-		void start_frame();
+	void end_frame();
 
-		void draw_frame();
-
-		void end_frame();
-
-	} // namespace Process
-
-	namespace Destroy {
-
-		void destroy_vulkan();
-
-	} // namespace Destroy
-
-	namespace API {
-
-		void draw_triangle_2D(
-			glm::vec2 first_position, glm::vec2 second_position, glm::vec2 third_position, glm::vec3 color
-		);
-
-		void draw_rectangle_2D(
-			float x, float y, float width, float height, glm::vec3 color, float rotation = 0,
-			glm::vec2 anchor_point = {0.f, 0.f}
-		);
-
-		void draw_texture_2D(
-			std::string texture_path, glm::vec2 position, glm::vec2 scale, float rotation = 0,
-			glm::vec2 anchor = {0.f, 0.f}, Geometry::Texture_Rect_2D texture_rect = {0.f, 0.f, 1.f, 1.f}
-		);
-
-		void draw_model_3D(std::string path, glm::vec3 position, glm::vec3 scale, glm::vec3 rotation);
-
-	} // namespace API
+	void destroy_vulkan();
 } // namespace Vulkan

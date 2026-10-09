@@ -38,9 +38,7 @@ namespace Vulkan {
 		}
 
 		VkCommandBuffer start_commands(VkDevice device) {
-			std::thread::id thread_id = std::this_thread::get_id();
-			VkCommandBuffer command_buffer = API::request_command_buffer(device);
-
+			VkCommandBuffer command_buffer = request_command_buffer(device);
 			VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
 			vkBeginCommandBuffer(command_buffer, &begin_info);
 			return command_buffer;
@@ -48,14 +46,14 @@ namespace Vulkan {
 
 		void finish_commands(VkDevice device, VkCommandBuffer command_buffer) {
 			vkEndCommandBuffer(command_buffer);
-			VkFence fence = API::request_fence(device);
+			VkFence fence = request_fence(device);
 			VkSubmitInfo submit_info = Structs::make_submit_info(&command_buffer);
 			auto success = [](VkDevice device, VkCommandBuffer command_buffer, VkFence fence) {
-				API::release_command_buffer(device, command_buffer);
-				API::release_fence(device, fence);
+				release_command_buffer(device, command_buffer);
+				release_fence(device, fence);
 			};
-			API::submit(submit_info, device, fence);
-			API::on_fence_success(device, fence, success, device, command_buffer, fence).get();
+			submit(submit_info, device, fence);
+			on_fence_success(device, fence, success, device, command_buffer, fence).get();
 		}
 	} // namespace Utils
 } // namespace Vulkan

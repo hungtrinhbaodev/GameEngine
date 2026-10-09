@@ -28,7 +28,7 @@ int main() {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	GLFWwindow* window = glfwCreateWindow(1200, 720, "game", nullptr, nullptr);
 
-	Vulkan::Init::init_vulkan_core(window, Core::global_thread_pool, Core::global_scheduler);
+	Vulkan::init_vulkan_core(window, Core::global_thread_pool, Core::global_scheduler);
 
 	glm::vec2 window_size = Vulkan::Utils::get_window_size(Vulkan::device);
 	std::vector<uint32_t> rectangles{};
@@ -73,18 +73,18 @@ int main() {
 		glfwPollEvents();
 
 		// Set up all component when start frame (reset frame of ring buffer, ...).
-		Vulkan::Process::start_frame();
+		Vulkan::start_frame();
 
 		// TODO: logic of all component will be place here in future.
 
 		// Draw all information of this current frame.
-		Vulkan::Process::draw_frame();
+		Vulkan::draw_frame();
 
 		// Reset all cache or work need to using in this frame.
-		Vulkan::Process::end_frame();
+		Vulkan::end_frame();
 	}
 
-	Vulkan::Destroy::destroy_vulkan();
+	Vulkan::destroy_vulkan();
 
 	glfwDestroyWindow(window);
 

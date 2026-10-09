@@ -95,94 +95,83 @@ namespace Vulkan {
 		return command_pool_threads[device][hash_thread_id];
 	}
 
-	namespace Init {
+	void init_command_pool_threads(VkSurfaceKHR surface, VkPhysicalDevice physical_device, VkDevice device) {
+		Command_Pool_Infomation information{surface, physical_device, device};
+		command_pool_threads[device] = {};
+		std::shared_ptr<std::mutex> init_pool_lock = std::make_shared<std::mutex>();
 
-		void _init_command_pool_threads(VkSurfaceKHR surface, VkPhysicalDevice physical_device, VkDevice device) {
-			Command_Pool_Infomation information{surface, physical_device, device};
-			command_pool_threads[device] = {};
-			std::shared_ptr<std::mutex> init_pool_lock = std::make_shared<std::mutex>();
-
-			auto create_command_pool_thread = [](std::shared_ptr<std::mutex> init_pool_lock,
-												 Command_Pool_Infomation information) {
-				auto thread_id = std::this_thread::get_id();
-				uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
-				{
-					std::lock_guard<std::mutex> lock(*init_pool_lock);
-					command_pool_threads[information.device].emplace(
-						hash_thread_id, std::make_shared<Command_Pool_Thread>(information)
-					);
-					command_pool_threads[information.device][hash_thread_id]->init_pool();
-				}
-			};
-
-			auto results =
-				Core::global_thread_pool->loop_all_threads(create_command_pool_thread, init_pool_lock, information);
-
-			for (auto& [_, result] : results) {
-				result.get();
-			}
-
-			create_command_pool_thread(init_pool_lock, information);
-		}
-	} // namespace Init
-
-	namespace Destroy {
-
-		void _destroy_command_pool_threads(VkDevice device) {
-
-			std::shared_ptr<std::mutex> destroy_pool_lock = std::make_shared<std::mutex>();
-			auto destroy_command_pool_thread = [](std::shared_ptr<std::mutex> destroy_pool_lock, VkDevice device) {
-				auto thread_id = std::this_thread::get_id();
-				uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
-				{
-					std::lock_guard<std::mutex> lock(*destroy_pool_lock);
-					command_pool_threads[device][hash_thread_id]->destroy();
-				}
-			};
-			auto results =
-				Core::global_thread_pool->loop_all_threads(destroy_command_pool_thread, destroy_pool_lock, device);
-
-			for (auto& [_, result] : results) {
-				result.get();
-			}
-			destroy_command_pool_thread(destroy_pool_lock, device);
-		}
-
-	} // namespace Destroy
-
-	namespace API {
-
-		VkCommandBuffer request_command_buffer(VkDevice device) {
-			VkCommandBuffer command_buffer = get_command_thread_pool(device)->request_item();
+		auto create_command_pool_thread = [](std::shared_ptr<std::mutex> init_pool_lock,
+											 Command_Pool_Infomation information) {
+			auto thread_id = std::this_thread::get_id();
+			uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
 			{
-				std::unique_lock<std::mutex> lock(commands_mutex);
-				if (command_to_thread_ids.find(command_buffer) == command_to_thread_ids.end()) {
-					auto thread_id = std::this_thread::get_id();
-					uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
-					command_to_thread_ids[command_buffer] = hash_thread_id;
-				}
-			}
-			vkResetCommandBuffer(command_buffer, 0);
-			return command_buffer;
-		}
-
-		void release_command_buffer(VkDevice device, VkCommandBuffer& command_buffer) {
-			uint64_t hash_thread_id = 0;
-			{
-				std::unique_lock<std::mutex> lock(commands_mutex);
-				hash_thread_id = command_to_thread_ids[command_buffer];
-			}
-			if (command_pool_threads.find(device) == command_pool_threads.end()) {
-				throw std::runtime_error(
-					"Vulkan can't find device " + std::to_string((uint64_t)device) + " init command pool!"
+				std::lock_guard<std::mutex> lock(*init_pool_lock);
+				command_pool_threads[information.device].emplace(
+					hash_thread_id, std::make_shared<Command_Pool_Thread>(information)
 				);
+				command_pool_threads[information.device][hash_thread_id]->init_pool();
 			}
-			if (command_pool_threads[device].find(hash_thread_id) == command_pool_threads[device].end()) {
-				throw std::runtime_error("Vulkan fail to release command buffer: can't find command pool at thread!");
-			}
-			return command_pool_threads[device][hash_thread_id]->pooling_item(command_buffer);
+		};
+
+		auto results =
+			Core::global_thread_pool->loop_all_threads(create_command_pool_thread, init_pool_lock, information);
+
+		for (auto& [_, result] : results) {
+			result.get();
 		}
 
-	} // namespace API
+		create_command_pool_thread(init_pool_lock, information);
+	}
+
+	void destroy_command_pool_threads(VkDevice device) {
+
+		std::shared_ptr<std::mutex> destroy_pool_lock = std::make_shared<std::mutex>();
+		auto destroy_command_pool_thread = [](std::shared_ptr<std::mutex> destroy_pool_lock, VkDevice device) {
+			auto thread_id = std::this_thread::get_id();
+			uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
+			{
+				std::lock_guard<std::mutex> lock(*destroy_pool_lock);
+				command_pool_threads[device][hash_thread_id]->destroy();
+			}
+		};
+		auto results =
+			Core::global_thread_pool->loop_all_threads(destroy_command_pool_thread, destroy_pool_lock, device);
+
+		for (auto& [_, result] : results) {
+			result.get();
+		}
+		destroy_command_pool_thread(destroy_pool_lock, device);
+	}
+
+	VkCommandBuffer request_command_buffer(VkDevice device) {
+		VkCommandBuffer command_buffer = get_command_thread_pool(device)->request_item();
+		{
+			std::unique_lock<std::mutex> lock(commands_mutex);
+			if (command_to_thread_ids.find(command_buffer) == command_to_thread_ids.end()) {
+				auto thread_id = std::this_thread::get_id();
+				uint64_t hash_thread_id = std::hash<std::thread::id>()(thread_id);
+				command_to_thread_ids[command_buffer] = hash_thread_id;
+			}
+		}
+		vkResetCommandBuffer(command_buffer, 0);
+		return command_buffer;
+	}
+
+	void release_command_buffer(VkDevice device, VkCommandBuffer& command_buffer) {
+		uint64_t hash_thread_id = 0;
+		{
+			std::unique_lock<std::mutex> lock(commands_mutex);
+			hash_thread_id = command_to_thread_ids[command_buffer];
+		}
+		if (command_pool_threads.find(device) == command_pool_threads.end()) {
+			throw std::runtime_error(
+				"Vulkan can't find device " + std::to_string((uint64_t)device) + " init command pool!"
+			);
+		}
+		if (command_pool_threads[device].find(hash_thread_id) == command_pool_threads[device].end()) {
+			throw std::runtime_error("Vulkan fail to release command buffer: can't find command pool at thread!");
+		}
+		return command_pool_threads[device][hash_thread_id]->pooling_item(command_buffer);
+	}
 
 } // namespace Vulkan

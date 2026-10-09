@@ -8,7 +8,7 @@ namespace Vulkan {
 		VkDevice device = VK_NULL_HANDLE;
 	};
 
-	class _Semaphore_Pool : public Concurent_Pool<VkSemaphore> {
+	class Semaphore_Pool : public Concurent_Pool<VkSemaphore> {
 	  private:
 		Semaphores_Information information{};
 
@@ -23,44 +23,40 @@ namespace Vulkan {
 		void _delete_item(VkSemaphore& item) override { vkDestroySemaphore(information.device, item, nullptr); }
 
 	  public:
-		_Semaphore_Pool(Semaphores_Information information) { this->information = information; }
+		Semaphore_Pool(Semaphores_Information information) { this->information = information; }
 	};
 
-	std::unordered_map<VkDevice, std::shared_ptr<_Semaphore_Pool>> _semaphore_pools{};
+	std::unordered_map<VkDevice, std::shared_ptr<Semaphore_Pool>> semaphore_pools{};
 
 	void init_semaphores(VkDevice device) {
-		_semaphore_pools[device] = std::make_shared<_Semaphore_Pool>(Semaphores_Information{device});
+		semaphore_pools[device] = std::make_shared<Semaphore_Pool>(Semaphores_Information{device});
 	}
 
-	namespace API {
-		VkSemaphore request_semaphore(VkDevice device) {
-			if (_semaphore_pools.find(device) == _semaphore_pools.end()) {
-				throw std::runtime_error(
-					"Fail to request semaphore try to init semaphores with this device " +
-					std::to_string((uint64_t)device) + " first!"
-				);
-			}
-			return _semaphore_pools[device]->request_item();
+	VkSemaphore request_semaphore(VkDevice device) {
+		if (semaphore_pools.find(device) == semaphore_pools.end()) {
+			throw std::runtime_error(
+				"Fail to request semaphore try to init semaphores with this device " +
+				std::to_string((uint64_t)device) + " first!"
+			);
 		}
+		return semaphore_pools[device]->request_item();
+	}
 
-		void release_semaphore(VkDevice device, VkSemaphore semaphore) {
-			if (_semaphore_pools.find(device) == _semaphore_pools.end()) {
-				throw std::runtime_error(
-					"Fail to release semaphore try to init semaphores with this device " +
-					std::to_string((uint64_t)device) + " first!"
-				);
-			}
-			_semaphore_pools[device]->pooling_item(semaphore);
+	void release_semaphore(VkDevice device, VkSemaphore semaphore) {
+		if (semaphore_pools.find(device) == semaphore_pools.end()) {
+			throw std::runtime_error(
+				"Fail to release semaphore try to init semaphores with this device " +
+				std::to_string((uint64_t)device) + " first!"
+			);
 		}
-	} // namespace API
+		semaphore_pools[device]->pooling_item(semaphore);
+	}
 
-	namespace Destroy {
-		void _destroy_semaphores(VkDevice device) {
-			if (_semaphore_pools.find(device) == _semaphore_pools.end()) {
-				return;
-			}
-			_semaphore_pools[device]->destroy();
+	void destroy_semaphores(VkDevice device) {
+		if (semaphore_pools.find(device) == semaphore_pools.end()) {
+			return;
 		}
-	} // namespace Destroy
+		semaphore_pools[device]->destroy();
+	}
 
 } // namespace Vulkan

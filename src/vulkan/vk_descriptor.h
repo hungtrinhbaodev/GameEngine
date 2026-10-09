@@ -30,12 +30,8 @@ namespace Vulkan {
 		void write(VkDevice device);
 	};
 
-	namespace Init {
-		void _init_descriptor_pools(std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device);
-	}
+	void init_descriptor_pools(std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device);
 
-	namespace Destroy {
-		void _destroy_descriptor_pools(const std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device);
-	}
+	void destroy_descriptor_pools(const std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device);
 
 } // namespace Vulkan

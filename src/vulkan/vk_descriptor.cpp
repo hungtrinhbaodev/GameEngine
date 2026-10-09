@@ -65,46 +65,39 @@ namespace Vulkan {
 		vkUpdateDescriptorSets(device, writes.size(), writes.data(), 0, nullptr);
 	}
 
-	namespace Init {
+	void init_descriptor_pools(std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device) {
 
-		void _init_descriptor_pools(std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device) {
+		std::vector<VkDescriptorPoolSize> pool_size{};
+		pool_size.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10000});
+		pool_size.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10000});
+		pool_size.push_back({VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10000});
 
-			std::vector<VkDescriptorPoolSize> pool_size{};
-			pool_size.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10000});
-			pool_size.push_back({VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10000});
-			pool_size.push_back({VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 10000});
+		descriptor_pools.clear();
+		descriptor_pools.reserve(Const::MAX_FRAMES_IN_FLIGHT);
+		for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
 
-			descriptor_pools.clear();
-			descriptor_pools.reserve(Const::MAX_FRAMES_IN_FLIGHT);
-			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+			VkDescriptorPoolCreateInfo create_info{};
+			create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+			create_info.poolSizeCount = pool_size.size();
+			create_info.pPoolSizes = pool_size.data();
+			create_info.maxSets = 9997;
 
-				VkDescriptorPoolCreateInfo create_info{};
-				create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-				create_info.poolSizeCount = pool_size.size();
-				create_info.pPoolSizes = pool_size.data();
-				create_info.maxSets = 9997;
+			VkDescriptorPool pool{};
+			Utils::vk_check_result(
+				vkCreateDescriptorPool(device, &create_info, nullptr, &pool),
+				"Vulkan create descriptor pool successfully!", "Vulkan fail to create descriptor pool!"
+			);
+			descriptor_pools.emplace_back(pool);
+		}
+	}
 
-				VkDescriptorPool pool{};
-				Utils::vk_check_result(
-					vkCreateDescriptorPool(device, &create_info, nullptr, &pool),
-					"Vulkan create descriptor pool successfully!", "Vulkan fail to create descriptor pool!"
-				);
-				descriptor_pools.emplace_back(pool);
-			}
+	void destroy_descriptor_pools(const std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device) {
+
+		for (auto& pool : descriptor_pools) {
+			vkDestroyDescriptorPool(device, pool, nullptr);
 		}
 
-	} // namespace Init
-
-	namespace Destroy {
-
-		void _destroy_descriptor_pools(const std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device) {
-
-			for (auto& pool : descriptor_pools) {
-				vkDestroyDescriptorPool(device, pool, nullptr);
-			}
-
-			Log::info("Vulkan destroy descriptor pools successfully!");
-		}
-	} // namespace Destroy
+		Log::info("Vulkan destroy descriptor pools successfully!");
+	}
 
 } // namespace Vulkan

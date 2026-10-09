@@ -45,7 +45,7 @@ class Scheduler {
 	};
 
   private:
-	std::shared_ptr<ThreadPool> _global_thread_pool = nullptr;
+	std::shared_ptr<ThreadPool> global_thread_pool = nullptr;
 
 	std::mutex tasks_mutex;
 
@@ -80,8 +80,8 @@ class Scheduler {
 
 	void process_task(Scheduled_Task& task_data, long long start_time) {
 		task_data.excute_state = Excute_State::EXCUTING;
-		if (_global_thread_pool != nullptr) {
-			task_data.excute_finish = _global_thread_pool->enqueue(
+		if (global_thread_pool != nullptr) {
+			task_data.excute_finish = global_thread_pool->enqueue(
 				[this, &task_data](long long start_time) { do_task(task_data, start_time); }, start_time
 			);
 		} else {
@@ -199,7 +199,7 @@ class Scheduler {
 
   public:
 	Scheduler(std::shared_ptr<ThreadPool> global_thread_pool = nullptr, int min_loop_time_micrs = 1000)
-		: _global_thread_pool(global_thread_pool)
+		: global_thread_pool(global_thread_pool)
 		, min_loop_time_micrs(min_loop_time_micrs) {
 		start();
 	}
