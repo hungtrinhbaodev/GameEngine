@@ -114,8 +114,6 @@ namespace Vulkan {
 
 	extern std::map<Const::DRAW_ID, std::vector<std::vector<VkDescriptorSet>>> descriptor_sets_by_draw_id;
 
-	extern std::map<Const::DRAW_ID, Draw_Package*> draw_packages;
-
 	extern std::map<Const::VERTEX_BUFFER_TYPE, Static_Buffer> global_vertex_buffers;
 
 	extern std::map<Const::VERTEX_BUFFER_TYPE, Static_Buffer> global_indices_buffers;
@@ -139,6 +137,10 @@ namespace Vulkan {
 	extern float global_draw_2D_order;
 
 	Pipeline_Config make_default_pipeline_config();
+
+	SSBO_Buffer& get_ssbo();
+
+	Static_Buffer_2& get_static_buffer();
 
 	void init_vulkan_core(
 		GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool, std::shared_ptr<Scheduler> global_scheduler

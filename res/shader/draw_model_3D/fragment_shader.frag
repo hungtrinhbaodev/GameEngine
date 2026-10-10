@@ -1,10 +1,12 @@
 #version 450
-layout (set = 1, binding = 0) uniform sampler2D tex_sampler;
+layout (set = 0, binding = 0) uniform sampler2D tex_sampler;
 
 layout (location = 0) in vec3 in_color;
 layout (location = 1) in vec2 in_tex_coord;
 layout (location = 2) in vec3 frag_normal;
 layout (location = 3) in vec3 frag_world_pos;
+layout (location = 4) in flat int bucket_index;
+layout (location = 5) in flat int slot_index;
 
 layout (location = 0) out vec4 out_color;
 

@@ -163,7 +163,7 @@ namespace Vulkan {
 
 		Pipeline pipeline{};
 
-		std::unordered_map<uint32_t, std::vector<VkDescriptorSet>> descriptor_sets{};
+		std::unordered_map<uint32_t, std::vector<VkDescriptorSet>> texture_descriptor_sets{};
 
 		std::vector<VkDescriptorSet> texture_default_descriptor_sets{};
 
@@ -243,7 +243,7 @@ namespace Vulkan {
 			uint32_t number_descriptor_set = 0;
 			VkDescriptorSet* binding_descriptor_sets = nullptr;
 			if (!Const::ENABLED_TEXTURE_BUCKETS) {
-				VkDescriptorSet using_descriptor_sets[1] = {descriptor_sets[font.texture_id][frame_index]};
+				VkDescriptorSet using_descriptor_sets[1] = {texture_descriptor_sets[font.texture_id][frame_index]};
 				number_descriptor_set = 1;
 				binding_descriptor_sets = using_descriptor_sets;
 			} else {
@@ -251,7 +251,7 @@ namespace Vulkan {
 				if (texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::BUCKET) {
 					using_descriptor_sets[0] = texture_default_descriptor_sets[frame_index];
 				} else {
-					using_descriptor_sets[0] = descriptor_sets[font.texture_id][frame_index];
+					using_descriptor_sets[0] = texture_descriptor_sets[font.texture_id][frame_index];
 				}
 				using_descriptor_sets[1] = texture_bucket_descriptor_sets[frame_index];
 				number_descriptor_set = 2;
@@ -274,23 +274,18 @@ namespace Vulkan {
 			);
 		}
 
-		Draw_2D_Information make_font_2D(const Font_2D_Attributes& font_attributes) {
+		Draw_Information make_font_2D(const Font_2D_Attributes& font_attributes) {
 			uint32_t font_id = font_system.load_font(font_attributes.path);
 			const Font& font = font_system.view_font(font_id);
 			Texture_View texture_view = font_system.texture_system.view_texture(font.texture_id);
-			if (descriptor_sets.find(font.texture_id) == descriptor_sets.end() &&
+			if (texture_descriptor_sets.find(font.texture_id) == texture_descriptor_sets.end() &&
 				texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::INDIVIDUAL) {
-				descriptor_sets[font.texture_id] = {};
-				for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-					VkDescriptorSet descriptor_set =
-						Structs::make_descriptor_set(Vulkan::descriptor_pools[i], 1, &layouts[0], Vulkan::device)[0];
-					Descriptor_Set_Writer writer{};
-					writer.add_image_write(0, 1, &texture_view.image.get_descriptor_info(), descriptor_set)
-						.write(Vulkan::device);
-					descriptor_sets[font.texture_id].push_back(descriptor_set);
-				}
+				texture_descriptor_sets[font.texture_id] = Utils::make_texture_descriptor_sets(
+					descriptor_pools, layouts[1], texture_view.image.get_descriptor_info(texture_view.slot_index),
+					device
+				);
 			}
-			Draw_2D_Information draw_info{Const::DRAW_FONT_2D};
+			Draw_Information draw_info{Const::DRAW_FONT_2D};
 			Text_Data text{};
 			text.make(font_attributes, font, font_system.texture_system);
 			SSBO_Buffer& ssbo = get_ssbo();

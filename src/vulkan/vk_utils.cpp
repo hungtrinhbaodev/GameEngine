@@ -1,6 +1,7 @@
 #include <GLFW/glfw3.h>
 #include <map>
 #include <vulkan/vk_command_pool.h>
+#include <vulkan/vk_descriptor.h>
 #include <vulkan/vk_fences.h>
 #include <vulkan/vk_queues.h>
 #include <vulkan/vk_structs.h>
@@ -54,6 +55,30 @@ namespace Vulkan {
 			};
 			submit(submit_info, device, fence);
 			on_fence_success(device, fence, success, device, command_buffer, fence).get();
+		}
+
+		std::vector<VkDescriptorSet> make_texture_descriptor_sets(
+			const std::vector<VkDescriptorPool>& descriptor_pools, VkDescriptorSetLayout layout,
+			VkDescriptorImageInfo image_descriptor, VkDevice device
+		) {
+			std::vector<VkDescriptorSet> texture_descriptor_sets =
+				Structs::make_descriptor_sets(descriptor_pools, &layout, device);
+			Descriptor_Set_Writer writer{};
+			for (int i = 0; i < texture_descriptor_sets.size(); i++) {
+				writer.add_image_write(0, 1, &image_descriptor, texture_descriptor_sets[i]).write(device);
+				writer.clear();
+			}
+			return texture_descriptor_sets;
+		}
+
+		VkDescriptorSet make_buffer_descriptor_set(
+			VkDescriptorPool descriptor_pool, VkDescriptorSetLayout layout, VkDescriptorBufferInfo buffer_descriptor,
+			VkDevice device
+		) {
+			VkDescriptorSet descriptor_set = Structs::make_descriptor_set(descriptor_pool, &layout, device);
+			Descriptor_Set_Writer writer{};
+			writer.add_buffer_write(0, &buffer_descriptor, descriptor_set).write(device);
+			return descriptor_set;
 		}
 	} // namespace Utils
 } // namespace Vulkan

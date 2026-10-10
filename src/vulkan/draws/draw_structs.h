@@ -6,7 +6,7 @@
 
 namespace Vulkan {
 
-	struct Draw_2D_Attribute {
+	struct Draw_Attribute {
 		uint32_t draw_index = 0;
 		bool is_visible = false;
 	};
@@ -60,6 +60,13 @@ namespace Vulkan {
 				   position == other.position && scale == other.scale && anchor == other.anchor &&
 				   rotation == other.rotation;
 		}
+	};
+
+	struct Model_3D_Attributes {
+		std::string path = "";
+		glm::vec3 position = {0.f, 0.f, 0.f};
+		glm::vec3 scale = {1.f, 1.f, 1.f};
+		glm::vec3 rotation = {0.f, 0.f, 0.f};
 	};
 
 } // namespace Vulkan

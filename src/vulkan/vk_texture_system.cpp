@@ -67,31 +67,25 @@ namespace Vulkan {
 	}
 
 	std::vector<VkDescriptorSet> Texture_System::make_bucket_descriptor_sets(VkDescriptorSetLayout layout) {
-		std::vector<VkDescriptorSet> descriptor_sets;
 		std::vector<VkDescriptorImageInfo> bucket_descriptors;
 		for (int i = 0; i < texture_buckets.size(); i++) {
 			bucket_descriptors.push_back(texture_buckets[i].inner_image.get_descriptor_info());
 		}
+		std::vector<VkDescriptorSet> descriptor_sets = Structs::make_descriptor_sets(descriptor_pools, &layout, device);
 		for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-			VkDescriptorSet descriptor_set = Structs::make_descriptor_set(descriptor_pools[i], 1, &layout, device)[0];
 			Descriptor_Set_Writer writer{};
 			for (int j = 0; j < texture_buckets.size(); j++) {
-				writer.add_image_write(j, 1, &bucket_descriptors[j], descriptor_set).write(device);
+				writer.add_image_write(j, 1, &bucket_descriptors[j], descriptor_sets[i]).write(device);
 			}
-			descriptor_sets.push_back(descriptor_set);
 		}
 		return descriptor_sets;
 	}
 
 	std::vector<VkDescriptorSet> Texture_System::make_default_texture_descriptor_sets(VkDescriptorSetLayout layout) {
-		std::vector<VkDescriptorSet> default_texture_descriptor_sets{};
-		for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-			VkDescriptorSet descriptor_set = Structs::make_descriptor_set(descriptor_pools[i], 1, &layout, device)[0];
-			Texture_View texture_view = view_texture(get_default_texture_id());
-			Descriptor_Set_Writer writer{};
-			writer.add_image_write(0, 1, &texture_view.image.get_descriptor_info(), descriptor_set).write(device);
-			default_texture_descriptor_sets.push_back(descriptor_set);
-		}
+		Texture_View texture_view = view_texture(get_default_texture_id());
+		std::vector<VkDescriptorSet> default_texture_descriptor_sets = Utils::make_texture_descriptor_sets(
+			descriptor_pools, layout, texture_view.image.get_descriptor_info(), device
+		);
 		return default_texture_descriptor_sets;
 	}
 

@@ -128,20 +128,20 @@ namespace Vulkan {
 		for (const Model_Mesh_Information& mesh : model.meshes) {
 			for (const Primitive_Buffer_Range& primitive : mesh.primitives) {
 				Texture_View view = this->texture_system->view_texture(primitive.texture_id);
-				if (this->texture_descriptor_sets.find(primitive.texture_id) == this->texture_descriptor_sets.end()) {
-					std::vector<VkDescriptorSet> texture_descriptor_sets{};
-					for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-						std::vector<VkDescriptorSet> descriptor_sets = Structs::make_descriptor_set(
-							this->descriptor_pools[i], 1, &this->descriptor_set_layouts[1], this->device
-						);
-						Descriptor_Set_Writer writer{};
-						writer
-							.add_image_write(0, 1, &view.image.get_descriptor_info(view.slot_index), descriptor_sets[0])
-							.write(Vulkan::device);
-						texture_descriptor_sets.push_back(descriptor_sets[0]);
-					}
-					this->texture_descriptor_sets[primitive.texture_id] = std::move(texture_descriptor_sets);
-				}
+				// if (this->texture_descriptor_sets.find(primitive.texture_id) == this->texture_descriptor_sets.end())
+				// { 	std::vector<VkDescriptorSet> texture_descriptor_sets{}; 	for (int i = 0; i <
+				// Const::MAX_FRAMES_IN_FLIGHT; i++) { 		std::vector<VkDescriptorSet> descriptor_sets =
+				// Structs::make_descriptor_set( 			this->descriptor_pools[i], 1,
+				// &this->descriptor_set_layouts[1], this->device
+				// 		);
+				// 		Descriptor_Set_Writer writer{};
+				// 		writer
+				// 			.add_image_write(0, 1, &view.image.get_descriptor_info(view.slot_index), descriptor_sets[0])
+				// 			.write(Vulkan::device);
+				// 		texture_descriptor_sets.push_back(descriptor_sets[0]);
+				// 	}
+				// 	this->texture_descriptor_sets[primitive.texture_id] = std::move(texture_descriptor_sets);
+				// }
 			}
 		}
 		glm::mat4 instance{1.f};

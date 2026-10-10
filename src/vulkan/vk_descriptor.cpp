@@ -69,6 +69,10 @@ namespace Vulkan {
 		vkUpdateDescriptorSets(device, writes.size(), writes.data(), 0, nullptr);
 	}
 
+	void Descriptor_Set_Writer::clear() {
+		writes.clear();
+	}
+
 	void init_descriptor_pools(std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device) {
 
 		std::vector<VkDescriptorPoolSize> pool_size{};

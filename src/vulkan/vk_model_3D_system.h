@@ -32,6 +32,8 @@ namespace Vulkan {
 
 		Static_Buffer* global_indices_buffer = nullptr;
 
+		Static_Buffer_2* static_buffer = nullptr;
+
 		Texture_System* texture_system = nullptr;
 
 		std::stack<uint32_t> available_ids;
@@ -45,7 +47,8 @@ namespace Vulkan {
 		std::map<uint32_t, Model_Information> models;
 
 		void init(
-			Static_Buffer* global_vertex_buffer, Static_Buffer* global_indices_buffer, Texture_System* texture_system
+			Static_Buffer* global_vertex_buffer, Static_Buffer* global_indices_buffer, Texture_System* texture_system,
+			Static_Buffer_2* static_buffer
 		);
 
 		uint32_t load_model(std::string path);

@@ -94,8 +94,8 @@ namespace Vulkan {
 			return sizeof(Instance_Data);
 		}
 
-		Draw_2D_Information make_draw(const Rectangle_Attributes& rectangle_attributes) {
-			Draw_2D_Information draw_info{Const::DRAW_RECTANGLE_2D};
+		Draw_Information make_draw(const Rectangle_Attributes& rectangle_attributes) {
+			Draw_Information draw_info{Const::DRAW_RECTANGLE_2D};
 			draw_info.draw_material_id = 0;
 			SSBO_Buffer& ssbo = get_ssbo();
 			Instance_Data instance_data{};
@@ -137,10 +137,10 @@ namespace Vulkan {
 		}
 
 		void destroy() {
-			pipeline.destroy();
 			for (VkDescriptorSetLayout layout : layouts) {
 				vkDestroyDescriptorSetLayout(Vulkan::device, layout, nullptr);
 			}
+			pipeline.destroy();
 		}
 
 	} // namespace Rectangle

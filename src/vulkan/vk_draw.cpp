@@ -68,7 +68,7 @@ namespace Vulkan {
 
 	Id_Generator draw_id_generator{};
 
-	Sparse_Set<Draw_2D_Information> draws{};
+	Sparse_Set<Draw_Information> draws{};
 
 	std::vector<uint32_t> sorted_draws{};
 
@@ -76,15 +76,15 @@ namespace Vulkan {
 
 	Buffer instance_buffer{};
 
-	SSBO_Buffer ssbo_buffer{};
-
 	uint32_t current_create_index = 0;
 
 	Binding_Draw_Info current_binding_draw_info{};
 
-	Static_Buffer_2 static_buffer{};
+	VkDescriptorSetLayout texture_layout{};
 
-	bool is_same_draw(const Draw_2D_Information& a, const Draw_2D_Information& b) {
+	VkDescriptorSetLayout texture_bucket_layout{};
+
+	bool is_same_draw(const Draw_Information& a, const Draw_Information& b) {
 		if (a.draw_type != b.draw_type)
 			return false;
 		switch (a.draw_type) {
@@ -100,8 +100,11 @@ namespace Vulkan {
 			case Const::DRAW_ID::DRAW_FONT_2D: {
 				return Font_2D::is_material_equal(a.draw_material_id, b.draw_material_id);
 			}
+			case Const::DRAW_ID::DRAW_MODEL_3D: {
+				return Model_3D::is_material_equal(a.draw_material_id, b.draw_material_id);
+			}
 			default: {
-				return false;
+				throw std::runtime_error("Fail to compare material, unsupport draw type!");
 			}
 		}
 	}
@@ -117,8 +120,8 @@ namespace Vulkan {
 			}
 		}
 		std::sort(sorted_draws.begin(), sorted_draws.end(), [](uint32_t a, uint32_t b) {
-			const Draw_2D_Information& draw_a = draws.get(a);
-			const Draw_2D_Information& draw_b = draws.get(b);
+			const Draw_Information& draw_a = draws.get(a);
+			const Draw_Information& draw_b = draws.get(b);
 			if (draw_a.draw_index == draw_b.draw_index) {
 				return draw_a.create_index < draw_b.create_index;
 			}
@@ -141,6 +144,9 @@ namespace Vulkan {
 			case Const::DRAW_ID::DRAW_FONT_2D: {
 				return Font_2D::get_instance_size();
 			}
+			case Const::DRAW_ID::DRAW_MODEL_3D: {
+				return Model_3D::get_instance_size();
+			}
 			default: {
 				throw std::runtime_error("Fail to get instance size, unsupport draw type!");
 			}
@@ -150,10 +156,11 @@ namespace Vulkan {
 	void setup_instance_buffer() {
 		Profiler::start_scope(SCOPE_SET_UP_BUFFER);
 		size_t size_reqiure = 0;
+		SSBO_Buffer& ssbo = get_ssbo();
 		for (int i = 0; i < sorted_draws.size(); i++) {
 			uint32_t draw_id = sorted_draws[i];
-			const Draw_2D_Information& draw_info = draws.get(draw_id);
-			SSBO_Buffer_Range range = ssbo_buffer.view_slot(draw_info.instance_id);
+			const Draw_Information& draw_info = draws.get(draw_id);
+			SSBO_Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
 			size_t instance_size = get_instance_size(draw_info.draw_type);
 			if (size_reqiure % instance_size == 0) {
 				size_reqiure += range.size;
@@ -169,21 +176,19 @@ namespace Vulkan {
 		size_t offset = 0;
 		for (int i = 0; i < sorted_draws.size(); i++) {
 			uint32_t draw_id = sorted_draws[i];
-			const Draw_2D_Information& draw_info = draws.get(draw_id);
-			SSBO_Buffer_Range range = ssbo_buffer.view_slot(draw_info.instance_id);
+			const Draw_Information& draw_info = draws.get(draw_id);
+			SSBO_Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
 			size_t instance_size = get_instance_size(draw_info.draw_type);
 			if (offset % instance_size == 0) {
-				ssbo_buffer.transfer_data_to(draw_info.instance_id, instance_buffer.buffer, (uint32_t)offset);
+				ssbo.transfer_data_to(draw_info.instance_id, instance_buffer.buffer, (uint32_t)offset);
 				offset += range.size;
 			} else {
 				size_t remain_size = instance_size - (offset % instance_size);
-				ssbo_buffer.transfer_data_to(
-					draw_info.instance_id, instance_buffer.buffer, (uint32_t)(offset + remain_size)
-				);
+				ssbo.transfer_data_to(draw_info.instance_id, instance_buffer.buffer, (uint32_t)(offset + remain_size));
 				offset += remain_size + range.size;
 			}
 		}
-		ssbo_buffer.flush_transfer_data();
+		ssbo.flush_transfer_data();
 		Profiler::end_scope(SCOPE_SET_UP_BUFFER);
 	}
 
@@ -194,21 +199,22 @@ namespace Vulkan {
 			return;
 		}
 		uint32_t first_id = sorted_draws[0];
-		Draw_2D_Information last_draw_info = draws.get(first_id);
+		Draw_Information last_draw_info = draws.get(first_id);
 		size_t instance_size = get_instance_size(last_draw_info.draw_type);
-		SSBO_Buffer_Range first_range = ssbo_buffer.view_slot(last_draw_info.instance_id);
+		SSBO_Buffer_Range first_range = get_ssbo().view_slot(last_draw_info.instance_id);
 		Group_Draw_Batching group{
 			last_draw_info.draw_type, last_draw_info.draw_material_id, 0, (uint32_t)(first_range.size / instance_size)
 		};
 		draw_groups.push_back(group);
 		int current_group = 0;
 		uint32_t current_instance_offset = first_range.size;
+		SSBO_Buffer& ssbo = get_ssbo();
 		for (int i = 1; i < sorted_draws.size(); i++) {
 			uint32_t draw_id = sorted_draws[i];
-			const Draw_2D_Information& draw_info = draws.get(draw_id);
+			const Draw_Information& draw_info = draws.get(draw_id);
 			size_t instance_size = get_instance_size(draw_info.draw_type);
 			size_t remain = 0;
-			SSBO_Buffer_Range range = ssbo_buffer.view_slot(draw_info.instance_id);
+			SSBO_Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
 			if (is_same_draw(last_draw_info, draw_info)) {
 				draw_groups[current_group].number_instance += (uint32_t)(range.size / instance_size);
 			} else {
@@ -226,10 +232,6 @@ namespace Vulkan {
 			current_instance_offset += (uint32_t)remain + range.size;
 		}
 		Profiler::end_scope(SCOPE_BATCHING_GROUP);
-	}
-
-	SSBO_Buffer& get_ssbo() {
-		return ssbo_buffer;
 	}
 
 	Buffer& get_instance_buffer() {
@@ -282,33 +284,30 @@ namespace Vulkan {
 		}
 	}
 
-	Static_Buffer_2& get_static_buffer() {
-		return static_buffer;
+	void init_draw() {
+		{
+			instance_buffer.make_buffer(
+				Const::INITIALIZE_SIZE_INSTANCING_BUFFER, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, Vulkan::physical_device, Vulkan::device
+			);
+		}
+		{
+			/**
+			 * Initialize all draw type.
+			 */
+			Texture_2D::init();
+			Rectangle::init();
+			Triangle::init();
+			Font_2D::init();
+			Model_3D::init();
+		}
 	}
 
-	void init_draw() {
-		ssbo_buffer.init(Const::INITIALIZE_SIZE_STAGING_BUFFER, Vulkan::physical_device, Vulkan::device);
-		instance_buffer.make_buffer(
-			Const::INITIALIZE_SIZE_INSTANCING_BUFFER, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, Vulkan::physical_device, Vulkan::device
-		);
-		static_buffer.init(
-			Const::INITIALIZE_STATIC_BUFFER_SIZE, Const::INITIALIZE_STATIC_BUFFER_SIZE,
-			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, Vulkan::physical_device,
-			Vulkan::device
-		);
-		/**
-		 * Initialize all draw type.
-		 */
-		Texture_2D::init();
-		Rectangle::init();
-		Triangle::init();
-		Font_2D::init();
-		Model_3D::init();
+	void setup_draw() {
+		Model_3D::setup_draw(Vulkan::current_frame);
 	}
 
 	void draw(VkCommandBuffer command_buffer) {
-		static_buffer.flush_data();
 		sort_draws();
 		setup_instance_buffer();
 		batching_draw_groups();
@@ -343,6 +342,13 @@ namespace Vulkan {
 					);
 					break;
 				}
+				case Const::DRAW_ID::DRAW_MODEL_3D: {
+					Model_3D::draw(
+						command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
+						Vulkan::current_frame
+					);
+					break;
+				}
 				default: {
 					break;
 				}
@@ -365,11 +371,9 @@ namespace Vulkan {
 		Texture_2D::destroy();
 		Rectangle::destroy();
 		instance_buffer.destroy();
-		ssbo_buffer.destroy();
-		static_buffer.destroy();
 	}
 
-	void update_draw(uint32_t id, Draw_2D_Attribute draw_attributes) {
+	void update_draw(uint32_t id, Draw_Attribute draw_attributes) {
 		if (!draws.has(id)) {
 			return;
 		}
@@ -378,9 +382,9 @@ namespace Vulkan {
 		draw_info.visible = draw_attributes.is_visible;
 	}
 
-	uint32_t make_rectange(const Draw_2D_Attribute& draw_attributes, Rectangle_Attributes rectangle_attributes) {
+	uint32_t make_rectange(const Draw_Attribute& draw_attributes, Rectangle_Attributes rectangle_attributes) {
 		uint32_t draw_id = draw_id_generator.gen_id();
-		Draw_2D_Information draw_info = Rectangle::make_draw(rectangle_attributes);
+		Draw_Information draw_info = Rectangle::make_draw(rectangle_attributes);
 		draw_info.draw_index = draw_attributes.draw_index;
 		draw_info.visible = draw_attributes.is_visible;
 		draw_info.create_index = ++current_create_index;
@@ -391,15 +395,13 @@ namespace Vulkan {
 		if (!draws.has(id)) {
 			return;
 		}
-		const Draw_2D_Information& draw_info = draws.get(id);
+		const Draw_Information& draw_info = draws.get(id);
 		Rectangle::update_draw(draw_info.instance_id, rectangle_attributes);
 	}
 
-	uint32_t make_texture_2D(
-		const Draw_2D_Attribute& draw_attributes, const Texture_2D_Attributes& texture_attributes
-	) {
+	uint32_t make_texture_2D(const Draw_Attribute& draw_attributes, const Texture_2D_Attributes& texture_attributes) {
 		uint32_t draw_id = draw_id_generator.gen_id();
-		Draw_2D_Information draw_info = Texture_2D::make_texture_2D(texture_attributes);
+		Draw_Information draw_info = Texture_2D::make_texture_2D(texture_attributes);
 		draw_info.draw_index = draw_attributes.draw_index;
 		draw_info.visible = draw_attributes.is_visible;
 		draw_info.create_index = ++current_create_index;
@@ -410,22 +412,31 @@ namespace Vulkan {
 		if (!draws.has(id)) {
 			return;
 		}
-		const Draw_2D_Information& draw_info = draws.get(id);
+		const Draw_Information& draw_info = draws.get(id);
 		Texture_2D::update_texture_2D(draw_info, texture_attributes);
 	}
 
-	uint32_t make_triangle(const Draw_2D_Attribute& draw_attributes, const Triangle_Attribultes& triangle_attributes) {
+	uint32_t make_triangle(const Draw_Attribute& draw_attributes, const Triangle_Attribultes& triangle_attributes) {
 		uint32_t draw_id = draw_id_generator.gen_id();
-		Draw_2D_Information draw_info = Triangle::make_triangle(triangle_attributes);
+		Draw_Information draw_info = Triangle::make_triangle(triangle_attributes);
 		draw_info.draw_index = draw_attributes.draw_index;
 		draw_info.visible = draw_attributes.is_visible;
 		draw_info.create_index = ++current_create_index;
 		return draws.insert(draw_id, draw_info);
 	}
 
-	uint32_t make_font_2D(const Draw_2D_Attribute& draw_attributes, const Font_2D_Attributes& font_attributes) {
+	uint32_t make_font_2D(const Draw_Attribute& draw_attributes, const Font_2D_Attributes& font_attributes) {
 		uint32_t draw_id = draw_id_generator.gen_id();
-		Draw_2D_Information draw_info = Font_2D::make_font_2D(font_attributes);
+		Draw_Information draw_info = Font_2D::make_font_2D(font_attributes);
+		draw_info.draw_index = draw_attributes.draw_index;
+		draw_info.visible = draw_attributes.is_visible;
+		draw_info.create_index = ++current_create_index;
+		return draws.insert(draw_id, draw_info);
+	}
+
+	uint32_t make_model_3D(const Draw_Attribute& draw_attributes, const Model_3D_Attributes& model_attributes) {
+		uint32_t draw_id = draw_id_generator.gen_id();
+		Draw_Information draw_info = Model_3D::make_model_3D(model_attributes);
 		draw_info.draw_index = draw_attributes.draw_index;
 		draw_info.visible = draw_attributes.is_visible;
 		draw_info.create_index = ++current_create_index;
@@ -436,7 +447,7 @@ namespace Vulkan {
 		if (!draws.has(id)) {
 			return;
 		}
-		const Draw_2D_Information& draw_info = draws.get(id);
+		const Draw_Information& draw_info = draws.get(id);
 		Triangle::update_triangle(draw_info.instance_id, triangle_attributes);
 	}
 

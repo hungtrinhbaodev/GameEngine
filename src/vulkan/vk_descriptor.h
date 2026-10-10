@@ -30,6 +30,8 @@ namespace Vulkan {
 		);
 
 		void write(VkDevice device);
+
+		void clear();
 	};
 
 	void init_descriptor_pools(std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device);

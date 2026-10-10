@@ -13,7 +13,7 @@ namespace Vulkan {
 
 		size_t get_instance_size();
 
-		Draw_2D_Information make_triangle(const Triangle_Attribultes& attributes);
+		Draw_Information make_triangle(const Triangle_Attribultes& attributes);
 
 		void update_triangle(uint32_t instance_id, const Triangle_Attribultes& attributes);
 

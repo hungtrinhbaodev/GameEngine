@@ -132,25 +132,19 @@ namespace Vulkan {
 			return sizeof(Instance_Data);
 		}
 
-		Draw_2D_Information make_texture_2D(const Texture_2D_Attributes& texture_attributes) {
+		Draw_Information make_texture_2D(const Texture_2D_Attributes& texture_attributes) {
 			uint32_t texture_id =
 				Vulkan::texture_system.load_texture(texture_attributes.path, Const::ENABLED_TEXTURE_BUCKETS);
 			Texture_View texture_view = Vulkan::texture_system.view_texture(texture_id);
 			if (texture_descriptor_sets.find(texture_id) == texture_descriptor_sets.end() &&
 				texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::INDIVIDUAL) {
-				std::vector<VkDescriptorSet> descriptor_sets{};
-				for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-					VkDescriptorSet descriptor_set =
-						Structs::make_descriptor_set(Vulkan::descriptor_pools[i], 1, &layouts[0], Vulkan::device)[0];
-					Descriptor_Set_Writer writer{};
-					writer.add_image_write(0, 1, &texture_view.image.get_descriptor_info(), descriptor_set)
-						.write(Vulkan::device);
-					descriptor_sets.push_back(descriptor_set);
-				}
-				texture_descriptor_sets[texture_id] = descriptor_sets;
+				texture_descriptor_sets[texture_id] = Utils::make_texture_descriptor_sets(
+					descriptor_pools, layouts[0], texture_view.image.get_descriptor_info(texture_view.slot_index),
+					device
+				);
 			}
 			uint32_t draw_material_id = material_id_generator.gen_id();
-			Draw_2D_Information draw_info{Const::DRAW_ID::DRAW_TEXTURE_2D};
+			Draw_Information draw_info{Const::DRAW_ID::DRAW_TEXTURE_2D};
 			draw_info.draw_material_id = draw_material_id;
 			material_by_ids[draw_material_id] = {texture_view.storage_mode, texture_id};
 			Instance_Data instance{};
@@ -161,7 +155,7 @@ namespace Vulkan {
 			return draw_info;
 		}
 
-		void update_texture_2D(const Draw_2D_Information draw_info, const Texture_2D_Attributes& texture_attributes) {
+		void update_texture_2D(const Draw_Information draw_info, const Texture_2D_Attributes& texture_attributes) {
 			if (material_by_ids.find(draw_info.draw_material_id) == material_by_ids.end()) {
 				return;
 			}
@@ -223,10 +217,10 @@ namespace Vulkan {
 		}
 
 		void destroy() {
-			pipeline.destroy();
 			for (const VkDescriptorSetLayout layout : layouts) {
 				vkDestroyDescriptorSetLayout(Vulkan::device, layout, nullptr);
 			}
+			pipeline.destroy();
 		}
 
 	} // namespace Texture_2D

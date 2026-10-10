@@ -86,8 +86,6 @@ namespace Vulkan {
 
 	std::map<Const::DRAW_ID, std::vector<std::vector<VkDescriptorSet>>> descriptor_sets_by_draw_id = {};
 
-	std::map<Const::DRAW_ID, Draw_Package*> draw_packages = {};
-
 	std::map<Const::VERTEX_BUFFER_TYPE, Static_Buffer> global_vertex_buffers = {};
 
 	std::map<Const::VERTEX_BUFFER_TYPE, Static_Buffer> global_indices_buffers = {};
@@ -106,6 +104,10 @@ namespace Vulkan {
 
 	Font_System font_system{};
 
+	SSBO_Buffer ssbo_buffer{};
+
+	Static_Buffer_2 static_buffer{};
+
 	bool frame_buffer_resize = false;
 
 	float global_draw_2D_order = 0.f;
@@ -117,57 +119,6 @@ namespace Vulkan {
 		pipeline_config.swapchain_extent = swapchain_extent;
 		pipeline_config.render_pass = render_pass;
 		return pipeline_config;
-	}
-
-	void _init_draw_packages() {
-		/**
-		 * Initialize geometry 2D draw package.
-		 */
-		{
-			Draw_Geometry_2D_Package* draw_package = new Draw_Geometry_2D_Package();
-			draw_package->init(
-				global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D],
-				&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D], uniform_buffers, &global_draw_2D_order
-			);
-			draw_packages[Const::DRAW_ID::DRAW_2D_MESH] = draw_package;
-		}
-		/**
-		 * Initialize texture 2D draw package.
-		 */
-		{
-			// Draw_Texture_2D_Package* draw_package = new Draw_Texture_2D_Package();
-			// draw_package->init(
-			// 	global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D],
-			// 	&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D], uniform_buffers,
-			// 	&global_draw_2D_order, &texture_system, Const::ENABLED_TEXTURE_BUCKETS
-			// );
-			// draw_packages[Const::DRAW_ID::DRAW_2D_RECTANGLE_WITH_TEXTURE] = draw_package;
-		}
-		/**
-		 * Initialize texture 3D draw package.
-		 */
-		{
-			Draw_Model_3D_Package* draw_package = new Draw_Model_3D_Package();
-			draw_package->init(
-				global_staging_buffer.get(), &global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D],
-				&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D], uniform_buffers, &model_3D_system,
-				&texture_system
-			);
-			draw_packages[Const::DRAW_ID::DRAW_3D_MODEL] = draw_package;
-		}
-	}
-
-	void init_uniform_buffers() {
-		size_t uniform_size = sizeof(Uniform);
-		for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-			Buffer uniform_buffer{};
-			uniform_buffer.make_buffer(
-				uniform_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, Vulkan::physical_device, Vulkan::device
-			);
-			uniform_buffers.push_back(uniform_buffer);
-		}
-		Log::info("Create uniform buffers successfully!");
 	}
 
 	void request_draw_fences() {
@@ -191,28 +142,12 @@ namespace Vulkan {
 		}
 	}
 
-	void init_static_buffers() {
-		/**
-		 * Init vertex static buffer to specific layout 2D and 3D vertex
-		 */
-		auto make_static_buffer = [](VkBufferUsageFlagBits buffer_flags) {
-			Static_Buffer vertex_buffer{};
-			vertex_buffer.init(
-				global_staging_buffer.get(), Const::INITIALIZE_STATIC_BUFFER_SIZE, buffer_flags, physical_device, device
-			);
-			return vertex_buffer;
-		};
-		global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D] =
-			make_static_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-		global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D] =
-			make_static_buffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-		/**
-		 * Initialize indices buffer using to all layout vertex
-		 */
-		global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_2D] =
-			make_static_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-		global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D] =
-			make_static_buffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+	SSBO_Buffer& get_ssbo() {
+		return ssbo_buffer;
+	}
+
+	Static_Buffer_2& get_static_buffer() {
+		return static_buffer;
 	}
 
 	void init_vulkan_core(
@@ -270,9 +205,6 @@ namespace Vulkan {
 		// Initialize Vulkan Descriptor Pools
 		init_descriptor_pools(descriptor_pools, device);
 
-		// Initialize Vulkan Uniform buffers
-		init_uniform_buffers();
-
 		// Request some command buffer to draw
 		request_draw_command_buffers();
 
@@ -280,6 +212,13 @@ namespace Vulkan {
 		global_staging_buffer->init(
 			Const::MAX_FRAMES_IN_FLIGHT, Const::INITIALIZE_SIZE_STAGING_BUFFER, Vulkan::physical_device, Vulkan::device
 		);
+
+		static_buffer.init(
+			Const::INITIALIZE_STATIC_BUFFER_SIZE, Const::INITIALIZE_STATIC_BUFFER_SIZE,
+			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, physical_device, device
+		);
+
+		ssbo_buffer.init(Const::INITIALIZE_SIZE_STAGING_BUFFER, physical_device, device);
 
 		// Initialize texture system to loading texture
 		texture_system.init(
@@ -290,35 +229,10 @@ namespace Vulkan {
 		// Initialize font system to loading font
 		font_system.init(device, descriptor_pools, physical_device);
 
-		// Initialize Vulkan static buffer to storage prototype like vertex data, index data,...
-		init_static_buffers();
-
 		// Initialize model 3D system to loading and storage model
-		model_3D_system.init(
-			&global_vertex_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D],
-			&global_indices_buffers[Const::VERTEX_BUFFER_TYPE::VERTEX_3D], &texture_system
-		);
-
-		// Initialize Vulkan Pipeline by each draw ID
-		_init_draw_packages();
+		model_3D_system.init(nullptr, nullptr, &texture_system, &static_buffer);
 
 		init_draw();
-	}
-
-	void _update_uniform_buffer() {
-		const Buffer& uniform_buffer = uniform_buffers[current_frame];
-		Uniform uniform{};
-		glm::mat4 projection = glm::perspective(
-			glm::radians(45.0f), (float)swapchain_extent.width / (float)swapchain_extent.height, 0.1f, 100.f
-		);
-		float radius = 3.0f;
-		float angle = (float)glfwGetTime();
-		glm::vec3 eye = glm::vec3(radius * sin(angle), 0.0f, radius * cos(angle));
-		projection[1][1] *= -1.f;
-		glm::mat4 view = glm::lookAt(eye, glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
-		uniform.projection = projection;
-		uniform.view = view;
-		global_staging_buffer->upload_data(uniform_buffer.buffer, 0, sizeof(Uniform), &uniform);
 	}
 
 	void _on_window_resize() {
@@ -335,24 +249,13 @@ namespace Vulkan {
 	void start_frame() {
 		global_draw_2D_order = 1.f;
 		global_staging_buffer->start_frame(current_frame);
-		_update_uniform_buffer();
-		for (auto& [draw_id, draw_package] : draw_packages) {
-			if (!draw_package->is_setup_first_frame) {
-				draw_package->setup_first_frame();
-				draw_package->is_setup_first_frame = true;
-			}
-			draw_package->start_frame();
-		}
 	}
 
 	void draw_frame() {
-		/**
-		 * Flush stagging need to upload into local device buffer
-		 */
-		for (auto& [draw_id, draw_package] : draw_packages) {
-			draw_package->flush_data();
-		}
 		global_staging_buffer->flush_frame();
+		setup_draw();
+		static_buffer.flush_data();
+
 		VkFence draw_fence = draw_fences[current_frame];
 		VkSemaphore draw_semaphore = draw_semaphores[current_frame];
 		VkSemaphore finish_render_semaphore = render_finish_semaphores[current_frame];
@@ -417,33 +320,6 @@ namespace Vulkan {
 
 	void end_frame() {
 		current_frame = (current_frame + 1) % Const::MAX_FRAMES_IN_FLIGHT;
-		for (auto& [draw_id, draw_package] : draw_packages) {
-			draw_package->end_frame();
-		}
-	}
-
-	void _destroy_static_buffers() {
-		for (auto& [vertex_type, vertex_buffer] : global_vertex_buffers) {
-			vertex_buffer.destroy();
-		}
-		for (auto& [vertex_type, indices_buffer] : global_indices_buffers) {
-			indices_buffer.destroy();
-		}
-		Log::info("Destroy static buffers successfully!");
-	}
-
-	void _destroy_uniform_buffers() {
-		for (auto& buffer : uniform_buffers) {
-			buffer.destroy();
-		}
-		Log::info("Destroy uniform buffers successfully!");
-	}
-
-	void _destroy_draw_packages() {
-		for (const auto& [draw_id, draw_package] : draw_packages) {
-			draw_package->destroy();
-			delete (draw_package);
-		}
 	}
 
 	void destroy_vulkan() {
@@ -453,23 +329,18 @@ namespace Vulkan {
 		// Descrtroy all 2D draw component.
 		destroy_draw();
 
-		// Destroy static buffers
-		_destroy_static_buffers();
-
-		// Destroy all using pipeline
-		_destroy_draw_packages();
-
 		// Destroy font system
 		font_system.destroy();
 
 		// Destroy texture system
 		texture_system.destroy();
 
+		ssbo_buffer.destroy();
+
+		static_buffer.destroy();
+
 		// Destroy global staging buffer
 		global_staging_buffer->destroy();
-
-		// Destroy uniform buffer
-		_destroy_uniform_buffers();
 
 		// Destroy Vulkan Descriptor Pools
 		destroy_descriptor_pools(descriptor_pools, device);

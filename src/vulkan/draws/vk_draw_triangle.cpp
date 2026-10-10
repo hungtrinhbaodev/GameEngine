@@ -85,11 +85,11 @@ namespace Vulkan {
 			return sizeof(Instance_Data);
 		}
 
-		Draw_2D_Information make_triangle(const Triangle_Attribultes& attributes) {
+		Draw_Information make_triangle(const Triangle_Attribultes& attributes) {
 			if (!Math::is_valid_triangle_with_clockwise(attributes.first, attributes.second, attributes.third)) {
 				throw std::runtime_error("Fail to make triangle invalid clockwise points!");
 			}
-			Draw_2D_Information draw_info{Const::DRAW_ID::DRAW_TRIANGLE_2D};
+			Draw_Information draw_info{Const::DRAW_ID::DRAW_TRIANGLE_2D};
 			Instance_Data instance{};
 			instance.make(attributes);
 			SSBO_Buffer& ssbo = get_ssbo();
@@ -135,10 +135,10 @@ namespace Vulkan {
 		}
 
 		void destroy() {
-			pipeline.destroy();
 			for (const VkDescriptorSetLayout& layout : layouts) {
 				vkDestroyDescriptorSetLayout(Vulkan::device, layout, nullptr);
 			}
+			pipeline.destroy();
 		}
 
 	} // namespace Triangle

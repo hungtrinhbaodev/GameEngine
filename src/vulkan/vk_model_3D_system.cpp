@@ -8,11 +8,13 @@ namespace Vulkan {
 	}
 
 	void Model_3D_System::init(
-		Static_Buffer* global_vertex_buffer, Static_Buffer* global_indices_buffer, Texture_System* texture_system
+		Static_Buffer* global_vertex_buffer, Static_Buffer* global_indices_buffer, Texture_System* texture_system,
+		Static_Buffer_2* static_buffer
 	) {
 		this->global_vertex_buffer = global_vertex_buffer;
 		this->global_indices_buffer = global_indices_buffer;
 		this->texture_system = texture_system;
+		this->static_buffer = static_buffer;
 	}
 
 	uint32_t Model_3D_System::load_model(std::string path) {
@@ -33,11 +35,12 @@ namespace Vulkan {
 			std::vector<Primitive_Buffer_Range> primitives;
 			for (int primitive_index = 0; primitive_index < mesh.primitives.size(); primitive_index++) {
 				Parser::Gltf_Primitive& primitive = mesh.primitives[primitive_index];
-				uint32_t vertex_id = this->global_vertex_buffer->upload_data(
-					sizeof(Geometry::Vertex_3D) * primitive.vertices.size(), primitive.vertices.data()
+				uint32_t vertex_id = this->static_buffer->upload_data(
+					primitive.vertices.data(), sizeof(Geometry::Vertex_3D) * primitive.vertices.size(),
+					sizeof(Geometry::Vertex_3D)
 				);
-				uint32_t indices_id = this->global_indices_buffer->upload_data(
-					sizeof(uint32_t) * primitive.indices.size(), primitive.indices.data()
+				uint32_t indices_id = this->static_buffer->upload_data(
+					primitive.indices.data(), sizeof(uint32_t) * primitive.indices.size(), sizeof(uint32_t)
 				);
 				std::string texture = model.get_primitive_texture_path(mesh_index, primitive_index);
 				uint32_t texture_id = this->texture_system->get_default_texture_id();

@@ -46,23 +46,23 @@ namespace Vulkan {
 		/**
 		 * Set up descriptor to bucket texture.
 		 */
-		if (using_texture_bucket) {
-			this->descriptor_set_layouts.push_back(this->texture_system->make_bucket_descriptor_set_layout());
-			this->textures_bucket_descriptor_sets =
-				this->texture_system->make_bucket_descriptor_sets(this->descriptor_set_layouts[2]);
-			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-				VkDescriptorSet default_texture_descriptor_set = Structs::make_descriptor_set(
-					this->descriptor_pools[i], 1, &this->descriptor_set_layouts[1], this->device
-				)[0];
-				Texture_View texture_view =
-					this->texture_system->view_texture(this->texture_system->get_default_texture_id());
-				Descriptor_Set_Writer writer{};
-				writer.add_image_write(0, 1, &texture_view.image.get_descriptor_info(), default_texture_descriptor_set)
-					.write(Vulkan::device);
-				this->default_texture_descriptor_sets.push_back(default_texture_descriptor_set);
-			}
-			this->pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_TEXTURE_2D_USING_BUCKET;
-		}
+		// if (using_texture_bucket) {
+		// 	this->descriptor_set_layouts.push_back(this->texture_system->make_bucket_descriptor_set_layout());
+		// 	this->textures_bucket_descriptor_sets =
+		// 		this->texture_system->make_bucket_descriptor_sets(this->descriptor_set_layouts[2], 2);
+		// 	for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+		// 		VkDescriptorSet default_texture_descriptor_set = Structs::make_descriptor_set(
+		// 			this->descriptor_pools[i], 1, &this->descriptor_set_layouts[1], this->device
+		// 		)[0];
+		// 		Texture_View texture_view =
+		// 			this->texture_system->view_texture(this->texture_system->get_default_texture_id());
+		// 		Descriptor_Set_Writer writer{};
+		// 		writer.add_image_write(0, 1, &texture_view.image.get_descriptor_info(), default_texture_descriptor_set)
+		// 			.write(Vulkan::device);
+		// 		this->default_texture_descriptor_sets.push_back(default_texture_descriptor_set);
+		// 	}
+		// 	this->pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_TEXTURE_2D_USING_BUCKET;
+		// }
 		this->pipeline_config.attribute_descriptions = vertex_builder.build_attribute_descriptions();
 		this->pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
 		this->pipeline_config.descriptor_set_layouts = this->descriptor_set_layouts;
@@ -178,18 +178,18 @@ namespace Vulkan {
 			 * Allocate new descriptor set to this new texture.
 			 */
 			std::vector<VkDescriptorSet> texture_descriptor_sets{};
-			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-				VkDescriptorSet texture_descriptor_set = Structs::make_descriptor_set(
-					this->descriptor_pools[i], 1, &this->descriptor_set_layouts[1], this->device
-				)[0];
-				Descriptor_Set_Writer writer{};
-				writer
-					.add_image_write(
-						0, 1, &texture_view.image.get_descriptor_info(texture_view.slot_index), texture_descriptor_set
-					)
-					.write(Vulkan::device);
-				texture_descriptor_sets.push_back(texture_descriptor_set);
-			}
+			// for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+			// 	VkDescriptorSet texture_descriptor_set = Structs::make_descriptor_set(
+			// 		this->descriptor_pools[i], 1, &this->descriptor_set_layouts[1], this->device
+			// 	)[0];
+			// 	Descriptor_Set_Writer writer{};
+			// 	writer
+			// 		.add_image_write(
+			// 			0, 1, &texture_view.image.get_descriptor_info(texture_view.slot_index), texture_descriptor_set
+			// 		)
+			// 		.write(Vulkan::device);
+			// 	texture_descriptor_sets.push_back(texture_descriptor_set);
+			// }
 			this->texture_descriptor_sets_at_frame[texture_id] = texture_descriptor_sets;
 		}
 		glm::vec2 tex_size = {

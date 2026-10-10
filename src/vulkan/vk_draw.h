@@ -7,7 +7,7 @@
 
 namespace Vulkan {
 
-	struct Draw_2D_Information {
+	struct Draw_Information {
 		Const::DRAW_ID draw_type = Const::DRAW_ID::UNDEFINED;
 		/**
 		 * @Note: unique material need to draw
@@ -42,13 +42,11 @@ namespace Vulkan {
 
 	void init_draw();
 
+	void setup_draw();
+
 	void draw(VkCommandBuffer command_buffer);
 
 	void destroy_draw();
-
-	SSBO_Buffer& get_ssbo();
-
-	Static_Buffer_2& get_static_buffer();
 
 	Buffer& get_instance_buffer();
 
@@ -59,20 +57,22 @@ namespace Vulkan {
 		VkDescriptorSet* binding_descriptor_sets
 	);
 
-	uint32_t make_rectange(const Draw_2D_Attribute& draw_attributes, Rectangle_Attributes rectangle_attributes);
+	uint32_t make_rectange(const Draw_Attribute& draw_attributes, Rectangle_Attributes rectangle_attributes);
 
 	void update_rectangle(uint32_t id, Rectangle_Attributes rectangle_attributes);
 
-	uint32_t make_texture_2D(const Draw_2D_Attribute& draw_attributes, const Texture_2D_Attributes& texture_attributes);
+	uint32_t make_texture_2D(const Draw_Attribute& draw_attributes, const Texture_2D_Attributes& texture_attributes);
 
 	void update_texture_2D(uint32_t id, const Texture_2D_Attributes& texture_attributes);
 
-	uint32_t make_triangle(const Draw_2D_Attribute& draw_attributes, const Triangle_Attribultes& triangle_attributes);
+	uint32_t make_triangle(const Draw_Attribute& draw_attributes, const Triangle_Attribultes& triangle_attributes);
 
 	void update_triangle(uint32_t id, const Triangle_Attribultes& triangle_attributes);
 
-	uint32_t make_font_2D(const Draw_2D_Attribute& draw_attributes, const Font_2D_Attributes& font_attributes);
+	uint32_t make_font_2D(const Draw_Attribute& draw_attributes, const Font_2D_Attributes& font_attributes);
 
-	void update_draw(uint32_t id, Draw_2D_Attribute draw_attributes);
+	uint32_t make_model_3D(const Draw_Attribute& draw_attributes, const Model_3D_Attributes& model_attributes);
+
+	void update_draw(uint32_t id, Draw_Attribute draw_attributes);
 
 } // namespace Vulkan

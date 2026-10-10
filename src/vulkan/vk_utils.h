@@ -11,6 +11,7 @@
 
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <vulkan/vk_structs.h>
 #include <vulkan/vulkan.h>
 
 namespace Vulkan {
@@ -335,6 +336,16 @@ namespace Vulkan {
 			}
 			return (props.optimalTilingFeatures & require) == require;
 		}
+
+		std::vector<VkDescriptorSet> make_texture_descriptor_sets(
+			const std::vector<VkDescriptorPool>& descriptor_pools, VkDescriptorSetLayout layout,
+			VkDescriptorImageInfo image_descriptor, VkDevice device
+		);
+
+		VkDescriptorSet make_buffer_descriptor_set(
+			VkDescriptorPool descriptor_pool, VkDescriptorSetLayout layout, VkDescriptorBufferInfo buffer_descriptor,
+			VkDevice device
+		);
 
 	} // namespace Utils
 

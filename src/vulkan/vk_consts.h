@@ -61,7 +61,7 @@ namespace Vulkan {
 		enum DRAW_ID {
 			DRAW_2D_MESH,					// draw primitive with raw color that user input.
 			DRAW_2D_RECTANGLE_WITH_TEXTURE, // draw a rectange with texture (ui image, sprite object, ...).
-			DRAW_3D_MODEL,
+			DRAW_MODEL_3D,
 			DRAW_RECTANGLE_2D,
 			DRAW_TRIANGLE_2D,
 			DRAW_TEXTURE_2D,
@@ -104,6 +104,9 @@ namespace Vulkan {
 		const inline std::string PATH_VERT_SHADERD_DRAW_MODEL_3D = "res/shader/draw_model_3D/vert_shader.vert.spv";
 
 		const inline std::string PATH_FRAG_SHADERD_DRAW_MODEL_3D = "res/shader/draw_model_3D/fragment_shader.frag.spv";
+
+		const inline std::string PATH_FRAG_SHADERD_DRAW_MODEL_3D_USING_BUCKET =
+			"res/shader/draw_model_3D/fragment_shader_using_bucket.frag.spv";
 
 		const inline std::string PATH_VERT_SHADERD_DRAW_RECTANGLE_2D =
 			"res/shader/draw_rectangle_2D/vert_shader.vert.spv";

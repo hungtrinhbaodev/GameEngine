@@ -35,14 +35,14 @@ namespace Vulkan {
 		 * Init descriptor sets to uniform buffer
 		 */
 		this->descriptors.push_back({});
-		for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
-			Buffer& uniform_buffer = uniform_buffers[i];
-			std::vector<VkDescriptorSet> uniform_descriptor_sets =
-				Structs::make_descriptor_set(descriptor_pools[i], 1, &this->descriptor_set_layouts[0], device);
-			Descriptor_Set_Writer writer{};
-			writer.add_buffer_write(0, &uniform_buffer.descriptor, uniform_descriptor_sets[0]).write(Vulkan::device);
-			this->descriptors[0].push_back(uniform_descriptor_sets[0]);
-		}
+		// for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+		// 	Buffer& uniform_buffer = uniform_buffers[i];
+		// 	std::vector<VkDescriptorSet> uniform_descriptor_sets =
+		// 		Structs::make_descriptor_set(descriptor_pools[i], 1, &this->descriptor_set_layouts[0], device);
+		// 	Descriptor_Set_Writer writer{};
+		// 	writer.add_buffer_write(0, &uniform_buffer.descriptor, uniform_descriptor_sets[0]).write(Vulkan::device);
+		// 	this->descriptors[0].push_back(uniform_descriptor_sets[0]);
+		// }
 
 		this->pipeline_config.depth_image = Vulkan::depth_image;
 		this->pipeline_config.swapchain_extent = Vulkan::swapchain_extent;

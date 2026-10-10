@@ -1,6 +1,6 @@
 #version 450
 
-layout (set = 0, binding = 0) uniform graphic_uniform {
+layout (set = 2, binding = 0) uniform graphic_uniform {
     mat4 view;
     mat4 projection;
 } ubo;
@@ -18,12 +18,16 @@ layout (location = 8) in vec4 in_instance_col3;
 
 layout (push_constant) uniform constants {
     layout(offset = 0) mat4 mesh_transform;
+    layout(offset = 64) int bucket_index;
+    layout(offset = 68) int slot_index;
 } push_constant;
 
 layout (location = 0) out vec3 out_color;
 layout (location = 1) out vec2 out_tex_coord;
 layout (location = 2) out vec3 frag_normal;
 layout (location = 3) out vec3 frag_world_pos;
+layout (location = 4) out int bucket_index;
+layout (location = 5) out int slot_index;
 
 void main() {
     mat4 model = mat4(in_instance_col0, in_instance_col1, in_instance_col2, in_instance_col3);
@@ -34,5 +38,7 @@ void main() {
     frag_normal = normal_matrix * in_normal;
     out_color = in_color; 
     out_tex_coord = in_tex_coord;
+    bucket_index = push_constant.bucket_index;
+    slot_index = push_constant.slot_index;
 }
 

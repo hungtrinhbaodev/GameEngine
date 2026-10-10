@@ -84,17 +84,27 @@ namespace Vulkan {
 			return create_info;
 		}
 
-		inline std::vector<VkDescriptorSet> make_descriptor_set(
-			VkDescriptorPool descriptor_pool, uint32_t descriptor_set_count, VkDescriptorSetLayout* set_layout,
-			VkDevice device
+		inline VkDescriptorSet make_descriptor_set(
+			VkDescriptorPool descriptor_pool, VkDescriptorSetLayout* set_layout, VkDevice device
 		) {
-			std::vector<VkDescriptorSet> descriptor_sets(descriptor_set_count);
+			VkDescriptorSet descriptor_set{};
 			VkDescriptorSetAllocateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 			create_info.descriptorPool = descriptor_pool;
-			create_info.descriptorSetCount = descriptor_set_count;
+			create_info.descriptorSetCount = 1;
 			create_info.pSetLayouts = set_layout;
-			vkAllocateDescriptorSets(device, &create_info, descriptor_sets.data());
+			vkAllocateDescriptorSets(device, &create_info, &descriptor_set);
+			return descriptor_set;
+		}
+
+		inline std::vector<VkDescriptorSet> make_descriptor_sets(
+			std::vector<VkDescriptorPool> descriptor_pools, VkDescriptorSetLayout* set_layout, VkDevice device
+		) {
+			std::vector<VkDescriptorSet> descriptor_sets(descriptor_pools.size());
+			for (int i = 0; i < descriptor_pools.size(); i++) {
+				VkDescriptorSet descriptor_set = make_descriptor_set(descriptor_pools[i], set_layout, device);
+				descriptor_sets[i] = descriptor_set;
+			}
 			return descriptor_sets;
 		}
 
