@@ -1,4 +1,3 @@
-#include <vulkan/vk_core.h>
 #include <vulkan/vk_pipeline.h>
 #include <vulkan/vk_structs.h>
 #include <vulkan/vk_utils.h>
@@ -7,16 +6,8 @@ namespace Vulkan {
 
 	void Pipeline::init(const Pipeline_Config& config) {
 
-		VkDevice device = config.device;
+		device = config.device;
 		VkRenderPass render_pass = config.render_pass;
-
-		if (device == VK_NULL_HANDLE) {
-			device = Vulkan::device;
-		}
-
-		if (render_pass == VK_NULL_HANDLE) {
-			render_pass = Vulkan::render_pass;
-		}
 
 		if (device == VK_NULL_HANDLE) {
 			throw std::runtime_error("Vulkan fail to init pipeline: try to init device first!");
@@ -57,7 +48,7 @@ namespace Vulkan {
 
 		// Make depth test stencill create info
 		VkPipelineDepthStencilStateCreateInfo depth_stencil_info =
-			Structs::make_pipeline_depth_stencil_state_create_info(config.depth_compare_op);
+			Structs::make_pipeline_depth_stencil_state_create_info(config.enable_depth_image, config.depth_compare_op);
 
 		// Make color blend attachment info
 		VkPipelineColorBlendAttachmentState color_attachment_state =
@@ -122,11 +113,7 @@ namespace Vulkan {
 		vkDestroyShaderModule(device, frag_module, nullptr);
 	}
 
-	void Pipeline::destroy(VkDevice device) const {
-
-		if (device == VK_NULL_HANDLE) {
-			device = Vulkan::device;
-		}
+	void Pipeline::destroy() const {
 
 		if (device == VK_NULL_HANDLE) {
 			throw std::runtime_error("Vulkan fail to destroy pipeline: try to init device first!");

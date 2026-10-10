@@ -112,7 +112,6 @@ namespace Vulkan {
 			pipeline_config.descriptor_set_layouts = layouts;
 			pipeline_config.vertex_shader_path = Const::PATH_VERT_SHADERD_DRAW_TEXTURE_2D;
 			pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_TEXTURE_2D;
-			pipeline_config.depth_compare_op = VK_COMPARE_OP_LESS_OR_EQUAL;
 			if (Const::ENABLED_TEXTURE_BUCKETS) {
 				pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_TEXTURE_2D_USING_BUCKET;
 			}

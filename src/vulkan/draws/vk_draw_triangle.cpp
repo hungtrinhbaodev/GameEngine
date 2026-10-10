@@ -67,7 +67,6 @@ namespace Vulkan {
 			pipeline_config.push_constants_size = sizeof(Push_Constants);
 			pipeline_config.vertex_shader_path = Const::PATH_VERT_SHADERD_DRAW_TRIANGLE_2D;
 			pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_TRIANGLE_2D;
-			pipeline_config.depth_compare_op = VK_COMPARE_OP_LESS_OR_EQUAL;
 
 			pipeline.init(pipeline_config);
 

@@ -168,17 +168,19 @@ namespace Vulkan {
 		}
 
 		inline VkPipelineDepthStencilStateCreateInfo make_pipeline_depth_stencil_state_create_info(
-			VkCompareOp depth_compare_op
+			bool enable_depth_image, VkCompareOp depth_compare_op
 		) {
 			VkPipelineDepthStencilStateCreateInfo create_info{};
 			create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-			create_info.depthTestEnable = VK_TRUE;
-			create_info.depthWriteEnable = VK_TRUE;
-			create_info.depthCompareOp = depth_compare_op;
-			create_info.depthBoundsTestEnable = VK_FALSE;
-			create_info.minDepthBounds = 0.0f;
-			create_info.maxDepthBounds = 1.0f;
-			create_info.stencilTestEnable = VK_FALSE;
+			create_info.depthTestEnable = enable_depth_image ? VK_TRUE : VK_FALSE;
+			if (enable_depth_image) {
+				create_info.depthWriteEnable = VK_TRUE;
+				create_info.depthCompareOp = depth_compare_op;
+				create_info.depthBoundsTestEnable = VK_FALSE;
+				create_info.minDepthBounds = 0.0f;
+				create_info.maxDepthBounds = 1.0f;
+				create_info.stencilTestEnable = VK_FALSE;
+			}
 			create_info.front = {};
 			create_info.back = {};
 			return create_info;

@@ -82,5 +82,6 @@ namespace Vulkan {
 		this->models.erase(model_id);
 		this->files_to_ids.erase(this->ids_to_files[model_id]);
 		this->ids_to_files.erase(model_id);
+		available_ids.push(model_id);
 	}
 } // namespace Vulkan

@@ -15,6 +15,10 @@ namespace Vulkan {
 
 		struct Instance_Data {
 			glm::mat4 transform{1.f};
+			friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
+				os << "{Model_3D::Instance_Data: transform: " << instance.transform << "}";
+				return os;
+			}
 		};
 
 		struct Push_Constants {
@@ -110,6 +114,7 @@ namespace Vulkan {
 			if (Const::ENABLED_TEXTURE_BUCKETS) {
 				pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_MODEL_3D_USING_BUCKET;
 			}
+			pipeline_config.enable_depth_image = true;
 			pipeline_config.depth_compare_op = VK_COMPARE_OP_LESS;
 			pipeline_config.triangle_trip_order = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 			pipeline_config.push_constants_size = sizeof(Push_Constants);

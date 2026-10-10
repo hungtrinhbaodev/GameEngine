@@ -31,6 +31,8 @@ namespace Vulkan {
 
 		uint32_t push_constants_size = 128;
 
+		bool enable_depth_image = false;
+
 		VkCompareOp depth_compare_op = VK_COMPARE_OP_LESS;
 
 		VkFrontFace triangle_trip_order = VK_FRONT_FACE_CLOCKWISE;
@@ -38,13 +40,15 @@ namespace Vulkan {
 
 	struct Pipeline {
 
-		VkPipeline pipeline;
+		VkDevice device = VK_NULL_HANDLE;
 
-		VkPipelineLayout layout;
+		VkPipeline pipeline = VK_NULL_HANDLE;
+
+		VkPipelineLayout layout = VK_NULL_HANDLE;
 
 		void init(const Pipeline_Config& config);
 
-		void destroy(VkDevice device = VK_NULL_HANDLE) const;
+		void destroy() const;
 	};
 
 } // namespace Vulkan

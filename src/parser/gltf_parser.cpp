@@ -334,6 +334,11 @@ namespace Parser {
 							"What is my vertices data", primitive.vertices.size(), primitive.vertices[0],
 							primitive.indices.size(), primitive.indices[0], mesh.min_bounding_box, mesh.max_bounding_box
 						);
+						std::vector<uint32_t> indices{};
+						for (int i = 0; i < 10; i++) {
+							indices.push_back(primitive.indices[i]);
+						}
+						Log::info("What is indices", indices);
 					}
 					primitive.material_index = primitive_json.value("material", -1);
 					mesh.primitives.push_back(std::move(primitive));
@@ -398,7 +403,7 @@ namespace Parser {
 				}
 			}
 			if (log_debug) {
-				Log::info("What is my nodes data", nodes.size(), nodes);
+				// Log::info("What is my nodes data", nodes.size(), nodes);
 			}
 			/**
 			 * Parse scene.
@@ -416,7 +421,7 @@ namespace Parser {
 				}
 			}
 			if (log_debug) {
-				Log::info("what is my scenes", model.default_scene_index, scenes);
+				// Log::info("what is my scenes", model.default_scene_index, scenes);
 			}
 		}
 		/**

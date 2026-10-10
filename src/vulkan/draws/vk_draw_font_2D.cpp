@@ -214,7 +214,6 @@ namespace Vulkan {
 			if (Const::ENABLED_TEXTURE_BUCKETS) {
 				pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_FONT_2D_USING_BUCKET;
 			}
-			pipeline_config.depth_compare_op = VK_COMPARE_OP_LESS_OR_EQUAL;
 			pipeline.init(pipeline_config);
 
 			Static_Buffer_2& static_buffer = get_static_buffer();
