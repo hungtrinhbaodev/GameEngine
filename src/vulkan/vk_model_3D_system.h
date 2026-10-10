@@ -28,11 +28,7 @@ namespace Vulkan {
 
 	struct Model_3D_System {
 
-		Static_Buffer* global_vertex_buffer = nullptr;
-
-		Static_Buffer* global_indices_buffer = nullptr;
-
-		Static_Buffer_2* static_buffer = nullptr;
+		Static_Buffer* static_buffer = nullptr;
 
 		Texture_System* texture_system = nullptr;
 
@@ -46,10 +42,7 @@ namespace Vulkan {
 
 		std::map<uint32_t, Model_Information> models;
 
-		void init(
-			Static_Buffer* global_vertex_buffer, Static_Buffer* global_indices_buffer, Texture_System* texture_system,
-			Static_Buffer_2* static_buffer
-		);
+		void init(Texture_System* texture_system, Static_Buffer* static_buffer);
 
 		uint32_t load_model(std::string path);
 

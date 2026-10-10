@@ -172,7 +172,7 @@ namespace Vulkan {
 			VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t number_instance,
 			uint32_t first_instance_offset, uint32_t frame_index
 		) {
-			Static_Buffer_2& static_buffer = get_static_buffer();
+			Static_Buffer& static_buffer = get_static_buffer();
 			Buffer& instance_buffer = get_instance_buffer();
 			const Model_Information& model = model_3D_system.view_model(material_draw_id);
 			uint32_t number_descriptor_set = 3;
@@ -215,8 +215,8 @@ namespace Vulkan {
 							command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
 							offsetof(Push_Constants, slot_index), sizeof(int), &slot_index
 						);
-						Static_Buffer_Range_2 vertex_range = static_buffer.view_slot_info(primitive.vertex_id);
-						Static_Buffer_Range_2 indices_range = static_buffer.view_slot_info(primitive.indices_id);
+						Static_Buffer_Range vertex_range = static_buffer.view_slot_info(primitive.vertex_id);
+						Static_Buffer_Range indices_range = static_buffer.view_slot_info(primitive.indices_id);
 						bind_draw_resource(
 							command_buffer, pipeline.pipeline, pipeline.layout, static_buffer.inner_buffer.buffer, 0,
 							VK_INDEX_TYPE_UINT32, 2, binding_buffers, buffer_offsets, number_descriptor_set,

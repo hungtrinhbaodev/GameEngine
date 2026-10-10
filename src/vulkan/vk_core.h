@@ -15,13 +15,10 @@
 
 #include <geometry_structs.h>
 #include <vulkan/vk_buffer.h>
-#include <vulkan/vk_draw_package.h>
 #include <vulkan/vk_font_system.h>
 #include <vulkan/vk_image.h>
-#include <vulkan/vk_instance_buffer.h>
 #include <vulkan/vk_model_3D_system.h>
 #include <vulkan/vk_pipeline.h>
-#include <vulkan/vk_ring_buffer.h>
 #include <vulkan/vk_static_buffer.h>
 #include <vulkan/vk_texture_system.h>
 
@@ -104,8 +101,6 @@ namespace Vulkan {
 
 	extern std::vector<VkDescriptorPool> descriptor_pools;
 
-	extern std::shared_ptr<Ring_Buffer> global_staging_buffer;
-
 	extern Texture_System texture_system;
 
 	extern uint32_t current_frame;
@@ -113,10 +108,6 @@ namespace Vulkan {
 	extern std::map<Const::DRAW_ID, Pipeline> pipelines;
 
 	extern std::map<Const::DRAW_ID, std::vector<std::vector<VkDescriptorSet>>> descriptor_sets_by_draw_id;
-
-	extern std::map<Const::VERTEX_BUFFER_TYPE, Static_Buffer> global_vertex_buffers;
-
-	extern std::map<Const::VERTEX_BUFFER_TYPE, Static_Buffer> global_indices_buffers;
 
 	extern std::vector<Buffer> uniform_buffers;
 
@@ -134,23 +125,17 @@ namespace Vulkan {
 
 	extern bool frame_buffer_resize;
 
-	extern float global_draw_2D_order;
-
 	Pipeline_Config make_default_pipeline_config();
 
 	SSBO_Buffer& get_ssbo();
 
-	Static_Buffer_2& get_static_buffer();
+	Static_Buffer& get_static_buffer();
 
 	void init_vulkan_core(
 		GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool, std::shared_ptr<Scheduler> global_scheduler
 	);
 
-	void start_frame();
-
 	void draw_frame();
-
-	void end_frame();
 
 	void destroy_vulkan();
 } // namespace Vulkan

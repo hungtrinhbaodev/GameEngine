@@ -4,15 +4,10 @@
 namespace Vulkan {
 
 	glm::vec3 Model_Mesh_Information::get_mesh_origin() const {
-		return (this->max_bounding_box + this->min_bounding_box) * 0.5f;
+		return (max_bounding_box + min_bounding_box) * 0.5f;
 	}
 
-	void Model_3D_System::init(
-		Static_Buffer* global_vertex_buffer, Static_Buffer* global_indices_buffer, Texture_System* texture_system,
-		Static_Buffer_2* static_buffer
-	) {
-		this->global_vertex_buffer = global_vertex_buffer;
-		this->global_indices_buffer = global_indices_buffer;
+	void Model_3D_System::init(Texture_System* texture_system, Static_Buffer* static_buffer) {
 		this->texture_system = texture_system;
 		this->static_buffer = static_buffer;
 	}
@@ -35,17 +30,17 @@ namespace Vulkan {
 			std::vector<Primitive_Buffer_Range> primitives;
 			for (int primitive_index = 0; primitive_index < mesh.primitives.size(); primitive_index++) {
 				Parser::Gltf_Primitive& primitive = mesh.primitives[primitive_index];
-				uint32_t vertex_id = this->static_buffer->upload_data(
+				uint32_t vertex_id = static_buffer->upload_data(
 					primitive.vertices.data(), sizeof(Geometry::Vertex_3D) * primitive.vertices.size(),
 					sizeof(Geometry::Vertex_3D)
 				);
-				uint32_t indices_id = this->static_buffer->upload_data(
+				uint32_t indices_id = static_buffer->upload_data(
 					primitive.indices.data(), sizeof(uint32_t) * primitive.indices.size(), sizeof(uint32_t)
 				);
 				std::string texture = model.get_primitive_texture_path(mesh_index, primitive_index);
-				uint32_t texture_id = this->texture_system->get_default_texture_id();
+				uint32_t texture_id = texture_system->get_default_texture_id();
 				if (texture != "") {
-					texture_id = this->texture_system->load_texture(texture);
+					texture_id = texture_system->load_texture(texture);
 				}
 				primitives.push_back({vertex_id, indices_id, texture_id});
 			}
@@ -53,14 +48,14 @@ namespace Vulkan {
 		}
 		model_info.global_meshes_transform = std::move(model.make_meshes_global_transform());
 		model_info.draw_scene_index = model.default_scene_index;
-		this->models[model_id] = model_info;
-		this->ids_to_files[model_id] = path;
-		this->files_to_ids[path] = model_id;
+		models[model_id] = model_info;
+		ids_to_files[model_id] = path;
+		files_to_ids[path] = model_id;
 		return model_id;
 	}
 
 	const Model_Information& Model_3D_System::view_model(uint32_t model_id) {
-		if (this->models.find(model_id) == models.end()) {
+		if (models.find(model_id) == models.end()) {
 			throw std::runtime_error(
 				("Model_Information::view_model Fail to get model " + std::to_string(model_id)).data()
 			);
@@ -69,19 +64,19 @@ namespace Vulkan {
 	}
 
 	void Model_3D_System::remove_model(uint32_t model_id) {
-		if (this->models.find(model_id) == this->models.end()) {
+		if (models.find(model_id) == models.end()) {
 			return;
 		}
 		Model_Information& model_info = models[model_id];
 		for (auto& mesh : model_info.meshes) {
 			for (auto& primitive : mesh.primitives) {
-				this->global_vertex_buffer->remove_data(primitive.vertex_id);
-				this->global_indices_buffer->remove_data(primitive.indices_id);
+				static_buffer->remove_data(primitive.vertex_id);
+				static_buffer->remove_data(primitive.indices_id);
 			}
 		}
-		this->models.erase(model_id);
-		this->files_to_ids.erase(this->ids_to_files[model_id]);
-		this->ids_to_files.erase(model_id);
+		models.erase(model_id);
+		files_to_ids.erase(ids_to_files[model_id]);
+		ids_to_files.erase(model_id);
 		available_ids.push(model_id);
 	}
 } // namespace Vulkan

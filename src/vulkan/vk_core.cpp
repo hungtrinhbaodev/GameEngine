@@ -9,9 +9,6 @@
 #include <vulkan/vk_descriptor.h>
 #include <vulkan/vk_device.h>
 #include <vulkan/vk_draw.h>
-#include <vulkan/vk_draw_geometry_2D_package.h>
-#include <vulkan/vk_draw_model_3D_package.h>
-#include <vulkan/vk_draw_texture_2D_package.h>
 #include <vulkan/vk_fences.h>
 #include <vulkan/vk_frame_buffers.h>
 #include <vulkan/vk_instance.h>
@@ -76,8 +73,6 @@ namespace Vulkan {
 
 	Image depth_image;
 
-	std::shared_ptr<Ring_Buffer> global_staging_buffer = std::make_shared<Ring_Buffer>();
-
 	Texture_System texture_system{};
 
 	uint32_t current_frame = 0;
@@ -85,10 +80,6 @@ namespace Vulkan {
 	std::map<Const::DRAW_ID, Pipeline> pipelines = {};
 
 	std::map<Const::DRAW_ID, std::vector<std::vector<VkDescriptorSet>>> descriptor_sets_by_draw_id = {};
-
-	std::map<Const::VERTEX_BUFFER_TYPE, Static_Buffer> global_vertex_buffers = {};
-
-	std::map<Const::VERTEX_BUFFER_TYPE, Static_Buffer> global_indices_buffers = {};
 
 	std::vector<Buffer> uniform_buffers = {};
 
@@ -106,7 +97,7 @@ namespace Vulkan {
 
 	SSBO_Buffer ssbo_buffer{};
 
-	Static_Buffer_2 static_buffer{};
+	Static_Buffer static_buffer{};
 
 	bool frame_buffer_resize = false;
 
@@ -146,7 +137,7 @@ namespace Vulkan {
 		return ssbo_buffer;
 	}
 
-	Static_Buffer_2& get_static_buffer() {
+	Static_Buffer& get_static_buffer() {
 		return static_buffer;
 	}
 
@@ -208,11 +199,6 @@ namespace Vulkan {
 		// Request some command buffer to draw
 		request_draw_command_buffers();
 
-		// Initialize global staging buffer
-		global_staging_buffer->init(
-			Const::MAX_FRAMES_IN_FLIGHT, Const::INITIALIZE_SIZE_STAGING_BUFFER, Vulkan::physical_device, Vulkan::device
-		);
-
 		static_buffer.init(
 			Const::INITIALIZE_STATIC_BUFFER_SIZE, Const::INITIALIZE_STATIC_BUFFER_SIZE,
 			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, physical_device, device
@@ -230,7 +216,7 @@ namespace Vulkan {
 		font_system.init(device, descriptor_pools, physical_device);
 
 		// Initialize model 3D system to loading and storage model
-		model_3D_system.init(nullptr, nullptr, &texture_system, &static_buffer);
+		model_3D_system.init(&texture_system, &static_buffer);
 
 		init_draw();
 	}
@@ -246,13 +232,7 @@ namespace Vulkan {
 		);
 	}
 
-	void start_frame() {
-		global_draw_2D_order = 1.f;
-		global_staging_buffer->start_frame(current_frame);
-	}
-
 	void draw_frame() {
-		global_staging_buffer->flush_frame();
 		setup_draw();
 		static_buffer.flush_data();
 
@@ -316,9 +296,6 @@ namespace Vulkan {
 		} else if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to present swap chain image!");
 		}
-	}
-
-	void end_frame() {
 		current_frame = (current_frame + 1) % Const::MAX_FRAMES_IN_FLIGHT;
 	}
 
@@ -338,9 +315,6 @@ namespace Vulkan {
 		ssbo_buffer.destroy();
 
 		static_buffer.destroy();
-
-		// Destroy global staging buffer
-		global_staging_buffer->destroy();
 
 		// Destroy Vulkan Descriptor Pools
 		destroy_descriptor_pools(descriptor_pools, device);

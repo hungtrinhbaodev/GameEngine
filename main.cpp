@@ -80,17 +80,10 @@ int main() {
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
-
-		// Set up all component when start frame (reset frame of ring buffer, ...).
-		Vulkan::start_frame();
-
 		// TODO: logic of all component will be place here in future.
 
 		// Draw all information of this current frame.
 		Vulkan::draw_frame();
-
-		// Reset all cache or work need to using in this frame.
-		Vulkan::end_frame();
 	}
 
 	Vulkan::destroy_vulkan();
