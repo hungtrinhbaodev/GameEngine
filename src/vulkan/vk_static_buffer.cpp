@@ -64,7 +64,6 @@ namespace Vulkan {
 			inner_buffer.resize(size);
 		}
 		for (const uint32_t ssbo_id : ssbo_id_to_id.keys()) {
-			SSBO_Buffer_Range ssbo_range = staging_buffer.view_slot(ssbo_id);
 			uint32_t range_id = ssbo_id_to_id.get(ssbo_id);
 			Static_Buffer_Range static_range = id_to_ranges.get(range_id);
 			staging_buffer.transfer_data_to(ssbo_id, inner_buffer.buffer, static_range.inner_offset());

@@ -290,10 +290,6 @@ namespace Vulkan {
 			);
 		}
 
-		inline float calculate_z_depth_2D(float current_z_depth) {
-			return std::clamp(1.f - (current_z_depth / Const::MAX_Z_LAYER_2D), 0.f, 1.f);
-		}
-
 		void save_window_size(GLFWwindow* window, VkDevice device);
 
 		glm::vec2 get_window_size(VkDevice device);

@@ -109,8 +109,6 @@ namespace Vulkan {
 
 	extern std::map<Const::DRAW_ID, std::vector<std::vector<VkDescriptorSet>>> descriptor_sets_by_draw_id;
 
-	extern std::vector<Buffer> uniform_buffers;
-
 	extern std::vector<VkFence> draw_fences;
 
 	extern std::vector<VkSemaphore> draw_semaphores;

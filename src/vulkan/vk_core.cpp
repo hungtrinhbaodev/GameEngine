@@ -19,7 +19,6 @@
 #include <vulkan/vk_structs.h>
 #include <vulkan/vk_surface.h>
 #include <vulkan/vk_swapchain.h>
-#include <vulkan/vk_uniform.h>
 #include <vulkan/vk_vertex.h>
 #include <vulkan/vk_vertex_input_builder.h>
 
@@ -80,8 +79,6 @@ namespace Vulkan {
 	std::map<Const::DRAW_ID, Pipeline> pipelines = {};
 
 	std::map<Const::DRAW_ID, std::vector<std::vector<VkDescriptorSet>>> descriptor_sets_by_draw_id = {};
-
-	std::vector<Buffer> uniform_buffers = {};
 
 	std::vector<VkFence> draw_fences = {};
 

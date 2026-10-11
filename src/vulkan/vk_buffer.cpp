@@ -95,7 +95,7 @@ namespace Vulkan {
 		);
 
 		uint32_t copy_size = std::min(size, new_size);
-		Buffer::copy_buffer(*this, new_buffer, 0, 0, size);
+		Buffer::copy_buffer(*this, new_buffer, 0, 0, copy_size);
 		destroy();
 
 		size = new_size;

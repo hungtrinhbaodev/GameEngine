@@ -280,7 +280,7 @@ namespace Vulkan {
 			if (texture_descriptor_sets.find(font.texture_id) == texture_descriptor_sets.end() &&
 				texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::INDIVIDUAL) {
 				texture_descriptor_sets[font.texture_id] = Utils::make_texture_descriptor_sets(
-					descriptor_pools, layouts[1], texture_view.image.get_descriptor_info(texture_view.slot_index),
+					descriptor_pools, layouts[0], texture_view.image.get_descriptor_info(texture_view.slot_index),
 					device
 				);
 			}
