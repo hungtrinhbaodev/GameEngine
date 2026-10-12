@@ -75,11 +75,11 @@ namespace Vulkan {
 			VERTEX_3D,
 		};
 
-		const inline uint32_t INITIALIZE_STATIC_BUFFER_SIZE = 10 * 1024 * 1024; // 5MB
+		const inline uint32_t INITIALIZE_STATIC_BUFFER_SIZE = 3 * 1024 * 1024; // 5MB
 
-		const inline uint32_t INITIALIZE_SIZE_STAGING_BUFFER = 10 * 1024 * 1024; // 3MB
+		const inline uint32_t INITIALIZE_SIZE_STAGING_BUFFER = 3 * 1024 * 1024; // 3MB
 
-		const inline uint32_t INITIALIZE_SIZE_INSTANCING_BUFFER = 10 * 1024 * 1024; // 3MB
+		const inline uint32_t INITIALIZE_SIZE_INSTANCING_BUFFER = 3 * 1024 * 1024; // 3MB
 
 		const inline std::string PATH_VERT_SHADERD_DRAW_DEFAULT = "res/shader/draw_default/vert_shader.vert.spv";
 

@@ -79,7 +79,7 @@ namespace Vulkan {
 		}
 	}
 
-	void SSBO_Buffer::flush_transfer_data() {
+	std::map<VkBuffer, std::vector<VkBufferCopy>> SSBO_Buffer::make_copied_data() {
 		std::map<VkBuffer, std::vector<VkBufferCopy>> copied_data;
 		for (const Transfer_Data_Information& transfer : queue_transfer) {
 			VkBuffer dst_buffer = transfer.dst_buffer;
@@ -92,10 +92,24 @@ namespace Vulkan {
 			};
 			copied_data[dst_buffer].push_back(region);
 		}
+		return copied_data;
+	}
+
+	void SSBO_Buffer::flush_transfer_data() {
+		std::map<VkBuffer, std::vector<VkBufferCopy>> copied_data = make_copied_data();
 		if (copied_data.size() <= 0) {
 			return;
 		}
 		Utils::copy_data_to_multi_buffer(inner_buffer.buffer, copied_data, device);
+		queue_transfer.clear();
+	}
+
+	void SSBO_Buffer::record_flush_transfer_data(VkCommandBuffer command_buffer) {
+		std::map<VkBuffer, std::vector<VkBufferCopy>> copied_data = make_copied_data();
+		if (copied_data.size() <= 0) {
+			return;
+		}
+		Utils::record_copy_data_to_multi_buffer(command_buffer, inner_buffer.buffer, copied_data);
 		queue_transfer.clear();
 	}
 

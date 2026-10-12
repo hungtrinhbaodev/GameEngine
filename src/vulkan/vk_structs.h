@@ -320,6 +320,21 @@ namespace Vulkan {
 			blit.dstSubresource.mipLevel = src_mip_level + 1;
 			return blit;
 		}
+
+		inline VkBufferMemoryBarrier make_buffer_barier(
+			VkAccessFlags src_access, VkAccessFlags dst_access, VkBuffer buffer, uint32_t offset, uint32_t size
+		) {
+			VkBufferMemoryBarrier barrier{};
+			barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.srcAccessMask = src_access;
+			barrier.dstAccessMask = dst_access;
+			barrier.buffer = buffer;
+			barrier.offset = (VkDeviceSize)offset;
+			barrier.size = (VkDeviceSize)size;
+			return barrier;
+		}
 	} // namespace Structs
 
 } // namespace Vulkan

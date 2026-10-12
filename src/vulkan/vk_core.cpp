@@ -176,7 +176,7 @@ namespace Vulkan {
 
 		static_buffer.init(
 			Const::INITIALIZE_STATIC_BUFFER_SIZE, Const::INITIALIZE_STATIC_BUFFER_SIZE,
-			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, physical_device, device
+			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, draw_fences, physical_device, device
 		);
 
 		ssbo_buffer.init(Const::INITIALIZE_SIZE_STAGING_BUFFER, physical_device, device);
@@ -207,10 +207,17 @@ namespace Vulkan {
 		);
 	}
 
-	void draw_frame() {
+	void start_frame() {
+		/**
+		 * @Note: static buffer using for all frame
+		 * so when start every frame we need confirm
+		 * that all synchronization finish!
+		 */
+		static_buffer.wait_synchronize_finish(current_frame);
 		setup_draw();
-		static_buffer.flush_data();
+	}
 
+	void draw_frame() {
 		VkFence draw_fence = draw_fences[current_frame];
 		VkSemaphore draw_semaphore = draw_semaphores[current_frame];
 		VkSemaphore finish_render_semaphore = render_finish_semaphores[current_frame];
@@ -233,6 +240,11 @@ namespace Vulkan {
 		VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
 		vkBeginCommandBuffer(command_buffer, &begin_info);
 		{
+			/**
+			 * Setup static buffer using for all frame in flight.
+			 */
+			static_buffer.flush_removed_data(current_frame);
+			static_buffer.flush_data(command_buffer, current_frame);
 			/**
 			 * Clear color to background and depth image before draw.
 			 */

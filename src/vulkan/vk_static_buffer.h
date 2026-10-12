@@ -64,7 +64,25 @@ namespace Vulkan {
 		}
 	};
 
+	struct Resize_Buffer_Synchronize_Information {
+		bool is_resizing = false;
+		Buffer old_buffer{};
+	};
+
+	struct Copied_Data_Synchronize_Information {
+		bool is_copying = false;
+		VkFence fence = VK_NULL_HANDLE;
+	};
+
+	struct Remove_Data_Synchronize_Information {
+		std::vector<VkFence> wait_fences{};
+		void release_fence(VkFence fence);
+		bool can_remove();
+	};
+
 	struct Static_Buffer {
+
+		VkDevice device = VK_NULL_HANDLE;
 
 		Buffer inner_buffer{};
 
@@ -85,10 +103,27 @@ namespace Vulkan {
 
 		uint32_t size_required = 0;
 
+		std::vector<VkFence> draw_fences{};
+
+		Resize_Buffer_Synchronize_Information resize_sync_info{};
+
+		Copied_Data_Synchronize_Information copied_sync_info{};
+
+		std::vector<uint32_t> removed_ids{};
+
+		Sparse_Set<Remove_Data_Synchronize_Information> queue_remove{};
+
 		void init(
 			uint32_t initialize_size, uint32_t initialize_staging_size, VkBufferUsageFlags usage_flags,
-			VkPhysicalDevice physical_device, VkDevice device
+			const std::vector<VkFence>& draw_fences, VkPhysicalDevice physical_device, VkDevice device
 		);
+
+		/**
+		 * @Note: using to check resource async
+		 * like remove action need to be confirm
+		 * all draw finish to release allocator!
+		 */
+		void wait_synchronize_finish(uint32_t frame_index);
 
 		uint32_t upload_data(void* data, uint32_t size, uint32_t element_stride = 1);
 
@@ -96,7 +131,9 @@ namespace Vulkan {
 
 		bool remove_data(uint32_t id);
 
-		void flush_data();
+		void flush_removed_data(uint32_t frame_index);
+
+		void flush_data(VkCommandBuffer command_buffer, uint32_t frame_index);
 
 		void clear();
 

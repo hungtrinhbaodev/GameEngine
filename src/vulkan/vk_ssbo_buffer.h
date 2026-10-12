@@ -55,7 +55,11 @@ namespace Vulkan {
 
 		void transfer_data_to(uint32_t id, VkBuffer dst_buffer, uint32_t dst_offset);
 
+		std::map<VkBuffer, std::vector<VkBufferCopy>> make_copied_data();
+
 		void flush_transfer_data();
+
+		void record_flush_transfer_data(VkCommandBuffer command_buffer);
 
 		void clear();
 

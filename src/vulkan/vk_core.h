@@ -127,6 +127,8 @@ namespace Vulkan {
 
 	void init_vulkan_core(GLFWwindow* window);
 
+	void start_frame();
+
 	void draw_frame();
 
 	void destroy_vulkan();

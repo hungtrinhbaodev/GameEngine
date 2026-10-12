@@ -298,6 +298,11 @@ namespace Vulkan {
 			VkBuffer src_buffer, const std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data, VkDevice device
 		);
 
+		void record_copy_data_to_multi_buffer(
+			VkCommandBuffer command_buffer, VkBuffer src_buffer,
+			const std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data
+		);
+
 		inline int get_number_channel_by(VkFormat format) {
 			switch (format) {
 				case VK_FORMAT_R8G8B8A8_SRGB: {

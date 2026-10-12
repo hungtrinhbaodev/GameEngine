@@ -41,6 +41,8 @@ namespace Vulkan {
 
 		void resize(uint32_t new_size);
 
+		Buffer record_resize(VkCommandBuffer command_buffer, uint32_t new_size);
+
 		void update_descriptor();
 
 		void destroy() const;
@@ -56,6 +58,11 @@ namespace Vulkan {
 
 		static void copy_buffer(
 			Buffer src_buffer, Buffer dst_buffer, uint32_t src_offset, uint32_t dst_offset, uint32_t size
+		);
+
+		static void record_copy_buffer(
+			VkCommandBuffer command_buffer, Buffer src_buffer, Buffer dst_buffer, uint32_t src_offset,
+			uint32_t dst_offset, uint32_t size
 		);
 	};
 

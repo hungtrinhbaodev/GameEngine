@@ -49,6 +49,8 @@ template <typename T> class Sparse_Set {
 
 	const std::vector<T>& values() { return dense; }
 
+	size_t size() { return ids.size(); }
+
 	void erase(uint32_t id) {
 		if (!has(id)) {
 			return;

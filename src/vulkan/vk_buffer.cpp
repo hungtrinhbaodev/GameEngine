@@ -94,14 +94,35 @@ namespace Vulkan {
 			new_size, usage_flags | VK_BUFFER_USAGE_TRANSFER_DST_BIT, property_flags, physical_device, device
 		);
 
-		uint32_t copy_size = std::min(size, new_size);
-		Buffer::copy_buffer(*this, new_buffer, 0, 0, copy_size);
+		uint32_t copied_size = std::min(size, new_size);
+		Buffer::copy_buffer(*this, new_buffer, 0, 0, copied_size);
 		destroy();
 
 		size = new_size;
 		buffer = new_buffer.buffer;
 		memory = new_buffer.memory;
 		update_descriptor();
+	}
+
+	Buffer Buffer::record_resize(VkCommandBuffer command_buffer, uint32_t new_size) {
+		Buffer current{*this};
+		Buffer new_buffer{};
+		new_buffer.make_buffer(
+			new_size, usage_flags | VK_BUFFER_USAGE_TRANSFER_DST_BIT, property_flags, physical_device, device
+		);
+		uint32_t copy_size = std::min(size, new_size);
+		VkBufferMemoryBarrier copy_data_barrier =
+			Structs::make_buffer_barier(0, VK_ACCESS_TRANSFER_WRITE_BIT, new_buffer.buffer, 0, copy_size);
+		vkCmdPipelineBarrier(
+			command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1,
+			&copy_data_barrier, 0, nullptr
+		);
+		record_copy_buffer(command_buffer, *this, new_buffer, 0, 0, copy_size);
+		size = new_size;
+		buffer = new_buffer.buffer;
+		memory = new_buffer.memory;
+		update_descriptor();
+		return current;
 	}
 
 	void Buffer::update_descriptor() {
@@ -141,13 +162,37 @@ namespace Vulkan {
 			dst_buffer.copy_data(size, map_data, dst_offset);
 			vkUnmapMemory(src_buffer.device, src_buffer.memory);
 		} else {
-			VkBufferCopy region{0, 0, size};
+			VkBufferCopy region{src_offset, dst_offset, size};
 			VkCommandBuffer command_buffer = Utils::start_commands(src_buffer.device);
 			{
-				vkCmdCopyBuffer(command_buffer, src_buffer.buffer, dst_buffer.buffer, 1, &region);
+				record_copy_buffer(command_buffer, src_buffer, dst_buffer, src_offset, dst_offset, size);
 			}
 			Utils::finish_commands(src_buffer.device, command_buffer);
 		}
+	}
+
+	void Buffer::record_copy_buffer(
+		VkCommandBuffer command_buffer, Buffer src_buffer, Buffer dst_buffer, uint32_t src_offset, uint32_t dst_offset,
+		uint32_t size
+	) {
+		if (src_buffer.buffer == VK_NULL_HANDLE || dst_buffer.buffer == VK_NULL_HANDLE) {
+			throw std::runtime_error("Vulkan fail to copy buffer: try to make buffer first!");
+		}
+
+		if (src_buffer.device == VK_NULL_HANDLE || dst_buffer.device == VK_NULL_HANDLE ||
+			src_buffer.device != dst_buffer.device) {
+			throw std::runtime_error("Vulkan fail to copy buffer: device invalid!");
+		}
+
+		if (src_offset + size > src_buffer.size) {
+			throw std::runtime_error("Vulkan fail to copy buffer: make sure source buffer is enough size!");
+		}
+
+		if (dst_offset + size > dst_buffer.size) {
+			throw std::runtime_error("Vulkan fail to copy buffer: make sure destination buffer is enough size!");
+		}
+		VkBufferCopy region{src_offset, dst_offset, size};
+		vkCmdCopyBuffer(command_buffer, src_buffer.buffer, dst_buffer.buffer, 1, &region);
 	}
 
 	std::vector<char> Buffer::parse_buffer(int offset, int parse_size) const {
