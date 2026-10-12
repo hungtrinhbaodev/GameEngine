@@ -26,6 +26,10 @@ namespace Vulkan {
 
 		VkDescriptorBufferInfo descriptor{};
 
+		bool auto_mapped = false;
+
+		void* mapped = nullptr;
+
 		Buffer();
 
 		Buffer(const Buffer& other);
@@ -34,7 +38,7 @@ namespace Vulkan {
 
 		void make_buffer(
 			uint32_t size, VkBufferUsageFlags usage_flags, VkMemoryPropertyFlags property_flags,
-			VkPhysicalDevice physical_device, VkDevice device
+			VkPhysicalDevice physical_device, VkDevice device, bool auto_map = false
 		);
 
 		void copy_data(uint32_t size, void* data, uint32_t offset = 0) const;

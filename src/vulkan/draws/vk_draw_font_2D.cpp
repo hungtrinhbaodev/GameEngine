@@ -234,8 +234,8 @@ namespace Vulkan {
 			uint32_t first_instance_offset, int frame_index
 		) {
 			Static_Buffer& static_buffer = get_static_buffer();
-			Static_Buffer_Range indices_range = static_buffer.view_slot_info(indices_id);
-			Static_Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
+			Buffer_Range indices_range = static_buffer.view_slot_info(indices_id);
+			Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
 			Buffer instance_buffer = get_instance_buffer();
 			const Font& font = font_system.view_font(material_draw_id);
 			Texture_View texture_view = font_system.texture_system.view_texture(font.texture_id);

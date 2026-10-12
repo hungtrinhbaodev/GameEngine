@@ -215,8 +215,8 @@ namespace Vulkan {
 							command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
 							offsetof(Push_Constants, slot_index), sizeof(int), &slot_index
 						);
-						Static_Buffer_Range vertex_range = static_buffer.view_slot_info(primitive.vertex_id);
-						Static_Buffer_Range indices_range = static_buffer.view_slot_info(primitive.indices_id);
+						Buffer_Range vertex_range = static_buffer.view_slot_info(primitive.vertex_id);
+						Buffer_Range indices_range = static_buffer.view_slot_info(primitive.indices_id);
 						bind_draw_resource(
 							command_buffer, pipeline.pipeline, pipeline.layout, static_buffer.inner_buffer.buffer, 0,
 							VK_INDEX_TYPE_UINT32, 2, binding_buffers, buffer_offsets, number_descriptor_set,

@@ -196,7 +196,7 @@ namespace Vulkan {
 		init_draw();
 	}
 
-	void _on_window_resize() {
+	void on_window_resize() {
 		recreate_swapchain(
 			window, swapchain, swapchain_format, swapchain_extent, swapchain_images, swapchain_image_views, surface,
 			physical_device, device
@@ -227,7 +227,7 @@ namespace Vulkan {
 		VkResult result =
 			vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, draw_semaphore, VK_NULL_HANDLE, &image_index);
 		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-			_on_window_resize();
+			on_window_resize();
 			return;
 		} else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
 			throw std::runtime_error("failed to acquire swap chain image!");
@@ -279,7 +279,7 @@ namespace Vulkan {
 		result = submit_present(present_info, device);
 		if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || frame_buffer_resize) {
 			frame_buffer_resize = false;
-			_on_window_resize();
+			on_window_resize();
 		} else if (result != VK_SUCCESS) {
 			throw std::runtime_error("failed to present swap chain image!");
 		}

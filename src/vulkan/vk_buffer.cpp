@@ -25,7 +25,7 @@ namespace Vulkan {
 
 	void Buffer::make_buffer(
 		uint32_t size, VkBufferUsageFlags usage_flags, VkMemoryPropertyFlags property_flags,
-		VkPhysicalDevice physical_device, VkDevice device
+		VkPhysicalDevice physical_device, VkDevice device, bool auto_map
 	) {
 		if (device == VK_NULL_HANDLE || physical_device == VK_NULL_HANDLE) {
 			throw std::runtime_error("Vulkan fail to make buffer: try to init device and physical device first!");
@@ -62,14 +62,25 @@ namespace Vulkan {
 
 		vkBindBufferMemory(device, buffer, memory, 0);
 		update_descriptor();
+
+		if (auto_mapped && is_host_visible_buffer()) {
+			this->auto_mapped = auto_map;
+			vkMapMemory(device, memory, 0, size, 0, &mapped);
+		}
 	}
 
 	void Buffer::copy_data(uint32_t size, void* data, uint32_t offset) const {
 		if (is_host_visible_buffer()) {
 			void* map_memory = nullptr;
-			vkMapMemory(device, memory, offset, size, 0, &map_memory);
+			if (!auto_mapped) {
+				vkMapMemory(device, memory, offset, size, 0, &map_memory);
+			} else {
+				map_memory = (char*)mapped + offset;
+			}
 			memcpy(map_memory, data, static_cast<size_t>(size));
-			vkUnmapMemory(device, memory);
+			if (!auto_mapped) {
+				vkUnmapMemory(device, memory);
+			}
 		} else {
 			Buffer staging{};
 			staging.make_buffer(
@@ -132,6 +143,9 @@ namespace Vulkan {
 	}
 
 	void Buffer::destroy() const {
+		if (auto_mapped) {
+			vkUnmapMemory(device, memory);
+		}
 		vkDestroyBuffer(device, buffer, nullptr);
 		vkFreeMemory(device, memory, nullptr);
 	}

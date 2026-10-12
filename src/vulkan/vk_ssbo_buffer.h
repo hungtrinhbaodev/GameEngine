@@ -4,18 +4,10 @@
 #include <queue>
 #include <sparse_set.h>
 #include <vulkan/vk_buffer.h>
+#include <vulkan/vk_common.h>
 #include <vulkan/vulkan.h>
 
 namespace Vulkan {
-
-	struct SSBO_Buffer_Range {
-		uint32_t offset = 0;
-		uint32_t size = 0;
-	};
-
-	struct SSBO_Buffer_Range_Compare {
-		inline bool operator()(const SSBO_Buffer_Range& a, const SSBO_Buffer_Range& b) const { return a.size > b.size; }
-	};
 
 	struct SSBO_Buffer {
 
@@ -30,8 +22,7 @@ namespace Vulkan {
 
 		Buffer inner_buffer{};
 
-		std::priority_queue<SSBO_Buffer_Range, std::vector<SSBO_Buffer_Range>, SSBO_Buffer_Range_Compare>
-			available_ranges;
+		std::priority_queue<Buffer_Range, std::vector<Buffer_Range>, Buffer_Range_Compare> available_ranges;
 
 		std::vector<Transfer_Data_Information> queue_transfer{};
 
@@ -39,7 +30,7 @@ namespace Vulkan {
 
 		Id_Generator range_id_generator{};
 
-		Sparse_Set<SSBO_Buffer_Range> ranges_by_id;
+		Sparse_Set<Buffer_Range> ranges_by_id;
 
 		void init(uint32_t initialize_size, VkPhysicalDevice physical_device, VkDevice device);
 
@@ -51,7 +42,7 @@ namespace Vulkan {
 
 		void update_dst_buffer_transfer(VkBuffer from, VkBuffer to);
 
-		SSBO_Buffer_Range view_slot(uint32_t id);
+		Buffer_Range view_slot(uint32_t id);
 
 		void transfer_data_to(uint32_t id, VkBuffer dst_buffer, uint32_t dst_offset);
 

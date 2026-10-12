@@ -113,8 +113,8 @@ namespace Vulkan {
 			uint32_t first_instance_offset
 		) {
 			Static_Buffer& static_buffer = get_static_buffer();
-			Static_Buffer_Range indices_range = static_buffer.view_slot_info(indices_id);
-			Static_Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
+			Buffer_Range indices_range = static_buffer.view_slot_info(indices_id);
+			Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
 			Buffer& instance_buffer = get_instance_buffer();
 			Push_Constants constants{Utils::get_window_size(device), vertex_range.offset_as<Geometry::Vertex_2D>()};
 			vkCmdPushConstants(

@@ -8,24 +8,23 @@ namespace Vulkan {
 		this->device = device;
 		inner_buffer.make_buffer(
 			initialize_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, physical_device, device
+			VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, physical_device, device, true
 		);
 	}
 
 	uint32_t SSBO_Buffer::upload_data(void* data, uint32_t size) {
 		uint32_t range_id = range_id_generator.gen_id();
-		SSBO_Buffer_Range using_range{0, 0};
+		Buffer_Range using_range{0, 0, 0};
 		if (available_ranges.size() > 0 && available_ranges.top().size >= size) {
-			SSBO_Buffer_Range optimal_range = available_ranges.top();
+			Buffer_Range optimal_range = available_ranges.top();
 			available_ranges.pop();
-			if (optimal_range.size > size) {
-				SSBO_Buffer_Range remain_range{optimal_range.offset + size, optimal_range.size - size};
+			if (optimal_range.is_suitable_with(size)) {
+				Buffer_Range remain_range = optimal_range.fit_with(size);
 				available_ranges.push(remain_range);
-				optimal_range.size = size;
 			}
 			using_range = optimal_range;
 		} else {
-			using_range = {current_offset, size};
+			using_range = {current_offset, 0, size};
 			if (current_offset + size > inner_buffer.size) {
 				uint32_t buffer_size = (uint32_t)((current_offset + size) * 1.5f);
 				inner_buffer.resize(buffer_size);
@@ -37,7 +36,7 @@ namespace Vulkan {
 	}
 
 	void SSBO_Buffer::update_data(uint32_t id, void* data, uint32_t offset, uint32_t size) {
-		SSBO_Buffer_Range range = view_slot(id);
+		Buffer_Range range = view_slot(id);
 		if (size <= 0) {
 			size = range.size;
 		}
@@ -50,13 +49,13 @@ namespace Vulkan {
 	void SSBO_Buffer::remove_data(uint32_t id) {
 		if (!ranges_by_id.has(id))
 			return;
-		const SSBO_Buffer_Range& range = ranges_by_id.get(id);
+		const Buffer_Range& range = ranges_by_id.get(id);
 		available_ranges.push(range);
 		ranges_by_id.erase(id);
 		range_id_generator.release_id(id);
 	}
 
-	SSBO_Buffer_Range SSBO_Buffer::view_slot(uint32_t id) {
+	Buffer_Range SSBO_Buffer::view_slot(uint32_t id) {
 		if (!ranges_by_id.has(id)) {
 			throw std::runtime_error(
 				"Fail to view SSBO buffer range with id: " + std::to_string(id) + " please check!"
@@ -66,7 +65,7 @@ namespace Vulkan {
 	}
 
 	void SSBO_Buffer::transfer_data_to(uint32_t id, VkBuffer dst_buffer, uint32_t dst_offset) {
-		SSBO_Buffer_Range range = view_slot(id);
+		Buffer_Range range = view_slot(id);
 		Transfer_Data_Information transfer_data{dst_offset, range.offset, range.size, dst_buffer};
 		queue_transfer.push_back(transfer_data);
 	}

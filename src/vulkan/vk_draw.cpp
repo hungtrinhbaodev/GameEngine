@@ -160,7 +160,7 @@ namespace Vulkan {
 		for (int i = 0; i < sorted_draws.size(); i++) {
 			uint32_t draw_id = sorted_draws[i];
 			const Draw_Information& draw_info = draws.get(draw_id);
-			SSBO_Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
+			Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
 			size_t instance_size = get_instance_size(draw_info.draw_type);
 			if (size_reqiure % instance_size == 0) {
 				size_reqiure += range.size;
@@ -177,7 +177,7 @@ namespace Vulkan {
 		for (int i = 0; i < sorted_draws.size(); i++) {
 			uint32_t draw_id = sorted_draws[i];
 			const Draw_Information& draw_info = draws.get(draw_id);
-			SSBO_Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
+			Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
 			size_t instance_size = get_instance_size(draw_info.draw_type);
 			if (offset % instance_size == 0) {
 				ssbo.transfer_data_to(draw_info.instance_id, instance_buffer.buffer, (uint32_t)offset);
@@ -201,7 +201,7 @@ namespace Vulkan {
 		uint32_t first_id = sorted_draws[0];
 		Draw_Information last_draw_info = draws.get(first_id);
 		size_t instance_size = get_instance_size(last_draw_info.draw_type);
-		SSBO_Buffer_Range first_range = get_ssbo().view_slot(last_draw_info.instance_id);
+		Buffer_Range first_range = get_ssbo().view_slot(last_draw_info.instance_id);
 		Group_Draw_Batching group{
 			last_draw_info.draw_type, last_draw_info.draw_material_id, 0, (uint32_t)(first_range.size / instance_size)
 		};
@@ -214,7 +214,7 @@ namespace Vulkan {
 			const Draw_Information& draw_info = draws.get(draw_id);
 			size_t instance_size = get_instance_size(draw_info.draw_type);
 			size_t remain = 0;
-			SSBO_Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
+			Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
 			if (is_same_draw(last_draw_info, draw_info)) {
 				draw_groups[current_group].number_instance += (uint32_t)(range.size / instance_size);
 			} else {
@@ -309,7 +309,7 @@ namespace Vulkan {
 
 	void draw(VkCommandBuffer command_buffer) {
 		sort_draws();
-		setup_instance_buffer(); 
+		setup_instance_buffer();
 		batching_draw_groups();
 		Profiler::start_scope(SCOPE_DRAW);
 		current_binding_draw_info.clean();
