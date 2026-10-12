@@ -274,7 +274,7 @@ namespace Vulkan {
 			last_descriptor_sets.resize(number_descriptor);
 		}
 		for (int i = 0; i < number_descriptor; i++) {
-			if (last_descriptor_sets[i] != binding_descriptor_sets[i]) {
+			if (last_descriptor_sets[i] != binding_descriptor_sets[i] && binding_descriptor_sets[i] != VK_NULL_HANDLE) {
 				vkCmdBindDescriptorSets(
 					command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipline_layout, i, 1, &binding_descriptor_sets[i],
 					0, VK_NULL_HANDLE
@@ -309,7 +309,7 @@ namespace Vulkan {
 
 	void draw(VkCommandBuffer command_buffer) {
 		sort_draws();
-		setup_instance_buffer();
+		setup_instance_buffer(); 
 		batching_draw_groups();
 		Profiler::start_scope(SCOPE_DRAW);
 		current_binding_draw_info.clean();

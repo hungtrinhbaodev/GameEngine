@@ -1,5 +1,7 @@
 #include <concurrent_pool.h>
-#include <map>
+#include <memory>
+#include <stdexcept>
+#include <unordered_map>
 #include <vulkan/vk_semaphores.h>
 
 namespace Vulkan {

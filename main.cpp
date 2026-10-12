@@ -28,11 +28,11 @@ int main() {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	GLFWwindow* window = glfwCreateWindow(1200, 720, "game", nullptr, nullptr);
 
-	Vulkan::init_vulkan_core(window, Core::global_thread_pool, Core::global_scheduler);
+	Vulkan::init_vulkan_core(window);
 
 	glm::vec2 window_size = Vulkan::Utils::get_window_size(Vulkan::device);
 	std::vector<uint32_t> rectangles{};
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < 1000; i++) {
 		Vulkan::Draw_Attribute draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
 		Vulkan::Rectangle_Attributes rectangle_attributes{
 			200, 100, {Math::random_float(0, window_size.x), Math::random_float(0, window_size.y)}
@@ -42,7 +42,7 @@ int main() {
 	}
 
 	std::vector<uint32_t> textures{};
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < 1000; i++) {
 		std::string path = Math::random_float() >= 0.5f ? "res/AddonIcon7.png" : "res/AddonIcon5.png";
 		Vulkan::Draw_Attribute draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
 		Vulkan::Texture_2D_Attributes texture_attributes{

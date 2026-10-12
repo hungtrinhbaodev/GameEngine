@@ -24,20 +24,6 @@
 
 namespace Vulkan {
 
-	std::vector<Vertex> TRIANGLE_VERTICES = {
-		{{-0.7f, -0.7f, 0.0f}, {0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-		{{0.7f, -0.7f, 0.0f}, {0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-		{{0.7f, 0.7f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}}
-	};
-
-	std::vector<uint16_t> TRIANGLE_INDICES = {0, 1, 2};
-
-	uint32_t triangle_vertices_id = -1;
-
-	uint32_t triangle_indices_id = -1;
-
-	std::vector<uint32_t> triangle_instancing{};
-
 	GLFWwindow* window = nullptr;
 
 	VkInstance instance = VK_NULL_HANDLE;
@@ -76,10 +62,6 @@ namespace Vulkan {
 
 	uint32_t current_frame = 0;
 
-	std::map<Const::DRAW_ID, Pipeline> pipelines = {};
-
-	std::map<Const::DRAW_ID, std::vector<std::vector<VkDescriptorSet>>> descriptor_sets_by_draw_id = {};
-
 	std::vector<VkFence> draw_fences = {};
 
 	std::vector<VkSemaphore> draw_semaphores = {};
@@ -97,8 +79,6 @@ namespace Vulkan {
 	Static_Buffer static_buffer{};
 
 	bool frame_buffer_resize = false;
-
-	float global_draw_2D_order = 0.f;
 
 	Pipeline_Config make_default_pipeline_config() {
 		Pipeline_Config pipeline_config{};
@@ -138,9 +118,7 @@ namespace Vulkan {
 		return static_buffer;
 	}
 
-	void init_vulkan_core(
-		GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool, std::shared_ptr<Scheduler> global_scheduler
-	) {
+	void init_vulkan_core(GLFWwindow* window) {
 
 		Vulkan::window = window;
 		glfwSetFramebufferSizeCallback(window, [](GLFWwindow*, int, int) { Vulkan::frame_buffer_resize = true; });

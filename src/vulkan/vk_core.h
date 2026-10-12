@@ -105,10 +105,6 @@ namespace Vulkan {
 
 	extern uint32_t current_frame;
 
-	extern std::map<Const::DRAW_ID, Pipeline> pipelines;
-
-	extern std::map<Const::DRAW_ID, std::vector<std::vector<VkDescriptorSet>>> descriptor_sets_by_draw_id;
-
 	extern std::vector<VkFence> draw_fences;
 
 	extern std::vector<VkSemaphore> draw_semaphores;
@@ -129,9 +125,7 @@ namespace Vulkan {
 
 	Static_Buffer& get_static_buffer();
 
-	void init_vulkan_core(
-		GLFWwindow* window, std::shared_ptr<ThreadPool> global_thread_pool, std::shared_ptr<Scheduler> global_scheduler
-	);
+	void init_vulkan_core(GLFWwindow* window);
 
 	void draw_frame();
 
