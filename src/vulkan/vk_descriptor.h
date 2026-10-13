@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <vulkan/vk_consts.h>
 #include <vulkan/vulkan.h>
 
 namespace Vulkan {
@@ -22,7 +23,8 @@ namespace Vulkan {
 		std::vector<VkWriteDescriptorSet> writes;
 
 		Descriptor_Set_Writer& add_buffer_write(
-			uint32_t binding, VkDescriptorBufferInfo* descriptor_buffer_info, VkDescriptorSet dst_set
+			uint32_t binding, VkDescriptorBufferInfo* descriptor_buffer_info, VkDescriptorSet dst_set,
+			VkDescriptorType buffer_descriptor_type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
 		);
 
 		Descriptor_Set_Writer& add_image_write(
@@ -34,7 +36,10 @@ namespace Vulkan {
 		void clear();
 	};
 
-	void init_descriptor_pools(std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device);
+	void init_descriptor_pools(
+		std::vector<VkDescriptorPool>& descriptor_pools,
+		std::array<VkDescriptorPool, Const::MAX_FRAMES_IN_FLIGHT>& descriptor_pools_2, VkDevice device
+	);
 
 	void destroy_descriptor_pools(const std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device);
 

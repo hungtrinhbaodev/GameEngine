@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <map>
 #include <vector>
 
@@ -15,6 +16,7 @@
 
 #include <geometry_structs.h>
 #include <vulkan/vk_buffer.h>
+#include <vulkan/vk_consts.h>
 #include <vulkan/vk_font_system.h>
 #include <vulkan/vk_image.h>
 #include <vulkan/vk_model_3D_system.h>
@@ -100,6 +102,8 @@ namespace Vulkan {
 	extern VkRenderPass render_pass;
 
 	extern std::vector<VkDescriptorPool> descriptor_pools;
+
+	extern std::array<VkDescriptorPool, Const::MAX_FRAMES_IN_FLIGHT> descriptor_pools_2;
 
 	extern Texture_System texture_system;
 

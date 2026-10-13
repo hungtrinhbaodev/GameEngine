@@ -15,11 +15,14 @@ namespace Vulkan {
 
 	void Texture_System::init(
 		std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets, VkDevice device,
-		std::vector<VkDescriptorPool> descriptor_pools, VkPhysicalDevice physical_device, VkFormat format
+		std::vector<VkDescriptorPool> descriptor_pools,
+		std::array<VkDescriptorPool, Const::MAX_FRAMES_IN_FLIGHT> descriptor_pools_2, VkPhysicalDevice physical_device,
+		VkFormat format
 	) {
 		this->device = device;
 		this->physical_device = physical_device;
 		this->descriptor_pools = descriptor_pools;
+		this->descriptor_pools_2 = descriptor_pools_2;
 		this->format = format;
 		this->can_gpu_blit =
 			Utils::can_gpu_blit_image(physical_device, format, VK_FILTER_LINEAR) && Const::ENEABLED_IMAGE_MIPMAP;
@@ -81,11 +84,40 @@ namespace Vulkan {
 		return descriptor_sets;
 	}
 
+	std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> Texture_System::make_bucket_descriptor_sets_2(
+		VkDescriptorSetLayout layout
+	) {
+		std::vector<VkDescriptorImageInfo> bucket_descriptors;
+		for (int i = 0; i < texture_buckets.size(); i++) {
+			bucket_descriptors.push_back(texture_buckets[i].inner_image.get_descriptor_info());
+		}
+		std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> descriptor_sets =
+			Structs::make_descriptor_sets_2(descriptor_pools_2, &layout, device);
+		for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
+			Descriptor_Set_Writer writer{};
+			for (int j = 0; j < texture_buckets.size(); j++) {
+				writer.add_image_write(j, 1, &bucket_descriptors[j], descriptor_sets[i]).write(device);
+			}
+		}
+		return descriptor_sets;
+	}
+
 	std::vector<VkDescriptorSet> Texture_System::make_default_texture_descriptor_sets(VkDescriptorSetLayout layout) {
 		Texture_View texture_view = view_texture(get_default_texture_id());
 		std::vector<VkDescriptorSet> default_texture_descriptor_sets = Utils::make_texture_descriptor_sets(
 			descriptor_pools, layout, texture_view.image.get_descriptor_info(), device
 		);
+		return default_texture_descriptor_sets;
+	}
+
+	std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> Texture_System::make_default_texture_descriptor_sets_2(
+		VkDescriptorSetLayout layout
+	) {
+		Texture_View texture_view = view_texture(get_default_texture_id());
+		std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> default_texture_descriptor_sets =
+			Utils::make_texture_descriptor_sets_2(
+				descriptor_pools_2, layout, texture_view.image.get_descriptor_info(), device
+			);
 		return default_texture_descriptor_sets;
 	}
 

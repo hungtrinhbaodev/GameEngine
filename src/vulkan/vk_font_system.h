@@ -4,6 +4,7 @@
 #include <map>
 #include <parser/font_parser.h>
 #include <sparse_set.h>
+#include <vulkan/vk_common.h>
 #include <vulkan/vk_texture_system.h>
 
 namespace Vulkan {
@@ -26,7 +27,11 @@ namespace Vulkan {
 
 		std::unordered_map<std::string, uint32_t> file_to_ids{};
 
-		void init(VkDevice device, std::vector<VkDescriptorPool> descriptor_pools, VkPhysicalDevice physical_device);
+		void init(
+			VkDevice device, std::vector<VkDescriptorPool> descriptor_pools,
+			std::array<VkDescriptorPool, Const::MAX_FRAMES_IN_FLIGHT> descriptor_pools_2,
+			VkPhysicalDevice physical_device
+		);
 
 		uint32_t load_font(std::string font_path);
 

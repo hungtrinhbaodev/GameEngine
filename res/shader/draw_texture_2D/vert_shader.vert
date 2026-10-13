@@ -1,15 +1,22 @@
 #version 450
 
 layout (location = 0) in vec2 in_position;
+layout (location = 1) in uint in_storage_index;
 
-layout (location = 1) in vec2 in_tex_size;
-layout (location = 2) in vec2 in_translation;
-layout (location = 3) in vec2 in_scale;
-layout (location = 4) in vec2 in_anchor_point;
-layout (location = 5) in vec4 in_rect;
-layout (location = 6) in float in_rotation;
-layout (location = 7) in int in_bucket_index;
-layout (location = 8) in int in_slot_index;
+struct Instance_Data{
+    vec2  tex_size;
+    vec2  translation;
+    vec2  scale;
+    vec2  anchor;
+    vec4  rect;
+    float rotation;
+    int   bucket_index;
+    int   slot_index;
+};
+
+layout(std430, set = 0, binding = 1) readonly buffer Instance_Buffer {
+    Instance_Data data[];
+} instance_buffer;
 
 layout (push_constant) uniform constants {
     layout(offset = 0) vec2 screen_size;
@@ -34,19 +41,19 @@ vec2 flipped_position(vec2 norm_position) {
     return rate_position;
 }
 
-vec2 map_tex_coord(int vertex_index) {
+vec2 map_tex_coord(int vertex_index, vec4 rect) {
     switch(vertex_index) {
         case 0: {
-            return vec2(in_rect.x, in_rect.y);
+            return vec2(rect.x, rect.y);
         }
         case 1: {
-            return vec2(in_rect.x, in_rect.y + in_rect.w);
+            return vec2(rect.x, rect.y + rect.w);
         }
         case 2: {
-            return vec2(in_rect.x + in_rect.z, in_rect.y + in_rect.w);
+            return vec2(rect.x + rect.z, rect.y + rect.w);
         }
         case 3: {
-            return vec2(in_rect.x + in_rect.z, in_rect.y);
+            return vec2(rect.x + rect.z, rect.y);
         }
         default: {
             return vec2(0.f, 0.f);
@@ -55,11 +62,12 @@ vec2 map_tex_coord(int vertex_index) {
 }
 
 void main() {
-    vec2 translate_anchor = (in_position - in_anchor_point) * in_tex_size * in_scale;
-    vec2 rectangle_position = in_translation + rotate(in_rotation, translate_anchor);
+    Instance_Data data = instance_buffer.data[in_storage_index];
+    vec2 translate_anchor = (in_position - data.anchor) * data.tex_size * data.scale;
+    vec2 rectangle_position = data.translation + rotate(data.rotation, translate_anchor);
     gl_Position = vec4(flipped_position(norm_position(rectangle_position)), 0.f, 1.f);
-    vec2 mapped_tex_coord = map_tex_coord(gl_VertexIndex - push_constant.vertex_offset);
+    vec2 mapped_tex_coord = map_tex_coord(gl_VertexIndex - push_constant.vertex_offset, data.rect);
     frag_tex_coord = vec2(mapped_tex_coord.x, 1.f - mapped_tex_coord.y);
-    bucket_index = in_bucket_index;
-    slot_index = in_slot_index;
+    bucket_index = data.bucket_index;
+    slot_index = data.slot_index;
 }

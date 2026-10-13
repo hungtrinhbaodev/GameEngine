@@ -1,5 +1,6 @@
 #pragma once
 #include <vulkan/draws/draw_structs.h>
+#include <vulkan/vk_common.h>
 #include <vulkan/vk_consts.h>
 #include <vulkan/vk_ssbo_buffer.h>
 #include <vulkan/vk_static_buffer.h>
@@ -55,6 +56,26 @@ namespace Vulkan {
 	void destroy_draw();
 
 	Buffer& get_instance_buffer(uint32_t frame_index);
+
+	const VkDescriptorSetLayout& get_layout(Const::DESCRITPOR_LAYOUT type);
+
+	uint32_t load_texture(std::string texture_path);
+
+	Texture_View view_texture(uint32_t texture_id);
+
+	uint32_t load_font(std::string font_path);
+
+	VkDescriptorSet get_storage_descriptor_set(uint32_t frame_index);
+
+	/**
+	 * @Note: index 0 for texture individual, index 1 for texture bucket.
+	 */
+	std::array<VkDescriptorSet, 2> get_descriptor_set_texture_sampler(uint32_t texture_id, uint32_t frame_index);
+
+	/**
+	 * @Note: index 0 for texture individual, index 1 for texture bucket.
+	 */
+	std::array<VkDescriptorSet, 2> get_descriptor_set_font_sampler(uint32_t font_id, uint32_t frame_index);
 
 	void bind_draw_resource(
 		VkCommandBuffer command_buffer, VkPipeline pipeline, VkPipelineLayout pipline_layout, VkBuffer indices_buffer,

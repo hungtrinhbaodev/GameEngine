@@ -31,7 +31,7 @@ namespace Vulkan {
 		if (inner_buffer.size < size_required) {
 			uint32_t new_size = (uint32_t)(size_required * 1.5f);
 			Remove_Buffer_Synchronize_Information remove_buffer_info{inner_buffer.resize(new_size, false), {}};
-			queue_remove_buffer.push_back(remove_buffer_info);
+			queue_remove_inner_buffer.push_back(remove_buffer_info);
 		}
 		inner_buffer.copy_data(using_range.size, data, using_range.inner_offset());
 		for (auto& dirty_ids : frame_dirty_ids) {
@@ -57,11 +57,11 @@ namespace Vulkan {
 	void SSBO_Buffer::remove_data(uint32_t id) {
 		if (!ranges_by_id.has(id))
 			return;
-		if (queue_remove_range.has(id))
+		if (queue_remove_range_inner_buffer.has(id))
 			return;
 		Resource_Synchronize_Information remove_info{};
 		remove_info.release_frame(current_frame);
-		queue_remove_range.insert(id, remove_info);
+		queue_remove_range_inner_buffer.insert(id, remove_info);
 	}
 
 	Buffer_Range SSBO_Buffer::view_slot(uint32_t id) {
@@ -83,19 +83,19 @@ namespace Vulkan {
 		/**
 		 * @Note: remove old buffer in queue first.
 		 */
-		for (int i = 0; i < queue_remove_buffer.size(); i++) {
-			Remove_Buffer_Synchronize_Information& remove_info = queue_remove_buffer[i];
+		for (int i = 0; i < queue_remove_inner_buffer.size(); i++) {
+			Remove_Buffer_Synchronize_Information& remove_info = queue_remove_inner_buffer[i];
 			remove_info.sync_info.release_frame(frame_index);
 			if (remove_info.sync_info.can_remove()) {
 				remove_info.remove_buffer.destroy();
-				queue_remove_buffer[i] = queue_remove_buffer.back();
-				queue_remove_buffer.pop_back();
+				queue_remove_inner_buffer[i] = queue_remove_inner_buffer.back();
+				queue_remove_inner_buffer.pop_back();
 				i--;
 			}
 		}
 		range_remove_ids.clear();
-		for (const uint32_t id : queue_remove_range.keys()) {
-			auto& remove = queue_remove_range.modify(id);
+		for (const uint32_t id : queue_remove_range_inner_buffer.keys()) {
+			auto& remove = queue_remove_range_inner_buffer.modify(id);
 			remove.release_frame(frame_index);
 			if (remove.can_remove()) {
 				const Buffer_Range& range = ranges_by_id.get(id);
@@ -106,12 +106,12 @@ namespace Vulkan {
 			}
 		}
 		for (const uint32_t& id : range_remove_ids) {
-			queue_remove_range.erase(id);
+			queue_remove_range_inner_buffer.erase(id);
 		}
 	}
 
 	void SSBO_Buffer::flush_data_to_storage_buffer(VkCommandBuffer command_buffer, uint32_t current_frame) {
-		Resize_Buffer_Synchronize_Information& resize_info = frame_resize_info[current_frame];
+		Resize_Buffer_Synchronize_Information& resize_info = frame_resize_storage_buffer_info[current_frame];
 		if (resize_info.is_resizing) {
 			resize_info.old_buffer.destroy();
 			resize_info.is_resizing = false;
@@ -179,6 +179,11 @@ namespace Vulkan {
 		Utils::record_copy_data_to_multi_buffer(command_buffer, inner_buffer.buffer, copied_data);
 		queue_transfer.clear();
 	}
+
+	bool SSBO_Buffer::is_storage_buffer_resizing(uint32_t frame_index) {
+		return frame_resize_storage_buffer_info[frame_index].is_resizing;
+	}
+
 	void SSBO_Buffer::destroy() {
 		inner_buffer.destroy();
 		for (int i = 0; i < storage_buffers.size(); i++) {
@@ -189,8 +194,13 @@ namespace Vulkan {
 		 * our queue buffer remove in flight again to
 		 * remove all buffer!
 		 */
-		for (const auto& remove_buffer : queue_remove_buffer) {
+		for (const auto& remove_buffer : queue_remove_inner_buffer) {
 			remove_buffer.remove_buffer.destroy();
+		}
+		for (const auto& resize_info : frame_resize_storage_buffer_info) {
+			if (resize_info.is_resizing) {
+				resize_info.old_buffer.destroy();
+			}
 		}
 	}
 

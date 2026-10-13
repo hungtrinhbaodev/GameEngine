@@ -56,6 +56,8 @@ namespace Vulkan {
 
 	std::vector<VkDescriptorPool> descriptor_pools;
 
+	std::array<VkDescriptorPool, Const::MAX_FRAMES_IN_FLIGHT> descriptor_pools_2{};
+
 	Image depth_image;
 
 	Texture_System texture_system{};
@@ -169,7 +171,7 @@ namespace Vulkan {
 		init_frame_buffers(frame_buffers, render_pass, device, swapchain_image_views, depth_image, swapchain_extent);
 
 		// Initialize Vulkan Descriptor Pools
-		init_descriptor_pools(descriptor_pools, device);
+		init_descriptor_pools(descriptor_pools, descriptor_pools_2, device);
 
 		// Request some command buffer to draw
 		request_draw_command_buffers();
@@ -184,11 +186,11 @@ namespace Vulkan {
 		// Initialize texture system to loading texture
 		texture_system.init(
 			Const::TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_TEXTURE_PER_BUCKETS, device, descriptor_pools,
-			physical_device
+			descriptor_pools_2, physical_device
 		);
 
 		// Initialize font system to loading font
-		font_system.init(device, descriptor_pools, physical_device);
+		font_system.init(device, descriptor_pools, descriptor_pools_2, physical_device);
 
 		// Initialize model 3D system to loading and storage model
 		model_3D_system.init(&texture_system, &static_buffer);

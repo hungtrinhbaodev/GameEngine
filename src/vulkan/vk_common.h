@@ -3,6 +3,7 @@
 #include <iostream>
 #include <vulkan/vk_buffer.h>
 #include <vulkan/vk_consts.h>
+#include <vulkan/vk_image.h>
 
 namespace Vulkan {
 	struct Resource_Synchronize_Information {
@@ -41,6 +42,23 @@ namespace Vulkan {
 			   << "}";
 			return os;
 		}
+	};
+
+	struct Texture_View {
+
+		std::string file = "";
+
+		Image image;
+
+		float width;
+
+		float height;
+
+		Const::TEXTURE_STORAGE_MODE storage_mode = Const::TEXTURE_STORAGE_MODE::BUCKET;
+
+		int bucket_index;
+
+		int slot_index;
 	};
 
 	struct Buffer_Range_Compare {

@@ -26,7 +26,8 @@ namespace Vulkan {
 
 		uint32_t current_frame = 0;
 
-		std::array<Resize_Buffer_Synchronize_Information, Const::MAX_FRAMES_IN_FLIGHT> frame_resize_info{};
+		std::array<Resize_Buffer_Synchronize_Information, Const::MAX_FRAMES_IN_FLIGHT>
+			frame_resize_storage_buffer_info{};
 
 		std::array<Buffer, Const::MAX_FRAMES_IN_FLIGHT> storage_buffers{};
 
@@ -40,9 +41,9 @@ namespace Vulkan {
 
 		std::vector<Transfer_Data_Information> queue_transfer{};
 
-		std::vector<Remove_Buffer_Synchronize_Information> queue_remove_buffer{};
+		std::vector<Remove_Buffer_Synchronize_Information> queue_remove_inner_buffer{};
 
-		Sparse_Set<Resource_Synchronize_Information> queue_remove_range{};
+		Sparse_Set<Resource_Synchronize_Information> queue_remove_range_inner_buffer{};
 
 		std::vector<uint32_t> range_remove_ids{};
 
@@ -77,6 +78,8 @@ namespace Vulkan {
 		void flush_transfer_data();
 
 		void record_flush_transfer_data(VkCommandBuffer command_buffer);
+
+		bool is_storage_buffer_resizing(uint32_t frame_index);
 
 		void destroy();
 	};

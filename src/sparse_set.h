@@ -30,13 +30,13 @@ template <typename T> class Sparse_Set {
 		return id;
 	}
 
-	bool has(uint32_t id) {
+	bool has(uint32_t id) const {
 		if (id >= id_to_index.size())
 			return false;
 		return id_to_index[id] != -1;
 	}
 
-	const T& get(uint32_t id) {
+	const T& get(uint32_t id) const {
 		if (!has(id)) {
 			throw std::runtime_error("Fail to get value with id: " + std::to_string(id) + "!");
 		}

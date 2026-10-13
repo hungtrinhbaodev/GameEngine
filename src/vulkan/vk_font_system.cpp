@@ -33,11 +33,12 @@ namespace Vulkan {
 	}
 
 	void Font_System::init(
-		VkDevice device, std::vector<VkDescriptorPool> descriptor_pools, VkPhysicalDevice physical_device
+		VkDevice device, std::vector<VkDescriptorPool> descriptor_pools,
+		std::array<VkDescriptorPool, Const::MAX_FRAMES_IN_FLIGHT> descriptor_pools_2, VkPhysicalDevice physical_device
 	) {
 		texture_system.init(
 			Const::FONT_TEXTURE_BUCKET_SIZE, Const::NUMBER_LAYER_FONT_TEXTURE_PER_BUCKETS, device, descriptor_pools,
-			physical_device, VK_FORMAT_R8_UNORM
+			descriptor_pools_2, physical_device, VK_FORMAT_R8_UNORM
 		);
 	}
 

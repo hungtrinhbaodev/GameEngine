@@ -78,6 +78,20 @@ namespace Vulkan {
 			return texture_descriptor_sets;
 		}
 
+		std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> make_texture_descriptor_sets_2(
+			const std::array<VkDescriptorPool, Const::MAX_FRAMES_IN_FLIGHT>& descriptor_pools,
+			VkDescriptorSetLayout layout, VkDescriptorImageInfo image_descriptor, VkDevice device
+		) {
+			std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> texture_descriptor_sets =
+				Structs::make_descriptor_sets_2(descriptor_pools, &layout, device);
+			Descriptor_Set_Writer writer{};
+			for (int i = 0; i < texture_descriptor_sets.size(); i++) {
+				writer.add_image_write(0, 1, &image_descriptor, texture_descriptor_sets[i]).write(device);
+				writer.clear();
+			}
+			return texture_descriptor_sets;
+		}
+
 		VkDescriptorSet make_buffer_descriptor_set(
 			VkDescriptorPool descriptor_pool, VkDescriptorSetLayout layout, VkDescriptorBufferInfo buffer_descriptor,
 			VkDevice device
@@ -115,7 +129,9 @@ namespace Vulkan {
 				using_range = optimal_range;
 			} else {
 				uint32_t align = calculate_range_remain_size(current_offset, element_stride);
-				using_range = {current_offset, align, size};
+				available_ranges.push({current_offset, 0, align});
+				current_offset += align;
+				using_range = {current_offset, 0, size};
 				current_offset += using_range.total_size();
 			}
 			return using_range;

@@ -1,5 +1,6 @@
 #pragma once
 #include <files.h>
+#include <vulkan/vk_consts.h>
 #include <vulkan/vulkan.h>
 
 namespace Vulkan {
@@ -101,6 +102,18 @@ namespace Vulkan {
 			std::vector<VkDescriptorPool> descriptor_pools, VkDescriptorSetLayout* set_layout, VkDevice device
 		) {
 			std::vector<VkDescriptorSet> descriptor_sets(descriptor_pools.size());
+			for (int i = 0; i < descriptor_pools.size(); i++) {
+				VkDescriptorSet descriptor_set = make_descriptor_set(descriptor_pools[i], set_layout, device);
+				descriptor_sets[i] = descriptor_set;
+			}
+			return descriptor_sets;
+		}
+
+		inline std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> make_descriptor_sets_2(
+			const std::array<VkDescriptorPool, Const::MAX_FRAMES_IN_FLIGHT>& descriptor_pools,
+			VkDescriptorSetLayout* set_layout, VkDevice device
+		) {
+			std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> descriptor_sets{};
 			for (int i = 0; i < descriptor_pools.size(); i++) {
 				VkDescriptorSet descriptor_set = make_descriptor_set(descriptor_pools[i], set_layout, device);
 				descriptor_sets[i] = descriptor_set;

@@ -51,7 +51,7 @@ namespace Vulkan {
 		uint32_t staging_size_required = staging_using_range.offset + staging_using_range.total_size();
 		if (staging_buffer.size < staging_size_required) {
 			uint32_t new_staging_size = (uint32_t)(staging_size_required * 1.5f);
-			staging_buffer.resize(new_staging_size);
+			auto buffer = staging_buffer.resize(new_staging_size);
 		}
 		staging_buffer.copy_data(size, data, staging_using_range.inner_offset());
 		id_to_staging_ranges.insert(range_id, staging_using_range);
@@ -165,5 +165,8 @@ namespace Vulkan {
 	void Static_Buffer::destroy() {
 		staging_buffer.destroy();
 		inner_buffer.destroy();
+		if (resize_sync_info.is_resizing) {
+			resize_sync_info.old_buffer.destroy();
+		}
 	}
 } // namespace Vulkan

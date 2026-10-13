@@ -14,7 +14,7 @@ namespace Vulkan {
 
 		Draw_Information make_texture_2D(const Texture_2D_Attributes& texture_attributes);
 
-		void update_texture_2D(const Draw_Information draw_info, const Texture_2D_Attributes& texture_attributes);
+		void update_texture_2D(Draw_Information& draw_info, const Texture_2D_Attributes& texture_attributes);
 
 		void draw(
 			VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t number_instance,

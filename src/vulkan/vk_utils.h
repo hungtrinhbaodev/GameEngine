@@ -335,6 +335,11 @@ namespace Vulkan {
 			VkDescriptorImageInfo image_descriptor, VkDevice device
 		);
 
+		std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> make_texture_descriptor_sets_2(
+			const std::array<VkDescriptorPool, Const::MAX_FRAMES_IN_FLIGHT>& descriptor_pools,
+			VkDescriptorSetLayout layout, VkDescriptorImageInfo image_descriptor, VkDevice device
+		);
+
 		VkDescriptorSet make_buffer_descriptor_set(
 			VkDescriptorPool descriptor_pool, VkDescriptorSetLayout layout, VkDescriptorBufferInfo buffer_descriptor,
 			VkDevice device

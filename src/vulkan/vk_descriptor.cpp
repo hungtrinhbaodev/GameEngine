@@ -33,7 +33,8 @@ namespace Vulkan {
 	}
 
 	Descriptor_Set_Writer& Descriptor_Set_Writer::add_buffer_write(
-		uint32_t binding, VkDescriptorBufferInfo* descriptor_buffer_info, VkDescriptorSet dst_set
+		uint32_t binding, VkDescriptorBufferInfo* descriptor_buffer_info, VkDescriptorSet dst_set,
+		VkDescriptorType buffer_descriptor_type
 	) {
 		VkWriteDescriptorSet write{};
 		write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -41,7 +42,7 @@ namespace Vulkan {
 		write.dstBinding = binding;
 		write.dstArrayElement = 0;
 		write.descriptorCount = 1;
-		write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		write.descriptorType = buffer_descriptor_type;
 		write.pBufferInfo = descriptor_buffer_info;
 		writes.push_back(write);
 		return *this;
@@ -73,7 +74,10 @@ namespace Vulkan {
 		writes.clear();
 	}
 
-	void init_descriptor_pools(std::vector<VkDescriptorPool>& descriptor_pools, VkDevice device) {
+	void init_descriptor_pools(
+		std::vector<VkDescriptorPool>& descriptor_pools,
+		std::array<VkDescriptorPool, Const::MAX_FRAMES_IN_FLIGHT>& descriptor_pools_2, VkDevice device
+	) {
 
 		std::vector<VkDescriptorPoolSize> pool_size{};
 		pool_size.push_back({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10000});
@@ -96,6 +100,7 @@ namespace Vulkan {
 				"Vulkan create descriptor pool successfully!", "Vulkan fail to create descriptor pool!"
 			);
 			descriptor_pools.emplace_back(pool);
+			descriptor_pools_2[i] = pool;
 		}
 	}
 

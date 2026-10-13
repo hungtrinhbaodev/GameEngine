@@ -14,14 +14,19 @@ namespace Vulkan {
 	namespace Texture_2D {
 
 		struct Instance_Data {
-			glm::vec2 tex_size{0.f, 0.f};
-			glm::vec2 translation{0.f, 0.f};
-			glm::vec2 scale{1.f, 1.f};
-			glm::vec2 anchor{0.f, 0.f};
-			glm::vec4 rect{0.f, 0.f, 0.f, 0.f};
-			float rotation = 0.f;
-			uint32_t bucket_index = 0;
-			uint32_t slot_index = 0;
+			uint32_t storage_offset = 0;
+		};
+
+		struct Storage_Data {
+			glm::vec2 tex_size{0.f, 0.f};		// 8
+			glm::vec2 translation{0.f, 0.f};	// 8
+			glm::vec2 scale{1.f, 1.f};			// 8
+			glm::vec2 anchor{0.f, 0.f};			// 8
+			glm::vec4 rect{0.f, 0.f, 0.f, 0.f}; // 16
+			float rotation = 0.f;				// 4
+			uint32_t bucket_index = 0;			// 4
+			uint32_t slot_index = 0;			// 4
+			float _pad = 0.f;					// 4
 			void make(Texture_2D_Attributes attributes, Texture_View texture_view) {
 				tex_size = glm::vec2(
 					texture_view.width * attributes.texture_rect.ratio_width,
@@ -34,7 +39,7 @@ namespace Vulkan {
 				bucket_index = texture_view.bucket_index;
 				slot_index = texture_view.slot_index;
 			}
-			friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
+			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& instance) {
 				os << "{Rectangle::Instance_Data: translation: " << instance.translation
 				   << ",  tex_size: " << instance.tex_size << ", anchor: " << instance.anchor
 				   << ", rect: " << instance.rect << ", rotation: " << instance.rotation
@@ -49,9 +54,8 @@ namespace Vulkan {
 			uint32_t vertex_offset = 0;
 		};
 
-		struct Materital_Data {
-			Const::TEXTURE_STORAGE_MODE storage_mode = Const::TEXTURE_STORAGE_MODE::INDIVIDUAL;
-			uint32_t texture_id = 0;
+		struct Draw_Data {
+			uint32_t storage_id = 0;
 		};
 
 		std::vector<Geometry::Vertex_2D> TEXTURE_VERTICES = {{{0.f, 0.f}}, {{0.f, 1.f}}, {{1.f, 1.f}}, {{1.f, 0.f}}};
@@ -68,11 +72,11 @@ namespace Vulkan {
 
 		Id_Generator material_id_generator{};
 
-		std::unordered_map<uint32_t, Materital_Data> material_by_ids;
-
 		std::vector<VkDescriptorSet> texture_bucket_descriptor_sets{};
 
 		std::vector<VkDescriptorSet> default_texture_descriptor_sets{};
+
+		Sparse_Set<Draw_Data> draws{};
 
 		uint32_t vertex_id = 0;
 
@@ -87,25 +91,12 @@ namespace Vulkan {
 			vertex_builder.add_binding_description(0, sizeof(Geometry::Vertex_2D), VK_VERTEX_INPUT_RATE_VERTEX)
 				.add_attribute_description(0, VK_FORMAT_R32G32_SFLOAT, offsetof(Geometry::Vertex_2D, position));
 			vertex_builder.add_binding_description(1, sizeof(Instance_Data), VK_VERTEX_INPUT_RATE_INSTANCE)
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, tex_size))
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, translation))
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, scale))
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, anchor))
-				.add_attribute_description(1, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Instance_Data, rect))
-				.add_attribute_description(1, VK_FORMAT_R32_SFLOAT, offsetof(Instance_Data, rotation))
-				.add_attribute_description(1, VK_FORMAT_R32_SINT, offsetof(Instance_Data, bucket_index))
-				.add_attribute_description(1, VK_FORMAT_R32_SINT, offsetof(Instance_Data, slot_index));
-
-			Descriptor_Set_Layout_Builder layout_builder{};
-			layout_builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
-			layouts.push_back(layout_builder.build(Vulkan::device));
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_offset));
+			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::STORAGE_BUFFER));
+			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::IMAGE_SAMPLER));
 			if (Const::ENABLED_TEXTURE_BUCKETS) {
-				layouts.push_back(Vulkan::texture_system.make_bucket_descriptor_set_layout());
-				texture_bucket_descriptor_sets = Vulkan::texture_system.make_bucket_descriptor_sets(layouts[1]);
-				default_texture_descriptor_sets =
-					Vulkan::texture_system.make_default_texture_descriptor_sets(layouts[0]);
+				layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::BUCKET_IMAGE_SAMPLER));
 			}
-
 			pipeline_config = Vulkan::make_default_pipeline_config();
 			pipeline_config.attribute_descriptions = vertex_builder.build_attribute_descriptions();
 			pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
@@ -132,41 +123,34 @@ namespace Vulkan {
 		}
 
 		Draw_Information make_texture_2D(const Texture_2D_Attributes& texture_attributes) {
-			uint32_t texture_id =
-				Vulkan::texture_system.load_texture(texture_attributes.path, Const::ENABLED_TEXTURE_BUCKETS);
-			Texture_View texture_view = Vulkan::texture_system.view_texture(texture_id);
-			if (texture_descriptor_sets.find(texture_id) == texture_descriptor_sets.end() &&
-				texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::INDIVIDUAL) {
-				texture_descriptor_sets[texture_id] = Utils::make_texture_descriptor_sets(
-					descriptor_pools, layouts[0], texture_view.image.get_descriptor_info(texture_view.slot_index),
-					device
-				);
-			}
-			uint32_t draw_material_id = material_id_generator.gen_id();
+			uint32_t texture_id = load_texture(texture_attributes.path);
+			Texture_View texture_view = view_texture(texture_id);
 			Draw_Information draw_info{Const::DRAW_ID::DRAW_TEXTURE_2D};
-			draw_info.draw_material_id = draw_material_id;
-			material_by_ids[draw_material_id] = {texture_view.storage_mode, texture_id};
-			Instance_Data instance{};
-			instance.make(texture_attributes, texture_view);
+			draw_info.draw_material_id = texture_id;
+
+			Storage_Data storage{};
+			storage.make(texture_attributes, texture_view);
+
 			SSBO_Buffer& ssbo = get_ssbo();
-			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data), sizeof(Instance_Data));
+			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
+			Buffer_Range storage_range = ssbo.view_slot(storage_id);
+			Instance_Data instance{storage_range.offset_as<Storage_Data>()};
+			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data));
+
+			draws.insert(instance_id, {storage_id});
 			draw_info.instance_id = instance_id;
 			return draw_info;
 		}
 
-		void update_texture_2D(const Draw_Information draw_info, const Texture_2D_Attributes& texture_attributes) {
-			if (material_by_ids.find(draw_info.draw_material_id) == material_by_ids.end()) {
-				return;
-			}
-			Materital_Data& material = material_by_ids[draw_info.draw_material_id];
-			uint32_t texture_id = Vulkan::texture_system.load_texture(texture_attributes.path);
-			Texture_View texture_view = Vulkan::texture_system.view_texture(texture_id);
-			material.storage_mode = texture_view.storage_mode;
-			material.texture_id = texture_id;
-			Instance_Data instance{};
-			instance.make(texture_attributes, texture_view);
+		void update_texture_2D(Draw_Information& draw_info, const Texture_2D_Attributes& texture_attributes) {
+			uint32_t texture_id = load_texture(texture_attributes.path);
+			Texture_View texture_view = view_texture(texture_id);
+			draw_info.draw_material_id = texture_id;
+			Storage_Data storage{};
+			storage.make(texture_attributes, texture_view);
 			SSBO_Buffer& ssbo = get_ssbo();
-			ssbo.update_data(draw_info.instance_id, &instance);
+			const Draw_Data& data = draws.get(draw_info.instance_id);
+			ssbo.update_data(data.storage_id, &storage);
 		}
 
 		void draw(
@@ -177,25 +161,20 @@ namespace Vulkan {
 			Buffer_Range indices_range = static_buffer.view_slot_info(indices_id);
 			Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
 			Buffer instance_buffer = get_instance_buffer(frame_index);
-			Materital_Data material = material_by_ids[material_draw_id];
+			uint32_t texture_id = material_draw_id;
 			VkDescriptorSet* descriptor_sets = nullptr;
-			uint32_t number_descriptor_set = 1;
+			uint32_t number_descriptor_set = 0;
+			VkDescriptorSet storage_descriptor_set = get_storage_descriptor_set(frame_index);
+			auto texture_descriptor = get_descriptor_set_texture_sampler(texture_id, frame_index);
 			if (Const::ENABLED_TEXTURE_BUCKETS) {
-				VkDescriptorSet bind_descriptor_sets[2] = {};
-				if (material.storage_mode == Const::TEXTURE_STORAGE_MODE::BUCKET) {
-					bind_descriptor_sets[0] = default_texture_descriptor_sets[frame_index];
-				} else {
-					VkDescriptorSet texture_descriptor_set = texture_descriptor_sets[material.texture_id][frame_index];
-					bind_descriptor_sets[0] = texture_descriptor_set;
-				}
-				bind_descriptor_sets[1] = texture_bucket_descriptor_sets[frame_index];
-				number_descriptor_set = 2;
+				VkDescriptorSet bind_descriptor_sets[3] = {
+					storage_descriptor_set, texture_descriptor[0], texture_descriptor[1]
+				};
+				number_descriptor_set = 3;
 				descriptor_sets = bind_descriptor_sets;
 			} else {
-				VkDescriptorSet bind_descriptor_sets[1] = {};
-				VkDescriptorSet texture_descriptor_set = texture_descriptor_sets[material.texture_id][frame_index];
-				bind_descriptor_sets[0] = texture_descriptor_set;
-				number_descriptor_set = 1;
+				VkDescriptorSet bind_descriptor_sets[2] = {storage_descriptor_set, texture_descriptor[0]};
+				number_descriptor_set = 2;
 				descriptor_sets = bind_descriptor_sets;
 			}
 			VkBuffer binding_buffers[2] = {static_buffer.inner_buffer.buffer, instance_buffer.buffer};
@@ -216,9 +195,6 @@ namespace Vulkan {
 		}
 
 		void destroy() {
-			for (const VkDescriptorSetLayout layout : layouts) {
-				vkDestroyDescriptorSetLayout(Vulkan::device, layout, nullptr);
-			}
 			pipeline.destroy();
 		}
 
