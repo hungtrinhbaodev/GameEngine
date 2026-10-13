@@ -88,6 +88,20 @@ namespace Vulkan {
 			return descriptor_set;
 		}
 
+		uint32_t calculate_mip_level(uint32_t width, uint32_t height) {
+			return (uint32_t)(std::log2(std::max(width, height))) + 1;
+		}
+
+		bool can_gpu_blit_image(VkPhysicalDevice physical_device, VkFormat format, VkFilter filter) {
+			VkFormatProperties props;
+			VkFormatFeatureFlags require = VK_FORMAT_FEATURE_BLIT_SRC_BIT | VK_FORMAT_FEATURE_BLIT_DST_BIT;
+			vkGetPhysicalDeviceFormatProperties(physical_device, format, &props);
+			if (filter == VK_FILTER_LINEAR) {
+				require |= VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
+			}
+			return (props.optimalTilingFeatures & require) == require;
+		}
+
 		Buffer_Range find_suitable_buffer_range(
 			std::priority_queue<Buffer_Range, std::vector<Buffer_Range>, Buffer_Range_Compare>& available_ranges,
 			uint32_t& current_offset, uint32_t size, uint32_t element_stride
@@ -105,6 +119,19 @@ namespace Vulkan {
 				current_offset += using_range.total_size();
 			}
 			return using_range;
+		}
+
+		uint32_t calculate_range_remain_size(uint32_t offset, uint32_t element_stride) {
+			return (element_stride - (offset % element_stride)) % element_stride;
+		}
+
+		void record_buffer_barrier(
+			VkCommandBuffer command_buffer, VkAccessFlags src_access, VkAccessFlags dst_access,
+			VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage, VkBuffer buffer, uint32_t offset,
+			uint32_t size
+		) {
+			VkBufferMemoryBarrier barrier = Structs::make_buffer_barier(src_access, dst_access, buffer, offset, size);
+			vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, 0, nullptr, 1, &barrier, 0, nullptr);
 		}
 	} // namespace Utils
 } // namespace Vulkan

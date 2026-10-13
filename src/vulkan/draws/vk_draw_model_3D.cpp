@@ -13,13 +13,13 @@ namespace Vulkan {
 
 	namespace Model_3D {
 
-		// struct Instance_Data {
-		// 	glm::mat4 transform{1.f};
-		// 	friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
-		// 		os << "{Model_3D::Instance_Data: transform: " << instance.transform << "}";
-		// 		return os;
-		// 	}
-		// };
+		struct Instance_Data {
+			glm::mat4 transform{1.f};
+			friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
+				os << "{Model_3D::Instance_Data: transform: " << instance.transform << "}";
+				return os;
+			}
+		};
 
 		struct Push_Constants {
 			glm::mat4 mesh_transform{1.f};
@@ -172,24 +172,19 @@ namespace Vulkan {
 			Buffer& uniform_buffer = uniform_buffers[frame_index];
 			SSBO_Buffer& ssbo = get_ssbo();
 			Buffer_Range range = ssbo.view_slot(uniform_range_id);
-			VkBufferMemoryBarrier start_transfer_barrier = Structs::make_buffer_barier(
-				VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, uniform_buffer.buffer, 0,
+			Utils::record_buffer_barrier(
+				command_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+				VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, uniform_buffer.buffer, 0,
 				uniform_buffer.size
-			);
-			vkCmdPipelineBarrier(
-				command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1,
-				&start_transfer_barrier, 0, nullptr
 			);
 			{
 				VkBufferCopy copy{(VkDeviceSize)range.inner_offset(), 0, (VkDeviceSize)range.inner_size()};
 				vkCmdCopyBuffer(command_buffer, ssbo.inner_buffer.buffer, uniform_buffer.buffer, 1, &copy);
 			}
-			VkBufferMemoryBarrier finish_transfer_barrier = Structs::make_buffer_barier(
-				VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT, uniform_buffer.buffer, 0, uniform_buffer.size
-			);
-			vkCmdPipelineBarrier(
-				command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, nullptr, 1,
-				&finish_transfer_barrier, 0, nullptr
+			Utils::record_buffer_barrier(
+				command_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT,
+				VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, uniform_buffer.buffer, 0,
+				uniform_buffer.size
 			);
 		}
 

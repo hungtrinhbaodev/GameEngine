@@ -121,7 +121,7 @@ namespace Vulkan {
 			resize_info.old_buffer = storage_buffer.record_resize(command_buffer, inner_buffer.size);
 			resize_info.is_resizing = true;
 		}
-		std::vector<VkBufferCopy> copy_ranges{};
+		copy_ranges.clear();
 		Sparse_Set<bool>& dirty_ids = frame_dirty_ids[current_frame];
 		for (const uint32_t& id : dirty_ids.keys()) {
 			Buffer_Range range = view_slot(id);
@@ -131,25 +131,18 @@ namespace Vulkan {
 		if (copy_ranges.size() <= 0) {
 			return;
 		}
-		VkBufferMemoryBarrier start_transfer_barrier = Structs::make_buffer_barier(
-			VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, storage_buffer.buffer, 0, storage_buffer.size
-		);
-		vkCmdPipelineBarrier(
-			command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1,
-			&start_transfer_barrier, 0, nullptr
+		Utils::record_buffer_barrier(
+			command_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT, storage_buffer.buffer, 0, storage_buffer.size
 		);
 		{
 			vkCmdCopyBuffer(
 				command_buffer, inner_buffer.buffer, storage_buffer.buffer, copy_ranges.size(), copy_ranges.data()
 			);
 		}
-		VkBufferMemoryBarrier finish_transfer_barrier = Structs::make_buffer_barier(
-			VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, storage_buffer.buffer, 0,
-			storage_buffer.size
-		);
-		vkCmdPipelineBarrier(
-			command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, nullptr, 1,
-			&finish_transfer_barrier, 0, nullptr
+		Utils::record_buffer_barrier(
+			command_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, storage_buffer.buffer, 0, storage_buffer.size
 		);
 	}
 

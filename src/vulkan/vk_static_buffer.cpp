@@ -121,12 +121,10 @@ namespace Vulkan {
 			resize_sync_info.is_resizing = true;
 		}
 		if (id_to_staging_ranges.size() > 0) {
-			VkBufferMemoryBarrier start_transfer_barrier = Structs::make_buffer_barier(
-				VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, inner_buffer.buffer, 0, inner_buffer.size
-			);
-			vkCmdPipelineBarrier(
-				command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1,
-				&start_transfer_barrier, 0, nullptr
+			Utils::record_buffer_barrier(
+				command_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+				VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, inner_buffer.buffer, 0,
+				inner_buffer.size
 			);
 			{
 				copied_data.clear();
@@ -144,13 +142,10 @@ namespace Vulkan {
 					command_buffer, staging_buffer.buffer, inner_buffer.buffer, copied_data.size(), copied_data.data()
 				);
 			}
-			VkBufferMemoryBarrier finish_transfer_barrier = Structs::make_buffer_barier(
-				VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT,
-				inner_buffer.buffer, 0, inner_buffer.size
-			);
-			vkCmdPipelineBarrier(
-				command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, nullptr, 1,
-				&finish_transfer_barrier, 0, nullptr
+			Utils::record_buffer_barrier(
+				command_buffer, VK_ACCESS_TRANSFER_WRITE_BIT,
+				VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+				VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, inner_buffer.buffer, 0, inner_buffer.size
 			);
 			copied_sync_info.is_copying = true;
 			copied_sync_info.fence = draw_fences[frame_index];

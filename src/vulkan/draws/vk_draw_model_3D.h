@@ -6,14 +6,6 @@ namespace Vulkan {
 
 	namespace Model_3D {
 
-		struct Instance_Data {
-			glm::mat4 transform{1.f};
-			friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
-				os << "{Model_3D::Instance_Data: transform: " << instance.transform << "}";
-				return os;
-			}
-		};
-
 		bool is_material_equal(uint32_t a, uint32_t b);
 
 		void init();

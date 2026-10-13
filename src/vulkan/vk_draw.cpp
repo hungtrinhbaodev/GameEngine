@@ -205,12 +205,9 @@ namespace Vulkan {
 			);
 			offset += remain_size + range.inner_size();
 		}
-		VkBufferMemoryBarrier start_transfer_barrier = Structs::make_buffer_barier(
-			VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, instance_buffer.buffer, 0, instance_buffer.size
-		);
-		vkCmdPipelineBarrier(
-			command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1,
-			&start_transfer_barrier, 0, nullptr
+		Utils::record_buffer_barrier(
+			command_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT, instance_buffer.buffer, 0, instance_buffer.size
 		);
 		{
 			vkCmdCopyBuffer(
@@ -218,13 +215,10 @@ namespace Vulkan {
 				instances_copy_data.data()
 			);
 		}
-		VkBufferMemoryBarrier finish_transfer_barrier = Structs::make_buffer_barier(
-			VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT,
-			instance_buffer.buffer, 0, instance_buffer.size
-		);
-		vkCmdPipelineBarrier(
-			command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, nullptr, 1,
-			&finish_transfer_barrier, 0, nullptr
+		Utils::record_buffer_barrier(
+			command_buffer, VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, instance_buffer.buffer, 0, instance_buffer.size
 		);
 		Model_3D::record_upload_uniform_buffer(command_buffer, current_frame);
 		Profiler::end_scope(SCOPE_SET_UP_BUFFER);

@@ -52,6 +52,8 @@ namespace Vulkan {
 
 		Sparse_Set<Buffer_Range> ranges_by_id;
 
+		std::vector<VkBufferCopy> copy_ranges{};
+
 		void init(uint32_t initialize_size, VkPhysicalDevice physical_device, VkDevice device);
 
 		void setup_frame(uint32_t current_frame);

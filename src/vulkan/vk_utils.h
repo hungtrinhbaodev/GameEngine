@@ -326,19 +326,9 @@ namespace Vulkan {
 
 		void finish_commands(VkDevice device, VkCommandBuffer command_buffer);
 
-		inline uint32_t calculate_mip_level(uint32_t width, uint32_t height) {
-			return (uint32_t)(std::log2(std::max(width, height))) + 1;
-		}
+		uint32_t calculate_mip_level(uint32_t width, uint32_t height);
 
-		inline bool can_gpu_blit_image(VkPhysicalDevice physical_device, VkFormat format, VkFilter filter) {
-			VkFormatProperties props;
-			VkFormatFeatureFlags require = VK_FORMAT_FEATURE_BLIT_SRC_BIT | VK_FORMAT_FEATURE_BLIT_DST_BIT;
-			vkGetPhysicalDeviceFormatProperties(physical_device, format, &props);
-			if (filter == VK_FILTER_LINEAR) {
-				require |= VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT;
-			}
-			return (props.optimalTilingFeatures & require) == require;
-		}
+		bool can_gpu_blit_image(VkPhysicalDevice physical_device, VkFormat format, VkFilter filter);
 
 		std::vector<VkDescriptorSet> make_texture_descriptor_sets(
 			const std::vector<VkDescriptorPool>& descriptor_pools, VkDescriptorSetLayout layout,
@@ -355,9 +345,13 @@ namespace Vulkan {
 			uint32_t& current_offset, uint32_t size, uint32_t element_stride = 1
 		);
 
-		inline uint32_t calculate_range_remain_size(uint32_t offset, uint32_t element_stride = 1) {
-			return (element_stride - (offset % element_stride)) % element_stride;
-		}
+		uint32_t calculate_range_remain_size(uint32_t offset, uint32_t element_stride = 1);
+
+		void record_buffer_barrier(
+			VkCommandBuffer command_buffer, VkAccessFlags src_access, VkAccessFlags dst_access,
+			VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage, VkBuffer buffer, uint32_t offset,
+			uint32_t size
+		);
 
 	} // namespace Utils
 
