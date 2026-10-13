@@ -6,6 +6,14 @@ namespace Vulkan {
 
 	namespace Model_3D {
 
+		struct Instance_Data {
+			glm::mat4 transform{1.f};
+			friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
+				os << "{Model_3D::Instance_Data: transform: " << instance.transform << "}";
+				return os;
+			}
+		};
+
 		bool is_material_equal(uint32_t a, uint32_t b);
 
 		void init();
@@ -15,6 +23,8 @@ namespace Vulkan {
 		Draw_Information make_model_3D(const Model_3D_Attributes& attributes);
 
 		void setup_draw(uint32_t frame_index);
+
+		void record_upload_uniform_buffer(VkCommandBuffer command_buffer, uint32_t frame_index);
 
 		void draw(
 			VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t number_instance,

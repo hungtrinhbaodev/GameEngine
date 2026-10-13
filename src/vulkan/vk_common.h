@@ -1,8 +1,8 @@
 #pragma once
 #include <array>
 #include <iostream>
+#include <vulkan/vk_buffer.h>
 #include <vulkan/vk_consts.h>
-#include <vulkan/vulkan.h>
 
 namespace Vulkan {
 	struct Resource_Synchronize_Information {
@@ -34,14 +34,27 @@ namespace Vulkan {
 
 		uint32_t inner_offset();
 
+		uint32_t inner_size();
+
 		friend std::ostream& operator<<(std::ostream& os, const Buffer_Range& range) {
-			os << "Static_Buffer_Range: {offset: " << range.offset << " align: " << range.align
-			   << ", size: " << range.size << "}";
+			os << "Buffer_Range: {offset: " << range.offset << " align: " << range.align << ", size: " << range.size
+			   << "}";
 			return os;
 		}
 	};
 
 	struct Buffer_Range_Compare {
 		bool operator()(const Buffer_Range& a, const Buffer_Range& b) const;
+	};
+
+	struct Resize_Buffer_Synchronize_Information {
+		bool is_resizing = false;
+		Buffer old_buffer{};
+		Resource_Synchronize_Information sync_info{};
+	};
+
+	struct Copied_Data_Synchronize_Information {
+		bool is_copying = false;
+		VkFence fence = VK_NULL_HANDLE;
 	};
 } // namespace Vulkan

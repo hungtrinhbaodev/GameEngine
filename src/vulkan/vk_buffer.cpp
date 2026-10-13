@@ -19,6 +19,10 @@ namespace Vulkan {
 		buffer = other.buffer;
 		memory = other.memory;
 		descriptor = other.descriptor;
+		if (other.auto_mapped && other.is_host_visible_buffer()) {
+			this->auto_mapped = other.auto_mapped;
+			vkMapMemory(device, memory, 0, size, 0, &mapped);
+		}
 	};
 
 	Buffer::~Buffer() {}
@@ -97,8 +101,8 @@ namespace Vulkan {
 		return property_flags & (VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 	}
 
-	void Buffer::resize(uint32_t new_size) {
-
+	Buffer Buffer::resize(uint32_t new_size, bool destroy_old_buffer) {
+		Buffer current{*this};
 		Buffer new_buffer{};
 
 		new_buffer.make_buffer(
@@ -107,12 +111,15 @@ namespace Vulkan {
 
 		uint32_t copied_size = std::min(size, new_size);
 		Buffer::copy_buffer(*this, new_buffer, 0, 0, copied_size);
-		destroy();
+		if (destroy_old_buffer) {
+			destroy();
+		}
 
 		size = new_size;
 		buffer = new_buffer.buffer;
 		memory = new_buffer.memory;
 		update_descriptor();
+		return current;
 	}
 
 	Buffer Buffer::record_resize(VkCommandBuffer command_buffer, uint32_t new_size) {

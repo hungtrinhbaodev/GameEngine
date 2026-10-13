@@ -87,5 +87,24 @@ namespace Vulkan {
 			writer.add_buffer_write(0, &buffer_descriptor, descriptor_set).write(device);
 			return descriptor_set;
 		}
+
+		Buffer_Range find_suitable_buffer_range(
+			std::priority_queue<Buffer_Range, std::vector<Buffer_Range>, Buffer_Range_Compare>& available_ranges,
+			uint32_t& current_offset, uint32_t size, uint32_t element_stride
+		) {
+			Buffer_Range using_range{0, 0, 0};
+			if (available_ranges.size() > 0 && available_ranges.top().is_suitable_with(size, element_stride)) {
+				Buffer_Range optimal_range = available_ranges.top();
+				available_ranges.pop();
+				Buffer_Range remain_range = optimal_range.fit_with(size, element_stride);
+				available_ranges.push(remain_range);
+				using_range = optimal_range;
+			} else {
+				uint32_t align = calculate_range_remain_size(current_offset, element_stride);
+				using_range = {current_offset, align, size};
+				current_offset += using_range.total_size();
+			}
+			return using_range;
+		}
 	} // namespace Utils
 } // namespace Vulkan

@@ -13,13 +13,13 @@ namespace Vulkan {
 
 	namespace Model_3D {
 
-		struct Instance_Data {
-			glm::mat4 transform{1.f};
-			friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
-				os << "{Model_3D::Instance_Data: transform: " << instance.transform << "}";
-				return os;
-			}
-		};
+		// struct Instance_Data {
+		// 	glm::mat4 transform{1.f};
+		// 	friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
+		// 		os << "{Model_3D::Instance_Data: transform: " << instance.transform << "}";
+		// 		return os;
+		// 	}
+		// };
 
 		struct Push_Constants {
 			glm::mat4 mesh_transform{1.f};
@@ -146,7 +146,7 @@ namespace Vulkan {
 			SSBO_Buffer& ssbo = get_ssbo();
 			Draw_Information draw_info{Const::DRAW_ID::DRAW_MODEL_3D};
 			draw_info.draw_material_id = model_id;
-			draw_info.instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data));
+			draw_info.instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data), sizeof(Instance_Data));
 			return draw_info;
 		}
 
@@ -165,7 +165,32 @@ namespace Vulkan {
 			uniform.view = view;
 			SSBO_Buffer& ssbo = get_ssbo();
 			ssbo.update_data(uniform_buffer_ids[frame_index], &uniform);
-			ssbo.transfer_data_to(uniform_buffer_ids[frame_index], uniform_buffer.buffer, 0);
+		}
+
+		void record_upload_uniform_buffer(VkCommandBuffer command_buffer, uint32_t frame_index) {
+			uint32_t uniform_range_id = uniform_buffer_ids[frame_index];
+			Buffer& uniform_buffer = uniform_buffers[frame_index];
+			SSBO_Buffer& ssbo = get_ssbo();
+			Buffer_Range range = ssbo.view_slot(uniform_range_id);
+			VkBufferMemoryBarrier start_transfer_barrier = Structs::make_buffer_barier(
+				VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, uniform_buffer.buffer, 0,
+				uniform_buffer.size
+			);
+			vkCmdPipelineBarrier(
+				command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1,
+				&start_transfer_barrier, 0, nullptr
+			);
+			{
+				VkBufferCopy copy{(VkDeviceSize)range.inner_offset(), 0, (VkDeviceSize)range.inner_size()};
+				vkCmdCopyBuffer(command_buffer, ssbo.inner_buffer.buffer, uniform_buffer.buffer, 1, &copy);
+			}
+			VkBufferMemoryBarrier finish_transfer_barrier = Structs::make_buffer_barier(
+				VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT, uniform_buffer.buffer, 0, uniform_buffer.size
+			);
+			vkCmdPipelineBarrier(
+				command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, nullptr, 1,
+				&finish_transfer_barrier, 0, nullptr
+			);
 		}
 
 		void draw(
@@ -173,7 +198,7 @@ namespace Vulkan {
 			uint32_t first_instance_offset, uint32_t frame_index
 		) {
 			Static_Buffer& static_buffer = get_static_buffer();
-			Buffer& instance_buffer = get_instance_buffer();
+			Buffer& instance_buffer = get_instance_buffer(frame_index);
 			const Model_Information& model = model_3D_system.view_model(material_draw_id);
 			uint32_t number_descriptor_set = 3;
 			VkDescriptorSet using_descriptor_sets[3] = {

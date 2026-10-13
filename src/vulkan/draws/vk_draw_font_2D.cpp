@@ -236,7 +236,7 @@ namespace Vulkan {
 			Static_Buffer& static_buffer = get_static_buffer();
 			Buffer_Range indices_range = static_buffer.view_slot_info(indices_id);
 			Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
-			Buffer instance_buffer = get_instance_buffer();
+			Buffer instance_buffer = get_instance_buffer(frame_index);
 			const Font& font = font_system.view_font(material_draw_id);
 			Texture_View texture_view = font_system.texture_system.view_texture(font.texture_id);
 			uint32_t number_descriptor_set = 0;
@@ -288,7 +288,8 @@ namespace Vulkan {
 			Text_Data text{};
 			text.make(font_attributes, font, font_system.texture_system);
 			SSBO_Buffer& ssbo = get_ssbo();
-			draw_info.instance_id = ssbo.upload_data(text.chars.data(), text.chars.size() * sizeof(Instance_Data));
+			draw_info.instance_id =
+				ssbo.upload_data(text.chars.data(), text.chars.size() * sizeof(Instance_Data), sizeof(Instance_Data));
 			draw_info.draw_material_id = font_id;
 			texts.insert(draw_info.instance_id, text);
 			return draw_info;

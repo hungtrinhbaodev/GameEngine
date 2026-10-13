@@ -44,11 +44,17 @@ namespace Vulkan {
 
 	void setup_draw();
 
+	void sort_draws();
+
+	void record_setup_draw_buffers(VkCommandBuffer command_buffer, uint32_t current_frame);
+
+	void batching_draw_groups();
+
 	void draw(VkCommandBuffer command_buffer);
 
 	void destroy_draw();
 
-	Buffer& get_instance_buffer();
+	Buffer& get_instance_buffer(uint32_t frame_index);
 
 	void bind_draw_resource(
 		VkCommandBuffer command_buffer, VkPipeline pipeline, VkPipelineLayout pipline_layout, VkBuffer indices_buffer,

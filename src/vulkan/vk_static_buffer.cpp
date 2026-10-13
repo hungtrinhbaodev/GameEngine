@@ -37,33 +37,17 @@ namespace Vulkan {
 			id_to_staging_ranges.clear();
 			current_staging_offset = 0;
 		}
-	}
-
-	Buffer_Range Static_Buffer::find_suitable_range(
-		std::priority_queue<Buffer_Range, std::vector<Buffer_Range>, Buffer_Range_Compare>& available_ranges,
-		uint32_t& current_offset, uint32_t size, uint32_t element_stride
-	) {
-		Buffer_Range using_range{0, 0, 0};
-		if (available_ranges.size() > 0 && available_ranges.top().is_suitable_with(size, element_stride)) {
-			Buffer_Range optimal_range = available_ranges.top();
-			available_ranges.pop();
-			Buffer_Range remain_range = optimal_range.fit_with(size, element_stride);
-			available_ranges.push(remain_range);
-			using_range = optimal_range;
-		} else {
-			uint32_t align = element_stride - (current_offset % element_stride);
-			using_range = {current_offset, align, size};
-			current_offset += using_range.total_size();
-		}
-		return using_range;
+		this->current_frame = current_frame;
 	}
 
 	uint32_t Static_Buffer::upload_data(void* data, uint32_t size, uint32_t element_stride) {
 		element_stride = std::max((uint32_t)1, element_stride);
 		uint32_t range_id = range_id_generator.gen_id();
-		Buffer_Range using_range = find_suitable_range(available_ranges, current_offset, size, element_stride);
+		Buffer_Range using_range =
+			Utils::find_suitable_buffer_range(available_ranges, current_offset, size, element_stride);
 		size_required += using_range.total_size();
-		Buffer_Range staging_using_range = find_suitable_range(available_staging_ranges, current_staging_offset, size);
+		Buffer_Range staging_using_range =
+			Utils::find_suitable_buffer_range(available_staging_ranges, current_staging_offset, size);
 		uint32_t staging_size_required = staging_using_range.offset + staging_using_range.total_size();
 		if (staging_buffer.size < staging_size_required) {
 			uint32_t new_staging_size = (uint32_t)(staging_size_required * 1.5f);
@@ -99,32 +83,34 @@ namespace Vulkan {
 			range_id_generator.release_id(id);
 			return true;
 		}
-		if (queue_remove.has(id)) {
+		if (queue_remove_range.has(id)) {
 			return false;
 		}
-		queue_remove.insert(id, {});
+		Resource_Synchronize_Information remove{};
+		remove.release_frame(current_frame);
+		queue_remove_range.insert(id, remove);
 		return true;
 	}
 
 	void Static_Buffer::flush_removed_data(uint32_t frame_index) {
 		/**
 		 * @Note: delete and reuse resource check by all frame finish
-		 * it none block because flush_data call when last frame index finish
+		 * it's none block because flush_data call when last frame index finish
 		 */
-		removed_ids.clear();
-		for (const uint32_t& id : queue_remove.keys()) {
-			auto& remove = queue_remove.modify(id);
+		range_removed_ids.clear();
+		for (const uint32_t& id : queue_remove_range.keys()) {
+			auto& remove = queue_remove_range.modify(id);
 			remove.release_frame(frame_index);
 			if (remove.can_remove()) {
 				Buffer_Range range = id_to_ranges.get(id);
 				available_ranges.push(range);
 				id_to_ranges.erase(id);
 				range_id_generator.release_id(id);
-				removed_ids.push_back(id);
+				range_removed_ids.push_back(id);
 			}
 		}
-		for (const uint32_t& id : removed_ids) {
-			queue_remove.erase(id);
+		for (const uint32_t& id : range_removed_ids) {
+			queue_remove_range.erase(id);
 		}
 	}
 
@@ -143,20 +129,20 @@ namespace Vulkan {
 				&start_transfer_barrier, 0, nullptr
 			);
 			{
-				std::map<VkBuffer, std::vector<VkBufferCopy>> copied_data{};
-				copied_data[inner_buffer.buffer] = {};
+				copied_data.clear();
 				for (const uint32_t id : id_to_staging_ranges.keys()) {
 					Buffer_Range staging_range = id_to_staging_ranges.get(id);
 					if (!id_to_ranges.has(id))
 						continue;
 					Buffer_Range static_range = id_to_ranges.get(id);
-					VkBufferCopy region{
-						(VkDeviceSize)staging_range.inner_offset(), (VkDeviceSize)static_range.inner_offset(),
-						(VkDeviceSize)staging_range.total_size()
-					};
-					copied_data[inner_buffer.buffer].push_back(region);
+					copied_data.push_back(
+						{(VkDeviceSize)staging_range.inner_offset(), (VkDeviceSize)static_range.inner_offset(),
+						 (VkDeviceSize)staging_range.total_size()}
+					);
 				}
-				Utils::record_copy_data_to_multi_buffer(command_buffer, staging_buffer.buffer, copied_data);
+				vkCmdCopyBuffer(
+					command_buffer, staging_buffer.buffer, inner_buffer.buffer, copied_data.size(), copied_data.data()
+				);
 			}
 			VkBufferMemoryBarrier finish_transfer_barrier = Structs::make_buffer_barier(
 				VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT,

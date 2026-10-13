@@ -11,6 +11,8 @@
 
 #include <GLFW/glfw3.h>
 #include <algorithm>
+#include <queue>
+#include <vulkan/vk_common.h>
 #include <vulkan/vk_structs.h>
 #include <vulkan/vulkan.h>
 
@@ -347,6 +349,15 @@ namespace Vulkan {
 			VkDescriptorPool descriptor_pool, VkDescriptorSetLayout layout, VkDescriptorBufferInfo buffer_descriptor,
 			VkDevice device
 		);
+
+		Buffer_Range find_suitable_buffer_range(
+			std::priority_queue<Buffer_Range, std::vector<Buffer_Range>, Buffer_Range_Compare>& available_ranges,
+			uint32_t& current_offset, uint32_t size, uint32_t element_stride = 1
+		);
+
+		inline uint32_t calculate_range_remain_size(uint32_t offset, uint32_t element_stride = 1) {
+			return (element_stride - (offset % element_stride)) % element_stride;
+		}
 
 	} // namespace Utils
 

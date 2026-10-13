@@ -149,7 +149,7 @@ namespace Vulkan {
 			Instance_Data instance{};
 			instance.make(texture_attributes, texture_view);
 			SSBO_Buffer& ssbo = get_ssbo();
-			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data));
+			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data), sizeof(Instance_Data));
 			draw_info.instance_id = instance_id;
 			return draw_info;
 		}
@@ -176,7 +176,7 @@ namespace Vulkan {
 			Static_Buffer& static_buffer = get_static_buffer();
 			Buffer_Range indices_range = static_buffer.view_slot_info(indices_id);
 			Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
-			Buffer instance_buffer = get_instance_buffer();
+			Buffer instance_buffer = get_instance_buffer(frame_index);
 			Materital_Data material = material_by_ids[material_draw_id];
 			VkDescriptorSet* descriptor_sets = nullptr;
 			uint32_t number_descriptor_set = 1;

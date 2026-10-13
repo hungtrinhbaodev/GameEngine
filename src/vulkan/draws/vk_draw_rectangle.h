@@ -19,7 +19,7 @@ namespace Vulkan {
 
 		void draw(
 			VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t number_instance,
-			uint32_t first_instance_offset
+			uint32_t first_instance_offset, uint32_t frame_index
 		);
 
 		void destroy();

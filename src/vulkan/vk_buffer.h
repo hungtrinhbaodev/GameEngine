@@ -43,7 +43,7 @@ namespace Vulkan {
 
 		void copy_data(uint32_t size, void* data, uint32_t offset = 0) const;
 
-		void resize(uint32_t new_size);
+		Buffer resize(uint32_t new_size, bool destroy_old_buffer = true);
 
 		Buffer record_resize(VkCommandBuffer command_buffer, uint32_t new_size);
 

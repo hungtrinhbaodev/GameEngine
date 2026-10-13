@@ -13,6 +13,11 @@ template <typename T> class Sparse_Set {
 
   public:
 	uint32_t insert(uint32_t id, const T& data) {
+		if (has(id)) {
+			uint32_t index = id_to_index[id];
+			dense[index] = data;
+			return id;
+		}
 		if (id_to_index.size() <= id + 1) {
 			uint32_t new_size = (uint32_t)((id + 1) * size_factor);
 			id_to_index.resize(new_size, -1);

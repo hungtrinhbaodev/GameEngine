@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <id_generator.h>
 #include <map>
 #include <profiler.h>
@@ -10,8 +11,10 @@
 #include <vulkan/draws/vk_draw_texture_2D.h>
 #include <vulkan/draws/vk_draw_triangle.h>
 #include <vulkan/vk_buffer.h>
+#include <vulkan/vk_common.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_draw.h>
+#include <vulkan/vk_utils.h>
 
 namespace Vulkan {
 
@@ -30,9 +33,16 @@ namespace Vulkan {
 		uint32_t material_draw_id = 0;
 		uint32_t instance_offset = 0;
 		uint32_t number_instance = 0;
+		uint32_t instance_size = 0;
 	};
 
-	struct Binding_Draw_Info {
+	struct Draw_Sort_Information {
+		uint32_t draw_id = 0;
+		uint32_t draw_index = 0;
+		uint32_t create_index = 0;
+	};
+
+	struct Binding_Draw_Information {
 		VkPipeline pipeline = VK_NULL_HANDLE;
 		VkBuffer vertex_buffer = VK_NULL_HANDLE;
 		VkBuffer indices_buffer = VK_NULL_HANDLE;
@@ -70,19 +80,23 @@ namespace Vulkan {
 
 	Sparse_Set<Draw_Information> draws{};
 
-	std::vector<uint32_t> sorted_draws{};
+	std::vector<Draw_Sort_Information> sorted_draws{};
 
 	std::vector<Group_Draw_Batching> draw_groups{};
 
-	Buffer instance_buffer{};
-
 	uint32_t current_create_index = 0;
 
-	Binding_Draw_Info current_binding_draw_info{};
+	Binding_Draw_Information current_binding_draw_info{};
 
 	VkDescriptorSetLayout texture_layout{};
 
 	VkDescriptorSetLayout texture_bucket_layout{};
+
+	std::array<Buffer, Const::MAX_FRAMES_IN_FLIGHT> instance_buffers{};
+
+	std::vector<VkBufferCopy> instances_copy_data{};
+
+	std::array<Resize_Buffer_Synchronize_Information, Const::MAX_FRAMES_IN_FLIGHT> frame_resize_instance_buffer{};
 
 	bool is_same_draw(const Draw_Information& a, const Draw_Information& b) {
 		if (a.draw_type != b.draw_type)
@@ -116,17 +130,18 @@ namespace Vulkan {
 		for (auto draw_id : draw_ids) {
 			const auto& draw_info = draws.get(draw_id);
 			if (draw_info.visible) {
-				sorted_draws.push_back(draw_id);
+				sorted_draws.push_back({draw_id, draw_info.draw_index, draw_info.create_index});
 			}
 		}
-		std::sort(sorted_draws.begin(), sorted_draws.end(), [](uint32_t a, uint32_t b) {
-			const Draw_Information& draw_a = draws.get(a);
-			const Draw_Information& draw_b = draws.get(b);
-			if (draw_a.draw_index == draw_b.draw_index) {
-				return draw_a.create_index < draw_b.create_index;
+		std::sort(
+			sorted_draws.begin(), sorted_draws.end(),
+			[](const Draw_Sort_Information& a, const Draw_Sort_Information& b) {
+				if (a.draw_index == b.draw_index) {
+					return a.create_index < b.create_index;
+				}
+				return a.draw_index < b.draw_index;
 			}
-			return draw_a.draw_index < draw_b.draw_index;
-		});
+		);
 		Profiler::end_scope(SCOPE_SORT_DRAW);
 	}
 
@@ -153,42 +168,65 @@ namespace Vulkan {
 		}
 	}
 
-	void setup_instance_buffer() {
+	void record_setup_draw_buffers(VkCommandBuffer command_buffer, uint32_t current_frame) {
 		Profiler::start_scope(SCOPE_SET_UP_BUFFER);
+		Resize_Buffer_Synchronize_Information resize_info = frame_resize_instance_buffer[current_frame];
+		if (resize_info.is_resizing) {
+			resize_info.old_buffer.destroy();
+			resize_info.is_resizing = false;
+		}
 		size_t size_reqiure = 0;
 		SSBO_Buffer& ssbo = get_ssbo();
+		Buffer& instance_buffer = get_instance_buffer(current_frame);
 		for (int i = 0; i < sorted_draws.size(); i++) {
-			uint32_t draw_id = sorted_draws[i];
+			uint32_t draw_id = sorted_draws[i].draw_id;
 			const Draw_Information& draw_info = draws.get(draw_id);
 			Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
 			size_t instance_size = get_instance_size(draw_info.draw_type);
-			if (size_reqiure % instance_size == 0) {
-				size_reqiure += range.size;
-			} else {
-				size_t remain_size = instance_size - (size_reqiure % instance_size);
-				size_reqiure += instance_size - remain_size + range.size;
-			}
+			size_t remain_size = Utils::calculate_range_remain_size(size_reqiure, instance_size);
+			size_reqiure += remain_size + range.inner_size();
 		}
 		if (instance_buffer.size < size_reqiure) {
 			uint32_t size = (uint32_t)(size_reqiure * 1.5f);
-			instance_buffer.resize(size);
+			resize_info.is_resizing = true;
+			resize_info.old_buffer = instance_buffer.record_resize(command_buffer, size);
 		}
 		size_t offset = 0;
+		instances_copy_data.clear();
 		for (int i = 0; i < sorted_draws.size(); i++) {
-			uint32_t draw_id = sorted_draws[i];
+			uint32_t draw_id = sorted_draws[i].draw_id;
 			const Draw_Information& draw_info = draws.get(draw_id);
 			Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
 			size_t instance_size = get_instance_size(draw_info.draw_type);
-			if (offset % instance_size == 0) {
-				ssbo.transfer_data_to(draw_info.instance_id, instance_buffer.buffer, (uint32_t)offset);
-				offset += range.size;
-			} else {
-				size_t remain_size = instance_size - (offset % instance_size);
-				ssbo.transfer_data_to(draw_info.instance_id, instance_buffer.buffer, (uint32_t)(offset + remain_size));
-				offset += remain_size + range.size;
-			}
+			Buffer_Range ssbo_range = ssbo.view_slot(draw_info.instance_id);
+			size_t remain_size = Utils::calculate_range_remain_size(offset, instance_size);
+			instances_copy_data.push_back(
+				{(VkDeviceSize)ssbo_range.inner_offset(), offset + remain_size, (VkDeviceSize)ssbo_range.inner_size()}
+			);
+			offset += remain_size + range.inner_size();
 		}
-		ssbo.flush_transfer_data();
+		VkBufferMemoryBarrier start_transfer_barrier = Structs::make_buffer_barier(
+			VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, instance_buffer.buffer, 0, instance_buffer.size
+		);
+		vkCmdPipelineBarrier(
+			command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 1,
+			&start_transfer_barrier, 0, nullptr
+		);
+		{
+			vkCmdCopyBuffer(
+				command_buffer, ssbo.inner_buffer.buffer, instance_buffer.buffer, instances_copy_data.size(),
+				instances_copy_data.data()
+			);
+		}
+		VkBufferMemoryBarrier finish_transfer_barrier = Structs::make_buffer_barier(
+			VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT,
+			instance_buffer.buffer, 0, instance_buffer.size
+		);
+		vkCmdPipelineBarrier(
+			command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, nullptr, 1,
+			&finish_transfer_barrier, 0, nullptr
+		);
+		Model_3D::record_upload_uniform_buffer(command_buffer, current_frame);
 		Profiler::end_scope(SCOPE_SET_UP_BUFFER);
 	}
 
@@ -198,44 +236,42 @@ namespace Vulkan {
 		if (sorted_draws.size() <= 0) {
 			return;
 		}
-		uint32_t first_id = sorted_draws[0];
+		uint32_t first_id = sorted_draws[0].draw_id;
 		Draw_Information last_draw_info = draws.get(first_id);
 		size_t instance_size = get_instance_size(last_draw_info.draw_type);
-		Buffer_Range first_range = get_ssbo().view_slot(last_draw_info.instance_id);
+		SSBO_Buffer& ssbo = get_ssbo();
+		Buffer_Range first_range = ssbo.view_slot(last_draw_info.instance_id);
 		Group_Draw_Batching group{
-			last_draw_info.draw_type, last_draw_info.draw_material_id, 0, (uint32_t)(first_range.size / instance_size)
+			last_draw_info.draw_type, last_draw_info.draw_material_id, 0,
+			(uint32_t)(first_range.inner_size() / instance_size), (uint32_t)instance_size
 		};
 		draw_groups.push_back(group);
 		int current_group = 0;
-		uint32_t current_instance_offset = first_range.size;
-		SSBO_Buffer& ssbo = get_ssbo();
+		uint32_t current_instance_offset = first_range.inner_size();
 		for (int i = 1; i < sorted_draws.size(); i++) {
-			uint32_t draw_id = sorted_draws[i];
+			uint32_t draw_id = sorted_draws[i].draw_id;
 			const Draw_Information& draw_info = draws.get(draw_id);
 			size_t instance_size = get_instance_size(draw_info.draw_type);
-			size_t remain = 0;
 			Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
+			uint32_t remain = Utils::calculate_range_remain_size(current_instance_offset, instance_size);
 			if (is_same_draw(last_draw_info, draw_info)) {
-				draw_groups[current_group].number_instance += (uint32_t)(range.size / instance_size);
+				draw_groups[current_group].number_instance += (uint32_t)(range.inner_size() / instance_size);
 			} else {
-				if (current_instance_offset % instance_size != 0) {
-					remain = instance_size - (current_instance_offset % instance_size);
-				}
 				Group_Draw_Batching group{
-					draw_info.draw_type, draw_info.draw_material_id, current_instance_offset + (uint32_t)remain,
-					(uint32_t)(range.size / instance_size)
+					draw_info.draw_type, draw_info.draw_material_id, current_instance_offset + remain,
+					(uint32_t)(range.inner_size() / instance_size), (uint32_t)instance_size
 				};
 				last_draw_info = draw_info;
 				draw_groups.push_back(group);
 				current_group++;
 			}
-			current_instance_offset += (uint32_t)remain + range.size;
+			current_instance_offset += remain + range.inner_size();
 		}
 		Profiler::end_scope(SCOPE_BATCHING_GROUP);
 	}
 
-	Buffer& get_instance_buffer() {
-		return instance_buffer;
+	Buffer& get_instance_buffer(uint32_t frame_index) {
+		return instance_buffers[frame_index];
 	}
 
 	void bind_draw_resource(
@@ -286,10 +322,13 @@ namespace Vulkan {
 
 	void init_draw() {
 		{
-			instance_buffer.make_buffer(
-				Const::INITIALIZE_SIZE_INSTANCING_BUFFER, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, Vulkan::physical_device, Vulkan::device
-			);
+			for (int i = 0; i < instance_buffers.size(); i++) {
+				Buffer& instance = instance_buffers[i];
+				instance.make_buffer(
+					Const::INITIALIZE_SIZE_INSTANCING_BUFFER, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, Vulkan::physical_device, Vulkan::device
+				);
+			}
 		}
 		{
 			/**
@@ -308,8 +347,6 @@ namespace Vulkan {
 	}
 
 	void draw(VkCommandBuffer command_buffer) {
-		sort_draws();
-		setup_instance_buffer();
 		batching_draw_groups();
 		Profiler::start_scope(SCOPE_DRAW);
 		current_binding_draw_info.clean();
@@ -318,7 +355,8 @@ namespace Vulkan {
 			switch (group.draw_type) {
 				case Const::DRAW_ID::DRAW_RECTANGLE_2D: {
 					Rectangle::draw(
-						command_buffer, group.material_draw_id, group.number_instance, group.instance_offset
+						command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
+						Vulkan::current_frame
 					);
 					break;
 				}
@@ -331,7 +369,8 @@ namespace Vulkan {
 				}
 				case Const::DRAW_ID::DRAW_TRIANGLE_2D: {
 					Triangle::draw(
-						command_buffer, group.material_draw_id, group.number_instance, group.instance_offset
+						command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
+						Vulkan::current_frame
 					);
 					break;
 				}
@@ -370,7 +409,9 @@ namespace Vulkan {
 		Triangle::destroy();
 		Texture_2D::destroy();
 		Rectangle::destroy();
-		instance_buffer.destroy();
+		for (const Buffer& buffer : instance_buffers) {
+			buffer.destroy();
+		}
 	}
 
 	void update_draw(uint32_t id, Draw_Attribute draw_attributes) {

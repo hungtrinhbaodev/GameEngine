@@ -99,7 +99,7 @@ namespace Vulkan {
 			SSBO_Buffer& ssbo = get_ssbo();
 			Instance_Data instance_data{};
 			instance_data.make(rectangle_attributes);
-			draw_info.instance_id = ssbo.upload_data(&instance_data, sizeof(Instance_Data));
+			draw_info.instance_id = ssbo.upload_data(&instance_data, sizeof(Instance_Data), sizeof(Instance_Data));
 			return draw_info;
 		}
 
@@ -112,12 +112,12 @@ namespace Vulkan {
 
 		void draw(
 			VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t number_instance,
-			uint32_t first_instance_offset
+			uint32_t first_instance_offset, uint32_t frame_index
 		) {
 			Static_Buffer& static_buffer = get_static_buffer();
 			Buffer_Range indices_range = static_buffer.view_slot_info(indices_id);
 			Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
-			Buffer instance_buffer = get_instance_buffer();
+			Buffer instance_buffer = get_instance_buffer(frame_index);
 			glm::vec2 screen_size = Utils::get_window_size(device);
 			vkCmdPushConstants(
 				command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,

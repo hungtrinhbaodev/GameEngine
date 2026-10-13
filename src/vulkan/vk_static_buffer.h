@@ -15,19 +15,11 @@
 
 namespace Vulkan {
 
-	struct Resize_Buffer_Synchronize_Information {
-		bool is_resizing = false;
-		Buffer old_buffer{};
-	};
-
-	struct Copied_Data_Synchronize_Information {
-		bool is_copying = false;
-		VkFence fence = VK_NULL_HANDLE;
-	};
-
 	struct Static_Buffer {
 
 		VkDevice device = VK_NULL_HANDLE;
+
+		uint32_t current_frame = 0;
 
 		Buffer inner_buffer{};
 
@@ -49,15 +41,17 @@ namespace Vulkan {
 
 		Copied_Data_Synchronize_Information copied_sync_info{};
 
-		std::vector<uint32_t> removed_ids{};
+		std::vector<uint32_t> range_removed_ids{};
 
-		Sparse_Set<Resource_Synchronize_Information> queue_remove{};
+		Sparse_Set<Resource_Synchronize_Information> queue_remove_range{};
 
 		uint32_t current_staging_offset = 0;
 
 		Sparse_Set<Buffer_Range> id_to_staging_ranges{};
 
 		std::priority_queue<Buffer_Range, std::vector<Buffer_Range>, Buffer_Range_Compare> available_staging_ranges{};
+
+		std::vector<VkBufferCopy> copied_data{};
 
 		void init(
 			uint32_t initialize_size, uint32_t initialize_staging_size, VkBufferUsageFlags usage_flags,
@@ -74,11 +68,6 @@ namespace Vulkan {
 		uint32_t upload_data(void* data, uint32_t size, uint32_t element_stride = 1);
 
 		const Buffer_Range& view_slot_info(uint32_t id);
-
-		Buffer_Range find_suitable_range(
-			std::priority_queue<Buffer_Range, std::vector<Buffer_Range>, Buffer_Range_Compare>& available_ranges,
-			uint32_t& current_offset, uint32_t size, uint32_t element_stride = 1
-		);
 
 		bool remove_data(uint32_t id);
 

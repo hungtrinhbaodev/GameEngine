@@ -214,6 +214,7 @@ namespace Vulkan {
 		 * that all synchronization finish!
 		 */
 		static_buffer.wait_synchronize_finish(current_frame);
+		ssbo_buffer.setup_frame(current_frame);
 		setup_draw();
 	}
 
@@ -246,6 +247,11 @@ namespace Vulkan {
 			static_buffer.flush_removed_data(current_frame);
 			static_buffer.flush_data(command_buffer, current_frame);
 			/**
+			 * Set up ssbo local device to use as big storage
+			 */
+			ssbo_buffer.flush_removed_data(current_frame);
+			ssbo_buffer.flush_data_to_storage_buffer(command_buffer, current_frame);
+			/**
 			 * Clear color to background and depth image before draw.
 			 */
 			std::vector<VkClearValue> clear_colors(2);
@@ -262,7 +268,12 @@ namespace Vulkan {
 			VkRect2D scissor = Structs::make_scissor(swapchain_extent);
 			vkCmdSetViewport(command_buffer, 0, 1, &viewport);
 			vkCmdSetScissor(command_buffer, 0, 1, &scissor);
-
+			/**
+			 * @Note: because instance buffer need to set up first
+			 * before being in render so we sort draw and record first.
+			 */
+			sort_draws();
+			record_setup_draw_buffers(command_buffer, current_frame);
 			vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 			{
 				draw(command_buffer);
