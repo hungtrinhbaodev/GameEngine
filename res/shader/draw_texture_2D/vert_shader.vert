@@ -14,7 +14,7 @@ struct Instance_Data{
     int   slot_index;
 };
 
-layout(std430, set = 0, binding = 1) readonly buffer Instance_Buffer {
+layout(std430, set = 0, binding = 0) readonly buffer Instance_Buffer {
     Instance_Data data[];
 } instance_buffer;
 

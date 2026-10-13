@@ -68,14 +68,6 @@ namespace Vulkan {
 
 		std::vector<VkDescriptorSetLayout> layouts{};
 
-		std::unordered_map<uint32_t, std::vector<VkDescriptorSet>> texture_descriptor_sets{};
-
-		Id_Generator material_id_generator{};
-
-		std::vector<VkDescriptorSet> texture_bucket_descriptor_sets{};
-
-		std::vector<VkDescriptorSet> default_texture_descriptor_sets{};
-
 		Sparse_Set<Draw_Data> draws{};
 
 		uint32_t vertex_id = 0;
@@ -92,6 +84,7 @@ namespace Vulkan {
 				.add_attribute_description(0, VK_FORMAT_R32G32_SFLOAT, offsetof(Geometry::Vertex_2D, position));
 			vertex_builder.add_binding_description(1, sizeof(Instance_Data), VK_VERTEX_INPUT_RATE_INSTANCE)
 				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_offset));
+
 			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::STORAGE_BUFFER));
 			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::IMAGE_SAMPLER));
 			if (Const::ENABLED_TEXTURE_BUCKETS) {
@@ -127,16 +120,13 @@ namespace Vulkan {
 			Texture_View texture_view = view_texture(texture_id);
 			Draw_Information draw_info{Const::DRAW_ID::DRAW_TEXTURE_2D};
 			draw_info.draw_material_id = texture_id;
-
 			Storage_Data storage{};
 			storage.make(texture_attributes, texture_view);
-
 			SSBO_Buffer& ssbo = get_ssbo();
 			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
 			Buffer_Range storage_range = ssbo.view_slot(storage_id);
 			Instance_Data instance{storage_range.offset_as<Storage_Data>()};
 			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data));
-
 			draws.insert(instance_id, {storage_id});
 			draw_info.instance_id = instance_id;
 			return draw_info;

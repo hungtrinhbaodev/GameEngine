@@ -12,11 +12,16 @@ namespace Vulkan {
 	namespace Rectangle {
 
 		struct Instance_Data {
-			glm::vec2 translation{0.f, 0.f};
-			glm::vec2 size{0.f, 0.f};
-			glm::vec2 anchor{0.f, 0.f};
-			glm::vec3 color{1.f, 1.f, 1.f};
-			float rotation = 0.f;
+			uint32_t storage_offset = 0;
+		};
+
+		struct Storage_Data {
+			glm::vec2 translation{0.f, 0.f}; // 8
+			glm::vec2 size{0.f, 0.f};		 // 8
+			glm::vec3 color{1.f, 1.f, 1.f};	 // 12
+			float rotation = 0.f;			 // 4
+			glm::vec2 anchor{0.f, 0.f};		 // 8
+			float _pad[2];					 // 8
 			void make(const Rectangle_Attributes& attributes) {
 				translation = attributes.position;
 				size = glm::vec2(attributes.width, attributes.height);
@@ -24,7 +29,7 @@ namespace Vulkan {
 				color = attributes.color;
 				rotation = attributes.rotation;
 			}
-			friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
+			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& instance) {
 				os << "{Rectangle::Instance_Data: translation: " << instance.translation
 				   << ",  scale: " << instance.size << ", anchor: " << instance.anchor << ", color: " << instance.color
 				   << ", rotation: " << instance.rotation << "}";
@@ -35,6 +40,10 @@ namespace Vulkan {
 		struct Push_Constants {
 			glm::vec2 screen_size{0.f, 0.f};
 			uint32_t vertex_offset = 0;
+		};
+
+		struct Draw_Data {
+			uint32_t storage_id = 0;
 		};
 
 		std::vector<Geometry::Vertex_2D> RECTANGLE_VERTICES = {{{0.f, 0.f}}, {{0.f, 1.f}}, {{1.f, 1.f}}, {{1.f, 0.f}}};
@@ -51,6 +60,8 @@ namespace Vulkan {
 
 		std::vector<VkDescriptorSetLayout> layouts{};
 
+		Sparse_Set<Draw_Data> draws{};
+
 		bool is_material_equal(uint32_t a, uint32_t b) {
 			return true;
 		}
@@ -60,14 +71,9 @@ namespace Vulkan {
 			vertex_builder.add_binding_description(0, sizeof(Geometry::Vertex_2D), VK_VERTEX_INPUT_RATE_VERTEX)
 				.add_attribute_description(0, VK_FORMAT_R32G32_SFLOAT, offsetof(Geometry::Vertex_2D, position));
 			vertex_builder.add_binding_description(1, sizeof(Instance_Data), VK_VERTEX_INPUT_RATE_INSTANCE)
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, translation))
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, size))
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, anchor))
-				.add_attribute_description(1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Instance_Data, color))
-				.add_attribute_description(1, VK_FORMAT_R32_SFLOAT, offsetof(Instance_Data, rotation));
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_offset));
 
-			Descriptor_Set_Layout_Builder layout_builder{};
-			layouts.push_back(layout_builder.build(Vulkan::device));
+			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::STORAGE_BUFFER));
 
 			pipeline_config = make_default_pipeline_config();
 			pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
@@ -97,17 +103,23 @@ namespace Vulkan {
 			Draw_Information draw_info{Const::DRAW_RECTANGLE_2D};
 			draw_info.draw_material_id = 0;
 			SSBO_Buffer& ssbo = get_ssbo();
-			Instance_Data instance_data{};
-			instance_data.make(rectangle_attributes);
-			draw_info.instance_id = ssbo.upload_data(&instance_data, sizeof(Instance_Data), sizeof(Instance_Data));
+			Storage_Data storage{};
+			storage.make(rectangle_attributes);
+			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
+			Buffer_Range storage_range = ssbo.view_slot(storage_id);
+			Instance_Data instance_data{storage_range.offset_as<Storage_Data>()};
+			uint32_t instance_id = ssbo.upload_data(&instance_data, sizeof(Instance_Data), 1);
+			draws.insert(instance_id, {storage_id});
+			draw_info.instance_id = instance_id;
 			return draw_info;
 		}
 
 		void update_draw(uint32_t instance_id, const Rectangle_Attributes& rectangle_attributes) {
 			SSBO_Buffer& ssbo = get_ssbo();
-			Instance_Data instance_data{};
-			instance_data.make(rectangle_attributes);
-			ssbo.update_data(instance_id, &instance_data);
+			Storage_Data storage{};
+			storage.make(rectangle_attributes);
+			const Draw_Data& draw = draws.get(instance_id);
+			ssbo.update_data(draw.storage_id, &storage);
 		}
 
 		void draw(
@@ -125,9 +137,10 @@ namespace Vulkan {
 			);
 			VkBuffer binding_buffers[2] = {static_buffer.inner_buffer.buffer, instance_buffer.buffer};
 			VkDeviceSize buffer_offsets[2] = {0, 0};
+			VkDescriptorSet storage_descriptor_set = get_storage_descriptor_set(frame_index);
 			bind_draw_resource(
 				command_buffer, pipeline.pipeline, pipeline.layout, static_buffer.inner_buffer.buffer, 0,
-				VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, 0, nullptr
+				VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, 1, &storage_descriptor_set
 			);
 			vkCmdDrawIndexed(
 				command_buffer, indices_range.size_as<uint16_t>(), number_instance, indices_range.offset_as<uint16_t>(),
@@ -136,9 +149,6 @@ namespace Vulkan {
 		}
 
 		void destroy() {
-			for (VkDescriptorSetLayout layout : layouts) {
-				vkDestroyDescriptorSetLayout(Vulkan::device, layout, nullptr);
-			}
 			pipeline.destroy();
 		}
 

@@ -43,11 +43,11 @@ namespace Vulkan {
 		return {remain_offset, 0, remain_size};
 	}
 
-	uint32_t Buffer_Range::inner_offset() {
+	uint32_t Buffer_Range::inner_offset() const {
 		return offset + align;
 	}
 
-	uint32_t Buffer_Range::inner_size() {
+	uint32_t Buffer_Range::inner_size() const {
 		return size;
 	}
 

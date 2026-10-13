@@ -1,12 +1,19 @@
 #version 450
 
 layout (location = 0) in vec2 in_position;
+layout (location = 1) in uint in_storage_index;
 
-layout (location = 1) in vec2 in_translation;
-layout (location = 2) in vec2 in_size;
-layout (location = 3) in vec2 in_anchor_point;
-layout (location = 4) in vec3 in_instance_color;
-layout (location = 5) in float in_rotation;
+struct Instance_Data{
+    vec2  translation;
+    vec2  size;
+    vec3  instance_color;
+    float rotation;
+    vec2  anchor;
+};
+
+layout(std430, set = 0, binding = 0) readonly buffer Instance_Buffer {
+    Instance_Data data[];
+} instance_buffer;
 
 layout (location = 0) out vec3 frag_color;
 
@@ -29,8 +36,9 @@ vec2 flipped_position(vec2 norm_position) {
 }
 
 void main() {
-    vec2 translate_anchor = (in_position - in_anchor_point) * in_size;
-    vec2 rectangle_position = in_translation + rotate(in_rotation, translate_anchor);
+    Instance_Data data = instance_buffer.data[in_storage_index];
+    vec2 translate_anchor = (in_position - data.anchor) * data.size;
+    vec2 rectangle_position = data.translation + rotate(data.rotation, translate_anchor);
     gl_Position = vec4(flipped_position(norm_position(rectangle_position)), 0.f, 1.f);
-    frag_color = in_instance_color;
+    frag_color = data.instance_color;
 }

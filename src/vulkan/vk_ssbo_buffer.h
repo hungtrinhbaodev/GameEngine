@@ -65,7 +65,7 @@ namespace Vulkan {
 
 		void remove_data(uint32_t id);
 
-		Buffer_Range view_slot(uint32_t id);
+		const Buffer_Range& view_slot(uint32_t id);
 
 		void transfer_data_to(uint32_t id, VkBuffer dst_buffer, uint32_t dst_offset);
 

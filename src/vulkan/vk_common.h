@@ -33,9 +33,9 @@ namespace Vulkan {
 
 		Buffer_Range fit_with(uint32_t size, uint32_t element_stride = 1);
 
-		uint32_t inner_offset();
+		uint32_t inner_offset() const;
 
-		uint32_t inner_size();
+		uint32_t inner_size() const;
 
 		friend std::ostream& operator<<(std::ostream& os, const Buffer_Range& range) {
 			os << "Buffer_Range: {offset: " << range.offset << " align: " << range.align << ", size: " << range.size

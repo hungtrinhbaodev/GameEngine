@@ -245,7 +245,7 @@ namespace Vulkan {
 		for (int i = 0; i < sorted_draws.size(); i++) {
 			uint32_t draw_id = sorted_draws[i].draw_id;
 			const Draw_Information& draw_info = draws.get(draw_id);
-			Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
+			const Buffer_Range& range = ssbo.view_slot(draw_info.instance_id);
 			size_t instance_size = get_instance_size(draw_info.draw_type);
 			size_t remain_size = Utils::calculate_range_remain_size(size_reqiure, instance_size);
 			size_reqiure += remain_size + range.inner_size();
@@ -260,9 +260,9 @@ namespace Vulkan {
 		for (int i = 0; i < sorted_draws.size(); i++) {
 			uint32_t draw_id = sorted_draws[i].draw_id;
 			const Draw_Information& draw_info = draws.get(draw_id);
-			Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
+			const Buffer_Range& range = ssbo.view_slot(draw_info.instance_id);
 			size_t instance_size = get_instance_size(draw_info.draw_type);
-			Buffer_Range ssbo_range = ssbo.view_slot(draw_info.instance_id);
+			const Buffer_Range& ssbo_range = ssbo.view_slot(draw_info.instance_id);
 			size_t remain_size = Utils::calculate_range_remain_size(offset, instance_size);
 			instances_copy_data.push_back(
 				{(VkDeviceSize)ssbo_range.inner_offset(), offset + remain_size, (VkDeviceSize)ssbo_range.inner_size()}
@@ -435,6 +435,10 @@ namespace Vulkan {
 		if (current_binding_draw_info.pipeline != pipeline) {
 			current_binding_draw_info.pipeline = pipeline;
 			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+			std::vector<VkDescriptorSet>& binding_descriptor_sets = current_binding_draw_info.binding_descriptor_sets;
+			for (int i = 0; i < binding_descriptor_sets.size(); i++) {
+				binding_descriptor_sets[i] = VK_NULL_HANDLE;
+			}
 		}
 		if (current_binding_draw_info.indices_buffer != indices_buffer ||
 			current_binding_draw_info.indices_binding_offset != indices_offset ||
@@ -485,8 +489,8 @@ namespace Vulkan {
 		 * Initialize all draw type.
 		 */
 		Texture_2D::init();
-		// Rectangle::init();
-		// Triangle::init();
+		Rectangle::init();
+		Triangle::init();
 		// Font_2D::init();
 		// Model_3D::init();
 	}
@@ -503,13 +507,13 @@ namespace Vulkan {
 		std::vector<Group_Draw_Batching>& draw_groups2 = draw_groups;
 		for (const Group_Draw_Batching& group : draw_groups) {
 			switch (group.draw_type) {
-				// case Const::DRAW_ID::DRAW_RECTANGLE_2D: {
-				// 	Rectangle::draw(
-				// 		command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
-				// 		current_frame
-				// 	);
-				// 	break;
-				// }
+				case Const::DRAW_ID::DRAW_RECTANGLE_2D: {
+					Rectangle::draw(
+						command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
+						current_frame
+					);
+					break;
+				}
 				case Const::DRAW_ID::DRAW_TEXTURE_2D: {
 					Texture_2D::draw(
 						command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
@@ -517,13 +521,13 @@ namespace Vulkan {
 					);
 					break;
 				}
-				// case Const::DRAW_ID::DRAW_TRIANGLE_2D: {
-				// 	Triangle::draw(
-				// 		command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
-				// 		current_frame
-				// 	);
-				// 	break;
-				// }
+				case Const::DRAW_ID::DRAW_TRIANGLE_2D: {
+					Triangle::draw(
+						command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
+						current_frame
+					);
+					break;
+				}
 				// case Const::DRAW_ID::DRAW_FONT_2D: {
 				// 	Font_2D::draw(
 				// 		command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
@@ -556,9 +560,9 @@ namespace Vulkan {
 	void destroy_draw() {
 		// Model_3D::destroy();
 		// Font_2D::destroy();
-		// Triangle::destroy();
+		Triangle::destroy();
 		Texture_2D::destroy();
-		// Rectangle::destroy();
+		Rectangle::destroy();
 		for (const Buffer& buffer : instance_buffers) {
 			buffer.destroy();
 		}
@@ -580,12 +584,12 @@ namespace Vulkan {
 	}
 
 	uint32_t make_rectange(const Draw_Attribute& draw_attributes, Rectangle_Attributes rectangle_attributes) {
-		// uint32_t draw_id = draw_id_generator.gen_id();
-		// Draw_Information draw_info = Rectangle::make_draw(rectangle_attributes);
-		// draw_info.draw_index = draw_attributes.draw_index;
-		// draw_info.visible = draw_attributes.is_visible;
-		// draw_info.create_index = ++current_create_index;
-		// return draws.insert(draw_id, draw_info);
+		uint32_t draw_id = draw_id_generator.gen_id();
+		Draw_Information draw_info = Rectangle::make_draw(rectangle_attributes);
+		draw_info.draw_index = draw_attributes.draw_index;
+		draw_info.visible = draw_attributes.is_visible;
+		draw_info.create_index = ++current_create_index;
+		return draws.insert(draw_id, draw_info);
 		return 0;
 	}
 
@@ -615,12 +619,12 @@ namespace Vulkan {
 	}
 
 	uint32_t make_triangle(const Draw_Attribute& draw_attributes, const Triangle_Attribultes& triangle_attributes) {
-		// uint32_t draw_id = draw_id_generator.gen_id();
-		// Draw_Information draw_info = Triangle::make_triangle(triangle_attributes);
-		// draw_info.draw_index = draw_attributes.draw_index;
-		// draw_info.visible = draw_attributes.is_visible;
-		// draw_info.create_index = ++current_create_index;
-		// return draws.insert(draw_id, draw_info);
+		uint32_t draw_id = draw_id_generator.gen_id();
+		Draw_Information draw_info = Triangle::make_triangle(triangle_attributes);
+		draw_info.draw_index = draw_attributes.draw_index;
+		draw_info.visible = draw_attributes.is_visible;
+		draw_info.create_index = ++current_create_index;
+		return draws.insert(draw_id, draw_info);
 		return 0;
 	}
 
@@ -645,11 +649,11 @@ namespace Vulkan {
 	}
 
 	void update_triangle(uint32_t id, const Triangle_Attribultes& triangle_attributes) {
-		// if (!draws.has(id)) {
-		// 	return;
-		// }
-		// const Draw_Information& draw_info = draws.get(id);
-		// Triangle::update_triangle(draw_info.instance_id, triangle_attributes);
+		if (!draws.has(id)) {
+			return;
+		}
+		const Draw_Information& draw_info = draws.get(id);
+		Triangle::update_triangle(draw_info.instance_id, triangle_attributes);
 	}
 
 } // namespace Vulkan

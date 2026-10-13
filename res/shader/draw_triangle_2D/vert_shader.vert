@@ -1,11 +1,19 @@
 #version 450
 
 layout (location = 0) in vec2 in_position;
+layout (location = 1) in uint in_storage_index;
 
-layout (location = 1) in vec2 in_first_point;
-layout (location = 2) in vec2 in_second_point;
-layout (location = 3) in vec2 in_thrid_point;
-layout (location = 4) in vec3 in_color;
+struct Instance_Data{
+    vec2  first_point;
+    vec2  second_point;
+    vec3  color;
+    float pad;
+    vec2  third_point;
+};
+
+layout(std430, set = 0, binding = 0) readonly buffer Instance_Buffer {
+    Instance_Data data[];
+} instance_buffer;
 
 layout (location = 0) out vec3 frag_color;
 
@@ -23,16 +31,16 @@ vec2 flipped_position(vec2 norm_position) {
     return rate_position;
 }
 
-vec2 map_vertex_point(int index) {
+vec2 map_vertex_point(int index, Instance_Data data) {
     switch(index) {
         case 0: {
-            return in_first_point;
+            return data.first_point;
         }
         case 1: {
-            return in_second_point;
+            return data.second_point;
         }
         case 2: {
-            return in_thrid_point;
+            return data.third_point;
         }
         default: {
             return vec2(0.f, 0.f);
@@ -41,7 +49,8 @@ vec2 map_vertex_point(int index) {
 }
 
 void main() {
-    vec2 point_position = in_position + map_vertex_point(gl_VertexIndex - push_constant.vertex_offset);
+    Instance_Data data = instance_buffer.data[in_storage_index];
+    vec2 point_position = in_position + map_vertex_point(gl_VertexIndex - push_constant.vertex_offset, data);
     gl_Position = vec4(flipped_position(norm_position(point_position)), 0.f, 1.f);
-    frag_color = in_color;
+    frag_color = data.color;
 }

@@ -12,10 +12,16 @@ namespace Vulkan {
 	namespace Triangle {
 
 		struct Instance_Data {
-			glm::vec2 first{0.f, 0.f};
-			glm::vec2 second{0.f, 0.f};
-			glm::vec2 third{0.f, 0.f};
-			glm::vec3 color{1.f, 1.f, 1.f};
+			uint32_t storage_offset = 0;
+		};
+
+		struct Storage_Data {
+			glm::vec2 first{0.f, 0.f};		// 8/8
+			glm::vec2 second{0.f, 0.f};		// 8/8
+			glm::vec3 color{1.f, 1.f, 1.f}; // 12/16
+			float _pad = 0.f;				// 4
+			glm::vec2 third{0.f, 0.f};		// 8/8
+			float _pad2[2];					// 8/8
 			void make(const Triangle_Attribultes& attributes) {
 				first = attributes.first;
 				second = attributes.second;
@@ -27,6 +33,10 @@ namespace Vulkan {
 		struct Push_Constants {
 			glm::vec2 screen_size{0.f, 0.f};
 			uint32_t vertex_offset = 0;
+		};
+
+		struct Draw_Data {
+			uint32_t storage_id = 0;
 		};
 
 		std::vector<Geometry::Vertex_2D> TRIANGLE_VERTICES = {{{0.f, 0.f}}, {{0.f, 0.f}}, {{0.f, .0f}}};
@@ -43,6 +53,8 @@ namespace Vulkan {
 
 		uint32_t indices_id = 0;
 
+		Sparse_Set<Draw_Data> draws{};
+
 		bool is_material_equal(uint32_t a, uint32_t b) {
 			return true;
 		}
@@ -52,13 +64,10 @@ namespace Vulkan {
 			vertex_builder.add_binding_description(0, sizeof(Geometry::Vertex_2D), VK_VERTEX_INPUT_RATE_VERTEX)
 				.add_attribute_description(0, VK_FORMAT_R32G32_SFLOAT, offsetof(Geometry::Vertex_2D, position));
 			vertex_builder.add_binding_description(1, sizeof(Instance_Data), VK_VERTEX_INPUT_RATE_INSTANCE)
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, first))
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, second))
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, third))
-				.add_attribute_description(1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Instance_Data, color));
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_offset));
 
 			Descriptor_Set_Layout_Builder layout_builder{};
-			layouts.push_back(layout_builder.build(Vulkan::device));
+			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::STORAGE_BUFFER));
 
 			pipeline_config = Vulkan::make_default_pipeline_config();
 			pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
@@ -89,10 +98,15 @@ namespace Vulkan {
 				throw std::runtime_error("Fail to make triangle invalid clockwise points!");
 			}
 			Draw_Information draw_info{Const::DRAW_ID::DRAW_TRIANGLE_2D};
-			Instance_Data instance{};
-			instance.make(attributes);
 			SSBO_Buffer& ssbo = get_ssbo();
-			draw_info.instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data), sizeof(Instance_Data));
+			Storage_Data storage{};
+			storage.make(attributes);
+			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
+			const Buffer_Range& storage_range = ssbo.view_slot(storage_id);
+			Instance_Data instance{storage_range.offset_as<Storage_Data>()};
+			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data), 1);
+			draws.insert(instance_id, {storage_id});
+			draw_info.instance_id = instance_id;
 			return draw_info;
 		}
 
@@ -102,10 +116,11 @@ namespace Vulkan {
 					"Fail to update triangle invalid clockwise points: " + std::to_string(instance_id) + "!"
 				);
 			}
-			Instance_Data instance{};
-			instance.make(attributes);
 			SSBO_Buffer& ssbo = get_ssbo();
-			ssbo.update_data(instance_id, &instance);
+			const Draw_Data& draw = draws.get(instance_id);
+			Storage_Data storage{};
+			storage.make(attributes);
+			ssbo.update_data(draw.storage_id, &instance);
 		}
 
 		void draw(
@@ -123,9 +138,10 @@ namespace Vulkan {
 			);
 			VkBuffer binding_buffers[2] = {static_buffer.inner_buffer.buffer, instance_buffer.buffer};
 			VkDeviceSize buffer_offsets[2] = {0, 0};
+			VkDescriptorSet storage_descriptor_set = get_storage_descriptor_set(frame_index);
 			bind_draw_resource(
 				command_buffer, pipeline.pipeline, pipeline.layout, static_buffer.inner_buffer.buffer, 0,
-				VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, 0, nullptr
+				VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, 1, &storage_descriptor_set
 			);
 			vkCmdDrawIndexed(
 				command_buffer, indices_range.size_as<uint16_t>(), number_instance, indices_range.offset_as<uint16_t>(),
@@ -134,9 +150,6 @@ namespace Vulkan {
 		}
 
 		void destroy() {
-			for (const VkDescriptorSetLayout& layout : layouts) {
-				vkDestroyDescriptorSetLayout(Vulkan::device, layout, nullptr);
-			}
 			pipeline.destroy();
 		}
 

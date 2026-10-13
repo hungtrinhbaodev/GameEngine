@@ -62,14 +62,12 @@ namespace Vulkan {
 		Resource_Synchronize_Information remove_info{};
 		remove_info.release_frame(current_frame);
 		queue_remove_range_inner_buffer.insert(id, remove_info);
+		for (int i = 0; i < frame_dirty_ids.size(); i++) {
+			frame_dirty_ids[i].erase(id);
+		}
 	}
 
-	Buffer_Range SSBO_Buffer::view_slot(uint32_t id) {
-		if (!ranges_by_id.has(id)) {
-			throw std::runtime_error(
-				"Fail to view SSBO buffer range with id: " + std::to_string(id) + " please check!"
-			);
-		}
+	const Buffer_Range& SSBO_Buffer::view_slot(uint32_t id) {
 		return ranges_by_id.get(id);
 	}
 
@@ -124,7 +122,7 @@ namespace Vulkan {
 		copy_ranges.clear();
 		Sparse_Set<bool>& dirty_ids = frame_dirty_ids[current_frame];
 		for (const uint32_t& id : dirty_ids.keys()) {
-			Buffer_Range range = view_slot(id);
+			const Buffer_Range& range = view_slot(id);
 			copy_ranges.push_back({range.inner_offset(), range.inner_offset(), range.inner_size()});
 		}
 		dirty_ids.clear();
