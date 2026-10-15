@@ -53,7 +53,7 @@ namespace Vulkan {
 	void init_swapchain(
 		GLFWwindow* window, VkSwapchainKHR& swapchain, VkFormat& swapchain_format, VkExtent2D& swapchain_extent,
 		std::vector<VkImage>& swapchain_images, std::vector<VkImageView>& swapchain_image_views, VkSurfaceKHR surface,
-		VkPhysicalDevice physical_device, VkDevice device
+		VkPhysicalDevice physical_device, VkDevice device, SSBO_Buffer& ssbo
 	) {
 		Swapchain_Support_Detail swapchain_detail = Utils::query_swapchain_support_detail(physical_device, surface);
 		Log::info("Swapchain detail info:");
@@ -129,12 +129,13 @@ namespace Vulkan {
 
 		create_swapchain_image_views(swapchain_images, swapchain_image_views, swapchain_format, device);
 		Utils::save_window_size(window, device);
+		Utils::save_window_size(window, device, ssbo);
 	}
 
 	void recreate_swapchain(
 		GLFWwindow* window, VkSwapchainKHR& swapchain, VkFormat& swapchain_format, VkExtent2D& swapchain_extent,
 		std::vector<VkImage>& swapchain_images, std::vector<VkImageView>& swapchain_image_views, VkSurfaceKHR surface,
-		VkPhysicalDevice physical_device, VkDevice device
+		VkPhysicalDevice physical_device, VkDevice device, SSBO_Buffer& ssbo
 	) {
 		int width = 0, height = 0;
 		glfwGetFramebufferSize(window, &width, &height);
@@ -146,7 +147,7 @@ namespace Vulkan {
 		destroy_swapchain(swapchain, swapchain_image_views, device);
 		init_swapchain(
 			window, swapchain, swapchain_format, swapchain_extent, swapchain_images, swapchain_image_views, surface,
-			physical_device, device
+			physical_device, device, ssbo
 		);
 	}
 

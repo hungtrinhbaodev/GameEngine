@@ -1,5 +1,5 @@
 #pragma once
-#include <vulkan/vk_draw.h>
+#include <vulkan/vk_common.h>
 #include <vulkan/vulkan.h>
 
 namespace Vulkan {
@@ -13,6 +13,10 @@ namespace Vulkan {
 		size_t get_instance_size();
 
 		Draw_Information make_texture_2D(const Texture_2D_Attributes& texture_attributes);
+
+		std::vector<Draw_Instance_Information> make_texture_2D_2(
+			Draw_Information& draw_info, const Texture_2D_Attributes& texture_attributes
+		);
 
 		void update_texture_2D(Draw_Information& draw_info, const Texture_2D_Attributes& texture_attributes);
 

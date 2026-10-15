@@ -1,6 +1,6 @@
 #pragma once
 #include <vulkan/draws/draw_structs.h>
-#include <vulkan/vk_draw.h>
+#include <vulkan/vk_common.h>
 #include <vulkan/vulkan.h>
 
 namespace Vulkan {

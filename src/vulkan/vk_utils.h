@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <queue>
 #include <vulkan/vk_common.h>
+#include <vulkan/vk_ssbo_buffer.h>
 #include <vulkan/vk_structs.h>
 #include <vulkan/vulkan.h>
 
@@ -295,6 +296,10 @@ namespace Vulkan {
 		void save_window_size(GLFWwindow* window, VkDevice device);
 
 		glm::vec2 get_window_size(VkDevice device);
+
+		void save_window_size(GLFWwindow* window, VkDevice device, SSBO_Buffer& ssbo);
+
+		uint32_t get_draw_2D_config_data_offset(VkDevice device);
 
 		void copy_data_to_multi_buffer(
 			VkBuffer src_buffer, const std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data, VkDevice device

@@ -4,6 +4,7 @@
 #include <vulkan/draws/vk_draw_model_3D.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_descriptor.h>
+#include <vulkan/vk_draw.h>
 #include <vulkan/vk_pipeline.h>
 #include <vulkan/vk_uniform.h>
 #include <vulkan/vk_utils.h>
@@ -14,11 +15,22 @@ namespace Vulkan {
 	namespace Model_3D {
 
 		struct Instance_Data {
+			uint32_t storage_offset = 0;
+			uint32_t transform_storage_offset = 0;
+			uint32_t texture_storage_offset = 0;
+		};
+
+		struct Storage_Data {
 			glm::mat4 transform{1.f};
-			friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
+			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& instance) {
 				os << "{Model_3D::Instance_Data: transform: " << instance.transform << "}";
 				return os;
 			}
+		};
+
+		struct Storage_Texture_Data {
+			int bucket_index = 0;
+			int slot_index = 0;
 		};
 
 		struct Push_Constants {
@@ -27,8 +39,9 @@ namespace Vulkan {
 			int slot_index = 0;
 		};
 
-		struct Material_Data {
-			uint32_t model_id = 0;
+		struct Draw_Data {
+			uint32_t storage_id = 0;
+			std::vector<uint32_t> storage_texture_ids{};
 		};
 
 		Pipeline_Config pipeline_config{};
@@ -51,6 +64,8 @@ namespace Vulkan {
 		std::vector<uint32_t> uniform_buffer_ids{};
 
 		std::vector<VkDescriptorSet> uniform_descriptor_sets{};
+
+		Sparse_Set<Draw_Data> draws{};
 
 		bool is_material_equal(uint32_t a, uint32_t b) {
 			return a == b;
@@ -82,22 +97,18 @@ namespace Vulkan {
 				.add_attribute_description(0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Geometry::Vertex_3D, tangent))
 				.add_attribute_description(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Geometry::Vertex_3D, color));
 			vertex_builder.add_binding_description(1, sizeof(Instance_Data), VK_VERTEX_INPUT_RATE_INSTANCE)
-				.add_mat4_attribute_description(1, 0);
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_offset))
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, transform_storage_offset))
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, texture_storage_offset));
 
-			Descriptor_Set_Layout_Builder layout_builder{};
-			layout_builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
-			layouts.push_back(layout_builder.build(Vulkan::device));
-			default_texture_descriptor_sets = texture_system.make_default_texture_descriptor_sets(layouts[0]);
+			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::STORAGE_BUFFER));
+			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::IMAGE_SAMPLER));
 			if (Const::ENABLED_TEXTURE_BUCKETS) {
-				layouts.push_back(texture_system.make_bucket_descriptor_set_layout());
-				texture_bucket_descriptor_sets = texture_system.make_bucket_descriptor_sets(layouts[1]);
+				layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::BUCKET_IMAGE_SAMPLER));
 			} else {
-				layout_builder.clear();
-				layouts.push_back(layout_builder.build(device));
+				layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::EMPTY));
 			}
-			layout_builder.clear();
-			layout_builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
-			layouts.push_back(layout_builder.build(device));
+			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::UNIFORM_BUFFER));
 			for (int i = 0; i < Const::MAX_FRAMES_IN_FLIGHT; i++) {
 				uniform_descriptor_sets.push_back(
 					Utils::make_buffer_descriptor_set(
@@ -125,28 +136,39 @@ namespace Vulkan {
 		Draw_Information make_model_3D(const Model_3D_Attributes& attributes) {
 			uint32_t model_id = model_3D_system.load_model(attributes.path);
 			Model_Information model = model_3D_system.view_model(model_id);
-			for (const auto& mesh : model.meshes) {
-				for (auto const& primitive : mesh.primitives) {
-					Texture_View texture_view = texture_system.view_texture(primitive.texture_id);
-					if (texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::INDIVIDUAL &&
-						!texture_descriptor_sets.has(primitive.texture_id)) {
-						texture_descriptor_sets.insert(
-							primitive.texture_id,
-							Utils::make_texture_descriptor_sets(
-								descriptor_pools, layouts[0],
-								texture_view.image.get_descriptor_info(texture_view.slot_index), device
-							)
-						);
-					}
+			Draw_Data draw{};
+			SSBO_Buffer& ssbo = get_ssbo();
+			std::vector<Instance_Data> instances(model.get_number_primitive());
+			draw.storage_texture_ids.resize(model.get_number_primitive());
+			Storage_Data storage{};
+			storage.transform = Math::make_translation(attributes.position) * Math::make_rotation(attributes.rotation) *
+								Math::make_scale(attributes.scale);
+			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
+			const Buffer_Range& storage_range = ssbo.view_slot(storage_id);
+			draw.storage_id = storage_id;
+			for (int i = 0; i < model.meshes.size(); i++) {
+				const auto& mesh = model.meshes[i];
+				for (int j = 0; j < mesh.primitives.size(); j++) {
+					const auto& primitive = mesh.primitives[j];
+					Texture_View texture_view = view_texture(primitive.texture_id);
+					Storage_Texture_Data texture_storage{texture_view.bucket_index, texture_view.slot_index};
+					uint32_t texture_storage_id =
+						ssbo.upload_data(&texture_storage, sizeof(Storage_Texture_Data), sizeof(Storage_Texture_Data));
+					const Buffer_Range& texture_storage_range = ssbo.view_slot(texture_storage_id);
+					uint32_t flat_index = model.get_primitive_flat_index(i, j);
+					instances[flat_index].storage_offset = storage_range.offset_as<Storage_Data>();
+					instances[flat_index].texture_storage_offset =
+						texture_storage_range.size_as<Storage_Texture_Data>();
+					instances[flat_index].transform_storage_offset =
+						get_primitive_transform_offset(model_id, model.draw_scene_index, i, j);
+					draw.storage_texture_ids[flat_index] = texture_storage_id;
 				}
 			}
-			Instance_Data instance{};
-			instance.transform = Math::make_translation(attributes.position) *
-								 Math::make_rotation(attributes.rotation) * Math::make_scale(attributes.scale);
-			SSBO_Buffer& ssbo = get_ssbo();
 			Draw_Information draw_info{Const::DRAW_ID::DRAW_MODEL_3D};
 			draw_info.draw_material_id = model_id;
-			draw_info.instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data), sizeof(Instance_Data));
+			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data), sizeof(Instance_Data));
+			draws.insert(instance_id, draw);
+			draw_info.instance_id = instance_id;
 			return draw_info;
 		}
 
@@ -188,6 +210,34 @@ namespace Vulkan {
 			);
 		}
 
+		/**
+		 * Sorted all instance data by model primitive
+		 * and copy it into instance buffer to have
+		 * a continue primitive by instance!
+		 */
+		void make_copy_group_instance_data(
+			const std::vector<uint32_t>& instance_ids, uint32_t material_draw_id, uint32_t start_offset, uint32_t size,
+			std::vector<VkBufferCopy>& instances_copy_data
+		) {
+			uint32_t model_id = material_draw_id;
+			const auto& model = view_model(model_id);
+			uint32_t number_primitive = model.get_number_primitive();
+			uint32_t instance_size = (uint32_t)get_instance_size();
+			uint32_t primitive_stride = (uint32_t)instance_ids.size() * instance_size;
+			SSBO_Buffer& ssbo = get_ssbo();
+			for (uint32_t i = 0; i < instance_ids.size(); i++) {
+				uint32_t instance_id = instance_ids[i];
+				const Buffer_Range& buffer_range = ssbo.view_slot(instance_id);
+				for (int j = 0; j < number_primitive; j++) {
+					uint32_t src_offset = buffer_range.inner_offset() + j * instance_size;
+					uint32_t dst_offset = start_offset + j * primitive_stride + i * instance_size;
+					instances_copy_data.push_back(
+						{(VkDeviceSize)src_offset, (VkDeviceSize)dst_offset, (VkDeviceSize)size}
+					);
+				}
+			}
+		}
+
 		void draw(
 			VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t number_instance,
 			uint32_t first_instance_offset, uint32_t frame_index
@@ -195,60 +245,34 @@ namespace Vulkan {
 			Static_Buffer& static_buffer = get_static_buffer();
 			Buffer& instance_buffer = get_instance_buffer(frame_index);
 			const Model_Information& model = model_3D_system.view_model(material_draw_id);
-			uint32_t number_descriptor_set = 3;
-			VkDescriptorSet using_descriptor_sets[3] = {
-				VK_NULL_HANDLE, VK_NULL_HANDLE, uniform_descriptor_sets[frame_index]
+			uint32_t number_descriptor_set = 4;
+			VkDescriptorSet using_descriptor_sets[4] = {
+				get_storage_descriptor_set(frame_index), VK_NULL_HANDLE, VK_NULL_HANDLE,
+				uniform_descriptor_sets[frame_index]
 			};
-			if (Const::ENABLED_TEXTURE_BUCKETS) {
-				using_descriptor_sets[1] = texture_bucket_descriptor_sets[frame_index];
-			}
 			VkBuffer binding_buffers[2] = {static_buffer.inner_buffer.buffer, instance_buffer.buffer};
 			VkDeviceSize buffer_offsets[2] = {0, 0};
-			uint32_t draw_scene_index = model.draw_scene_index;
-			for (int i = 0; i < model.meshes.size(); i++) {
-				const auto& mesh = model.meshes[i];
-				const std::vector<glm::mat4>& mesh_transforms =
-					model.global_meshes_transform.at(draw_scene_index).at(i);
-				Push_Constants push_constants{};
-				glm::vec3 mesh_origin = mesh.get_mesh_origin();
-				for (const auto& transform : mesh_transforms) {
-					push_constants.mesh_transform = transform * Math::make_translation(-mesh_origin);
-					vkCmdPushConstants(
-						command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-						sizeof(Push_Constants), &push_constants
-					);
-					for (const auto& primitive : mesh.primitives) {
-						Texture_View texture_view = model_3D_system.texture_system->view_texture(primitive.texture_id);
-						int bucket_index = -1;
-						uint32_t slot_index = 0;
-						if (texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::INDIVIDUAL) {
-							using_descriptor_sets[0] = texture_descriptor_sets.get(primitive.texture_id)[frame_index];
-						} else {
-							bucket_index = texture_view.bucket_index;
-							slot_index = texture_view.slot_index;
-						}
-						vkCmdPushConstants(
-							command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-							offsetof(Push_Constants, bucket_index), sizeof(int), &bucket_index
-						);
-						vkCmdPushConstants(
-							command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-							offsetof(Push_Constants, slot_index), sizeof(int), &slot_index
-						);
-						Buffer_Range vertex_range = static_buffer.view_slot_info(primitive.vertex_id);
-						Buffer_Range indices_range = static_buffer.view_slot_info(primitive.indices_id);
-						bind_draw_resource(
-							command_buffer, pipeline.pipeline, pipeline.layout, static_buffer.inner_buffer.buffer, 0,
-							VK_INDEX_TYPE_UINT32, 2, binding_buffers, buffer_offsets, number_descriptor_set,
-							using_descriptor_sets
-						);
-						vkCmdDrawIndexed(
-							command_buffer, indices_range.size_as<uint32_t>(), number_instance,
-							indices_range.offset_as<uint32_t>(), vertex_range.offset_as<Geometry::Vertex_3D>(),
-							first_instance_offset / (uint32_t)get_instance_size()
-						);
-					}
-				}
+			uint32_t number_primitive = model.get_number_primitive();
+			uint32_t primitive_stride = number_primitive * get_instance_size();
+			for (int i = 0; i < number_primitive; i++) {
+				const auto& primitive = model.flat_primitives[i];
+				uint32_t offset = first_instance_offset + i * primitive_stride;
+				Buffer_Range vertex_range = static_buffer.view_slot_info(primitive.vertex_id);
+				Buffer_Range indices_range = static_buffer.view_slot_info(primitive.indices_id);
+				std::array<VkDescriptorSet, 2> texture_descriptor_sets =
+					get_descriptor_set_texture_sampler(primitive.texture_id, frame_index);
+				using_descriptor_sets[2] = texture_descriptor_sets[0];
+				using_descriptor_sets[3] = texture_descriptor_sets[1];
+				bind_draw_resource(
+					command_buffer, pipeline.pipeline, pipeline.layout, static_buffer.inner_buffer.buffer, 0,
+					VK_INDEX_TYPE_UINT32, 2, binding_buffers, buffer_offsets, number_descriptor_set,
+					using_descriptor_sets
+				);
+				vkCmdDrawIndexed(
+					command_buffer, indices_range.size_as<uint32_t>(), number_instance,
+					indices_range.offset_as<uint32_t>(), vertex_range.offset_as<Geometry::Vertex_3D>(),
+					offset / (uint32_t)get_instance_size()
+				);
 			}
 		}
 

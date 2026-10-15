@@ -2,31 +2,15 @@
 #include <map>
 #include <stack>
 #include <string>
+#include <vulkan/vk_common.h>
 #include <vulkan/vk_static_buffer.h>
 #include <vulkan/vk_texture_system.h>
 
 namespace Vulkan {
 
-	struct Primitive_Buffer_Range {
-		uint32_t vertex_id = 0;
-		uint32_t indices_id = 0;
-		uint32_t texture_id = 0;
-	};
-
-	struct Model_Mesh_Information {
-		std::vector<Primitive_Buffer_Range> primitives;
-		glm::vec3 min_bounding_box{0.f};
-		glm::vec3 max_bounding_box{0.f};
-		glm::vec3 get_mesh_origin() const;
-	};
-
-	struct Model_Information {
-		std::vector<Model_Mesh_Information> meshes;
-		std::map<uint32_t, std::map<uint32_t, std::vector<glm::mat4>>> global_meshes_transform;
-		uint32_t draw_scene_index = -1;
-	};
-
 	struct Model_3D_System {
+
+		SSBO_Buffer* ssbo = nullptr;
 
 		Static_Buffer* static_buffer = nullptr;
 
@@ -42,7 +26,7 @@ namespace Vulkan {
 
 		std::map<uint32_t, Model_Information> models;
 
-		void init(Texture_System* texture_system, Static_Buffer* static_buffer);
+		void init(Texture_System* texture_system, Static_Buffer* static_buffer, SSBO_Buffer* ssbo);
 
 		uint32_t load_model(std::string path);
 

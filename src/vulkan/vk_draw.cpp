@@ -21,18 +21,23 @@ namespace Vulkan {
 
 	const std::string SCOPE_SORT_DRAW = "2D SORT_DRAW";
 
-	const std::string SCOPE_SET_UP_BUFFER = "2D SET_UP_BUFFER";
-
 	const std::string SCOPE_BATCHING_GROUP = "2D BATCHING_GROUP";
 
 	const std::string SCOPE_DRAW = "2D DRAW";
 
-	struct Group_Draw_Batching {
+	struct Draw_Group_Batching {
 		Const::DRAW_ID draw_type = Const::DRAW_ID::UNDEFINED;
-		uint32_t material_draw_id = 0;
-		uint32_t instance_offset = 0;
+		uint32_t start_index = 0;
+		uint32_t number_element = 0;
+		uint32_t draw_material_id = 0;
+	};
+
+	struct Draw_Group_Instance_Batching {
+		Const::DRAW_ID draw_type = Const::DRAW_ID::UNDEFINED;
+		uint32_t draw_material_id = 0;
+		uint32_t instance_material_id = 0;
+		uint32_t offset = 0;
 		uint32_t number_instance = 0;
-		uint32_t instance_size = 0;
 	};
 
 	struct Draw_Sort_Information {
@@ -64,24 +69,21 @@ namespace Vulkan {
 		}
 	};
 
-	struct Draw_Order_Information {
-		uint32_t draw_index = 0;
-		uint32_t create_index = 0;
-		bool operator<(const Draw_Order_Information& other) const {
-			return std::tie(draw_index, create_index) < std::tie(other.draw_index, other.create_index);
-		}
-		bool operator==(const Draw_Order_Information& other) const {
-			return std::tie(draw_index, create_index) == std::tie(other.draw_index, other.create_index);
-		}
-	};
-
 	Id_Generator draw_id_generator{};
 
-	Sparse_Set<Draw_Information> draws{};
+	Sparse_Set<Draw_Information> draw_id_to_info{};
+
+	Sparse_Set<std::vector<Draw_Instance_Information>> draw_id_to_instance{};
 
 	std::vector<Draw_Sort_Information> sorted_draws{};
 
-	std::vector<Group_Draw_Batching> draw_groups{};
+	std::vector<Draw_Group_Batching> draw_groups{};
+
+	std::vector<Draw_Instance_Information> draw_instances{};
+
+	std::vector<Draw_Instance_Information> draw_instance_in_groups{};
+
+	std::vector<Draw_Group_Instance_Batching> draw_instance_batching_groups{};
 
 	uint32_t current_create_index = 0;
 
@@ -112,6 +114,10 @@ namespace Vulkan {
 	std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> default_font_descriptor_sets{};
 
 	std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> font_bucket_descriptor_sets{};
+
+	std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> uniform_buffer_descriptor_sets{};
+
+	std::vector<uint32_t> group_copy_instance_ids{};
 
 	void init_common_descriptor_set_layout() {
 		Descriptor_Set_Layout_Builder layout_builder{};
@@ -154,6 +160,18 @@ namespace Vulkan {
 		texture_bucket_descriptor_sets = texture_system.make_bucket_descriptor_sets_2(bucket_layout);
 		font_bucket_descriptor_sets = font_system.texture_system.make_bucket_descriptor_sets_2(bucket_layout);
 		layouts[Const::DESCRITPOR_LAYOUT::BUCKET_IMAGE_SAMPLER] = bucket_layout;
+		/**
+		 * Init descriptor set layout uniform buffer.
+		 */
+		layout_builder.clear();
+		layout_builder.add_binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
+		VkDescriptorSetLayout uniform_layout = layout_builder.build(device);
+		layouts[Const::DESCRITPOR_LAYOUT::UNIFORM_BUFFER] = uniform_layout;
+		/**
+		 * Init descriptor set layout empty.
+		 */
+		layout_builder.clear();
+		layouts[Const::DESCRITPOR_LAYOUT::EMPTY] = layout_builder.build(device);
 	}
 
 	void destroy_common_descriptor_set_layout() {
@@ -187,12 +205,23 @@ namespace Vulkan {
 		}
 	}
 
+	bool is_using_instance_material(Const::DRAW_ID draw_type) {
+		switch (draw_type) {
+			case Const::DRAW_ID::DRAW_MODEL_3D: {
+				return true;
+			}
+			default: {
+				return false;
+			}
+		}
+	}
+
 	void sort_draws() {
 		Profiler::start_scope(SCOPE_SORT_DRAW);
 		sorted_draws.clear();
-		auto draw_ids = draws.keys();
+		auto draw_ids = draw_id_to_info.keys();
 		for (auto draw_id : draw_ids) {
-			const auto& draw_info = draws.get(draw_id);
+			const auto& draw_info = draw_id_to_info.get(draw_id);
 			if (draw_info.visible) {
 				sorted_draws.push_back({draw_id, draw_info.draw_index, draw_info.create_index});
 			}
@@ -232,42 +261,125 @@ namespace Vulkan {
 		}
 	}
 
-	void record_setup_draw_buffers(VkCommandBuffer command_buffer, uint32_t current_frame) {
-		Profiler::start_scope(SCOPE_SET_UP_BUFFER);
+	void batching_draw_groups_2(VkCommandBuffer command_buffer, uint32_t frame_index) {
+		Profiler::start_scope(SCOPE_BATCHING_GROUP);
+		if (sorted_draws.size() <= 0) {
+			return;
+		}
+		draw_groups.clear();
+		uint32_t first_id = sorted_draws[0].draw_id;
+		const Draw_Information& first_draw = draw_id_to_info.get(first_id);
+		draw_groups.push_back({first_draw.draw_type, 0, 1, first_draw.draw_material_id});
+		uint32_t current_group = 0;
+		uint32_t current_group_draw = 0;
+		for (uint32_t i = 1; i < sorted_draws.size(); i++) {
+			uint32_t last_draw_id = sorted_draws[current_group_draw].draw_id;
+			uint32_t draw_id = sorted_draws[i].draw_id;
+			const Draw_Information& last_draw = draw_id_to_info.get(last_draw_id);
+			const Draw_Information& current_draw = draw_id_to_info.get(draw_id);
+			if (is_same_draw(last_draw, current_draw)) {
+				draw_groups[current_group].number_element++;
+			} else {
+				draw_groups.push_back({current_draw.draw_type, i, 1, current_draw.draw_material_id});
+				current_group_draw = i;
+				current_group++;
+			}
+		}
+		draw_instances.clear();
+		draw_instance_batching_groups.clear();
+		uint32_t current_offset = 0;
+		for (const Draw_Group_Batching& draw_group : draw_groups) {
+			uint32_t start = draw_group.start_index;
+			uint32_t end = draw_group.start_index + draw_group.number_element;
+			uint32_t instance_size = (uint32_t)get_instance_size(draw_group.draw_type);
+			uint32_t remain_size = Utils::calculate_range_remain_size(current_offset, instance_size);
+			if (is_using_instance_material(draw_group.draw_type)) {
+				draw_instance_in_groups.clear();
+				for (int i = start; i < end; i++) {
+					uint32_t draw_id = sorted_draws[i].draw_id;
+					const auto& instances = draw_id_to_instance.get(draw_id);
+					for (const auto& draw_instance : instances) {
+						draw_instance_in_groups.push_back(draw_instance);
+					}
+				}
+				std::sort(draw_instance_in_groups.begin(), draw_instance_in_groups.end());
+				const Draw_Instance_Information& first_instance = draw_instance_in_groups[0];
+				draw_instance_batching_groups.push_back(
+					Draw_Group_Instance_Batching{
+						draw_group.draw_type, draw_group.draw_material_id, first_instance.instance_material_id,
+						current_offset + remain_size, first_instance.number_sub_instance
+					}
+				);
+				current_offset += remain_size + first_instance.number_sub_instance;
+				uint32_t current_group = 0;
+				uint32_t current_group_instance = 0;
+				for (int i = 1; i < draw_instance_in_groups.size(); i++) {
+					const Draw_Instance_Information& last_instance = draw_instance_in_groups[current_group_instance];
+					const Draw_Instance_Information& current_instance = draw_instance_in_groups[i];
+					if (current_instance.instance_material_id == last_instance.instance_material_id) {
+						draw_instance_batching_groups[current_group].number_instance +=
+							current_instance.number_sub_instance;
+					} else {
+						draw_instance_batching_groups.push_back(
+							Draw_Group_Instance_Batching{
+								draw_group.draw_type, draw_group.draw_material_id,
+								current_instance.instance_material_id, current_offset + remain_size,
+								current_instance.number_sub_instance
+							}
+						);
+						current_group++;
+						current_group_instance = i;
+					}
+					current_offset += remain_size + instance_size * current_instance.number_sub_instance;
+				}
+				for (const auto& draw_instance : draw_instance_in_groups) {
+					draw_instances.push_back(draw_instance);
+				}
+			} else {
+				uint32_t number_instance = 0;
+				for (int i = start; i < end; i++) {
+					uint32_t draw_id = sorted_draws[i].draw_id;
+					const auto& instances = draw_id_to_instance.get(draw_id);
+					for (const auto& draw_instance : instances) {
+						draw_instances.push_back(draw_instance);
+						number_instance += draw_instance.number_sub_instance;
+					}
+				}
+				uint32_t start_group_draw_id = sorted_draws[start].draw_id;
+				const auto& instances = draw_id_to_instance.get(start_group_draw_id);
+				draw_instance_batching_groups.push_back(
+					Draw_Group_Instance_Batching{
+						draw_group.draw_type, draw_group.draw_material_id, instances[0].instance_material_id,
+						current_offset + remain_size, number_instance
+					}
+				);
+				current_offset += remain_size + number_instance * instance_size;
+			}
+		}
+		SSBO_Buffer& ssbo = get_ssbo();
+		instances_copy_data.clear();
+		current_offset = 0;
+		for (uint32_t i = 0; i < draw_instances.size(); i++) {
+			const Draw_Instance_Information& instance_info = draw_instances[i];
+			const Buffer_Range& instance_range = ssbo.view_slot(instance_info.instance_id);
+			uint32_t instance_size = instance_range.inner_size() / instance_info.number_sub_instance;
+			uint32_t remain_size = Utils::calculate_range_remain_size(current_offset, instance_size);
+			instances_copy_data.push_back(
+				{(VkDeviceSize)instance_range.inner_offset(), (VkDeviceSize)current_offset + remain_size,
+				 (VkDeviceSize)instance_range.inner_size()}
+			);
+			current_offset += remain_size + instance_range.inner_size();
+		}
+		Buffer& instance_buffer = get_instance_buffer(frame_index);
 		Resize_Buffer_Synchronize_Information& resize_info = frame_resize_instance_buffer[current_frame];
 		if (resize_info.is_resizing) {
 			resize_info.old_buffer.destroy();
 			resize_info.is_resizing = false;
 		}
-		size_t size_reqiure = 0;
-		SSBO_Buffer& ssbo = get_ssbo();
-		Buffer& instance_buffer = get_instance_buffer(current_frame);
-		for (int i = 0; i < sorted_draws.size(); i++) {
-			uint32_t draw_id = sorted_draws[i].draw_id;
-			const Draw_Information& draw_info = draws.get(draw_id);
-			const Buffer_Range& range = ssbo.view_slot(draw_info.instance_id);
-			size_t instance_size = get_instance_size(draw_info.draw_type);
-			size_t remain_size = Utils::calculate_range_remain_size(size_reqiure, instance_size);
-			size_reqiure += remain_size + range.inner_size();
-		}
-		if (instance_buffer.size < size_reqiure) {
-			uint32_t size = (uint32_t)(size_reqiure * 1.5f);
+		if (instance_buffer.size < current_offset) {
+			uint32_t size = (uint32_t)(current_offset * 1.5f);
 			resize_info.old_buffer = instance_buffer.record_resize(command_buffer, size);
 			resize_info.is_resizing = true;
-		}
-		size_t offset = 0;
-		instances_copy_data.clear();
-		for (int i = 0; i < sorted_draws.size(); i++) {
-			uint32_t draw_id = sorted_draws[i].draw_id;
-			const Draw_Information& draw_info = draws.get(draw_id);
-			const Buffer_Range& range = ssbo.view_slot(draw_info.instance_id);
-			size_t instance_size = get_instance_size(draw_info.draw_type);
-			const Buffer_Range& ssbo_range = ssbo.view_slot(draw_info.instance_id);
-			size_t remain_size = Utils::calculate_range_remain_size(offset, instance_size);
-			instances_copy_data.push_back(
-				{(VkDeviceSize)ssbo_range.inner_offset(), offset + remain_size, (VkDeviceSize)ssbo_range.inner_size()}
-			);
-			offset += remain_size + range.inner_size();
 		}
 		Utils::record_buffer_barrier(
 			command_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -284,47 +396,6 @@ namespace Vulkan {
 			VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT | VK_ACCESS_INDEX_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, instance_buffer.buffer, 0, instance_buffer.size
 		);
-		// Model_3D::record_upload_uniform_buffer(command_buffer, current_frame);
-		Profiler::end_scope(SCOPE_SET_UP_BUFFER);
-	}
-
-	void batching_draw_groups() {
-		Profiler::start_scope(SCOPE_BATCHING_GROUP);
-		draw_groups.clear();
-		if (sorted_draws.size() <= 0) {
-			return;
-		}
-		uint32_t first_id = sorted_draws[0].draw_id;
-		Draw_Information last_draw_info = draws.get(first_id);
-		size_t instance_size = get_instance_size(last_draw_info.draw_type);
-		SSBO_Buffer& ssbo = get_ssbo();
-		Buffer_Range first_range = ssbo.view_slot(last_draw_info.instance_id);
-		Group_Draw_Batching group{
-			last_draw_info.draw_type, last_draw_info.draw_material_id, 0,
-			(uint32_t)(first_range.inner_size() / instance_size), (uint32_t)instance_size
-		};
-		draw_groups.push_back(group);
-		int current_group = 0;
-		uint32_t current_instance_offset = first_range.inner_size();
-		for (int i = 1; i < sorted_draws.size(); i++) {
-			uint32_t draw_id = sorted_draws[i].draw_id;
-			const Draw_Information& draw_info = draws.get(draw_id);
-			size_t instance_size = get_instance_size(draw_info.draw_type);
-			Buffer_Range range = ssbo.view_slot(draw_info.instance_id);
-			uint32_t remain = Utils::calculate_range_remain_size(current_instance_offset, instance_size);
-			if (is_same_draw(last_draw_info, draw_info)) {
-				draw_groups[current_group].number_instance += (uint32_t)(range.inner_size() / instance_size);
-			} else {
-				Group_Draw_Batching group{
-					draw_info.draw_type, draw_info.draw_material_id, current_instance_offset + remain,
-					(uint32_t)(range.inner_size() / instance_size), (uint32_t)instance_size
-				};
-				last_draw_info = draw_info;
-				draw_groups.push_back(group);
-				current_group++;
-			}
-			current_instance_offset += remain + range.inner_size();
-		}
 		Profiler::end_scope(SCOPE_BATCHING_GROUP);
 	}
 
@@ -353,7 +424,7 @@ namespace Vulkan {
 		return texture_id;
 	}
 
-	Texture_View view_texture(uint32_t texture_id) {
+	const Texture_View& view_texture(uint32_t texture_id) {
 		return texture_system.view_texture(texture_id);
 	}
 
@@ -375,6 +446,51 @@ namespace Vulkan {
 		return font_id;
 	}
 
+	const Font& view_font(uint32_t font_id) {
+		return font_system.view_font(font_id);
+	}
+
+	const Texture_View& view_font_texture(uint32_t font_id) {
+		const Font& font = view_font(font_id);
+		return font_system.texture_system.view_texture(font.texture_id);
+	}
+
+	uint32_t load_model(std::string path) {
+		uint32_t model_id = model_3D_system.load_model(path);
+		const auto& model = view_model(model_id);
+		for (const auto& mesh : model.meshes) {
+			for (const auto& primitive : mesh.primitives) {
+				Texture_View texture_view = view_texture(primitive.texture_id);
+				if (texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::INDIVIDUAL) {
+					if (!frame_texture_descriptor_sets.has(primitive.texture_id)) {
+						std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> texture_descriptor_sets =
+							Utils::make_texture_descriptor_sets_2(
+								descriptor_pools_2, layouts[Const::DESCRITPOR_LAYOUT::IMAGE_SAMPLER],
+								texture_view.image.get_descriptor_info(), device
+							);
+						frame_texture_descriptor_sets.insert(primitive.texture_id, texture_descriptor_sets);
+					}
+				}
+			}
+		}
+		return model_id;
+	}
+
+	const Model_Information& view_model(uint32_t model_id) {
+		return model_3D_system.view_model(model_id);
+	}
+
+	uint32_t get_primitive_transform_offset(
+		uint32_t model_id, uint32_t scene_index, uint32_t mesh_index, uint32_t primitive_index
+	) {
+		const Model_Information& model = view_model(model_id);
+		const auto& mesh = model.meshes[mesh_index];
+		uint32_t ssbo_transform_id = mesh.local_transform_storage_ids_by_scene[scene_index];
+		SSBO_Buffer& ssbo = get_ssbo();
+		const Buffer_Range& transform_range = ssbo.view_slot(ssbo_transform_id);
+		return transform_range.offset_as<glm::mat4>() + primitive_index;
+	}
+
 	VkDescriptorSet get_storage_descriptor_set(uint32_t frame_index) {
 		return storage_buffer_descriptor_sets[frame_index];
 	}
@@ -382,7 +498,8 @@ namespace Vulkan {
 	std::array<VkDescriptorSet, 2> get_image_descriptor_from(
 		Texture_System& texture_system, uint32_t texture_id, uint32_t frame_index,
 		const Sparse_Set<std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT>>& frame_texture_descriptor_sets,
-		const std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT>& default_texture_descriptor_sets
+		const std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT>& default_texture_descriptor_sets,
+		const std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT>& texture_bucket_descriptor_sets
 	) {
 		VkDescriptorSet texture_bucket = texture_bucket_descriptor_sets[frame_index];
 		Texture_View texture_view = texture_system.view_texture(texture_id);
@@ -398,7 +515,8 @@ namespace Vulkan {
 
 	std::array<VkDescriptorSet, 2> get_descriptor_set_texture_sampler(uint32_t texture_id, uint32_t frame_index) {
 		return get_image_descriptor_from(
-			texture_system, texture_id, frame_index, frame_texture_descriptor_sets, default_texture_descriptor_sets
+			texture_system, texture_id, frame_index, frame_texture_descriptor_sets, default_texture_descriptor_sets,
+			texture_bucket_descriptor_sets
 		);
 	}
 
@@ -406,7 +524,7 @@ namespace Vulkan {
 		const Font& font = font_system.view_font(font_id);
 		return get_image_descriptor_from(
 			font_system.texture_system, font.texture_id, frame_index, frame_font_descriptor_sets,
-			default_font_descriptor_sets
+			default_font_descriptor_sets, font_bucket_descriptor_sets
 		);
 	}
 
@@ -491,7 +609,7 @@ namespace Vulkan {
 		Texture_2D::init();
 		Rectangle::init();
 		Triangle::init();
-		// Font_2D::init();
+		Font_2D::init();
 		// Model_3D::init();
 	}
 
@@ -501,65 +619,79 @@ namespace Vulkan {
 
 	void draw(VkCommandBuffer command_buffer) {
 		update_storage_buffer_descriptor_sets(current_frame);
-		batching_draw_groups();
 		Profiler::start_scope(SCOPE_DRAW);
 		current_binding_draw_info.clean();
-		std::vector<Group_Draw_Batching>& draw_groups2 = draw_groups;
-		for (const Group_Draw_Batching& group : draw_groups) {
+		for (const auto& group : draw_instance_batching_groups) {
 			switch (group.draw_type) {
-				case Const::DRAW_ID::DRAW_RECTANGLE_2D: {
-					Rectangle::draw(
-						command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
-						current_frame
-					);
-					break;
-				}
 				case Const::DRAW_ID::DRAW_TEXTURE_2D: {
 					Texture_2D::draw(
-						command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
-						current_frame
+						command_buffer, group.draw_material_id, group.number_instance, group.offset, current_frame
 					);
 					break;
 				}
-				case Const::DRAW_ID::DRAW_TRIANGLE_2D: {
-					Triangle::draw(
-						command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
-						current_frame
+				case Const::DRAW_ID::DRAW_FONT_2D: {
+					Font_2D::draw(
+						command_buffer, group.draw_material_id, group.number_instance, group.offset, current_frame
 					);
-					break;
-				}
-				// case Const::DRAW_ID::DRAW_FONT_2D: {
-				// 	Font_2D::draw(
-				// 		command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
-				// 		current_frame
-				// 	);
-				// 	break;
-				// }
-				// case Const::DRAW_ID::DRAW_MODEL_3D: {
-				// 	Model_3D::draw(
-				// 		command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
-				// 		current_frame
-				// 	);
-				// 	break;
-				// }
-				default: {
 					break;
 				}
 			}
 		}
+		// for (const Group_Draw_Batching& group : draw_groups) {
+		// 	switch (group.draw_type) {
+		// 		case Const::DRAW_ID::DRAW_RECTANGLE_2D: {
+		// 			Rectangle::draw(
+		// 				command_buffer, group.material_draw_id, group.number_draw_instance, group.instance_offset,
+		// 				current_frame
+		// 			);
+		// 			break;
+		// 		}
+		// 		// case Const::DRAW_ID::DRAW_TEXTURE_2D: {
+		// 		// 	Texture_2D::draw(
+		// 		// 		command_buffer, group.material_draw_id, group.number_draw_instance, group.instance_offset,
+		// 		// 		current_frame
+		// 		// 	);
+		// 		// 	break;
+		// 		// }
+		// 		case Const::DRAW_ID::DRAW_TRIANGLE_2D: {
+		// 			Triangle::draw(
+		// 				command_buffer, group.material_draw_id, group.number_draw_instance, group.instance_offset,
+		// 				current_frame
+		// 			);
+		// 			break;
+		// 		}
+		// 		// case Const::DRAW_ID::DRAW_FONT_2D: {
+		// 		// 	Font_2D::draw(
+		// 		// 		command_buffer, group.material_draw_id, group.number_draw_instance, group.instance_offset,
+		// 		// 		current_frame
+		// 		// 	);
+		// 		// 	break;
+		// 		// }
+		// 		// case Const::DRAW_ID::DRAW_MODEL_3D: {
+		// 		// 	Model_3D::draw(
+		// 		// 		command_buffer, group.material_draw_id, group.number_instance, group.instance_offset,
+		// 		// 		current_frame
+		// 		// 	);
+		// 		// 	break;
+		// 		// }
+		// 		default: {
+		// 			break;
+		// 		}
+		// 	}
+		// }
 		Profiler::end_scope(SCOPE_DRAW);
 		frame_count++;
 		if (frame_count % 60 == 0) {
 			Profiler::view_scope(SCOPE_SORT_DRAW);
-			Profiler::view_scope(SCOPE_SET_UP_BUFFER);
 			Profiler::view_scope(SCOPE_BATCHING_GROUP);
 			Profiler::view_scope(SCOPE_DRAW);
+			Log::info("Number group instance drawed", draw_instance_batching_groups.size());
 		}
 	}
 
 	void destroy_draw() {
 		// Model_3D::destroy();
-		// Font_2D::destroy();
+		Font_2D::destroy();
 		Triangle::destroy();
 		Texture_2D::destroy();
 		Rectangle::destroy();
@@ -575,21 +707,21 @@ namespace Vulkan {
 	}
 
 	void update_draw(uint32_t id, Draw_Attribute draw_attributes) {
-		if (!draws.has(id)) {
+		if (!draw_id_to_info.has(id)) {
 			return;
 		}
-		auto& draw_info = draws.modify(id);
+		auto& draw_info = draw_id_to_info.modify(id);
 		draw_info.draw_index = draw_attributes.draw_index;
 		draw_info.visible = draw_attributes.is_visible;
 	}
 
 	uint32_t make_rectange(const Draw_Attribute& draw_attributes, Rectangle_Attributes rectangle_attributes) {
-		uint32_t draw_id = draw_id_generator.gen_id();
-		Draw_Information draw_info = Rectangle::make_draw(rectangle_attributes);
-		draw_info.draw_index = draw_attributes.draw_index;
-		draw_info.visible = draw_attributes.is_visible;
-		draw_info.create_index = ++current_create_index;
-		return draws.insert(draw_id, draw_info);
+		// uint32_t draw_id = draw_id_generator.gen_id();
+		// Draw_Information draw_info = Rectangle::make_draw(rectangle_attributes);
+		// draw_info.draw_index = draw_attributes.draw_index;
+		// draw_info.visible = draw_attributes.is_visible;
+		// draw_info.create_index = ++current_create_index;
+		// return draws.insert(draw_id, draw_info);
 		return 0;
 	}
 
@@ -607,35 +739,47 @@ namespace Vulkan {
 		draw_info.draw_index = draw_attributes.draw_index;
 		draw_info.visible = draw_attributes.is_visible;
 		draw_info.create_index = ++current_create_index;
-		return draws.insert(draw_id, draw_info);
+		return draw_id_to_info.insert(draw_id, draw_info);
+	}
+
+	uint32_t make_texture_2D_2(const Draw_Attribute& draw_attributes, const Texture_2D_Attributes& texture_attributes) {
+		uint32_t draw_id = draw_id_generator.gen_id();
+		Draw_Information draw_info{Const::DRAW_ID::DRAW_TEXTURE_2D};
+		draw_info.draw_index = draw_attributes.draw_index;
+		draw_info.visible = draw_attributes.is_visible;
+		std::vector<Draw_Instance_Information> instances = Texture_2D::make_texture_2D_2(draw_info, texture_attributes);
+		draw_id_to_info.insert(draw_id, draw_info);
+		draw_id_to_instance.insert(draw_id, instances);
+		return draw_id;
 	}
 
 	void update_texture_2D(uint32_t id, const Texture_2D_Attributes& texture_attributes) {
-		if (!draws.has(id)) {
+		if (!draw_id_to_info.has(id)) {
 			return;
 		}
-		Draw_Information& draw_info = draws.modify(id);
+		Draw_Information& draw_info = draw_id_to_info.modify(id);
 		Texture_2D::update_texture_2D(draw_info, texture_attributes);
 	}
 
 	uint32_t make_triangle(const Draw_Attribute& draw_attributes, const Triangle_Attribultes& triangle_attributes) {
-		uint32_t draw_id = draw_id_generator.gen_id();
-		Draw_Information draw_info = Triangle::make_triangle(triangle_attributes);
-		draw_info.draw_index = draw_attributes.draw_index;
-		draw_info.visible = draw_attributes.is_visible;
-		draw_info.create_index = ++current_create_index;
-		return draws.insert(draw_id, draw_info);
-		return 0;
-	}
-
-	uint32_t make_font_2D(const Draw_Attribute& draw_attributes, const Font_2D_Attributes& font_attributes) {
 		// uint32_t draw_id = draw_id_generator.gen_id();
-		// Draw_Information draw_info = Font_2D::make_font_2D(font_attributes);
+		// Draw_Information draw_info = Triangle::make_triangle(triangle_attributes);
 		// draw_info.draw_index = draw_attributes.draw_index;
 		// draw_info.visible = draw_attributes.is_visible;
 		// draw_info.create_index = ++current_create_index;
 		// return draws.insert(draw_id, draw_info);
 		return 0;
+	}
+
+	uint32_t make_font_2D(const Draw_Attribute& draw_attributes, const Font_2D_Attributes& font_attributes) {
+		uint32_t draw_id = draw_id_generator.gen_id();
+		Draw_Information draw_info{Const::DRAW_ID::DRAW_FONT_2D};
+		draw_info.draw_index = draw_attributes.draw_index;
+		draw_info.visible = draw_attributes.is_visible;
+		std::vector<Draw_Instance_Information> instances = Font_2D::make_font_2D(draw_info, font_attributes);
+		draw_id_to_info.insert(draw_id, draw_info);
+		draw_id_to_instance.insert(draw_id, instances);
+		return draw_id;
 	}
 
 	uint32_t make_model_3D(const Draw_Attribute& draw_attributes, const Model_3D_Attributes& model_attributes) {
@@ -649,11 +793,11 @@ namespace Vulkan {
 	}
 
 	void update_triangle(uint32_t id, const Triangle_Attribultes& triangle_attributes) {
-		if (!draws.has(id)) {
-			return;
-		}
-		const Draw_Information& draw_info = draws.get(id);
-		Triangle::update_triangle(draw_info.instance_id, triangle_attributes);
+		// if (!draws.has(id)) {
+		// 	return;
+		// }
+		// const Draw_Information& draw_info = draws.get(id);
+		// Triangle::update_triangle(draw_info.instance_id, triangle_attributes);
 	}
 
 } // namespace Vulkan

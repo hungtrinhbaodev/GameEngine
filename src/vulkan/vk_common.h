@@ -1,11 +1,121 @@
 #pragma once
 #include <array>
+#include <geometry_structs.h>
 #include <iostream>
+#include <parser/font_parser.h>
 #include <vulkan/vk_buffer.h>
 #include <vulkan/vk_consts.h>
 #include <vulkan/vk_image.h>
 
 namespace Vulkan {
+
+	struct Draw_Information {
+		Const::DRAW_ID draw_type = Const::DRAW_ID::UNDEFINED;
+		/**
+		 * @Note: unique material need to draw
+		 * this object per draw id.
+		 */
+		uint32_t draw_material_id = -1;
+		/**
+		 * @Note: instance id of object draw
+		 * in SSBO instance buffer.
+		 */
+		uint32_t instance_id = 0;
+		/**
+		 * @Note: index of object draw.
+		 */
+		uint32_t draw_index = 0;
+		/**
+		 * @Note: turn on/off object to draw.
+		 */
+		bool visible = false;
+		/**
+		 * @Note: when object draw has same
+		 * draw index the order draw will
+		 * be sort by create_index
+		 */
+		uint32_t create_index = 0;
+	};
+
+	struct Draw_Instance_Information {
+		uint32_t instance_id = 0;
+		/**
+		 * @Note: using number sub instance
+		 * to font object that one call draw
+		 * all char.
+		 */
+		uint32_t number_sub_instance = 1;
+		uint32_t instance_material_id = 0;
+		inline bool operator<(const Draw_Instance_Information& other) const {
+			return instance_material_id < other.instance_material_id;
+		}
+	};
+
+	struct Draw_Attribute {
+		uint32_t draw_index = 0;
+		bool is_visible = false;
+	};
+
+	struct Rectangle_Attributes {
+		float width = 0.f;
+		float height = 0.f;
+		glm::vec2 position = {0.f, 0.f};
+		glm::vec2 anchor = {0.f, 0.f};
+		glm::vec3 color = {1.f, 1.f, 1.f};
+		float rotation = 0;
+	};
+
+	struct Texture_2D_Attributes {
+		std::string path = "";
+		glm::vec2 position{0.f, 0.f};
+		glm::vec2 scale = {1.f, 1.f};
+		glm::vec2 anchor = {0.f, 0.f};
+		Geometry::Texture_Rect_2D texture_rect{0.f, 0.f, 1.f, 1.f};
+		float rotation = 0;
+	};
+
+	struct Triangle_Attribultes {
+		/**
+		 * @Note: 3 point of triangle to draw.
+		 */
+		glm::vec2 first{0.f, 0.f};
+		glm::vec2 second{0.f, 0.f};
+		glm::vec2 third{0.f, 0.f};
+		glm::vec3 color{1.f, 1.f, 1.f};
+	};
+
+	struct Font_2D_Attributes {
+		std::string path = "";
+		std::string text = "";
+		int font_size = 1;
+		glm::vec2 position{0.f, 0.f};
+		glm::vec2 scale = {1.f, 1.f};
+		glm::vec2 anchor = {0.f, 0.f};
+		glm::vec3 color = {1.f, 1.f, 1.f};
+		float rotation = 0;
+		/**
+		 * @Note: row align type:
+		 * 0: center.
+		 * 1: left.
+		 * 2: right.
+		 */
+		int align = 0;
+		inline bool operator==(const Font_2D_Attributes& other) const {
+			return path == other.path && text == other.text && font_size == other.font_size &&
+				   position == other.position && scale == other.scale && anchor == other.anchor &&
+				   rotation == other.rotation;
+		}
+
+		inline bool operator!=(const Font_2D_Attributes& other) const { return !(*this == other); }
+	};
+
+	struct Model_3D_Attributes {
+		std::string path = "";
+		glm::vec3 position = {0.f, 0.f, 0.f};
+		glm::vec3 scale = {1.f, 1.f, 1.f};
+		glm::vec3 rotation = {0.f, 0.f, 0.f};
+	};
+
 	struct Resource_Synchronize_Information {
 
 		std::array<bool, Const::MAX_FRAMES_IN_FLIGHT> blocked{true};
@@ -22,6 +132,8 @@ namespace Vulkan {
 		uint32_t align = 0;
 
 		uint32_t size = 0;
+
+		uint32_t stride = 1;
 
 		template <typename T> inline uint32_t size_as() const { return size / sizeof(T); }
 
@@ -74,5 +186,49 @@ namespace Vulkan {
 	struct Copied_Data_Synchronize_Information {
 		bool is_copying = false;
 		VkFence fence = VK_NULL_HANDLE;
+	};
+
+	struct Font : public Parser::Font {
+		uint32_t texture_id = 0;
+		uint32_t rect_storage_id = 0;
+		uint32_t rect_storage_offset = 0;
+		Geometry::Texture_Rect_2D get_char_rect(char value) const;
+		glm::vec2 get_char_bounding_box(char value) const;
+		glm::vec2 get_char_local_offset(char value) const;
+		float get_char_scale(int font_size) const;
+		uint32_t get_char_rect_offset(char value) const;
+	};
+
+	struct Primitive_Buffer_Range {
+		uint32_t vertex_id = 0;
+		uint32_t indices_id = 0;
+		uint32_t texture_id = 0;
+	};
+
+	struct Model_Mesh_Information {
+		std::vector<Primitive_Buffer_Range> primitives;
+		glm::vec3 min_bounding_box{0.f};
+		glm::vec3 max_bounding_box{0.f};
+		/**
+		 * Index = scene index.
+		 * Value = storage id of array primitive local transform.
+		 */
+		std::vector<uint32_t> local_transform_storage_ids_by_scene{};
+
+		glm::vec3 get_mesh_origin() const;
+	};
+
+	struct Model_Information {
+		std::vector<Model_Mesh_Information> meshes;
+		std::map<uint32_t, std::map<uint32_t, std::vector<glm::mat4>>> global_meshes_transformes;
+		std::vector<Primitive_Buffer_Range> flat_primitives{};
+		uint32_t draw_scene_index = -1;
+
+		uint32_t get_number_primitive() const;
+		uint32_t get_primitive_flat_index(const uint32_t& mesh_index, const uint32_t& primitive_index) const;
+	};
+
+	struct Draw_2D_Common_Data {
+		glm::vec2 screen_size = {0.f, 0.f};
 	};
 } // namespace Vulkan

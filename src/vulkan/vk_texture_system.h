@@ -1,5 +1,6 @@
 #pragma once
 #include <map>
+#include <sparse_set.h>
 #include <stack>
 #include <string>
 #include <vector>
@@ -38,6 +39,8 @@ namespace Vulkan {
 
 		std::map<uint32_t, Texture_View> ids_to_views;
 
+		Sparse_Set<Texture_View> ids_to_views_2{};
+
 		uint32_t default_texture_id = 0;
 
 		VkFormat format;
@@ -73,7 +76,7 @@ namespace Vulkan {
 			std::string file, void* pixels, int width, int height, int channels, bool use_bucket = false
 		);
 
-		Texture_View view_texture(uint32_t id);
+		const Texture_View& view_texture(uint32_t id);
 
 		uint32_t get_default_texture_id();
 

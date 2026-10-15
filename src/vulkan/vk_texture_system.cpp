@@ -225,6 +225,7 @@ namespace Vulkan {
 		// add id of texture to tracking
 		Texture_View view{file, used_image, (float)width, (float)height, storage_mode, bucket_index, slot_index};
 		ids_to_views[id] = view;
+		ids_to_views_2.insert(id, view);
 		ids_to_files[id] = file;
 		files_to_ids[file] = id;
 
@@ -254,11 +255,8 @@ namespace Vulkan {
 		return static_cast<uint32_t>(texture_id);
 	}
 
-	Texture_View Texture_System::view_texture(uint32_t id) {
-		if (ids_to_views.find(id) == ids_to_views.end()) {
-			return {""};
-		}
-		return ids_to_views[id];
+	const Texture_View& Texture_System::view_texture(uint32_t id) {
+		return ids_to_views_2.get(id);
 	}
 
 	uint32_t Texture_System::get_default_texture_id() {
@@ -296,6 +294,7 @@ namespace Vulkan {
 		}
 		std::string& file = ids_to_files[id];
 		ids_to_views.erase(id);
+		ids_to_views_2.erase(id);
 		files_to_ids.erase(file);
 		ids_to_files.erase(id);
 		ids_to_individual_textures.erase(id);

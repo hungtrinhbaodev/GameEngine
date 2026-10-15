@@ -7,35 +7,6 @@
 #include <vulkan/vulkan.h>
 
 namespace Vulkan {
-
-	struct Draw_Information {
-		Const::DRAW_ID draw_type = Const::DRAW_ID::UNDEFINED;
-		/**
-		 * @Note: unique material need to draw
-		 * this object per draw id.
-		 */
-		uint32_t draw_material_id = 0;
-		/**
-		 * @Note: instance id of object draw
-		 * in SSBO instance buffer.
-		 */
-		uint32_t instance_id = 0;
-		/**
-		 * @Note: index of object draw.
-		 */
-		uint32_t draw_index = 0;
-		/**
-		 * @Note: turn on/off object to draw.
-		 */
-		bool visible = false;
-		/**
-		 * @Note: when object draw has same
-		 * draw index the order draw will
-		 * be sort by create_index
-		 */
-		uint32_t create_index = 0;
-	};
-
 	/**
 	 * @Note: using to debug.
 	 */
@@ -47,9 +18,7 @@ namespace Vulkan {
 
 	void sort_draws();
 
-	void record_setup_draw_buffers(VkCommandBuffer command_buffer, uint32_t current_frame);
-
-	void batching_draw_groups();
+	void batching_draw_groups_2(VkCommandBuffer command_buffer, uint32_t frame_index);
 
 	void draw(VkCommandBuffer command_buffer);
 
@@ -61,9 +30,21 @@ namespace Vulkan {
 
 	uint32_t load_texture(std::string texture_path);
 
-	Texture_View view_texture(uint32_t texture_id);
+	const Texture_View& view_texture(uint32_t texture_id);
 
 	uint32_t load_font(std::string font_path);
+
+	const Font& view_font(uint32_t font_id);
+
+	const Texture_View& view_font_texture(uint32_t font_id);
+
+	uint32_t load_model(std::string path);
+
+	const Model_Information& view_model(uint32_t model_id);
+
+	uint32_t get_primitive_transform_offset(
+		uint32_t model_id, uint32_t scene_index, uint32_t mesh_index, uint32_t primitive_index
+	);
 
 	VkDescriptorSet get_storage_descriptor_set(uint32_t frame_index);
 
@@ -89,6 +70,8 @@ namespace Vulkan {
 	void update_rectangle(uint32_t id, Rectangle_Attributes rectangle_attributes);
 
 	uint32_t make_texture_2D(const Draw_Attribute& draw_attributes, const Texture_2D_Attributes& texture_attributes);
+
+	uint32_t make_texture_2D_2(const Draw_Attribute& draw_attributes, const Texture_2D_Attributes& texture_attributes);
 
 	void update_texture_2D(uint32_t id, const Texture_2D_Attributes& texture_attributes);
 

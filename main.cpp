@@ -31,43 +31,44 @@ int main() {
 	Vulkan::init_vulkan_core(window);
 
 	glm::vec2 window_size = Vulkan::Utils::get_window_size(Vulkan::device);
-	std::vector<uint32_t> rectangles{};
-	for (int i = 0; i < 5; i++) {
-		Vulkan::Draw_Attribute draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
-		Vulkan::Rectangle_Attributes rectangle_attributes{
-			200, 100, {Math::random_float(0, window_size.x), Math::random_float(0, window_size.y)}
-		};
-		rectangle_attributes.color = {Math::random_float(), Math::random_float(), Math::random_float()};
-		rectangles.push_back(Vulkan::make_rectange(draw_attributes, rectangle_attributes));
-	}
+	// std::vector<uint32_t> rectangles{};
+	// for (int i = 0; i < 5000; i++) {
+	// 	Vulkan::Draw_Attribute draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
+	// 	Vulkan::Rectangle_Attributes rectangle_attributes{
+	// 		200, 100, {Math::random_float(0, window_size.x), Math::random_float(0, window_size.y)}
+	// 	};
+	// 	rectangle_attributes.color = {Math::random_float(), Math::random_float(), Math::random_float()};
+	// 	rectangles.push_back(Vulkan::make_rectange(draw_attributes, rectangle_attributes));
+	// }
 
 	std::vector<uint32_t> textures{};
-	for (int i = 0; i < 5; i++) {
+	for (int i = 0; i < 100; i++) {
 		std::string path = Math::random_float() >= 0.5f ? "res/AddonIcon7.png" : "res/AddonIcon5.png";
 		Vulkan::Draw_Attribute draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
 		Vulkan::Texture_2D_Attributes texture_attributes{
 			path, {Math::random_float(0, window_size.x), Math::random_float(0, window_size.y)}
 		};
-		textures.push_back(Vulkan::make_texture_2D(draw_attributes, texture_attributes));
+		// textures.push_back(Vulkan::make_texture_2D(draw_attributes, texture_attributes));
+		textures.push_back(Vulkan::make_texture_2D_2(draw_attributes, texture_attributes));
 	}
 
-	std::vector<uint32_t> triangles{};
-	Vulkan::Draw_Attribute triangle_draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
-	Vulkan::Triangle_Attribultes triangle_attributes{{200.f, 220.f}, {430.f, 340.f}, {520.f, 120.f}};
-	triangle_attributes.color = {Math::random_float(), Math::random_float(), Math::random_float()};
-	triangles.push_back(Vulkan::make_triangle(triangle_draw_attributes, triangle_attributes));
+	// std::vector<uint32_t> triangles{};
+	// Vulkan::Draw_Attribute triangle_draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
+	// Vulkan::Triangle_Attribultes triangle_attributes{{200.f, 220.f}, {430.f, 340.f}, {520.f, 120.f}};
+	// triangle_attributes.color = {Math::random_float(), Math::random_float(), Math::random_float()};
+	// triangles.push_back(Vulkan::make_triangle(triangle_draw_attributes, triangle_attributes));
 
-	// Vulkan::Draw_Attribute font_draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
-	// Vulkan::Font_2D_Attributes font_attributes{};
-	// font_attributes.path = "res/fonts/default.otf";
-	// font_attributes.text = "toi la hung!\nhaha\n12323-~yy";
-	// font_attributes.color = {Math::random_float(), Math::random_float(), Math::random_float()};
-	// font_attributes.align = 1;
-	// font_attributes.position = {0, 0};
-	// font_attributes.scale = {1.f, 1.f};
-	// font_attributes.rotation = 0;
-	// font_attributes.font_size = 16;
-	// Vulkan::make_font_2D(font_draw_attributes, font_attributes);
+	for (int i = 0; i < 30; i++) {
+		Vulkan::Draw_Attribute font_draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
+		Vulkan::Font_2D_Attributes font_attributes{};
+		font_attributes.path = "res/fonts/default.otf";
+		font_attributes.text = "toi la hung!\nhaha\n12323-~yy";
+		font_attributes.color = {Math::random_float(), Math::random_float(), Math::random_float()};
+		font_attributes.align = 1;
+		font_attributes.position = {Math::random_float(0, window_size.x), Math::random_float(0, window_size.y)};
+		font_attributes.font_size = Math::random_float(12, 18);
+		Vulkan::make_font_2D(font_draw_attributes, font_attributes);
+	}
 
 	// Vulkan::Draw_Attribute model_draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
 	// Vulkan::Model_3D_Attributes model_attributes{};

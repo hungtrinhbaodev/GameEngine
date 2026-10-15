@@ -3,7 +3,7 @@
 layout (location = 0) in vec2 in_position;
 layout (location = 1) in uint in_storage_index;
 
-struct Instance_Data{
+struct Instance_Data {
     vec2  translation;
     vec2  size;
     vec3  instance_color;

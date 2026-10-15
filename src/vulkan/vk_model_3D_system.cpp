@@ -1,20 +1,18 @@
+#include <math_custom.h>
 #include <parser/gltf_parser.h>
 #include <vulkan/vk_model_3D_system.h>
 
 namespace Vulkan {
 
-	glm::vec3 Model_Mesh_Information::get_mesh_origin() const {
-		return (max_bounding_box + min_bounding_box) * 0.5f;
-	}
-
-	void Model_3D_System::init(Texture_System* texture_system, Static_Buffer* static_buffer) {
+	void Model_3D_System::init(Texture_System* texture_system, Static_Buffer* static_buffer, SSBO_Buffer* ssbo) {
 		this->texture_system = texture_system;
 		this->static_buffer = static_buffer;
+		this->ssbo = ssbo;
 	}
 
 	uint32_t Model_3D_System::load_model(std::string path) {
-		if (this->files_to_ids.find(path) != this->files_to_ids.end()) {
-			return this->files_to_ids[path];
+		if (files_to_ids.find(path) != files_to_ids.end()) {
+			return files_to_ids[path];
 		}
 		uint32_t model_id = 0;
 		if (available_ids.size() > 0) {
@@ -25,6 +23,21 @@ namespace Vulkan {
 		}
 		Parser::Gltf_Model model = Parser::parse_gltf_model(path);
 		Model_Information model_info{};
+		model_info.global_meshes_transformes = std::move(model.make_meshes_global_transform());
+		const auto& global_meshes_transformes = model_info.global_meshes_transformes;
+		for (const auto& [scene_index, meshes_transforms] : global_meshes_transformes) {
+			for (const auto& [mesh_index, transforms] : meshes_transforms) {
+				auto& mesh = model_info.meshes[mesh_index];
+				glm::vec3 origin = mesh.get_mesh_origin();
+				std::vector<glm::mat4> transforms_data{};
+				for (const glm::mat4& transform : transforms) {
+					transforms_data.push_back(transform * Math::make_translation(-origin));
+				}
+				mesh.local_transform_storage_ids_by_scene.push_back(ssbo->upload_data(
+					transforms_data.data(), transforms_data.size() * sizeof(glm::mat4), sizeof(glm::mat4)
+				));
+			}
+		}
 		for (int mesh_index = 0; mesh_index < model.meshes.size(); mesh_index++) {
 			Parser::Gltf_Mesh& mesh = model.meshes[mesh_index];
 			std::vector<Primitive_Buffer_Range> primitives;
@@ -46,8 +59,12 @@ namespace Vulkan {
 			}
 			model_info.meshes.push_back({std::move(primitives), mesh.min_bounding_box, mesh.max_bounding_box});
 		}
-		model_info.global_meshes_transform = std::move(model.make_meshes_global_transform());
 		model_info.draw_scene_index = model.default_scene_index;
+		for (const auto& mesh : model_info.meshes) {
+			for (const auto& primitive : mesh.primitives) {
+				model_info.flat_primitives.push_back(primitive);
+			}
+		}
 		models[model_id] = model_info;
 		ids_to_files[model_id] = path;
 		files_to_ids[path] = model_id;

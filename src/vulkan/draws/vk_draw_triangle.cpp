@@ -3,6 +3,7 @@
 #include <vulkan/draws/vk_draw_triangle.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_descriptor.h>
+#include <vulkan/vk_draw.h>
 #include <vulkan/vk_pipeline.h>
 #include <vulkan/vk_utils.h>
 #include <vulkan/vk_vertex_input_builder.h>

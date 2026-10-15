@@ -155,10 +155,12 @@ namespace Vulkan {
 		// Initialize Vulkan Command Pool By Threads
 		init_command_pool_threads(surface, physical_device, device);
 
+		ssbo_buffer.init(Const::INITIALIZE_SIZE_STAGING_BUFFER, physical_device, device);
+
 		// Initialize Vulkan Swapchain
 		init_swapchain(
 			window, swapchain, swapchain_format, swapchain_extent, swapchain_images, swapchain_image_views, surface,
-			physical_device, device
+			physical_device, device, ssbo_buffer
 		);
 
 		// Initialize Vulkan Depth Image
@@ -181,8 +183,6 @@ namespace Vulkan {
 			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, draw_fences, physical_device, device
 		);
 
-		ssbo_buffer.init(Const::INITIALIZE_SIZE_STAGING_BUFFER, physical_device, device);
-
 		// Initialize texture system to loading texture
 		texture_system.init(
 			Const::TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_TEXTURE_PER_BUCKETS, device, descriptor_pools,
@@ -190,10 +190,10 @@ namespace Vulkan {
 		);
 
 		// Initialize font system to loading font
-		font_system.init(device, descriptor_pools, descriptor_pools_2, physical_device);
+		font_system.init(&ssbo_buffer, device, descriptor_pools, descriptor_pools_2, physical_device);
 
 		// Initialize model 3D system to loading and storage model
-		model_3D_system.init(&texture_system, &static_buffer);
+		model_3D_system.init(&texture_system, &static_buffer, &ssbo_buffer);
 
 		init_draw();
 	}
@@ -201,7 +201,7 @@ namespace Vulkan {
 	void on_window_resize() {
 		recreate_swapchain(
 			window, swapchain, swapchain_format, swapchain_extent, swapchain_images, swapchain_image_views, surface,
-			physical_device, device
+			physical_device, device, ssbo_buffer
 		);
 		recreate_depth_image(depth_image, physical_device, device, swapchain_extent);
 		recreate_frame_buffers(
@@ -275,7 +275,8 @@ namespace Vulkan {
 			 * before being in render so we sort draw and record first.
 			 */
 			sort_draws();
-			record_setup_draw_buffers(command_buffer, current_frame);
+			// batching_draw_groups(command_buffer, current_frame);
+			batching_draw_groups_2(command_buffer, current_frame);
 			vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 			{
 				draw(command_buffer);

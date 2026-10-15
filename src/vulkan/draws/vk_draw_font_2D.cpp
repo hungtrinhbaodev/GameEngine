@@ -16,31 +16,43 @@ namespace Vulkan {
 	namespace Font_2D {
 
 		struct Instance_Data {
-			glm::vec2 tex_size{0.f, 0.f};
-			glm::vec2 translation{0.f, 0.f};
-			glm::vec2 char_translation{0.f, 0.f};
-			glm::vec2 scale{1.f, 1.f};
-			glm::vec4 rect{0.f, 0.f, 0.f, 0.f};
-			glm::vec3 color{1.f, 1.f, 1.f};
-			float rotation = 0.f;
-			uint32_t bucket_index = 0;
-			uint32_t slot_index = 0;
-			friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
-				os << "{Rectangle::Instance_Data: translation: " << instance.translation
-				   << ",  tex_size: " << instance.tex_size << ",  char_translation: " << instance.char_translation
-				   << ",  scale: " << instance.scale << ", color: " << instance.color << ", rect: " << instance.rect
-				   << ", rotation: " << instance.rotation << "}";
+			uint32_t storage_offset = 0;
+			uint32_t storage_char_offset = 0;
+			uint32_t vertex_offset = 0;
+			uint32_t config_draw_offset = 0;
+		};
+
+		struct Storage_Char_Data {
+			glm::vec2 char_translation{0.f, 0.f}; // 8/8
+			uint32_t char_offset = 0;			  // 4/4
+			float _pad = 0.f;					  // 4/4
+			friend std::ostream& operator<<(std::ostream& os, const Storage_Char_Data& instance) {
+				os << "{Rectangle::Storage_Char_Data: char_translation: " << instance.char_translation
+				   << ", char_offset: " << instance.char_offset << "}";
 				return os;
 			}
 		};
 
-		struct Push_Constants {
-			glm::vec2 screen_size{0.f, 0.f};
-			uint32_t vertex_offset = 0;
+		struct Storage_Data {
+			glm::vec2 tex_size{0.f, 0.f};	 // 8/8
+			glm::vec2 translation{0.f, 0.f}; // 8/8
+			glm::vec3 color{1.f, 1.f, 1.f};	 // 12/16
+			float rotation = 0.f;			 // 4/4
+			glm::vec2 scale{1.f, 1.f};		 // 8/8
+			int32_t bucket_index = 0;		 // 4/4
+			int32_t slot_index = 0;			 // 4/4
+			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& instance) {
+				os << "{Rectangle::Storage_Data_2: translation: " << instance.translation
+				   << ",  tex_size: " << instance.tex_size << ",  scale: " << instance.scale
+				   << ", color: " << instance.color << ", rotation: " << instance.rotation << "}";
+				return os;
+			}
 		};
 
 		struct Text_Data {
-			std::vector<Instance_Data> chars{};
+			std::vector<uint32_t> storage_ids{};
+			uint32_t storage_id = 0;
+			std::vector<uint32_t> storage_char_ids{};
 			Font_2D_Attributes attributes{};
 			float width = 0;
 			float height = 0;
@@ -83,12 +95,17 @@ namespace Vulkan {
 				return char_positions;
 			}
 
-			bool make(const Font_2D_Attributes& attributes, const Font& font, Texture_System& texture_system) {
+			bool is_changing(const Font_2D_Attributes& attributes) const { return this->attributes != attributes; }
+
+			void make_2(
+				const Font_2D_Attributes& attributes, const Font& font, const Texture_View& texture_view,
+				std::vector<Storage_Char_Data>& char_storages, Storage_Data& storage
+			) {
 				if (this->attributes == attributes) {
-					return false;
+					return;
 				}
 				if (attributes.text == "") {
-					return false;
+					return;
 				}
 				std::string text = attributes.text;
 				std::vector<std::string> lines = break_lines(text);
@@ -123,8 +140,6 @@ namespace Vulkan {
 				width = max_width_line;
 				height = total_height;
 				glm::vec2 origin = -glm::vec2(width, height) * attributes.anchor;
-				chars.clear();
-				Texture_View texture_view = texture_system.view_texture(font.texture_id);
 				float char_scale = font.get_char_scale(attributes.font_size);
 				for (int i = 0; i < lines.size(); i++) {
 					const std::string& line = lines[i];
@@ -132,24 +147,22 @@ namespace Vulkan {
 					std::vector<glm::vec2> positions = get_char_position_at(line, start_line_position + origin, font);
 					for (int j = 0; j < positions.size(); j++) {
 						glm::vec2 position = positions[j];
-						Instance_Data instance{};
-						instance.translation = attributes.position;
-						instance.char_translation = position;
-						instance.scale = attributes.scale * char_scale;
-						instance.tex_size = {font.size_atlas, font.size_atlas};
-						instance.slot_index = texture_view.slot_index;
-						instance.bucket_index = texture_view.bucket_index;
-						instance.rotation = attributes.rotation;
-						instance.color = attributes.color;
-						auto char_rect = font.get_char_rect(line[j]);
-						instance.rect = char_rect.to_vec4();
-						chars.push_back(instance);
+						Storage_Char_Data char_storage{};
+						char_storage.char_translation = position;
+						char_storage.char_offset = font.get_char_rect_offset(line[j]);
+						char_storages.push_back(char_storage);
 					}
 				}
+				storage.translation = attributes.position;
+				storage.scale = attributes.scale * char_scale;
+				storage.tex_size = {font.size_atlas, font.size_atlas};
+				storage.slot_index = texture_view.slot_index;
+				storage.bucket_index = texture_view.bucket_index;
+				storage.rotation = attributes.rotation;
+				storage.color = attributes.color;
 				this->attributes = attributes;
 				width *= char_scale;
 				height *= char_scale;
-				return true;
 			}
 		};
 
@@ -163,12 +176,6 @@ namespace Vulkan {
 
 		Pipeline pipeline{};
 
-		std::unordered_map<uint32_t, std::vector<VkDescriptorSet>> texture_descriptor_sets{};
-
-		std::vector<VkDescriptorSet> texture_default_descriptor_sets{};
-
-		std::vector<VkDescriptorSet> texture_bucket_descriptor_sets{};
-
 		std::vector<VkDescriptorSetLayout> layouts{};
 
 		uint32_t vertex_id = 0;
@@ -176,7 +183,12 @@ namespace Vulkan {
 		uint32_t indices_id = 0;
 
 		bool is_material_equal(uint32_t a, uint32_t b) {
-			return a == b;
+			if (a == b)
+				return true;
+			const Texture_View& texture_view_a = view_font_texture(a);
+			const Texture_View& texture_view_b = view_font_texture(b);
+			return texture_view_a.storage_mode == Const::TEXTURE_STORAGE_MODE::BUCKET &&
+				   texture_view_b.storage_mode == Const::TEXTURE_STORAGE_MODE::BUCKET;
 		}
 
 		void init() {
@@ -184,31 +196,21 @@ namespace Vulkan {
 			vertex_builder.add_binding_description(0, sizeof(Geometry::Vertex_2D), VK_VERTEX_INPUT_RATE_VERTEX)
 				.add_attribute_description(0, VK_FORMAT_R32G32_SFLOAT, offsetof(Geometry::Vertex_2D, position));
 			vertex_builder.add_binding_description(1, sizeof(Instance_Data), VK_VERTEX_INPUT_RATE_INSTANCE)
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, tex_size))
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, translation))
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, char_translation))
-				.add_attribute_description(1, VK_FORMAT_R32G32_SFLOAT, offsetof(Instance_Data, scale))
-				.add_attribute_description(1, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Instance_Data, rect))
-				.add_attribute_description(1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Instance_Data, color))
-				.add_attribute_description(1, VK_FORMAT_R32_SFLOAT, offsetof(Instance_Data, rotation))
-				.add_attribute_description(1, VK_FORMAT_R32_SINT, offsetof(Instance_Data, bucket_index))
-				.add_attribute_description(1, VK_FORMAT_R32_SINT, offsetof(Instance_Data, slot_index));
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_offset))
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_char_offset))
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, vertex_offset))
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, config_draw_offset));
 
-			Descriptor_Set_Layout_Builder layout_builder{};
-			layout_builder.add_binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT);
-			layouts.push_back(layout_builder.build(Vulkan::device));
+			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::STORAGE_BUFFER));
+			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::IMAGE_SAMPLER));
 			if (Const::ENABLED_TEXTURE_BUCKETS) {
-				layouts.push_back(font_system.texture_system.make_bucket_descriptor_set_layout());
-				texture_default_descriptor_sets =
-					Vulkan::texture_system.make_default_texture_descriptor_sets(layouts[0]);
-				texture_bucket_descriptor_sets = font_system.texture_system.make_bucket_descriptor_sets(layouts[1]);
+				layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::BUCKET_IMAGE_SAMPLER));
 			}
 
 			pipeline_config = Vulkan::make_default_pipeline_config();
 			pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
 			pipeline_config.attribute_descriptions = vertex_builder.build_attribute_descriptions();
 			pipeline_config.descriptor_set_layouts = layouts;
-			pipeline_config.push_constants_size = sizeof(Push_Constants);
 			pipeline_config.vertex_shader_path = Const::PATH_VERT_SHADERD_DRAW_FONT_2D;
 			pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_FONT_2D;
 			if (Const::ENABLED_TEXTURE_BUCKETS) {
@@ -237,22 +239,19 @@ namespace Vulkan {
 			Buffer_Range indices_range = static_buffer.view_slot_info(indices_id);
 			Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
 			Buffer instance_buffer = get_instance_buffer(frame_index);
-			const Font& font = font_system.view_font(material_draw_id);
-			Texture_View texture_view = font_system.texture_system.view_texture(font.texture_id);
 			uint32_t number_descriptor_set = 0;
 			VkDescriptorSet* binding_descriptor_sets = nullptr;
-			if (!Const::ENABLED_TEXTURE_BUCKETS) {
-				VkDescriptorSet using_descriptor_sets[1] = {texture_descriptor_sets[font.texture_id][frame_index]};
-				number_descriptor_set = 1;
+			VkDescriptorSet storage_descriptor_set = get_storage_descriptor_set(frame_index);
+			std::array<VkDescriptorSet, 2> font_texture_descriptor_sets =
+				get_descriptor_set_font_sampler(material_draw_id, frame_index);
+			if (Const::ENABLED_TEXTURE_BUCKETS) {
+				VkDescriptorSet using_descriptor_sets[3] = {
+					storage_descriptor_set, font_texture_descriptor_sets[0], font_texture_descriptor_sets[1]
+				};
+				number_descriptor_set = 3;
 				binding_descriptor_sets = using_descriptor_sets;
 			} else {
-				VkDescriptorSet using_descriptor_sets[2] = {};
-				if (texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::BUCKET) {
-					using_descriptor_sets[0] = texture_default_descriptor_sets[frame_index];
-				} else {
-					using_descriptor_sets[0] = texture_descriptor_sets[font.texture_id][frame_index];
-				}
-				using_descriptor_sets[1] = texture_bucket_descriptor_sets[frame_index];
+				VkDescriptorSet using_descriptor_sets[2] = {storage_descriptor_set, font_texture_descriptor_sets[0]};
 				number_descriptor_set = 2;
 				binding_descriptor_sets = using_descriptor_sets;
 			}
@@ -262,44 +261,76 @@ namespace Vulkan {
 				command_buffer, pipeline.pipeline, pipeline.layout, static_buffer.inner_buffer.buffer, 0,
 				VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, number_descriptor_set, binding_descriptor_sets
 			);
-			Push_Constants constants{Utils::get_window_size(device), vertex_range.offset_as<Geometry::Vertex_2D>()};
-			vkCmdPushConstants(
-				command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-				sizeof(Push_Constants), &constants
-			);
 			vkCmdDrawIndexed(
 				command_buffer, indices_range.size_as<uint16_t>(), number_instance, indices_range.offset_as<uint16_t>(),
 				vertex_range.offset_as<Geometry::Vertex_2D>(), first_instance_offset / (uint32_t)(get_instance_size())
 			);
 		}
 
-		Draw_Information make_font_2D(const Font_2D_Attributes& font_attributes) {
-			uint32_t font_id = font_system.load_font(font_attributes.path);
-			const Font& font = font_system.view_font(font_id);
-			Texture_View texture_view = font_system.texture_system.view_texture(font.texture_id);
-			if (texture_descriptor_sets.find(font.texture_id) == texture_descriptor_sets.end() &&
-				texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::INDIVIDUAL) {
-				texture_descriptor_sets[font.texture_id] = Utils::make_texture_descriptor_sets(
-					descriptor_pools, layouts[0], texture_view.image.get_descriptor_info(texture_view.slot_index),
-					device
-				);
-			}
-			Draw_Information draw_info{Const::DRAW_FONT_2D};
-			Text_Data text{};
-			text.make(font_attributes, font, font_system.texture_system);
+		uint32_t update_text_data(
+			Draw_Information& draw_info, Text_Data& text, const Font_2D_Attributes& text_attributes
+		) {
+			uint32_t font_id = load_font(text_attributes.path);
+			const Font& font = view_font(font_id);
+			Texture_View texture_view = view_font_texture(font_id);
+			std::vector<Storage_Char_Data> storage_chars{};
+			Storage_Data storage{};
+			text.make_2(text_attributes, font, texture_view, storage_chars, storage);
 			SSBO_Buffer& ssbo = get_ssbo();
-			draw_info.instance_id =
-				ssbo.upload_data(text.chars.data(), text.chars.size() * sizeof(Instance_Data), sizeof(Instance_Data));
+			text.storage_ids.clear();
+			std::vector<Instance_Data> instances{};
+			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
+			Buffer_Range storage_range = ssbo.view_slot(storage_id);
+			Static_Buffer& static_buffer = get_static_buffer();
+			Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
+			uint32_t config_draw_offset = Utils::get_draw_2D_config_data_offset(device);
+			text.storage_id = storage_id;
+			text.storage_char_ids.clear();
+			for (Storage_Char_Data& storage : storage_chars) {
+				uint32_t storage_char_id =
+					ssbo.upload_data(&storage, sizeof(Storage_Char_Data), sizeof(Storage_Char_Data));
+				const Buffer_Range& storage_char_range = ssbo.view_slot(storage_char_id);
+				instances.push_back(
+					{storage_range.offset_as<Storage_Data>(), storage_char_range.offset_as<Storage_Char_Data>(),
+					 vertex_range.offset_as<Geometry::Vertex_2D>(), config_draw_offset}
+				);
+				text.storage_char_ids.push_back(storage_char_id);
+			}
+			uint32_t instance_id =
+				ssbo.upload_data(instances.data(), instances.size() * sizeof(Instance_Data), sizeof(Instance_Data));
+			draw_info.instance_id = instance_id;
 			draw_info.draw_material_id = font_id;
-			texts.insert(draw_info.instance_id, text);
-			return draw_info;
+			return instance_id;
+		}
+
+		std::vector<Draw_Instance_Information> make_font_2D(
+			Draw_Information& draw_info, const Font_2D_Attributes& text_attributes
+		) {
+			Text_Data text{};
+			uint32_t instance_id = update_text_data(draw_info, text, text_attributes);
+			texts.insert(instance_id, text);
+			return {{instance_id, (uint32_t)text.storage_char_ids.size()}};
+		}
+
+		void update_font_2D(Draw_Information& draw_info, const Font_2D_Attributes& text_attributes) {
+			const Text_Data& text = texts.get(draw_info.instance_id);
+			if (!text.is_changing(text_attributes)) {
+				return;
+			}
+			SSBO_Buffer& ssbo = get_ssbo();
+			for (const uint32_t& char_storage_id : text.storage_char_ids) {
+				ssbo.remove_data(char_storage_id);
+			}
+			ssbo.remove_data(text.storage_id);
+			ssbo.remove_data(draw_info.instance_id);
+			texts.erase(draw_info.instance_id);
+			Text_Data new_text{};
+			uint32_t instance_id = update_text_data(draw_info, new_text, text_attributes);
+			texts.insert(instance_id, new_text);
 		}
 
 		void destroy() {
 			pipeline.destroy();
-			for (const auto& layout : layouts) {
-				vkDestroyDescriptorSetLayout(Vulkan::device, layout, nullptr);
-			}
 		}
 
 	} // namespace Font_2D

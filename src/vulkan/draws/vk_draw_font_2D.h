@@ -17,7 +17,11 @@ namespace Vulkan {
 			uint32_t first_instance_offset, int frame_index
 		);
 
-		Draw_Information make_font_2D(const Font_2D_Attributes& texture_attributes);
+		std::vector<Draw_Instance_Information> make_font_2D(
+			Draw_Information& draw_info, const Font_2D_Attributes& text_attributes
+		);
+
+		void update_font_2D(Draw_Information& draw_info, const Font_2D_Attributes& text_attributes);
 
 		void destroy();
 

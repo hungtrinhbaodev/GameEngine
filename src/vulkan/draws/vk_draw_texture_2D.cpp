@@ -4,6 +4,7 @@
 #include <vulkan/draws/vk_draw_texture_2D.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_descriptor.h>
+#include <vulkan/vk_draw.h>
 #include <vulkan/vk_pipeline.h>
 #include <vulkan/vk_structs.h>
 #include <vulkan/vk_utils.h>
@@ -15,6 +16,8 @@ namespace Vulkan {
 
 		struct Instance_Data {
 			uint32_t storage_offset = 0;
+			uint32_t vertex_offset = 0;
+			uint32_t config_draw_offset = 0;
 		};
 
 		struct Storage_Data {
@@ -24,8 +27,8 @@ namespace Vulkan {
 			glm::vec2 anchor{0.f, 0.f};			// 8
 			glm::vec4 rect{0.f, 0.f, 0.f, 0.f}; // 16
 			float rotation = 0.f;				// 4
-			uint32_t bucket_index = 0;			// 4
-			uint32_t slot_index = 0;			// 4
+			int32_t bucket_index = 0;			// 4
+			int32_t slot_index = 0;				// 4
 			float _pad = 0.f;					// 4
 			void make(Texture_2D_Attributes attributes, Texture_View texture_view) {
 				tex_size = glm::vec2(
@@ -49,11 +52,6 @@ namespace Vulkan {
 			}
 		};
 
-		struct Push_Constants {
-			glm::vec2 screen_size{0.f, 0.f};
-			uint32_t vertex_offset = 0;
-		};
-
 		struct Draw_Data {
 			uint32_t storage_id = 0;
 		};
@@ -75,7 +73,12 @@ namespace Vulkan {
 		uint32_t indices_id = 0;
 
 		bool is_material_equal(uint32_t a, uint32_t b) {
-			return a == b;
+			if (a == b)
+				return true;
+			const Texture_View& texture_view_a = view_texture(a);
+			const Texture_View& texture_view_b = view_texture(b);
+			return texture_view_a.storage_mode == Const::TEXTURE_STORAGE_MODE::BUCKET &&
+				   texture_view_b.storage_mode == Const::TEXTURE_STORAGE_MODE::BUCKET;
 		}
 
 		void init() {
@@ -83,7 +86,9 @@ namespace Vulkan {
 			vertex_builder.add_binding_description(0, sizeof(Geometry::Vertex_2D), VK_VERTEX_INPUT_RATE_VERTEX)
 				.add_attribute_description(0, VK_FORMAT_R32G32_SFLOAT, offsetof(Geometry::Vertex_2D, position));
 			vertex_builder.add_binding_description(1, sizeof(Instance_Data), VK_VERTEX_INPUT_RATE_INSTANCE)
-				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_offset));
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_offset))
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, vertex_offset))
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, config_draw_offset));
 
 			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::STORAGE_BUFFER));
 			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::IMAGE_SAMPLER));
@@ -119,7 +124,30 @@ namespace Vulkan {
 			uint32_t texture_id = load_texture(texture_attributes.path);
 			Texture_View texture_view = view_texture(texture_id);
 			Draw_Information draw_info{Const::DRAW_ID::DRAW_TEXTURE_2D};
+			Storage_Data storage{};
+			storage.make(texture_attributes, texture_view);
+			SSBO_Buffer& ssbo = get_ssbo();
+			Static_Buffer& static_buffer = get_static_buffer();
+			const Buffer_Range& vertex_range = static_buffer.view_slot_info(vertex_id);
+			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
+			Buffer_Range storage_range = ssbo.view_slot(storage_id);
+			uint32_t config_draw_offset = Utils::get_draw_2D_config_data_offset(device);
+			Instance_Data instance{
+				storage_range.offset_as<Storage_Data>(), vertex_range.offset_as<Geometry::Vertex_2D>(),
+				config_draw_offset
+			};
+			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data));
+			draws.insert(instance_id, {storage_id});
+			draw_info.instance_id = instance_id;
 			draw_info.draw_material_id = texture_id;
+			return draw_info;
+		}
+
+		std::vector<Draw_Instance_Information> make_texture_2D_2(
+			Draw_Information& draw_info, const Texture_2D_Attributes& texture_attributes
+		) {
+			uint32_t texture_id = load_texture(texture_attributes.path);
+			Texture_View texture_view = view_texture(texture_id);
 			Storage_Data storage{};
 			storage.make(texture_attributes, texture_view);
 			SSBO_Buffer& ssbo = get_ssbo();
@@ -128,8 +156,8 @@ namespace Vulkan {
 			Instance_Data instance{storage_range.offset_as<Storage_Data>()};
 			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data));
 			draws.insert(instance_id, {storage_id});
-			draw_info.instance_id = instance_id;
-			return draw_info;
+			draw_info.draw_material_id = texture_id;
+			return {{instance_id}};
 		}
 
 		void update_texture_2D(Draw_Information& draw_info, const Texture_2D_Attributes& texture_attributes) {
@@ -172,11 +200,6 @@ namespace Vulkan {
 			bind_draw_resource(
 				command_buffer, pipeline.pipeline, pipeline.layout, static_buffer.inner_buffer.buffer, 0,
 				VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, number_descriptor_set, descriptor_sets
-			);
-			Push_Constants constants{Utils::get_window_size(device), vertex_range.offset_as<Geometry::Vertex_2D>()};
-			vkCmdPushConstants(
-				command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-				sizeof(Push_Constants), &constants
 			);
 			vkCmdDrawIndexed(
 				command_buffer, indices_range.size_as<uint16_t>(), number_instance, indices_range.offset_as<uint16_t>(),

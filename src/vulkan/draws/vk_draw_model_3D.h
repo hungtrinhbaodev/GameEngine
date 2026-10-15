@@ -1,6 +1,6 @@
 #pragma once
 #include <vulkan/draws/draw_structs.h>
-#include <vulkan/vk_draw.h>
+#include <vulkan/vk_common.h>
 
 namespace Vulkan {
 
@@ -17,6 +17,11 @@ namespace Vulkan {
 		void setup_draw(uint32_t frame_index);
 
 		void record_upload_uniform_buffer(VkCommandBuffer command_buffer, uint32_t frame_index);
+
+		void make_copy_group_instance_data(
+			const std::vector<uint32_t>& instance_ids, uint32_t material_draw_id, uint32_t start_offset, uint32_t size,
+			std::vector<VkBufferCopy>& instances_copy_data
+		);
 
 		void draw(
 			VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t number_instance,

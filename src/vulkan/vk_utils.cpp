@@ -1,6 +1,7 @@
 #include <GLFW/glfw3.h>
 #include <map>
 #include <vulkan/vk_command_pool.h>
+#include <vulkan/vk_common.h>
 #include <vulkan/vk_descriptor.h>
 #include <vulkan/vk_fences.h>
 #include <vulkan/vk_queues.h>
@@ -12,10 +13,35 @@ namespace Vulkan {
 
 		std::unordered_map<VkDevice, glm::vec2> window_sizes{};
 
+		std::unordered_map<VkDevice, Draw_2D_Common_Data> draw_2D_configs{};
+
+		std::unordered_map<VkDevice, std::pair<uint32_t, uint32_t>> draw_2D_config_storage{};
+
 		void save_window_size(GLFWwindow* window, VkDevice device) {
 			int width, height;
 			glfwGetWindowSize(window, &width, &height);
 			window_sizes[device] = {(float)width, (float)height};
+		}
+
+		void save_window_size(GLFWwindow* window, VkDevice device, SSBO_Buffer& ssbo) {
+			if (draw_2D_configs.find(device) == draw_2D_configs.end()) {
+				draw_2D_configs[device] = {};
+				draw_2D_config_storage[device] = {};
+				auto& storage_info = draw_2D_config_storage[device];
+				storage_info.first = ssbo.upload_data(
+					&draw_2D_configs[device], sizeof(Draw_2D_Common_Data), sizeof(Draw_2D_Common_Data)
+				);
+				const Buffer_Range& config_range = ssbo.view_slot(storage_info.first);
+				storage_info.second = config_range.offset_as<Draw_2D_Common_Data>();
+			}
+			int width, height;
+			glfwGetWindowSize(window, &width, &height);
+			draw_2D_configs[device].screen_size = {(float)width, (float)height};
+			ssbo.update_data(draw_2D_config_storage[device].first, &draw_2D_configs[device]);
+		}
+
+		uint32_t get_draw_2D_config_data_offset(VkDevice device) {
+			return draw_2D_config_storage[device].second;
 		}
 
 		glm::vec2 get_window_size(VkDevice device) {
@@ -129,9 +155,11 @@ namespace Vulkan {
 				using_range = optimal_range;
 			} else {
 				uint32_t align = calculate_range_remain_size(current_offset, element_stride);
-				available_ranges.push({current_offset, 0, align});
+				if (align > 0) {
+					available_ranges.push({current_offset, 0, align, 1});
+				}
 				current_offset += align;
-				using_range = {current_offset, 0, size};
+				using_range = {current_offset, 0, size, element_stride};
 				current_offset += using_range.total_size();
 			}
 			return using_range;
