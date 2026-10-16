@@ -22,7 +22,6 @@ namespace Parser {
 
 	struct Font {
 		std::vector<char> bytes;
-		std::unordered_map<char, Char_Rect> rect_map{};
 		char start_char = 0;
 		std::vector<Char_Rect> rects;
 		std::vector<uint8_t> atlas{};

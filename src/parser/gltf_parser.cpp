@@ -1,9 +1,9 @@
 #include <files.h>
-#include <glm/gtc/quaternion.hpp>
 #include <json.hpp>
 #include <math_custom.h>
 #include <parser/gltf_parser.h>
 #include <stack>
+#include <stb_image.h>
 #include <utils.h>
 
 using json = nlohmann::json;
@@ -13,8 +13,13 @@ const uint32_t CHUNK_TYPE_BIN = 0x004E4942;
 
 namespace Parser {
 
-	std::map<uint32_t, std::map<uint32_t, std::vector<glm::mat4>>> Gltf_Model::make_meshes_global_transform() {
-		std::map<uint32_t, std::map<uint32_t, std::vector<glm::mat4>>> meshes_transform{};
+	glm::mat4 Gltf_Node::get_transform() const {
+		return (Math::make_translation(translation) * glm::mat4_cast(rotation) * Math::make_scale(scale) * transform);
+	}
+
+	std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::vector<glm::mat4>>> Gltf_Model::
+		make_meshes_global_transform() {
+		std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::vector<glm::mat4>>> meshes_transform{};
 		for (int i = 0; i < scenes.size(); i++) {
 			meshes_transform[i] = {};
 		}
@@ -37,7 +42,7 @@ namespace Parser {
 			std::vector<uint32_t>& node_indices = scenes[i].node_indices;
 			for (int root : node_indices) {
 				for (int j = 0; j < nodes.size(); j++) {
-					global_transforms[j] = nodes[j].transform;
+					global_transforms[j] = nodes[j].get_transform();
 					visited[j] = false;
 				}
 
@@ -66,23 +71,48 @@ namespace Parser {
 	}
 
 	std::string Gltf_Model::get_primitive_texture_path(uint32_t mesh_index, uint32_t primitive_index) {
-		if (mesh_index < 0 || mesh_index >= this->meshes.size()) {
+		if (mesh_index < 0 || mesh_index >= meshes.size()) {
 			return "";
 		}
-		Gltf_Mesh& mesh = this->meshes[mesh_index];
+		Gltf_Mesh& mesh = meshes[mesh_index];
 		if (primitive_index < 0 || primitive_index >= mesh.primitives.size()) {
 			return "";
 		}
 		int material_index = mesh.primitives[primitive_index].material_index;
-		if (material_index < 0 || material_index >= this->materials.size()) {
+		if (material_index < 0 || material_index >= materials.size()) {
 			return "";
 		}
-		Gltf_Material& material = this->materials[material_index];
+		Gltf_Material& material = materials[material_index];
 		int texture_index = material.texture_index;
-		if (texture_index < 0 || texture_index >= this->textures.size()) {
+		if (texture_index < 0 || texture_index >= texture_paths.size()) {
 			return "";
 		}
-		return this->textures[texture_index];
+		return texture_paths[texture_index];
+	}
+
+	Gltf_Texture Gltf_Model::get_primitive_texture(uint32_t mesh_index, uint32_t primitive_index) {
+		if (mesh_index < 0 || mesh_index >= meshes.size()) {
+			return {};
+		}
+		Gltf_Mesh& mesh = meshes[mesh_index];
+		if (primitive_index < 0 || primitive_index >= mesh.primitives.size()) {
+			return {};
+		}
+		int material_index = mesh.primitives[primitive_index].material_index;
+		if (material_index < 0 || material_index >= materials.size()) {
+			return {};
+		}
+		Gltf_Material& material = materials[material_index];
+		int texture_index = material.texture_index;
+		if (texture_index < 0 || texture_index >= texture_paths.size()) {
+			return {};
+		}
+		return textures[texture_index];
+	}
+
+	void Gltf_Model::log_mesh(uint32_t mesh_index) {
+		auto& mesh = meshes[mesh_index];
+		Log::info("What is info as mesh", mesh, mesh_global_transform[default_scene_index][mesh_index]);
 	}
 
 	int component_count_from_type(const std::string& type) {
@@ -164,6 +194,14 @@ namespace Parser {
 									pos_accessor.value("byteOffset", 0));
 		};
 
+		auto get_bin_image_at = [&root, get_bin_data](json& json_images, int image_index) {
+			int bv_index = json_images[image_index]["bufferView"];
+			auto& pos_buffer_view = root["bufferViews"][bv_index];
+			int buffer_index = pos_buffer_view.value("buffer", 0);
+			const uint8_t* data = get_bin_data(buffer_index);
+			return (const uint8_t*)(data + (uint32_t)pos_buffer_view["byteOffset"]);
+		};
+
 		Gltf_Model model{};
 		/**
 		 * Parse vertices, indices.
@@ -194,11 +232,13 @@ namespace Parser {
 
 						if (pos_accessor.contains("max")) {
 							std::vector<float> flat_max_bounding_box = pos_accessor["max"].get<std::vector<float>>();
-							mesh.max_bounding_box = glm::make_vec_from<3>(flat_max_bounding_box);
+							glm::vec3 prim_max = glm::make_vec_from<3>(flat_max_bounding_box);
+							mesh.max_bounding_box = glm::max(prim_max, mesh.max_bounding_box);
 						}
 						if (pos_accessor.contains("min")) {
 							std::vector<float> flat_min_bounding_box = pos_accessor["min"].get<std::vector<float>>();
-							mesh.min_bounding_box = glm::make_vec_from<3>(flat_min_bounding_box);
+							glm::vec3 prim_min = glm::make_vec_from<3>(flat_min_bounding_box);
+							mesh.min_bounding_box = glm::min(prim_min, mesh.min_bounding_box);
 						}
 					}
 					/**
@@ -285,20 +325,27 @@ namespace Parser {
 					 * Parse indices.
 					 */
 					{
-						int index_accessor_idx = primitive_json["indices"];
-						auto& idx_accessor = root["accessors"][index_accessor_idx];
-						const uint8_t* idx_data = get_bin_data_at(primitive_json, "indices");
+						if (primitive_json.contains("indices")) {
+							int index_accessor_idx = primitive_json["indices"];
+							auto& idx_accessor = root["accessors"][index_accessor_idx];
+							const uint8_t* idx_data = get_bin_data_at(primitive_json, "indices");
 
-						uint32_t index_count = idx_accessor["count"];
-						int component_type = idx_accessor["componentType"];
-						primitive.indices.resize(index_count);
-						for (uint32_t i = 0; i < index_count; i++) {
-							if (component_type == 5121)
-								primitive.indices[i] = idx_data[i];
-							else if (component_type == 5123)
-								primitive.indices[i] = ((const uint16_t*)idx_data)[i];
-							else if (component_type == 5125)
-								primitive.indices[i] = ((const uint32_t*)idx_data)[i];
+							uint32_t index_count = idx_accessor["count"];
+							int component_type = idx_accessor["componentType"];
+							primitive.indices.resize(index_count);
+							for (uint32_t i = 0; i < index_count; i++) {
+								if (component_type == 5121)
+									primitive.indices[i] = idx_data[i];
+								else if (component_type == 5123)
+									primitive.indices[i] = ((const uint16_t*)idx_data)[i];
+								else if (component_type == 5125)
+									primitive.indices[i] = ((const uint32_t*)idx_data)[i];
+							}
+						} else {
+							primitive.indices.resize(primitive.vertices.size());
+							for (int i = 0; i < primitive.indices.size(); i++) {
+								primitive.indices[i] = i;
+							}
 						}
 					}
 					/**
@@ -362,7 +409,7 @@ namespace Parser {
 					node.children_indices.resize(children_indices.size());
 					for (int j = 0; j < children_indices.size(); j++) {
 						uint32_t child = children_indices[j];
-						node.children_indices.push_back(child);
+						node.children_indices[j] = child;
 					}
 				}
 				if (json_node.contains("name")) {
@@ -392,11 +439,12 @@ namespace Parser {
 						scale = glm::make_vec_from<3>(flat_scale);
 					}
 					if (flat_rotation.size() > 0) {
-						rotation = glm::quat(flat_rotation[0], flat_rotation[1], flat_rotation[2], flat_rotation[3]);
+						rotation = glm::quat(flat_rotation[3], flat_rotation[0], flat_rotation[1], flat_rotation[2]);
 					}
 					node.transform = {1.f};
-					node.transform *=
-						(Math::make_translation(translation) * glm::mat4_cast(rotation) * Math::make_scale(scale));
+					node.translation = translation;
+					node.scale = scale;
+					node.rotation = rotation;
 				}
 				if (json_node.contains("mesh")) {
 					node.mesh_index = json_node.value("mesh", 0);
@@ -453,12 +501,34 @@ namespace Parser {
 		{
 			if (root.contains("images")) {
 				auto& json_images = root["images"];
+				model.texture_paths.resize(json_images.size());
 				model.textures.resize(json_images.size());
-				for (int i = 0; i < model.textures.size(); i++) {
-					model.textures[i] = Utils::get_folder_path_from(path) + json_images[i].value("uri", "");
+				for (int i = 0; i < model.texture_paths.size(); i++) {
+					if (json_images[i].contains("uri")) {
+						model.texture_paths[i] = Utils::get_folder_path_from(path) + json_images[i].value("uri", "");
+						model.textures[i] = {
+							false, Utils::get_folder_path_from(path) + json_images[i].value("uri", "")
+						};
+					} else if (json_images[i].contains("bufferView")) {
+						int bv_index = json_images[i]["bufferView"];
+						auto& bv = root["bufferViews"][bv_index];
+						int buffer_index = bv.value("buffer", 0);
+						const uint8_t* image_bytes = get_bin_data(buffer_index) + (uint32_t)bv["byteOffset"];
+						uint32_t byte_length = bv["byteLength"];
+						int width = 0;
+						int height = 0;
+						stbi_uc* pixels =
+							stbi_load_from_memory(image_bytes, byte_length, &width, &height, nullptr, STBI_rgb_alpha);
+						model.textures[i] = {
+							true, path + std::to_string(i), (uint8_t*)pixels, (uint32_t)width, (uint32_t)height
+						};
+					} else {
+						throw std::runtime_error("Fail to load texture model!");
+					}
 				}
 			}
 		}
+		model.mesh_global_transform = model.make_meshes_global_transform();
 		return model;
 	}
 

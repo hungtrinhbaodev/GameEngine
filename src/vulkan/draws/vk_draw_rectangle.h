@@ -13,7 +13,9 @@ namespace Vulkan {
 
 		size_t get_instance_size();
 
-		Draw_Information make_draw(const Rectangle_Attributes& rectangle_attributes);
+		std::vector<Draw_Instance_Information> make_rectangle_2D(
+			Draw_Information& draw_info, const Rectangle_Attributes& rectangle_attributes
+		);
 
 		void update_draw(uint32_t instance_id, const Rectangle_Attributes& rectangle_attributes);
 

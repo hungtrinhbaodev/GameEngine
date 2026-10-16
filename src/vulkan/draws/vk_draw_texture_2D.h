@@ -12,9 +12,7 @@ namespace Vulkan {
 
 		size_t get_instance_size();
 
-		Draw_Information make_texture_2D(const Texture_2D_Attributes& texture_attributes);
-
-		std::vector<Draw_Instance_Information> make_texture_2D_2(
+		std::vector<Draw_Instance_Information> make_texture_2D(
 			Draw_Information& draw_info, const Texture_2D_Attributes& texture_attributes
 		);
 

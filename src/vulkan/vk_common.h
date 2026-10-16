@@ -17,10 +17,11 @@ namespace Vulkan {
 		 */
 		uint32_t draw_material_id = -1;
 		/**
-		 * @Note: instance id of object draw
-		 * in SSBO instance buffer.
+		 * @Note: with object draw with multi
+		 * instance and sub instance can
+		 * be use this to distint!
 		 */
-		uint32_t instance_id = 0;
+		uint32_t unique_id = 0;
 		/**
 		 * @Note: index of object draw.
 		 */
@@ -38,7 +39,7 @@ namespace Vulkan {
 	};
 
 	struct Draw_Instance_Information {
-		uint32_t instance_id = 0;
+		uint32_t instance_storage_id = 0;
 		/**
 		 * @Note: using number sub instance
 		 * to font object that one call draw
@@ -171,6 +172,8 @@ namespace Vulkan {
 		int bucket_index;
 
 		int slot_index;
+
+		glm::vec2 tex_scale() const;
 	};
 
 	struct Buffer_Range_Compare {
@@ -192,7 +195,7 @@ namespace Vulkan {
 		uint32_t texture_id = 0;
 		uint32_t rect_storage_id = 0;
 		uint32_t rect_storage_offset = 0;
-		Geometry::Texture_Rect_2D get_char_rect(char value) const;
+		char to_char_index(char value) const;
 		glm::vec2 get_char_bounding_box(char value) const;
 		glm::vec2 get_char_local_offset(char value) const;
 		float get_char_scale(int font_size) const;
@@ -200,6 +203,7 @@ namespace Vulkan {
 	};
 
 	struct Primitive_Buffer_Range {
+		uint32_t flat_id = 0;
 		uint32_t vertex_id = 0;
 		uint32_t indices_id = 0;
 		uint32_t texture_id = 0;
@@ -209,21 +213,17 @@ namespace Vulkan {
 		std::vector<Primitive_Buffer_Range> primitives;
 		glm::vec3 min_bounding_box{0.f};
 		glm::vec3 max_bounding_box{0.f};
-		/**
-		 * Index = scene index.
-		 * Value = storage id of array primitive local transform.
-		 */
-		std::vector<uint32_t> local_transform_storage_ids_by_scene{};
-
+		std::unordered_map<uint32_t, uint32_t> mesh_transforms_storage_id{};
+		std::unordered_map<uint32_t, std::vector<uint32_t>> mesh_transform_storage_offsets{};
+		const std::vector<uint32_t>& get_mesh_transform_offsets(uint32_t scene_index) const;
 		glm::vec3 get_mesh_origin() const;
 	};
 
 	struct Model_Information {
 		std::vector<Model_Mesh_Information> meshes;
-		std::map<uint32_t, std::map<uint32_t, std::vector<glm::mat4>>> global_meshes_transformes;
+		std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::vector<glm::mat4>>> global_meshes_transformes;
 		std::vector<Primitive_Buffer_Range> flat_primitives{};
 		uint32_t draw_scene_index = -1;
-
 		uint32_t get_number_primitive() const;
 		uint32_t get_primitive_flat_index(const uint32_t& mesh_index, const uint32_t& primitive_index) const;
 	};

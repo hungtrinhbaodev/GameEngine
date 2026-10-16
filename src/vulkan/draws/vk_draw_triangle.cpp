@@ -14,6 +14,8 @@ namespace Vulkan {
 
 		struct Instance_Data {
 			uint32_t storage_offset = 0;
+			uint32_t vertex_offset = 0;
+			uint32_t config_offset = 0;
 		};
 
 		struct Storage_Data {
@@ -29,11 +31,6 @@ namespace Vulkan {
 				third = attributes.third;
 				color = attributes.color;
 			}
-		};
-
-		struct Push_Constants {
-			glm::vec2 screen_size{0.f, 0.f};
-			uint32_t vertex_offset = 0;
 		};
 
 		struct Draw_Data {
@@ -65,7 +62,9 @@ namespace Vulkan {
 			vertex_builder.add_binding_description(0, sizeof(Geometry::Vertex_2D), VK_VERTEX_INPUT_RATE_VERTEX)
 				.add_attribute_description(0, VK_FORMAT_R32G32_SFLOAT, offsetof(Geometry::Vertex_2D, position));
 			vertex_builder.add_binding_description(1, sizeof(Instance_Data), VK_VERTEX_INPUT_RATE_INSTANCE)
-				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_offset));
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_offset))
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, vertex_offset))
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, config_offset));
 
 			Descriptor_Set_Layout_Builder layout_builder{};
 			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::STORAGE_BUFFER));
@@ -74,7 +73,6 @@ namespace Vulkan {
 			pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
 			pipeline_config.attribute_descriptions = vertex_builder.build_attribute_descriptions();
 			pipeline_config.descriptor_set_layouts = layouts;
-			pipeline_config.push_constants_size = sizeof(Push_Constants);
 			pipeline_config.vertex_shader_path = Const::PATH_VERT_SHADERD_DRAW_TRIANGLE_2D;
 			pipeline_config.fragment_shader_path = Const::PATH_FRAG_SHADERD_DRAW_TRIANGLE_2D;
 
@@ -94,21 +92,27 @@ namespace Vulkan {
 			return sizeof(Instance_Data);
 		}
 
-		Draw_Information make_triangle(const Triangle_Attribultes& attributes) {
+		std::vector<Draw_Instance_Information> make_triangle(
+			Draw_Information& draw_info, const Triangle_Attribultes& attributes
+		) {
 			if (!Math::is_valid_triangle_with_clockwise(attributes.first, attributes.second, attributes.third)) {
 				throw std::runtime_error("Fail to make triangle invalid clockwise points!");
 			}
-			Draw_Information draw_info{Const::DRAW_ID::DRAW_TRIANGLE_2D};
 			SSBO_Buffer& ssbo = get_ssbo();
 			Storage_Data storage{};
 			storage.make(attributes);
 			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
 			const Buffer_Range& storage_range = ssbo.view_slot(storage_id);
-			Instance_Data instance{storage_range.offset_as<Storage_Data>()};
+			Static_Buffer& static_buffer = get_static_buffer();
+			const Buffer_Range& vertex_range = static_buffer.view_slot_info(vertex_id);
+			uint32_t config_draw_offset = Utils::get_draw_2D_config_data_offset(device);
+			Instance_Data instance{
+				storage_range.offset_as<Storage_Data>(), vertex_range.offset_as<Geometry::Vertex_2D>(),
+				config_draw_offset
+			};
 			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data), 1);
 			draws.insert(instance_id, {storage_id});
-			draw_info.instance_id = instance_id;
-			return draw_info;
+			return {{instance_id}};
 		}
 
 		void update_triangle(uint32_t instance_id, const Triangle_Attribultes& attributes) {
@@ -132,11 +136,6 @@ namespace Vulkan {
 			Buffer_Range indices_range = static_buffer.view_slot_info(indices_id);
 			Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
 			Buffer& instance_buffer = get_instance_buffer(frame_index);
-			Push_Constants constants{Utils::get_window_size(device), vertex_range.offset_as<Geometry::Vertex_2D>()};
-			vkCmdPushConstants(
-				command_buffer, pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-				sizeof(Push_Constants), &constants
-			);
 			VkBuffer binding_buffers[2] = {static_buffer.inner_buffer.buffer, instance_buffer.buffer};
 			VkDeviceSize buffer_offsets[2] = {0, 0};
 			VkDescriptorSet storage_descriptor_set = get_storage_descriptor_set(frame_index);

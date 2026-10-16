@@ -14,7 +14,7 @@ namespace Vulkan {
 	namespace Const {
 
 #ifdef _DEBUG
-		const inline bool IS_ENABLE_VALIDATION_LAYERS = true;
+		const inline bool IS_ENABLE_VALIDATION_LAYERS = false;
 #elif __APPLE__
 		const inline bool IS_ENABLE_VALIDATION_LAYERS = true;
 #else

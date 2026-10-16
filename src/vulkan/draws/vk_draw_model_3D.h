@@ -12,20 +12,17 @@ namespace Vulkan {
 
 		size_t get_instance_size();
 
-		Draw_Information make_model_3D(const Model_3D_Attributes& attributes);
+		std::vector<Draw_Instance_Information> make_model_3D(
+			Draw_Information& draw_info, const Model_3D_Attributes& attributes
+		);
 
 		void setup_draw(uint32_t frame_index);
 
 		void record_upload_uniform_buffer(VkCommandBuffer command_buffer, uint32_t frame_index);
 
-		void make_copy_group_instance_data(
-			const std::vector<uint32_t>& instance_ids, uint32_t material_draw_id, uint32_t start_offset, uint32_t size,
-			std::vector<VkBufferCopy>& instances_copy_data
-		);
-
 		void draw(
-			VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t number_instance,
-			uint32_t first_instance_offset, uint32_t frame_index
+			VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t instance_material_id,
+			uint32_t number_instance, uint32_t first_instance_offset, uint32_t frame_index
 		);
 
 		void destroy();

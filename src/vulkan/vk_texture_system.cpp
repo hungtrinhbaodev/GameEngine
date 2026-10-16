@@ -239,15 +239,15 @@ namespace Vulkan {
 		}
 
 		// load texture from disk
-		int width = 0, height = 0, channels = 0;
+		int width = 0, height = 0;
 		stbi_uc* pixels = nullptr;
-		pixels = stbi_load(file.data(), &width, &height, &channels, STBI_rgb_alpha);
+		pixels = stbi_load(file.data(), &width, &height, nullptr, STBI_rgb_alpha);
 		if (!pixels) {
 			throw std::runtime_error("Vulkan fail to load texture from file: " + file + "!");
 		}
 
 		// load texture with raw pixels
-		uint32_t texture_id = load_texture(file, pixels, width, height, channels, use_bucket);
+		uint32_t texture_id = load_texture(file, pixels, width, height, 4, use_bucket);
 
 		// release texture loaded on ram
 		delete (pixels);

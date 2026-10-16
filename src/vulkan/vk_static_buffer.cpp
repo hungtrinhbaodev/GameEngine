@@ -135,7 +135,7 @@ namespace Vulkan {
 					Buffer_Range static_range = id_to_ranges.get(id);
 					copied_data.push_back(
 						{(VkDeviceSize)staging_range.inner_offset(), (VkDeviceSize)static_range.inner_offset(),
-						 (VkDeviceSize)staging_range.total_size()}
+						 (VkDeviceSize)staging_range.inner_size()}
 					);
 				}
 				vkCmdCopyBuffer(

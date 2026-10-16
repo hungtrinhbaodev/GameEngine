@@ -28,6 +28,10 @@ namespace Vulkan {
 		return total_size() >= size + align;
 	}
 
+	glm::vec2 Texture_View::tex_scale() const {
+		return {width / image.width, height / image.height};
+	}
+
 	Buffer_Range Buffer_Range::fit_with(uint32_t size, uint32_t element_stride) {
 		if (!is_suitable_with(size, element_stride)) {
 			throw std::runtime_error("Fail to fix static data in to current range!");
@@ -56,27 +60,23 @@ namespace Vulkan {
 		return a.total_size() > b.total_size();
 	}
 
-	Geometry::Texture_Rect_2D Font::get_char_rect(char value) const {
-		Parser::Char_Rect rect = rect_map.at('*');
-		if (rect_map.find(value) != rect_map.end()) {
-			rect = rect_map.at(value);
+	char Font::to_char_index(char value) const {
+		uint32_t char_index = (uint32_t)(value - start_char);
+		if (char_index >= rects.size()) {
+			char_index = (uint32_t)('*' - start_char);
 		}
-		return {rect.tex_coord_x, rect.tex_coord_y, rect.tex_coord_width, rect.tex_coord_height};
+		return char_index;
 	}
 
 	glm::vec2 Font::get_char_bounding_box(char value) const {
-		Parser::Char_Rect rect = rect_map.at('*');
-		if (rect_map.find(value) != rect_map.end()) {
-			rect = rect_map.at(value);
-		}
+		uint32_t char_index = to_char_index(value);
+		const auto& rect = rects[char_index];
 		return {rect.bounding_width, line_height};
 	}
 
 	glm::vec2 Font::get_char_local_offset(char value) const {
-		Parser::Char_Rect rect = rect_map.at('*');
-		if (rect_map.find(value) != rect_map.end()) {
-			rect = rect_map.at(value);
-		}
+		uint32_t char_index = to_char_index(value);
+		const auto& rect = rects[char_index];
 		return {rect.offset_x, rect.offset_y};
 	}
 
@@ -86,15 +86,16 @@ namespace Vulkan {
 	}
 
 	uint32_t Font::get_char_rect_offset(char value) const {
-		uint32_t char_index = (uint32_t)(value - start_char);
-		if (char_index >= rects.size()) {
-			char_index = (uint32_t)('*' - start_char);
-		}
+		uint32_t char_index = to_char_index(value);
 		return rect_storage_offset + char_index;
 	}
 
 	glm::vec3 Model_Mesh_Information::get_mesh_origin() const {
 		return (max_bounding_box + min_bounding_box) * 0.5f;
+	}
+
+	const std::vector<uint32_t>& Model_Mesh_Information::get_mesh_transform_offsets(uint32_t scene_index) const {
+		return mesh_transform_storage_offsets.at(scene_index);
 	}
 
 	uint32_t Model_Information::get_number_primitive() const {

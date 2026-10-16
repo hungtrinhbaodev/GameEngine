@@ -120,30 +120,7 @@ namespace Vulkan {
 			return sizeof(Instance_Data);
 		}
 
-		Draw_Information make_texture_2D(const Texture_2D_Attributes& texture_attributes) {
-			uint32_t texture_id = load_texture(texture_attributes.path);
-			Texture_View texture_view = view_texture(texture_id);
-			Draw_Information draw_info{Const::DRAW_ID::DRAW_TEXTURE_2D};
-			Storage_Data storage{};
-			storage.make(texture_attributes, texture_view);
-			SSBO_Buffer& ssbo = get_ssbo();
-			Static_Buffer& static_buffer = get_static_buffer();
-			const Buffer_Range& vertex_range = static_buffer.view_slot_info(vertex_id);
-			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
-			Buffer_Range storage_range = ssbo.view_slot(storage_id);
-			uint32_t config_draw_offset = Utils::get_draw_2D_config_data_offset(device);
-			Instance_Data instance{
-				storage_range.offset_as<Storage_Data>(), vertex_range.offset_as<Geometry::Vertex_2D>(),
-				config_draw_offset
-			};
-			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data));
-			draws.insert(instance_id, {storage_id});
-			draw_info.instance_id = instance_id;
-			draw_info.draw_material_id = texture_id;
-			return draw_info;
-		}
-
-		std::vector<Draw_Instance_Information> make_texture_2D_2(
+		std::vector<Draw_Instance_Information> make_texture_2D(
 			Draw_Information& draw_info, const Texture_2D_Attributes& texture_attributes
 		) {
 			uint32_t texture_id = load_texture(texture_attributes.path);
@@ -153,7 +130,13 @@ namespace Vulkan {
 			SSBO_Buffer& ssbo = get_ssbo();
 			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
 			Buffer_Range storage_range = ssbo.view_slot(storage_id);
-			Instance_Data instance{storage_range.offset_as<Storage_Data>()};
+			Static_Buffer& static_buffer = get_static_buffer();
+			const Buffer_Range& vertex_range = static_buffer.view_slot_info(vertex_id);
+			uint32_t config_draw_offset = Utils::get_draw_2D_config_data_offset(device);
+			Instance_Data instance{
+				storage_range.offset_as<Storage_Data>(), vertex_range.offset_as<Geometry::Vertex_2D>(),
+				config_draw_offset
+			};
 			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data));
 			draws.insert(instance_id, {storage_id});
 			draw_info.draw_material_id = texture_id;
@@ -167,7 +150,7 @@ namespace Vulkan {
 			Storage_Data storage{};
 			storage.make(texture_attributes, texture_view);
 			SSBO_Buffer& ssbo = get_ssbo();
-			const Draw_Data& data = draws.get(draw_info.instance_id);
+			const Draw_Data& data = draws.get(draw_info.unique_id);
 			ssbo.update_data(data.storage_id, &storage);
 		}
 

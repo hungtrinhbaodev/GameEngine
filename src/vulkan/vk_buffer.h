@@ -55,7 +55,8 @@ namespace Vulkan {
 
 		std::vector<char> parse_buffer(int offset = 0, int parse_size = -1) const;
 
-		template <typename T> inline std::vector<T> parse_to(int offset, int parse_size, int number_instance) {
+		template <typename T>
+		inline std::vector<T> parse_to(uint32_t offset, uint32_t parse_size, uint32_t number_instance) {
 			auto bytes = parse_buffer(offset, parse_size);
 			return ::Utils::parse_char<T>(bytes, number_instance);
 		}

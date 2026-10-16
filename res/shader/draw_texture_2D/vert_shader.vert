@@ -24,7 +24,7 @@ struct Config_2D_Data {
     vec2 screen_size;
 };
 
-layout(std430, set = 0, binding = 3) readonly buffer Config_2D_Data_Buffer {
+layout(std430, set = 0, binding = 1) readonly buffer Config_2D_Data_Buffer {
     Config_2D_Data data[];
 } config_2D_buffer;
 

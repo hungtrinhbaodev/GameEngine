@@ -298,7 +298,7 @@ namespace Vulkan {
 			}
 			uint32_t instance_id =
 				ssbo.upload_data(instances.data(), instances.size() * sizeof(Instance_Data), sizeof(Instance_Data));
-			draw_info.instance_id = instance_id;
+			draw_info.unique_id = instance_id;
 			draw_info.draw_material_id = font_id;
 			return instance_id;
 		}
@@ -313,7 +313,7 @@ namespace Vulkan {
 		}
 
 		void update_font_2D(Draw_Information& draw_info, const Font_2D_Attributes& text_attributes) {
-			const Text_Data& text = texts.get(draw_info.instance_id);
+			const Text_Data& text = texts.get(draw_info.unique_id);
 			if (!text.is_changing(text_attributes)) {
 				return;
 			}
@@ -322,8 +322,8 @@ namespace Vulkan {
 				ssbo.remove_data(char_storage_id);
 			}
 			ssbo.remove_data(text.storage_id);
-			ssbo.remove_data(draw_info.instance_id);
-			texts.erase(draw_info.instance_id);
+			ssbo.remove_data(draw_info.unique_id);
+			texts.erase(draw_info.unique_id);
 			Text_Data new_text{};
 			uint32_t instance_id = update_text_data(draw_info, new_text, text_attributes);
 			texts.insert(instance_id, new_text);

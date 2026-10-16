@@ -42,10 +42,6 @@ namespace Vulkan {
 
 	const Model_Information& view_model(uint32_t model_id);
 
-	uint32_t get_primitive_transform_offset(
-		uint32_t model_id, uint32_t scene_index, uint32_t mesh_index, uint32_t primitive_index
-	);
-
 	VkDescriptorSet get_storage_descriptor_set(uint32_t frame_index);
 
 	/**
@@ -65,13 +61,11 @@ namespace Vulkan {
 		VkDescriptorSet* binding_descriptor_sets
 	);
 
-	uint32_t make_rectange(const Draw_Attribute& draw_attributes, Rectangle_Attributes rectangle_attributes);
+	uint32_t make_rectangle(const Draw_Attribute& draw_attributes, Rectangle_Attributes rectangle_attributes);
 
 	void update_rectangle(uint32_t id, Rectangle_Attributes rectangle_attributes);
 
 	uint32_t make_texture_2D(const Draw_Attribute& draw_attributes, const Texture_2D_Attributes& texture_attributes);
-
-	uint32_t make_texture_2D_2(const Draw_Attribute& draw_attributes, const Texture_2D_Attributes& texture_attributes);
 
 	void update_texture_2D(uint32_t id, const Texture_2D_Attributes& texture_attributes);
 

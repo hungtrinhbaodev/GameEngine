@@ -23,21 +23,7 @@ namespace Vulkan {
 		}
 		Parser::Gltf_Model model = Parser::parse_gltf_model(path);
 		Model_Information model_info{};
-		model_info.global_meshes_transformes = std::move(model.make_meshes_global_transform());
-		const auto& global_meshes_transformes = model_info.global_meshes_transformes;
-		for (const auto& [scene_index, meshes_transforms] : global_meshes_transformes) {
-			for (const auto& [mesh_index, transforms] : meshes_transforms) {
-				auto& mesh = model_info.meshes[mesh_index];
-				glm::vec3 origin = mesh.get_mesh_origin();
-				std::vector<glm::mat4> transforms_data{};
-				for (const glm::mat4& transform : transforms) {
-					transforms_data.push_back(transform * Math::make_translation(-origin));
-				}
-				mesh.local_transform_storage_ids_by_scene.push_back(ssbo->upload_data(
-					transforms_data.data(), transforms_data.size() * sizeof(glm::mat4), sizeof(glm::mat4)
-				));
-			}
-		}
+		uint32_t primitive_flat_id = 0;
 		for (int mesh_index = 0; mesh_index < model.meshes.size(); mesh_index++) {
 			Parser::Gltf_Mesh& mesh = model.meshes[mesh_index];
 			std::vector<Primitive_Buffer_Range> primitives;
@@ -51,11 +37,20 @@ namespace Vulkan {
 					primitive.indices.data(), sizeof(uint32_t) * primitive.indices.size(), sizeof(uint32_t)
 				);
 				std::string texture = model.get_primitive_texture_path(mesh_index, primitive_index);
+				Parser::Gltf_Texture texture_2 = model.get_primitive_texture(mesh_index, primitive_index);
 				uint32_t texture_id = texture_system->get_default_texture_id();
-				if (texture != "") {
-					texture_id = texture_system->load_texture(texture);
+				if (!texture_2.is_using_bin_texture) {
+					if (texture_2.path != "") {
+						texture_id = texture_system->load_texture(texture_2.path, Const::ENABLED_TEXTURE_BUCKETS);
+					}
+				} else {
+					texture_id = texture_system->load_texture(
+						texture_2.path, texture_2.data, texture_2.width, texture_2.height, 4,
+						Const::ENABLED_TEXTURE_BUCKETS
+					);
 				}
-				primitives.push_back({vertex_id, indices_id, texture_id});
+				primitives.push_back({primitive_flat_id, vertex_id, indices_id, texture_id});
+				primitive_flat_id++;
 			}
 			model_info.meshes.push_back({std::move(primitives), mesh.min_bounding_box, mesh.max_bounding_box});
 		}
@@ -63,6 +58,29 @@ namespace Vulkan {
 		for (const auto& mesh : model_info.meshes) {
 			for (const auto& primitive : mesh.primitives) {
 				model_info.flat_primitives.push_back(primitive);
+			}
+		}
+		model_info.global_meshes_transformes = std::move(model.mesh_global_transform);
+		const auto& global_meshes_transformes = model_info.global_meshes_transformes;
+		for (const auto& [scene_index, meshes_transforms] : global_meshes_transformes) {
+			for (const auto& [mesh_index, transforms] : meshes_transforms) {
+				auto& mesh = model_info.meshes[mesh_index];
+				auto& mesh_transforms_storage_id = mesh.mesh_transforms_storage_id;
+				auto& mesh_transform_storage_offsets = mesh.mesh_transform_storage_offsets;
+				std::vector<glm::mat4> transforms_data{};
+				for (const glm::mat4& transform : transforms) {
+					transforms_data.push_back(transform);
+				}
+				uint32_t storage_id = ssbo->upload_data(
+					transforms_data.data(), transforms_data.size() * sizeof(glm::mat4), sizeof(glm::mat4)
+				);
+				std::vector<uint32_t> storage_offsets{};
+				const Buffer_Range& storage_range = ssbo->view_slot(storage_id);
+				for (int i = 0; i < transforms_data.size(); i++) {
+					storage_offsets.push_back(storage_range.offset_as<glm::mat4>() + i);
+				}
+				mesh_transforms_storage_id[scene_index] = storage_id;
+				mesh_transform_storage_offsets[scene_index] = storage_offsets;
 			}
 		}
 		models[model_id] = model_info;

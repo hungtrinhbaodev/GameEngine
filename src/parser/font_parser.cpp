@@ -71,12 +71,7 @@ namespace Parser {
 			rect.offset_y = -baked.yoff - (baked.y1 - baked.y0);
 			min_offset_y = std::min(min_offset_y, rect.offset_y);
 			rect.bounding_width = baked.xadvance;
-			font.rect_map[current_char] = rect;
 			font.rects.push_back(rect);
-		}
-		for (int i = 0; i < NUM_CHAR; i++) {
-			char current_char = (char)(START_CHAR + i);
-			font.rect_map[current_char].offset_y -= min_offset_y;
 		}
 		return font;
 	}
