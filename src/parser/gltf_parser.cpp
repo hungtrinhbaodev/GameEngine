@@ -8,6 +8,7 @@
 
 using json = nlohmann::json;
 
+const bool DEBUG_MODEL = true;
 const uint32_t CHUNK_TYPE_JSON = 0x4E4F534A;
 const uint32_t CHUNK_TYPE_BIN = 0x004E4942;
 
@@ -110,6 +111,16 @@ namespace Parser {
 		return textures[texture_index];
 	}
 
+	glm::vec3 Gltf_Model::get_bounding_box() const {
+		glm::vec3 min = glm::vec3{std::numeric_limits<float>::max()};
+		glm::vec3 max = glm::vec3{-std::numeric_limits<float>::max()};
+		for (const auto& mesh : meshes) {
+			min = glm::min(min, mesh.min_bounding_box);
+			max = glm::max(max, mesh.max_bounding_box);
+		}
+		return (max + min) * 0.5f;
+	}
+
 	void Gltf_Model::log_mesh(uint32_t mesh_index) {
 		auto& mesh = meshes[mesh_index];
 		Log::info("What is info as mesh", mesh, mesh_global_transform[default_scene_index][mesh_index]);
@@ -127,7 +138,83 @@ namespace Parser {
 		return 0;
 	}
 
-	Gltf_Model parse_gltf_model(const std::string& path, bool log_debug) {
+	glm::vec2 read_vec2_in_bin_by_component_type(
+		const uint8_t* bin_data, int index, int component_type, glm::vec2 default_result
+	) {
+		glm::vec2 result{};
+		if (component_type == 5126) {
+			const float* data = (const float*)bin_data + index * 2;
+			result = glm::vec2(data[0], data[1]);
+		} else if (component_type == 5121) {
+			const uint8_t* data = bin_data + index * 2;
+			result = glm::vec2(data[0] / 255.f, data[1] / 255.f);
+		} else if (component_type == 5123) {
+			const uint16_t* data = (const uint16_t*)bin_data + index * 2;
+			result = glm::vec2(data[0] / 65535.f, data[1] / 65535.f);
+		} else {
+			return default_result;
+		}
+		return result;
+	}
+
+	glm::vec3 read_vec3_in_bin_by_component_type(
+		const uint8_t* bin_data, int index, int component_type, glm::vec3 default_result
+	) {
+		glm::vec3 result{};
+		if (component_type == 5126) {
+			const float* data = (const float*)bin_data + index * 3;
+			result = glm::vec3(data[0], data[1], data[2]);
+		} else if (component_type == 5121) {
+			const uint8_t* data = bin_data + index * 3;
+			result = glm::vec3(data[0] / 255.f, data[1] / 255.f, data[2] / 255.f);
+		} else if (component_type == 5123) {
+			const uint16_t* data = (const uint16_t*)bin_data + index * 3;
+			result = glm::vec3(data[0] / 65535.f, data[1] / 65535.f, data[2] / 65535.f);
+		} else {
+			return default_result;
+		}
+		return result;
+	}
+
+	glm::vec4 read_vec4_in_bin_by_component_type(
+		const uint8_t* bin_data, int index, int component_type, glm::vec4 default_result
+	) {
+		glm::vec4 result{};
+		if (component_type == 5126) {
+			const float* data = (const float*)bin_data + index * 4;
+			result = glm::vec4(data[0], data[1], data[2], data[3]);
+		} else if (component_type == 5121) {
+			const uint8_t* data = bin_data + index * 4;
+			result = glm::vec4(data[0] / 255.f, data[1] / 255.f, data[2] / 255.f, data[3] / 255.f);
+		} else if (component_type == 5123) {
+			const uint16_t* data = (const uint16_t*)bin_data + index * 4;
+			result = glm::vec4(data[0] / 65535.f, data[1] / 65535.f, data[2] / 65535.f, data[3] / 65535.f);
+		} else {
+			return default_result;
+		}
+		return result;
+	}
+
+	glm::quat read_quat_in_bin_by_component_type(
+		const uint8_t* bin_data, int index, int component_type, glm::quat default_result
+	) {
+		glm::quat result{};
+		if (component_type == 5126) {
+			const float* data = (const float*)bin_data + index * 4;
+			result = glm::quat(data[3], data[0], data[1], data[2]);
+		} else if (component_type == 5121) {
+			const uint8_t* data = bin_data + index * 4;
+			result = glm::quat(data[3] / 255.f, data[0] / 255.f, data[1] / 255.f, data[2] / 255.f);
+		} else if (component_type == 5123) {
+			const uint16_t* data = (const uint16_t*)bin_data + index * 4;
+			result = glm::quat(data[3] / 65535.f, data[0] / 65535.f, data[1] / 65535.f, data[2] / 65535.f);
+		} else {
+			return default_result;
+		}
+		return result;
+	}
+
+	Gltf_Model parse_gltf_model(const std::string& path) {
 		json root;
 		const uint8_t* bin_data = nullptr;
 		std::vector<char> file_bytes;
@@ -135,8 +222,6 @@ namespace Parser {
 		std::vector<const uint8_t*> buffers;
 		file_bytes = Files::read_file(Utils::get_root_path() + path);
 		if (path.find(".glb") != std::string::npos) {
-			std::vector<char> magic = Utils::parse_char<char>(file_bytes, 4, 0);
-			uint32_t version = Utils::parse_uint32_t(file_bytes.data(), 4);
 			uint32_t total_file_length = Utils::parse_uint32_t(file_bytes.data(), 8);
 			uint32_t chunk_offset = 12;
 			while (chunk_offset < total_file_length) {
@@ -161,7 +246,6 @@ namespace Parser {
 			file_bin_buffers.resize(buffer_info_size);
 
 			for (int i = 0; i < buffer_info_size; i++) {
-				int byte_length = buffers_info[i].value("byteLength", 0);
 				const std::string& uri = buffers_info[i]["uri"].get_ref<const std::string&>();
 				size_t quate_index = uri.find(",");
 				if (quate_index != std::string::npos) {
@@ -184,7 +268,7 @@ namespace Parser {
 			}
 		};
 
-		auto get_bin_data_at = [&root, get_bin_data](json& attributes, const char* attribute_name) {
+		auto get_bin_data_at = [&root, get_bin_data](const json& attributes, const char* attribute_name) {
 			int pos_accessor_index = attributes[attribute_name];
 			auto& pos_accessor = root["accessors"][pos_accessor_index];
 			auto& pos_buffer_view = root["bufferViews"][(int)pos_accessor["bufferView"]];
@@ -192,14 +276,6 @@ namespace Parser {
 			const uint8_t* data = get_bin_data(buffer_index);
 			return (const uint8_t*)(data + (uint32_t)pos_buffer_view["byteOffset"] +
 									pos_accessor.value("byteOffset", 0));
-		};
-
-		auto get_bin_image_at = [&root, get_bin_data](json& json_images, int image_index) {
-			int bv_index = json_images[image_index]["bufferView"];
-			auto& pos_buffer_view = root["bufferViews"][bv_index];
-			int buffer_index = pos_buffer_view.value("buffer", 0);
-			const uint8_t* data = get_bin_data(buffer_index);
-			return (const uint8_t*)(data + (uint32_t)pos_buffer_view["byteOffset"]);
 		};
 
 		Gltf_Model model{};
@@ -264,20 +340,8 @@ namespace Parser {
 							const uint8_t* tex_coords_data = get_bin_data_at(attributes, "TEXCOORD_0");
 
 							for (uint32_t i = 0; i < primitive.vertices.size(); i++) {
-								glm::vec2 tex_coord{0.f, 0.f};
-
-								if (component_type == 5126) {
-									const float* tex_coords = (const float*)tex_coords_data + i * 2;
-									tex_coord = glm::vec2(tex_coords[0], tex_coords[1]);
-								} else if (component_type == 5121) {
-									const uint8_t* tex_coords = tex_coords_data + i * 2;
-									tex_coord = glm::vec2(tex_coords[0] / 255.f, tex_coords[1] / 255.f);
-								} else if (component_type == 5123) {
-									const uint16_t* tex_coords = (const uint16_t*)tex_coords_data + i * 2;
-									tex_coord = glm::vec2(tex_coords[0] / 65535.f, tex_coords[1] / 65535.f);
-								}
-
-								primitive.vertices[i].tex_coord = tex_coord;
+								primitive.vertices[i].tex_coord =
+									read_vec2_in_bin_by_component_type(tex_coords_data, i, component_type, {0.f, 0.f});
 							}
 						}
 					}
@@ -296,28 +360,71 @@ namespace Parser {
 							}
 						}
 					}
+					/**
+					 * Parse Color
+					 */
 					{
 						if (attributes.contains("COLOR_0")) {
 							auto& acc = root["accessors"][(int)attributes["COLOR_0"]];
 							std::string type = acc["type"];
 							int component_type = acc["componentType"];
-							int num_components = component_count_from_type(type);
 							const uint8_t* color_data = get_bin_data_at(attributes, "COLOR_0");
 
 							for (uint32_t i = 0; i < primitive.vertices.size(); i++) {
-								glm::vec3 color{1.f, 1.f, 1.f};
-
-								if (component_type == 5126) {
-									const float* colors = (const float*)color_data + i * num_components;
-									color = glm::vec3(colors[0], colors[1], colors[2]);
-								} else if (component_type == 5121) {
-									const uint8_t* colors = color_data + i * num_components;
-									color = glm::vec3(colors[0] / 255.f, colors[1] / 255.f, colors[2] / 255.f);
+								primitive.vertices[i].color =
+									read_vec3_in_bin_by_component_type(color_data, i, component_type, {1.f, 1.f, 1.f});
+							}
+						}
+					}
+					/**
+					 * Parse joints.
+					 */
+					{
+						std::array<std::string, 2> joints_keys = {"JOINTS_0", "JOINTS_1"};
+						std::string using_key = "";
+						for (int i = 0; i < joints_keys.size(); i++) {
+							if (attributes.contains(joints_keys[i].data())) {
+								using_key = joints_keys[i];
+							}
+						}
+						if (attributes.contains(using_key.data())) {
+							auto& acc = root["accessors"][(int)attributes[using_key.data()]];
+							std::string type = acc["type"];
+							const uint8_t* joints_data = get_bin_data_at(attributes, using_key.data());
+							int component_type = acc["componentType"];
+							for (int i = 0; i < primitive.vertices.size(); i++) {
+								glm::u16vec4 joint{0};
+								if (component_type == 5121) {
+									const uint8_t* joints = joints_data + i * 4;
+									joint = {joints[0], joints[1], joints[2], joints[3]};
 								} else if (component_type == 5123) {
-									const uint16_t* colors = (const uint16_t*)color_data + i * num_components;
-									color = glm::vec3(colors[0] / 65535.f, colors[1] / 65535.f, colors[2] / 65535.f);
+									const uint16_t* joints = (const uint16_t*)joints_data + i * 4;
+									joint = {joints[0], joints[1], joints[2], joints[3]};
 								}
-								primitive.vertices[i].color = color;
+								primitive.vertices[i].joints = joint;
+							}
+						}
+					}
+					/**
+					 * Parse weights.
+					 */
+					{
+						std::array<std::string, 2> weights_keys = {"WEIGHT_0", "WEIGHT_1"};
+						std::string using_key = "";
+						for (int i = 0; i < weights_keys.size(); i++) {
+							if (attributes.contains(weights_keys[i].data())) {
+								using_key = weights_keys[i];
+							}
+						}
+						if (attributes.contains(using_key.data())) {
+							auto& acc = root["accessors"][(int)attributes[using_key.data()]];
+							std::string type = acc["type"];
+							const uint8_t* weights_data = get_bin_data_at(attributes, using_key.data());
+							int component_type = acc["componentType"];
+							for (int i = 0; i < primitive.vertices.size(); i++) {
+								primitive.vertices[i].weights = read_vec4_in_bin_by_component_type(
+									weights_data, i, component_type, {0.f, 0.f, 0.f, 0.f}
+								);
 							}
 						}
 					}
@@ -376,16 +483,8 @@ namespace Parser {
 							}
 						}
 					}
-					if (log_debug) {
-						Log::info(
-							"What is my vertices data", primitive.vertices.size(), primitive.vertices[0],
-							primitive.indices.size(), primitive.indices[0], mesh.min_bounding_box, mesh.max_bounding_box
-						);
-						std::vector<uint32_t> indices{};
-						for (int i = 0; i < 10; i++) {
-							indices.push_back(primitive.indices[i]);
-						}
-						Log::info("What is indices", indices);
+					if (DEBUG_MODEL) {
+						// Log::info("What is my vertices data", mesh.min_bounding_box, mesh.max_bounding_box);
 					}
 					primitive.material_index = primitive_json.value("material", -1);
 					mesh.primitives.push_back(std::move(primitive));
@@ -394,7 +493,24 @@ namespace Parser {
 			}
 		}
 		/**
-		 * Parse scene, node
+		 * Parse skin.
+		 */
+		{
+			if (root.contains("skins")) {
+				auto& json_skins = root["skins"];
+				model.skins.resize(json_skins.size());
+				for (int i = 0; i < model.skins.size(); i++) {
+					auto& json_skin = json_skins[i];
+					const uint8_t* matrices_data = get_bin_data_at(json_skin, "inverseBindMatrices");
+					Gltf_Skin skin{};
+					skin.joints = json_skin["joints"].get<std::vector<uint32_t>>();
+					skin.inverse_bind_pose = glm::make_mat4_from((const float*)matrices_data);
+					model.skins[i] = skin;
+				}
+			}
+		}
+		/**
+		 * Parse scene, node.
 		 */
 		{
 			auto& json_nodes = root["nodes"];
@@ -415,7 +531,6 @@ namespace Parser {
 				if (json_node.contains("name")) {
 					node.name = json_node.value("name", "");
 				}
-				glm::mat4 transform{};
 				if (json_node.contains("matrix")) {
 					std::vector<float> cols = json_node["matrix"].get<std::vector<float>>();
 					node.transform = glm::make_mat4_from(cols);
@@ -450,7 +565,7 @@ namespace Parser {
 					node.mesh_index = json_node.value("mesh", 0);
 				}
 			}
-			if (log_debug) {
+			if (DEBUG_MODEL) {
 				// Log::info("What is my nodes data", nodes.size(), nodes);
 			}
 			/**
@@ -468,7 +583,7 @@ namespace Parser {
 					scenes[i] = {json_scenes[i]["nodes"].get<std::vector<uint32_t>>()};
 				}
 			}
-			if (log_debug) {
+			if (DEBUG_MODEL) {
 				// Log::info("what is my scenes", model.default_scene_index, scenes);
 			}
 		}
@@ -528,7 +643,101 @@ namespace Parser {
 				}
 			}
 		}
+		/**
+		 * Parse animations.
+		 */
+		{
+			if (root.contains("animations")) {
+				auto& json_animations = root["animations"];
+				model.animations.resize(json_animations.size());
+				for (int i = 0; i < model.animations.size(); i++) {
+					auto& json_animation = json_animations[i];
+					auto& animation = model.animations[i];
+					if (json_animation.contains("name")) {
+						animation.name = json_animation["name"];
+					}
+					if (json_animation.contains("channels")) {
+						auto& json_chanels = json_animation["channels"];
+						auto& channels = animation.channels;
+						channels.resize(json_chanels.size());
+						for (int j = 0; j < channels.size(); j++) {
+							auto& json_channel = json_chanels[j];
+							auto& channel = channels[j];
+							channel.sampler_index = json_channel["sampler"];
+							if (json_channel.contains("target")) {
+								const auto& json_target = json_channel["target"];
+								if (json_target.contains("path")) {
+									channel.type_sampler = json_target["path"];
+								}
+								if (json_target.contains("node")) {
+									channel.use_node_index = true;
+									channel.node_index = json_target["node"];
+								}
+							}
+						}
+						if (DEBUG_MODEL) {
+							// Log::info("What is my channels", channels);
+						}
+					}
+					if (json_animation.contains("samplers")) {
+						const auto& json_samplers = json_animation["samplers"];
+						auto& samplers = animation.samplers;
+						samplers.resize(json_samplers.size());
+						for (int j = 0; j < samplers.size(); j++) {
+							const auto& json_sampler = json_samplers[j];
+							auto& sampler = samplers[j];
+							sampler.interpolation = json_sampler["interpolation"];
+							const auto& duration_accessor = root["accessors"][(int)json_sampler["input"]];
+							const float* samplers_input_data = (const float*)get_bin_data_at(json_sampler, "input");
+							auto& durations = sampler.durations;
+							durations.resize((int)duration_accessor["count"]);
+							for (int k = 0; k < durations.size(); k++) {
+								durations[k] = samplers_input_data[k];
+							}
+							const auto& data_accessor = root["accessors"][(int)json_sampler["output"]];
+							const uint8_t* samplers_output_data = get_bin_data_at(json_sampler, "output");
+							int component_type = data_accessor["componentType"];
+							if (component_count_from_type(data_accessor["type"]) == 3) {
+								auto& vec3s = sampler.vec3s;
+								vec3s.resize(data_accessor["count"]);
+								for (int k = 0; k < vec3s.size(); k++) {
+									vec3s[k] = read_vec3_in_bin_by_component_type(
+										samplers_output_data, k, component_type, {0.f, 0.f, 0.f}
+									);
+								}
+								sampler.min_vec3 =
+									glm::make_vec_from<3>(data_accessor["min"].get<std::vector<float>>());
+								sampler.max_vec3 =
+									glm::make_vec_from<3>(data_accessor["max"].get<std::vector<float>>());
+							} else if (component_count_from_type(data_accessor["type"]) == 4) {
+								auto& quats = sampler.quats;
+								quats.resize(data_accessor["count"]);
+								for (int k = 0; k < quats.size(); k++) {
+									quats[k] = read_quat_in_bin_by_component_type(
+										samplers_output_data, k, component_type, {1.f, 0.f, 0.f, 0.f}
+									);
+								}
+								sampler.min_quat = read_quat_in_bin_by_component_type(
+									(const uint8_t*)data_accessor["min"].get<std::vector<float>>().data(), 0,
+									component_type, {1.f, 0.f, 0.f, 0.f}
+								);
+								sampler.max_quat = read_quat_in_bin_by_component_type(
+									(const uint8_t*)data_accessor["max"].get<std::vector<float>>().data(), 0,
+									component_type, {1.f, 0.f, 0.f, 0.f}
+								);
+							}
+							if (DEBUG_MODEL) {
+								// Log::info("What is sampler", j, sampler);
+							}
+						}
+					}
+				}
+			}
+		}
 		model.mesh_global_transform = model.make_meshes_global_transform();
+		if (DEBUG_MODEL) {
+			Log::info("Model information", path, model.get_bounding_box() * 300.f);
+		}
 		return model;
 	}
 

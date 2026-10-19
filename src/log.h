@@ -1,5 +1,6 @@
 #pragma once
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <iostream>
 #include <mutex>
 #include <string>
@@ -33,7 +34,7 @@ namespace glm {
 		os << std::endl;
 		os << '{';
 		for (glm::length_t i = 0; i < R; ++i) {
-			for (glm::length_t j = 0; j < R; ++j) {
+			for (glm::length_t j = 0; j < C; ++j) {
 				os << matrix[j][i] << " ";
 			}
 			if (i < R - 1) {
@@ -54,6 +55,11 @@ namespace glm {
 			}
 		}
 		os << "]";
+		return os;
+	}
+
+	template <typename T, glm::qualifier Q> inline std::ostream& operator<<(std::ostream& os, const glm::qua<T, Q>& q) {
+		os << "quat[x:" << q.x << ", y: " << q.y << ", z: " << q.z << ", w: " << q.w << "]";
 		return os;
 	}
 

@@ -131,7 +131,7 @@ namespace Vulkan {
 			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
 			Buffer_Range storage_range = ssbo.view_slot(storage_id);
 			Static_Buffer& static_buffer = get_static_buffer();
-			const Buffer_Range& vertex_range = static_buffer.view_slot_info(vertex_id);
+			const Buffer_Range& vertex_range = static_buffer.view_slot(vertex_id);
 			uint32_t config_draw_offset = Utils::get_draw_2D_config_data_offset(device);
 			Instance_Data instance{
 				storage_range.offset_as<Storage_Data>(), vertex_range.offset_as<Geometry::Vertex_2D>(),
@@ -140,6 +140,7 @@ namespace Vulkan {
 			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data));
 			draws.insert(instance_id, {storage_id});
 			draw_info.draw_material_id = texture_id;
+			draw_info.sub_unique_id = instance_id;
 			return {{instance_id}};
 		}
 
@@ -150,7 +151,7 @@ namespace Vulkan {
 			Storage_Data storage{};
 			storage.make(texture_attributes, texture_view);
 			SSBO_Buffer& ssbo = get_ssbo();
-			const Draw_Data& data = draws.get(draw_info.unique_id);
+			const Draw_Data& data = draws.get(draw_info.sub_unique_id);
 			ssbo.update_data(data.storage_id, &storage);
 		}
 
@@ -159,8 +160,8 @@ namespace Vulkan {
 			uint32_t first_instance_offset, uint32_t frame_index
 		) {
 			Static_Buffer& static_buffer = get_static_buffer();
-			Buffer_Range indices_range = static_buffer.view_slot_info(indices_id);
-			Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
+			Buffer_Range indices_range = static_buffer.view_slot(indices_id);
+			Buffer_Range vertex_range = static_buffer.view_slot(vertex_id);
 			Buffer instance_buffer = get_instance_buffer(frame_index);
 			uint32_t texture_id = material_draw_id;
 			VkDescriptorSet* descriptor_sets = nullptr;

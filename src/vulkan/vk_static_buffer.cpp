@@ -37,7 +37,7 @@ namespace Vulkan {
 			id_to_staging_ranges.clear();
 			current_staging_offset = 0;
 		}
-		this->current_frame = current_frame;
+		current_frame = frame_index;
 	}
 
 	uint32_t Static_Buffer::upload_data(void* data, uint32_t size, uint32_t element_stride) {
@@ -51,14 +51,14 @@ namespace Vulkan {
 		uint32_t staging_size_required = staging_using_range.offset + staging_using_range.total_size();
 		if (staging_buffer.size < staging_size_required) {
 			uint32_t new_staging_size = (uint32_t)(staging_size_required * 1.5f);
-			auto buffer = staging_buffer.resize(new_staging_size);
+			staging_buffer.resize(new_staging_size, true);
 		}
 		staging_buffer.copy_data(size, data, staging_using_range.inner_offset());
 		id_to_staging_ranges.insert(range_id, staging_using_range);
 		return id_to_ranges.insert(range_id, using_range);
 	}
 
-	const Buffer_Range& Static_Buffer::view_slot_info(uint32_t id) {
+	const Buffer_Range& Static_Buffer::view_slot(uint32_t id) {
 		if (!id_to_ranges.has(id)) {
 			throw std::runtime_error("Fail to view static range: " + std::to_string(id) + "!");
 		}

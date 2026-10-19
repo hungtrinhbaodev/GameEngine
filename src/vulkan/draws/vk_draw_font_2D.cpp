@@ -236,8 +236,8 @@ namespace Vulkan {
 			uint32_t first_instance_offset, int frame_index
 		) {
 			Static_Buffer& static_buffer = get_static_buffer();
-			Buffer_Range indices_range = static_buffer.view_slot_info(indices_id);
-			Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
+			Buffer_Range indices_range = static_buffer.view_slot(indices_id);
+			Buffer_Range vertex_range = static_buffer.view_slot(vertex_id);
 			Buffer instance_buffer = get_instance_buffer(frame_index);
 			uint32_t number_descriptor_set = 0;
 			VkDescriptorSet* binding_descriptor_sets = nullptr;
@@ -282,7 +282,7 @@ namespace Vulkan {
 			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
 			Buffer_Range storage_range = ssbo.view_slot(storage_id);
 			Static_Buffer& static_buffer = get_static_buffer();
-			Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
+			Buffer_Range vertex_range = static_buffer.view_slot(vertex_id);
 			uint32_t config_draw_offset = Utils::get_draw_2D_config_data_offset(device);
 			text.storage_id = storage_id;
 			text.storage_char_ids.clear();
@@ -298,7 +298,7 @@ namespace Vulkan {
 			}
 			uint32_t instance_id =
 				ssbo.upload_data(instances.data(), instances.size() * sizeof(Instance_Data), sizeof(Instance_Data));
-			draw_info.unique_id = instance_id;
+			draw_info.sub_unique_id = instance_id;
 			draw_info.draw_material_id = font_id;
 			return instance_id;
 		}
@@ -313,7 +313,7 @@ namespace Vulkan {
 		}
 
 		void update_font_2D(Draw_Information& draw_info, const Font_2D_Attributes& text_attributes) {
-			const Text_Data& text = texts.get(draw_info.unique_id);
+			const Text_Data& text = texts.get(draw_info.sub_unique_id);
 			if (!text.is_changing(text_attributes)) {
 				return;
 			}
@@ -322,8 +322,8 @@ namespace Vulkan {
 				ssbo.remove_data(char_storage_id);
 			}
 			ssbo.remove_data(text.storage_id);
-			ssbo.remove_data(draw_info.unique_id);
-			texts.erase(draw_info.unique_id);
+			ssbo.remove_data(draw_info.sub_unique_id);
+			texts.erase(draw_info.sub_unique_id);
 			Text_Data new_text{};
 			uint32_t instance_id = update_text_data(draw_info, new_text, text_attributes);
 			texts.insert(instance_id, new_text);

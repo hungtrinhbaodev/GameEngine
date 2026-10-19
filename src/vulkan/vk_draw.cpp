@@ -283,7 +283,7 @@ namespace Vulkan {
 		}
 	}
 
-	void batching_draw_groups_2(VkCommandBuffer command_buffer, uint32_t frame_index) {
+	void batching_draw_groups(VkCommandBuffer command_buffer, uint32_t frame_index) {
 		Profiler::start_scope(SCOPE_BATCHING_GROUP);
 		if (sorted_draws.size() <= 0) {
 			return;
@@ -543,16 +543,18 @@ namespace Vulkan {
 	void update_storage_buffer_descriptor_sets(uint32_t frame_index) {
 		SSBO_Buffer& ssbo = get_ssbo();
 		bool is_storage_buffer_update = ssbo.is_storage_buffer_resizing(frame_index);
-		Buffer& storage_buffer = ssbo.storage_buffers[frame_index];
-		Descriptor_Set_Writer writer{};
-		for (int i = 0; i < Const::MAX_DESCRIPTOR_STORAGE_BUFFER_BINDING; i++) {
-			writer
-				.add_buffer_write(
-					i, &storage_buffer.descriptor, storage_buffer_descriptor_sets[frame_index],
-					VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
-				)
-				.write(device);
-			writer.clear();
+		if (is_storage_buffer_update) {
+			Buffer& storage_buffer = ssbo.storage_buffers[frame_index];
+			Descriptor_Set_Writer writer{};
+			for (int i = 0; i < Const::MAX_DESCRIPTOR_STORAGE_BUFFER_BINDING; i++) {
+				writer
+					.add_buffer_write(
+						i, &storage_buffer.descriptor, storage_buffer_descriptor_sets[frame_index],
+						VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
+					)
+					.write(device);
+				writer.clear();
+			}
 		}
 	}
 
@@ -708,7 +710,6 @@ namespace Vulkan {
 	}
 
 	Draw_Information gen_draw_info(Const::DRAW_ID draw_type, const Draw_Attribute& draw_attributes) {
-		uint32_t draw_id = draw_id_generator.gen_id();
 		Draw_Information draw_info{draw_type};
 		draw_info.draw_index = draw_attributes.draw_index;
 		draw_info.visible = draw_attributes.is_visible;
@@ -740,7 +741,7 @@ namespace Vulkan {
 			return;
 		}
 		const Draw_Information& draw_info = draw_id_to_info.get(id);
-		Rectangle::update_draw(draw_info.unique_id, rectangle_attributes);
+		Rectangle::update_draw(draw_info.sub_unique_id, rectangle_attributes);
 	}
 
 	uint32_t make_texture_2D(const Draw_Attribute& draw_attributes, const Texture_2D_Attributes& texture_attributes) {
@@ -793,7 +794,7 @@ namespace Vulkan {
 			return;
 		}
 		const Draw_Information& draw_info = draw_id_to_info.get(id);
-		Triangle::update_triangle(draw_info.unique_id, triangle_attributes);
+		Triangle::update_triangle(draw_info.sub_unique_id, triangle_attributes);
 	}
 
 } // namespace Vulkan

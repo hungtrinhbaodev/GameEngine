@@ -104,7 +104,7 @@ namespace Vulkan {
 			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
 			const Buffer_Range& storage_range = ssbo.view_slot(storage_id);
 			Static_Buffer& static_buffer = get_static_buffer();
-			const Buffer_Range& vertex_range = static_buffer.view_slot_info(vertex_id);
+			const Buffer_Range& vertex_range = static_buffer.view_slot(vertex_id);
 			uint32_t config_draw_offset = Utils::get_draw_2D_config_data_offset(device);
 			Instance_Data instance{
 				storage_range.offset_as<Storage_Data>(), vertex_range.offset_as<Geometry::Vertex_2D>(),
@@ -133,8 +133,8 @@ namespace Vulkan {
 			uint32_t first_instance_offset, uint32_t frame_index
 		) {
 			Static_Buffer& static_buffer = get_static_buffer();
-			Buffer_Range indices_range = static_buffer.view_slot_info(indices_id);
-			Buffer_Range vertex_range = static_buffer.view_slot_info(vertex_id);
+			Buffer_Range indices_range = static_buffer.view_slot(indices_id);
+			Buffer_Range vertex_range = static_buffer.view_slot(vertex_id);
 			Buffer& instance_buffer = get_instance_buffer(frame_index);
 			VkBuffer binding_buffers[2] = {static_buffer.inner_buffer.buffer, instance_buffer.buffer};
 			VkDeviceSize buffer_offsets[2] = {0, 0};

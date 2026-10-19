@@ -276,7 +276,7 @@ namespace Vulkan {
 			 */
 			sort_draws();
 			// batching_draw_groups(command_buffer, current_frame);
-			batching_draw_groups_2(command_buffer, current_frame);
+			batching_draw_groups(command_buffer, current_frame);
 			vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 			{
 				draw(command_buffer);

@@ -67,7 +67,7 @@ namespace Vulkan {
 
 		uint32_t upload_data(void* data, uint32_t size, uint32_t element_stride = 1);
 
-		const Buffer_Range& view_slot_info(uint32_t id);
+		const Buffer_Range& view_slot(uint32_t id);
 
 		bool remove_data(uint32_t id);
 

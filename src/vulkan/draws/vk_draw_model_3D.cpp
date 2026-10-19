@@ -41,12 +41,6 @@ namespace Vulkan {
 			glm::vec2 tex_scale = {1.f, 1.f};
 		};
 
-		struct Push_Constants {
-			glm::mat4 mesh_transform{1.f};
-			int bucket_index = 0;
-			int slot_index = 0;
-		};
-
 		struct Draw_Data {
 			uint32_t storage_id = 0;
 			std::vector<uint32_t> instance_ids{};
@@ -141,7 +135,6 @@ namespace Vulkan {
 			pipeline_config.enable_depth_image = true;
 			pipeline_config.depth_compare_op = VK_COMPARE_OP_LESS;
 			pipeline_config.triangle_trip_order = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-			pipeline_config.push_constants_size = sizeof(Push_Constants);
 
 			pipeline.init(pipeline_config);
 		}
@@ -161,7 +154,6 @@ namespace Vulkan {
 			Buffer_Range storage_range = ssbo.view_slot(storage_id);
 			draw.storage_id = storage_id;
 			uint32_t scene_index = model.draw_scene_index;
-			uint32_t count = 0;
 			for (int i = 0; i < model.meshes.size(); i++) {
 				const auto& mesh = model.meshes[i];
 				const auto& mesh_transform_offsets = mesh.get_mesh_transform_offsets(scene_index);
@@ -192,18 +184,16 @@ namespace Vulkan {
 					draw_instances.push_back(draw_instance);
 					draw.storage_texture_ids.push_back(texture_storage_id);
 					draw.instance_ids.push_back(instance_id);
-					count++;
 				}
 			}
 			draw_info.draw_material_id = model_id;
 			uint32_t unique_id = unique_id_generator.gen_id();
 			draws.insert(unique_id, draw);
-			draw_info.unique_id = unique_id;
+			draw_info.sub_unique_id = unique_id;
 			return draw_instances;
 		}
 
 		void setup_draw(uint32_t frame_index) {
-			const Buffer& uniform_buffer = uniform_buffers[frame_index];
 			Uniform uniform{};
 			glm::mat4 projection = glm::perspective(
 				glm::radians(45.0f), (float)swapchain_extent.width / (float)swapchain_extent.height, 0.1f, 100.f
@@ -223,7 +213,7 @@ namespace Vulkan {
 			uint32_t uniform_range_id = uniform_buffer_ids[frame_index];
 			Buffer& uniform_buffer = uniform_buffers[frame_index];
 			SSBO_Buffer& ssbo = get_ssbo();
-			Buffer_Range range = ssbo.view_slot(uniform_range_id);
+			const Buffer_Range& range = ssbo.view_slot(uniform_range_id);
 			Utils::record_buffer_barrier(
 				command_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
 				VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, uniform_buffer.buffer, 0,
@@ -246,9 +236,8 @@ namespace Vulkan {
 		) {
 			Static_Buffer& static_buffer = get_static_buffer();
 			Buffer& instance_buffer = get_instance_buffer(frame_index);
-			const Model_Information& model = model_3D_system.view_model(material_draw_id);
+			const Model_Information& model = view_model(material_draw_id);
 			uint32_t number_descriptor_set = 4;
-			auto& uniform_descriptor_sets_2 = uniform_descriptor_sets;
 			VkDescriptorSet using_descriptor_sets[4] = {
 				get_storage_descriptor_set(frame_index), VK_NULL_HANDLE, VK_NULL_HANDLE,
 				uniform_descriptor_sets[frame_index]
@@ -257,8 +246,8 @@ namespace Vulkan {
 			VkDeviceSize buffer_offsets[2] = {0, 0};
 			uint32_t primitive_flat_id = instance_material_id;
 			const auto& primitive = model.flat_primitives[primitive_flat_id];
-			const Buffer_Range& vertex_range = static_buffer.view_slot_info(primitive.vertex_id);
-			const Buffer_Range& indices_range = static_buffer.view_slot_info(primitive.indices_id);
+			const Buffer_Range& vertex_range = static_buffer.view_slot(primitive.vertex_id);
+			const Buffer_Range& indices_range = static_buffer.view_slot(primitive.indices_id);
 			std::array<VkDescriptorSet, 2> texture_descriptor_sets =
 				get_descriptor_set_texture_sampler(primitive.texture_id, frame_index);
 			using_descriptor_sets[1] = texture_descriptor_sets[0];

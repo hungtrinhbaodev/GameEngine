@@ -18,7 +18,7 @@ namespace Vulkan {
 
 	void sort_draws();
 
-	void batching_draw_groups_2(VkCommandBuffer command_buffer, uint32_t frame_index);
+	void batching_draw_groups(VkCommandBuffer command_buffer, uint32_t frame_index);
 
 	void draw(VkCommandBuffer command_buffer);
 

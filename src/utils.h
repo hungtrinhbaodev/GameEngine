@@ -31,6 +31,17 @@ namespace glm {
 		}
 		return result;
 	}
+	inline glm::mat4 make_mat4_from(const float* flat_float) {
+		glm::mat4 result{0.f};
+		for (int i = 0; i < 4; i++) {
+			vec4& col = result[i];
+			int start = i * 4;
+			for (int j = 0; j < 4; j++) {
+				col[j] = flat_float[start + j];
+			}
+		}
+		return result;
+	}
 } // namespace glm
 
 namespace Utils {

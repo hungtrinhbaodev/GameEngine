@@ -64,6 +64,50 @@ namespace Parser {
 		uint32_t height;
 	};
 
+	struct Gltf_Channel {
+		bool use_node_index = false;
+		uint32_t sampler_index = 0;
+		std::string type_sampler = "";
+		uint32_t node_index = 0;
+		inline friend std::ostream& operator<<(std::ostream& os, const Gltf_Channel& channel) {
+			os << "Parser::Gltf_Channel{sampler_index: " << channel.sampler_index
+			   << ", use_node_index: " << channel.use_node_index << ", type_sampler: " << channel.type_sampler
+			   << ", node_index: " << channel.node_index << "}";
+			return os;
+		}
+	};
+
+	struct Gltf_Sampler {
+		uint32_t number_apply = 0;
+		std::string interpolation = "";
+		std::vector<float> durations{};
+		std::vector<glm::vec3> vec3s{};
+		std::vector<glm::quat> quats{};
+		glm::vec3 min_vec3{0};
+		glm::vec3 max_vec3{0};
+		glm::quat min_quat{1.f, 0.f, 0.f, 0.f};
+		glm::quat max_quat{1.f, 0.f, 0.f, 0.f};
+		inline friend std::ostream& operator<<(std::ostream& os, const Gltf_Sampler& sampler) {
+			os << "Parser::Gltf_Sampler{number_apply: " << sampler.number_apply
+			   << ", interpolation: " << sampler.interpolation << ", durations: " << sampler.durations
+			   << ", vec3s: " << sampler.vec3s << ", quats: " << sampler.quats << ", min_vec3: " << sampler.min_vec3
+			   << ", max_vec3: " << sampler.max_vec3 << ", min_quat: " << sampler.min_quat
+			   << "max_quat: " << sampler.max_quat << "}";
+			return os;
+		}
+	};
+
+	struct Gltf_Animation {
+		std::vector<Gltf_Channel> channels{};
+		std::vector<Gltf_Sampler> samplers{};
+		std::string name = "";
+	};
+
+	struct Gltf_Skin {
+		std::vector<uint32_t> joints;
+		glm::mat4 inverse_bind_pose{1.f};
+	};
+
 	struct Gltf_Model {
 		std::vector<Gltf_Mesh> meshes;
 		std::vector<Gltf_Node> nodes;
@@ -71,6 +115,8 @@ namespace Parser {
 		std::vector<Gltf_Material> materials;
 		std::vector<std::string> texture_paths;
 		std::vector<Gltf_Texture> textures;
+		std::vector<Gltf_Animation> animations;
+		std::vector<Gltf_Skin> skins;
 		int default_scene_index = -1;
 		std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::vector<glm::mat4>>> mesh_global_transform{};
 		/**
@@ -80,9 +126,10 @@ namespace Parser {
 		make_meshes_global_transform();
 		std::string get_primitive_texture_path(uint32_t mesh_index, uint32_t primitive_index);
 		Gltf_Texture get_primitive_texture(uint32_t mesh_index, uint32_t primitive_index);
+		glm::vec3 get_bounding_box() const;
 		void log_mesh(uint32_t mesh_index);
 	};
 
-	Gltf_Model parse_gltf_model(const std::string& path, bool log_debug = false);
+	Gltf_Model parse_gltf_model(const std::string& path);
 
 } // namespace Parser

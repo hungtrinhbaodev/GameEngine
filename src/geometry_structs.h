@@ -33,6 +33,8 @@ namespace Geometry {
 		glm::vec2 tex_coord{0.f, 0.f};
 		glm::vec4 tangent{0.f, 0.f, 0.f, 0.f};
 		glm::vec3 color{1.f, 1.f, 1.f};
+		glm::u16vec4 joints{0, 0, 0, 0};
+		glm::vec4 weights{1.f, 0.f, 0.f, 0.f};
 		inline friend std::ostream& operator<<(std::ostream& os, const Vertex_3D& vertex) {
 			os << "{Vertex: position: " << vertex.position << ",  tex_coord: " << vertex.tex_coord
 			   << ", normal: " << vertex.normal << ", color: " << vertex.color << ", tangent: " << vertex.tangent

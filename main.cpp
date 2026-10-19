@@ -74,7 +74,7 @@ int main() {
 	// model_attributes.position = {-0.8f, 0.2f, 0.f};
 	// model_attributes.path = "res/CesiumMan.gltf";
 	// Vulkan::make_model_3D(model_draw_attributes, model_attributes);
-	// for (int i = 0; i < 3; i++) {
+	// for (int i = 0; i < 1; i++) {
 	// 	// model_attributes.path = "res/Fox.glb";
 	// 	// model_attributes.path = "res/cat 7.glb";
 	// 	// model_attributes.path = "res/CesiumMan.gltf";

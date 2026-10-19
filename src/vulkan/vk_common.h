@@ -21,7 +21,7 @@ namespace Vulkan {
 		 * instance and sub instance can
 		 * be use this to distint!
 		 */
-		uint32_t unique_id = 0;
+		uint32_t sub_unique_id = 0;
 		/**
 		 * @Note: index of object draw.
 		 */
