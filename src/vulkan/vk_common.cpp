@@ -1,8 +1,113 @@
+#include <algorithm>
+#include <math_custom.h>
 #include <stdexcept>
 #include <vulkan/vk_common.h>
 #include <vulkan/vk_utils.h>
 
 namespace Vulkan {
+
+	void Model_Node::parse_from(Parser::Gltf_Node& node) {
+		translation = std::move(node.translation);
+		scale = std::move(node.scale);
+		rotation = std::move(node.rotation);
+		transform = std::move(node.transform);
+		children_indices = std::move(node.children_indices);
+		mesh_index = node.mesh_index;
+		skin_index = node.skin_index;
+	}
+
+	void Model_Scene::parse_from(Parser::Gltf_Scene& scene) {
+		node_root_indices = std::move(scene.node_indices);
+	}
+
+	void Model_Skin::parse_from(Parser::Gltf_Skin& skin) {
+		joints = std::move(skin.joints);
+		inverse_bind_pose = std::move(skin.inverse_bind_pose);
+		inverse_bind_poses = std::move(skin.inverse_bind_poses);
+	}
+
+	void Model_Sampler::parse_from(Parser::Gltf_Sampler& sampler) {
+		number_apply = sampler.number_apply;
+		interpolation = sampler.interpolation;
+		durations = std::move(sampler.durations);
+		min_vec3 = std::move(sampler.min_vec3);
+		max_vec3 = std::move(sampler.max_vec3);
+		vec3s = std::move(sampler.vec3s);
+		min_quat = std::move(sampler.min_quat);
+		max_quat = std::move(sampler.max_quat);
+		quats = std::move(sampler.quats);
+	}
+
+	float Model_Sampler::max_duration() const {
+		if (durations.size() <= 0) {
+			return 0.f;
+		}
+		return durations.back();
+	}
+
+	glm::vec3 Model_Sampler::sampler_vec3(float t) const {
+		if (t < durations.front()) {
+			return vec3s.front();
+		}
+		if (t >= durations.back()) {
+			return vec3s.back();
+		}
+		auto it = std::upper_bound(durations.begin(), durations.end(), t);
+		if (it != durations.end()) {
+			int index = std::distance(durations.begin(), it);
+			int next_index = index - 1;
+			float dt = durations[next_index] - durations[index];
+			float factor = (t - durations[index]) / dt;
+			if (interpolation == "LINEAR") {
+				return glm::mix(vec3s[index], vec3s[next_index], factor);
+			} else {
+				return vec3s[index];
+			}
+		}
+		return vec3s.back();
+	}
+
+	glm::quat Model_Sampler::sampler_quat(float t) const {
+		if (t < durations.front()) {
+			return quats.front();
+		}
+		if (t >= durations.back()) {
+			return quats.back();
+		}
+		auto it = std::upper_bound(durations.begin(), durations.end(), t);
+		if (it != durations.end()) {
+			int index = std::distance(durations.begin(), it);
+			int next_index = index - 1;
+			float dt = durations[next_index] - durations[index];
+			float factor = (t - durations[index]) / dt;
+			if (interpolation == "LINEAR") {
+				return glm::slerp(quats[index], quats[next_index], factor);
+			} else {
+				return quats[index];
+			}
+		}
+		return quats.back();
+	}
+
+	void Model_Channel::parse_from(Parser::Gltf_Channel& channel) {
+		use_node_index = channel.use_node_index;
+		sampler_index = channel.sampler_index;
+		type_sampler = channel.type_sampler;
+		node_index = channel.node_index;
+	}
+
+	void Model_Animation::parse_from(Parser::Gltf_Animation& animation) {
+		name = animation.name;
+		channels.resize(animation.channels.size());
+		for (int i = 0; i < channels.size(); i++) {
+			channels[i].parse_from(animation.channels[i]);
+		}
+		samplers.resize(animation.samplers.size());
+		for (int i = 0; i < samplers.size(); i++) {
+			samplers[i].parse_from(animation.samplers[i]);
+		}
+	}
+
 	void Resource_Synchronize_Information::release_frame(uint32_t frame_index) {
 		if (frame_index < 0 || frame_index > blocked.size())
 			return;
@@ -90,25 +195,91 @@ namespace Vulkan {
 		return rect_storage_offset + char_index;
 	}
 
-	glm::vec3 Model_Mesh_Information::get_mesh_origin() const {
+	glm::mat4 Model_3D_Attributes::get_transform() const {
+		return Math::make_translation(position) * Math::make_rotation(rotation) * Math::make_scale(scale);
+	}
+
+	glm::vec3 Model_Mesh::get_mesh_origin() const {
 		return (max_bounding_box + min_bounding_box) * 0.5f;
 	}
 
-	const std::vector<uint32_t>& Model_Mesh_Information::get_mesh_transform_offsets(uint32_t scene_index) const {
-		return mesh_transform_storage_offsets.at(scene_index);
+	glm::mat4 Model_Node::get_transform() const {
+		return Math::make_translation(translation) * glm::mat4_cast(rotation) * Math::make_scale(scale) * transform;
 	}
 
-	uint32_t Model_Information::get_number_primitive() const {
-		return flat_primitives.size();
-	}
-
-	uint32_t Model_Information::get_primitive_flat_index(
-		const uint32_t& mesh_index, const uint32_t& primitive_index
-	) const {
-		uint32_t flat_index = 0;
-		for (int i = 0; i < mesh_index; i++) {
-			flat_index += meshes[i].primitives.size();
+	int Model::find_scene_index_by(const std::string& name) const {
+		for (int i = 0; i < scenes.size(); i++) {
+			if (scenes[i].name == name) {
+				return i;
+			}
 		}
-		return flat_index + primitive_index;
+		return default_scene_index;
+	}
+
+	int Model::find_animation_index_by(const std::string& name) const {
+		for (int i = 0; i < animations.size(); i++) {
+			if (animations[i].name == name) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	void Model::dfs_write(int scene_index, std::function<void(Model&, int, int, int)> execute) {
+		if (scene_index == -1) {
+			scene_index = default_scene_index;
+		}
+		std::stack<uint32_t> stack{};
+		std::vector<bool> visited(nodes.size());
+		for (uint32_t root : scenes[scene_index].node_root_indices) {
+			for (int i = 0; i < visited.size(); i++) {
+				visited[i] = false;
+			}
+			stack.push(root);
+			visited[root] = true;
+			execute(*this, scene_index, -1, (int)root);
+			while (stack.size()) {
+				uint32_t parent = stack.top();
+				stack.pop();
+				const auto& children_indices = nodes[parent].children_indices;
+				for (int i = 0; i < children_indices.size(); i++) {
+					uint32_t children = children_indices[i];
+					if (!visited[children]) {
+						stack.push(children);
+						visited[children] = true;
+						execute(*this, scene_index, (int)parent, (int)children);
+					}
+				}
+			}
+		}
+	}
+
+	void Model::dfs_read(int scene_index, std::function<void(const Model&, int, int, int)> execute) const {
+		if (scene_index == -1) {
+			scene_index = default_scene_index;
+		}
+		std::stack<uint32_t> stack{};
+		std::vector<bool> visited(nodes.size());
+		for (uint32_t root : scenes[scene_index].node_root_indices) {
+			for (int i = 0; i < visited.size(); i++) {
+				visited[i] = false;
+			}
+			stack.push(root);
+			visited[root] = true;
+			execute(*this, scene_index, -1, (int)root);
+			while (stack.size()) {
+				uint32_t parent = stack.top();
+				stack.pop();
+				const auto& children_indices = nodes[parent].children_indices;
+				for (int i = 0; i < children_indices.size(); i++) {
+					uint32_t children = children_indices[i];
+					if (!visited[children]) {
+						stack.push(children);
+						visited[children] = true;
+						execute(*this, scene_index, (int)parent, (int)children);
+					}
+				}
+			}
+		}
 	}
 } // namespace Vulkan

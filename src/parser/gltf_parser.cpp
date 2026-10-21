@@ -18,59 +18,6 @@ namespace Parser {
 		return (Math::make_translation(translation) * glm::mat4_cast(rotation) * Math::make_scale(scale) * transform);
 	}
 
-	std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::vector<glm::mat4>>> Gltf_Model::
-		make_meshes_global_transform() {
-		std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::vector<glm::mat4>>> meshes_transform{};
-		for (int i = 0; i < scenes.size(); i++) {
-			meshes_transform[i] = {};
-		}
-		const std::vector<Gltf_Node>& nodes = this->nodes;
-		std::vector<bool> visited(nodes.size(), false);
-		std::vector<glm::mat4> global_transforms(nodes.size(), {1.f});
-		std::stack<uint32_t> stack{};
-		auto add_transform_to_mesh_at_scene = [&global_transforms, &meshes_transform, &nodes](
-												  uint32_t scene_index, uint32_t node_index, glm::mat4& transform
-											  ) {
-			const Gltf_Node& node = nodes[node_index];
-			if (node.mesh_index != -1) {
-				if (meshes_transform[scene_index].find(node.mesh_index) == meshes_transform[scene_index].end()) {
-					meshes_transform[scene_index][node.mesh_index] = {};
-				}
-				meshes_transform[scene_index][node.mesh_index].push_back(global_transforms[node_index]);
-			}
-		};
-		for (int i = 0; i < scenes.size(); i++) {
-			std::vector<uint32_t>& node_indices = scenes[i].node_indices;
-			for (int root : node_indices) {
-				for (int j = 0; j < nodes.size(); j++) {
-					global_transforms[j] = nodes[j].get_transform();
-					visited[j] = false;
-				}
-
-				stack.push(root);
-				visited[root] = true;
-				add_transform_to_mesh_at_scene(i, root, global_transforms[root]);
-
-				while (stack.size() > 0) {
-					int current = stack.top();
-					const glm::mat4& current_global_transform = global_transforms[current];
-					stack.pop();
-					const std::vector<uint32_t>& children_indices = nodes[current].children_indices;
-					for (int k = 0; k < children_indices.size(); k++) {
-						int child = children_indices[k];
-						if (!visited[child]) {
-							global_transforms[child] = current_global_transform * global_transforms[child];
-							add_transform_to_mesh_at_scene(i, child, global_transforms[child]);
-							visited[child] = true;
-							stack.push(child);
-						}
-					}
-				}
-			}
-		}
-		return meshes_transform;
-	}
-
 	std::string Gltf_Model::get_primitive_texture_path(uint32_t mesh_index, uint32_t primitive_index) {
 		if (mesh_index < 0 || mesh_index >= meshes.size()) {
 			return "";
@@ -119,11 +66,6 @@ namespace Parser {
 			max = glm::max(max, mesh.max_bounding_box);
 		}
 		return (max + min) * 0.5f;
-	}
-
-	void Gltf_Model::log_mesh(uint32_t mesh_index) {
-		auto& mesh = meshes[mesh_index];
-		Log::info("What is info as mesh", mesh, mesh_global_transform[default_scene_index][mesh_index]);
 	}
 
 	int component_count_from_type(const std::string& type) {
@@ -409,7 +351,7 @@ namespace Parser {
 					 * Parse weights.
 					 */
 					{
-						std::array<std::string, 2> weights_keys = {"WEIGHT_0", "WEIGHT_1"};
+						std::array<std::string, 2> weights_keys = {"WEIGHTS_0", "WEIGHTS_1"};
 						std::string using_key = "";
 						for (int i = 0; i < weights_keys.size(); i++) {
 							if (attributes.contains(weights_keys[i].data())) {
@@ -504,7 +446,10 @@ namespace Parser {
 					const uint8_t* matrices_data = get_bin_data_at(json_skin, "inverseBindMatrices");
 					Gltf_Skin skin{};
 					skin.joints = json_skin["joints"].get<std::vector<uint32_t>>();
-					skin.inverse_bind_pose = glm::make_mat4_from((const float*)matrices_data);
+					skin.inverse_bind_poses.resize(skin.joints.size());
+					for (int j = 0; j < skin.inverse_bind_poses.size(); j++) {
+						skin.inverse_bind_poses[j] = glm::make_mat4_from((const float*)matrices_data + j * 16);
+					}
 					model.skins[i] = skin;
 				}
 			}
@@ -521,12 +466,7 @@ namespace Parser {
 				auto& json_node = json_nodes[i];
 				Gltf_Node& node = nodes[i];
 				if (json_node.contains("children")) {
-					auto& children_indices = json_node["children"];
-					node.children_indices.resize(children_indices.size());
-					for (int j = 0; j < children_indices.size(); j++) {
-						uint32_t child = children_indices[j];
-						node.children_indices[j] = child;
-					}
+					node.children_indices = json_node["children"].get<std::vector<int>>();
 				}
 				if (json_node.contains("name")) {
 					node.name = json_node.value("name", "");
@@ -564,6 +504,9 @@ namespace Parser {
 				if (json_node.contains("mesh")) {
 					node.mesh_index = json_node.value("mesh", 0);
 				}
+				if (json_node.contains("skin")) {
+					node.skin_index = json_node.value("skin", -1);
+				}
 			}
 			if (DEBUG_MODEL) {
 				// Log::info("What is my nodes data", nodes.size(), nodes);
@@ -580,7 +523,12 @@ namespace Parser {
 				int scene_size = json_scenes.size();
 				scenes.resize(scene_size);
 				for (int i = 0; i < scene_size; i++) {
-					scenes[i] = {json_scenes[i]["nodes"].get<std::vector<uint32_t>>()};
+					scenes[i].node_indices = json_scenes[i]["nodes"].get<std::vector<uint32_t>>();
+					if (json_scenes[i].contains("name")) {
+						scenes[i].name = json_scenes["name"];
+					} else {
+						scenes[i].name = std::to_string(i);
+					}
 				}
 			}
 			if (DEBUG_MODEL) {
@@ -655,6 +603,8 @@ namespace Parser {
 					auto& animation = model.animations[i];
 					if (json_animation.contains("name")) {
 						animation.name = json_animation["name"];
+					} else {
+						animation.name = std::to_string(i);
 					}
 					if (json_animation.contains("channels")) {
 						auto& json_chanels = json_animation["channels"];
@@ -734,9 +684,8 @@ namespace Parser {
 				}
 			}
 		}
-		model.mesh_global_transform = model.make_meshes_global_transform();
 		if (DEBUG_MODEL) {
-			Log::info("Model information", path, model.get_bounding_box() * 300.f);
+			// Log::info("Model information", path, model.get_bounding_box() * 300.f);
 		}
 		return model;
 	}

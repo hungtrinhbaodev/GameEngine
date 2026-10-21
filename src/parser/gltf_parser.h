@@ -13,8 +13,9 @@ namespace Parser {
 	struct Gltf_Node {
 		std::string name = "";
 		glm::mat4 transform{};
-		std::vector<uint32_t> children_indices;
+		std::vector<int> children_indices;
 		int mesh_index = -1;
+		int skin_index = -1;
 		glm::vec3 translation{0.f, 0.f, 0.f};
 		glm::quat rotation{1.f, 0.f, 0.f, 0.f};
 		glm::vec3 scale{1.f, 1.f, 1.f};
@@ -28,6 +29,7 @@ namespace Parser {
 
 	struct Gltf_Scene {
 		std::vector<uint32_t> node_indices;
+		std::string name = "";
 		inline friend std::ostream& operator<<(std::ostream& os, const Gltf_Scene& scene) {
 			os << "Parser::Scene {Node indices: " << scene.node_indices << "}";
 			return os;
@@ -106,6 +108,7 @@ namespace Parser {
 	struct Gltf_Skin {
 		std::vector<uint32_t> joints;
 		glm::mat4 inverse_bind_pose{1.f};
+		std::vector<glm::mat4> inverse_bind_poses{1.f};
 	};
 
 	struct Gltf_Model {
@@ -118,16 +121,10 @@ namespace Parser {
 		std::vector<Gltf_Animation> animations;
 		std::vector<Gltf_Skin> skins;
 		int default_scene_index = -1;
-		std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::vector<glm::mat4>>> mesh_global_transform{};
-		/**
-		 * scene index -> mesh index -> global transform of mesh
-		 */
-		std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::vector<glm::mat4>>>
-		make_meshes_global_transform();
+		int default_skin_index = -1;
 		std::string get_primitive_texture_path(uint32_t mesh_index, uint32_t primitive_index);
 		Gltf_Texture get_primitive_texture(uint32_t mesh_index, uint32_t primitive_index);
 		glm::vec3 get_bounding_box() const;
-		void log_mesh(uint32_t mesh_index);
 	};
 
 	Gltf_Model parse_gltf_model(const std::string& path);

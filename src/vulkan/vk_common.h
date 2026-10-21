@@ -1,8 +1,11 @@
 #pragma once
 #include <array>
+#include <functional>
 #include <geometry_structs.h>
 #include <iostream>
 #include <parser/font_parser.h>
+#include <parser/gltf_parser.h>
+#include <sparse_set.h>
 #include <vulkan/vk_buffer.h>
 #include <vulkan/vk_consts.h>
 #include <vulkan/vk_image.h>
@@ -49,6 +52,12 @@ namespace Vulkan {
 		uint32_t instance_material_id = 0;
 		inline bool operator<(const Draw_Instance_Information& other) const {
 			return instance_material_id < other.instance_material_id;
+		}
+		inline friend std::ostream& operator<<(std::ostream& os, const Draw_Instance_Information& instance) {
+			os << "Draw_Instance_Information: {instance_storage_id: " << instance.instance_storage_id
+			   << " number_sub_instance: " << instance.number_sub_instance
+			   << ", instance_material_id: " << instance.instance_material_id << "}";
+			return os;
 		}
 	};
 
@@ -115,6 +124,9 @@ namespace Vulkan {
 		glm::vec3 position = {0.f, 0.f, 0.f};
 		glm::vec3 scale = {1.f, 1.f, 1.f};
 		glm::vec3 rotation = {0.f, 0.f, 0.f};
+		std::string scene_name = "";
+		std::string animation_name = "";
+		glm::mat4 get_transform() const;
 	};
 
 	struct Resource_Synchronize_Information {
@@ -150,7 +162,7 @@ namespace Vulkan {
 
 		uint32_t inner_size() const;
 
-		friend std::ostream& operator<<(std::ostream& os, const Buffer_Range& range) {
+		inline friend std::ostream& operator<<(std::ostream& os, const Buffer_Range& range) {
 			os << "Buffer_Range: {offset: " << range.offset << " align: " << range.align << ", size: " << range.size
 			   << "}";
 			return os;
@@ -202,30 +214,105 @@ namespace Vulkan {
 		uint32_t get_char_rect_offset(char value) const;
 	};
 
-	struct Primitive_Buffer_Range {
-		uint32_t flat_id = 0;
+	struct Model_Node {
+		glm::vec3 translation{0.f};
+		glm::vec3 scale{1.f};
+		glm::quat rotation{1.f, 0.f, 0.f, 0.f};
+		glm::mat4 transform{1.f};
+		std::vector<int> children_indices{};
+		int mesh_index = -1;
+		int skin_index = -1;
+		void parse_from(Parser::Gltf_Node& node);
+		glm::mat4 get_transform() const;
+	};
+
+	struct Model_Scene {
+		std::vector<uint32_t> node_root_indices;
+		std::string name = "";
+		void parse_from(Parser::Gltf_Scene& scene);
+	};
+
+	struct Model_Primitive {
 		uint32_t vertex_id = 0;
 		uint32_t indices_id = 0;
 		uint32_t texture_id = 0;
+		inline friend std::ostream& operator<<(std::ostream& os, const Model_Primitive& primitive) {
+			os << "Model_Primitive: {vertex_id: " << primitive.vertex_id << ", indices_id: " << primitive.indices_id
+			   << ", texture_id: " << primitive.texture_id << "}";
+			return os;
+		}
 	};
 
-	struct Model_Mesh_Information {
-		std::vector<Primitive_Buffer_Range> primitives;
+	struct Model_Skin {
+		std::vector<uint32_t> joints{};
+		glm::mat4 inverse_bind_pose{1.f};
+		std::vector<glm::mat4> inverse_bind_poses{1.f};
+		void parse_from(Parser::Gltf_Skin& skin);
+	};
+
+	struct Model_Sampler {
+		uint32_t number_apply = 0;
+		std::string interpolation = "";
+		std::vector<float> durations{};
+		std::vector<glm::vec3> vec3s{};
+		std::vector<glm::quat> quats{};
+		glm::vec3 min_vec3{0};
+		glm::vec3 max_vec3{0};
+		glm::quat min_quat{1.f, 0.f, 0.f, 0.f};
+		glm::quat max_quat{1.f, 0.f, 0.f, 0.f};
+		void parse_from(Parser::Gltf_Sampler& sampler);
+		float max_duration() const;
+		glm::vec3 sampler_vec3(float t) const;
+		glm::quat sampler_quat(float t) const;
+	};
+
+	struct Model_Channel {
+		bool use_node_index = false;
+		uint32_t sampler_index = 0;
+		std::string type_sampler = "";
+		uint32_t node_index = 0;
+		void parse_from(Parser::Gltf_Channel& channel);
+	};
+
+	struct Model_Animation {
+		std::vector<Model_Channel> channels{};
+		std::vector<Model_Sampler> samplers{};
+		std::string name = "";
+		void parse_from(Parser::Gltf_Animation& animation);
+	};
+
+	struct Model_Mesh {
+		std::vector<int> primitive_indices;
 		glm::vec3 min_bounding_box{0.f};
 		glm::vec3 max_bounding_box{0.f};
-		std::unordered_map<uint32_t, uint32_t> mesh_transforms_storage_id{};
-		std::unordered_map<uint32_t, std::vector<uint32_t>> mesh_transform_storage_offsets{};
-		const std::vector<uint32_t>& get_mesh_transform_offsets(uint32_t scene_index) const;
 		glm::vec3 get_mesh_origin() const;
 	};
 
-	struct Model_Information {
-		std::vector<Model_Mesh_Information> meshes;
-		std::unordered_map<uint32_t, std::unordered_map<uint32_t, std::vector<glm::mat4>>> global_meshes_transformes;
-		std::vector<Primitive_Buffer_Range> flat_primitives{};
-		uint32_t draw_scene_index = -1;
-		uint32_t get_number_primitive() const;
-		uint32_t get_primitive_flat_index(const uint32_t& mesh_index, const uint32_t& primitive_index) const;
+	struct Model_Mesh_Draw_Info {
+		int mesh_index = -1;
+		int skin_index = -1;
+		glm::mat4 mesh_transform{1.f};
+		inline friend std::ostream& operator<<(std::ostream& os, const Model_Mesh_Draw_Info& info) {
+			os << "Model_Mesh_Draw_Info: {mesh_index: " << info.mesh_index << ", skin_index: " << info.skin_index
+			   << ", mesh_transform: " << info.mesh_transform << "}";
+			return os;
+		}
+	};
+
+	struct Model {
+		std::vector<Model_Node> nodes;
+		std::vector<Model_Mesh> meshes;
+		std::vector<Model_Skin> skins;
+		std::vector<Model_Animation> animations;
+		std::vector<Model_Scene> scenes;
+		std::vector<Model_Primitive> primitives;
+		Sparse_Set<std::vector<Model_Mesh_Draw_Info>> scene_index_to_draw_meshes_info{};
+		int default_scene_index = -1;
+		int default_skin_index = -1;
+		int find_scene_index_by(const std::string& name) const;
+		int find_animation_index_by(const std::string& name) const;
+		void dfs_write(int scene_index, std::function<void(Model&, int, int, int)> execute);
+		void dfs_read(int scene_index, std::function<void(const Model&, int, int, int)> execute) const;
 	};
 
 	struct Draw_2D_Common_Data {

@@ -41,7 +41,7 @@ namespace Vulkan {
 			VkPhysicalDevice physical_device, VkDevice device, bool auto_map = false
 		);
 
-		void copy_data(uint32_t size, void* data, uint32_t offset = 0) const;
+		void copy_data(uint32_t size, const void* data, uint32_t offset = 0) const;
 
 		Buffer resize(uint32_t new_size, bool destroy_old_buffer = true);
 

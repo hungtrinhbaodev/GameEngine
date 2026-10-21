@@ -16,7 +16,7 @@ namespace Vulkan {
 			Draw_Information& draw_info, const Model_3D_Attributes& attributes
 		);
 
-		void setup_draw(uint32_t frame_index);
+		void setup_draw(uint32_t frame_index, float dt);
 
 		void record_upload_uniform_buffer(VkCommandBuffer command_buffer, uint32_t frame_index);
 

@@ -21,7 +21,9 @@ namespace Vulkan {
 			Draw_Information& draw_info, const Font_2D_Attributes& text_attributes
 		);
 
-		void update_font_2D(Draw_Information& draw_info, const Font_2D_Attributes& text_attributes);
+		std::vector<Draw_Instance_Information> update_font_2D(
+			Draw_Information& draw_info, const Font_2D_Attributes& text_attributes
+		);
 
 		void destroy();
 

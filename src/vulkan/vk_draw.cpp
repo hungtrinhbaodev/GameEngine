@@ -19,17 +19,23 @@ namespace Vulkan {
 
 	long long frame_count = 0;
 
-	const std::string SCOPE_SORT_DRAW = "2D SORT_DRAW";
+	const std::string SCOPE_SORT_DRAW = "SORT_DRAW";
 
-	const std::string SCOPE_BATCHING_GROUP = "2D BATCHING_GROUP";
+	const std::string SCOPE_BATCHING_GROUP = "BATCHING_GROUP";
 
-	const std::string SCOPE_DRAW = "2D DRAW";
+	const std::string SCOPE_DRAW = "DRAW";
 
 	struct Draw_Group_Batching {
 		Const::DRAW_ID draw_type = Const::DRAW_ID::UNDEFINED;
 		uint32_t start_index = 0;
 		uint32_t number_element = 0;
 		uint32_t draw_material_id = 0;
+		friend std::ostream& operator<<(std::ostream& os, const Draw_Group_Batching& batching) {
+			os << "Draw_Group_Batching: {start_index: " << batching.start_index
+			   << ", number_element: " << batching.number_element << ", draw_material_id: " << batching.draw_material_id
+			   << "}";
+			return os;
+		}
 	};
 
 	struct Draw_Group_Instance_Batching {
@@ -38,6 +44,13 @@ namespace Vulkan {
 		uint32_t instance_material_id = 0;
 		uint32_t offset = 0;
 		uint32_t number_instance = 0;
+		friend std::ostream& operator<<(std::ostream& os, const Draw_Group_Instance_Batching& batching) {
+			os << "Draw_Group_Instance_Batching: {draw_type: " << batching.draw_type
+			   << ", draw_material_id: " << batching.draw_material_id << ", offset: " << batching.offset
+			   << ", instance_material_id: " << batching.instance_material_id
+			   << ", number_instance: " << batching.number_instance << "}";
+			return os;
+		}
 	};
 
 	struct Draw_Sort_Information {
@@ -93,7 +106,7 @@ namespace Vulkan {
 
 	Sparse_Set<Draw_Information> draw_id_to_info{};
 
-	Sparse_Set<std::vector<Draw_Instance_Information>> draw_id_to_instance{};
+	Sparse_Set<std::vector<Draw_Instance_Information>> draw_id_to_instances{};
 
 	std::vector<Draw_Sort_Information> sorted_draws{};
 
@@ -319,7 +332,7 @@ namespace Vulkan {
 				draw_instance_in_groups.clear();
 				for (int i = start; i < end; i++) {
 					uint32_t draw_id = sorted_draws[i].draw_id;
-					const auto& instances = draw_id_to_instance.get(draw_id);
+					const auto& instances = draw_id_to_instances.get(draw_id);
 					for (const auto& draw_instance : instances) {
 						draw_instance_in_groups.push_back(draw_instance);
 					}
@@ -333,7 +346,7 @@ namespace Vulkan {
 					}
 				);
 				current_offset += remain_size + instance_size * first_instance.number_sub_instance;
-				uint32_t current_group = 0;
+				uint32_t current_group = draw_instance_batching_groups.size() - 1;
 				uint32_t current_group_instance = 0;
 				for (int i = 1; i < draw_instance_in_groups.size(); i++) {
 					const Draw_Instance_Information& last_instance = draw_instance_in_groups[current_group_instance];
@@ -361,14 +374,14 @@ namespace Vulkan {
 				uint32_t number_instance = 0;
 				for (int i = start; i < end; i++) {
 					uint32_t draw_id = sorted_draws[i].draw_id;
-					const auto& instances = draw_id_to_instance.get(draw_id);
+					const auto& instances = draw_id_to_instances.get(draw_id);
 					for (const auto& draw_instance : instances) {
 						draw_instances.push_back(draw_instance);
 						number_instance += draw_instance.number_sub_instance;
 					}
 				}
 				uint32_t start_group_draw_id = sorted_draws[start].draw_id;
-				const auto& instances = draw_id_to_instance.get(start_group_draw_id);
+				const auto& instances = draw_id_to_instances.get(start_group_draw_id);
 				draw_instance_batching_groups.push_back(
 					Draw_Group_Instance_Batching{
 						draw_group.draw_type, draw_group.draw_material_id, instances[0].instance_material_id,
@@ -384,7 +397,8 @@ namespace Vulkan {
 		for (uint32_t i = 0; i < draw_instances.size(); i++) {
 			const Draw_Instance_Information& instance_info = draw_instances[i];
 			const Buffer_Range& instance_range = ssbo.view_slot(instance_info.instance_storage_id);
-			uint32_t instance_size = instance_range.inner_size() / instance_info.number_sub_instance;
+			uint32_t instance_size = (uint32_t)instance_range.inner_size() / instance_info.number_sub_instance;
+
 			uint32_t remain_size = Utils::calculate_range_remain_size(current_offset, instance_size);
 			instances_copy_data.push_back(
 				{(VkDeviceSize)instance_range.inner_offset(), (VkDeviceSize)current_offset + remain_size,
@@ -409,8 +423,8 @@ namespace Vulkan {
 		);
 		{
 			vkCmdCopyBuffer(
-				command_buffer, ssbo.inner_buffer.buffer, instance_buffer.buffer, instances_copy_data.size(),
-				instances_copy_data.data()
+				command_buffer, ssbo.staging_buffers[frame_index].buffer, instance_buffer.buffer,
+				instances_copy_data.size(), instances_copy_data.data()
 			);
 		}
 		Utils::record_buffer_barrier(
@@ -481,25 +495,23 @@ namespace Vulkan {
 	uint32_t load_model(std::string path) {
 		uint32_t model_id = model_3D_system.load_model(path);
 		const auto& model = view_model(model_id);
-		for (const auto& mesh : model.meshes) {
-			for (const auto& primitive : mesh.primitives) {
-				Texture_View texture_view = view_texture(primitive.texture_id);
-				if (texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::INDIVIDUAL) {
-					if (!frame_texture_descriptor_sets.has(primitive.texture_id)) {
-						std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> texture_descriptor_sets =
-							Utils::make_texture_descriptor_sets_2(
-								descriptor_pools_2, layouts[Const::DESCRITPOR_LAYOUT::IMAGE_SAMPLER],
-								texture_view.image.get_descriptor_info(), device
-							);
-						frame_texture_descriptor_sets.insert(primitive.texture_id, texture_descriptor_sets);
-					}
+		for (const auto& primitive : model.primitives) {
+			Texture_View texture_view = view_texture(primitive.texture_id);
+			if (texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::INDIVIDUAL) {
+				if (!frame_texture_descriptor_sets.has(primitive.texture_id)) {
+					std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> texture_descriptor_sets =
+						Utils::make_texture_descriptor_sets_2(
+							descriptor_pools_2, layouts[Const::DESCRITPOR_LAYOUT::IMAGE_SAMPLER],
+							texture_view.image.get_descriptor_info(), device
+						);
+					frame_texture_descriptor_sets.insert(primitive.texture_id, texture_descriptor_sets);
 				}
 			}
 		}
 		return model_id;
 	}
 
-	const Model_Information& view_model(uint32_t model_id) {
+	const Model& view_model(uint32_t model_id) {
 		return model_3D_system.view_model(model_id);
 	}
 
@@ -631,8 +643,8 @@ namespace Vulkan {
 		Model_3D::init();
 	}
 
-	void setup_draw() {
-		Model_3D::setup_draw(current_frame);
+	void setup_draw(float dt) {
+		Model_3D::setup_draw(current_frame, dt);
 		bind_resources_profiler.clear();
 	}
 
@@ -732,7 +744,7 @@ namespace Vulkan {
 		std::vector<Draw_Instance_Information> instances =
 			Rectangle::make_rectangle_2D(draw_info, rectangle_attributes);
 		draw_id_to_info.insert(draw_id, draw_info);
-		draw_id_to_instance.insert(draw_id, instances);
+		draw_id_to_instances.insert(draw_id, instances);
 		return draw_id;
 	}
 
@@ -749,7 +761,7 @@ namespace Vulkan {
 		Draw_Information draw_info = gen_draw_info(Const::DRAW_ID::DRAW_TEXTURE_2D, draw_attributes);
 		std::vector<Draw_Instance_Information> instances = Texture_2D::make_texture_2D(draw_info, texture_attributes);
 		draw_id_to_info.insert(draw_id, draw_info);
-		draw_id_to_instance.insert(draw_id, instances);
+		draw_id_to_instances.insert(draw_id, instances);
 		return draw_id;
 	}
 
@@ -766,7 +778,7 @@ namespace Vulkan {
 		Draw_Information draw_info = gen_draw_info(Const::DRAW_ID::DRAW_TRIANGLE_2D, draw_attributes);
 		std::vector<Draw_Instance_Information> instances = Triangle::make_triangle(draw_info, triangle_attributes);
 		draw_id_to_info.insert(draw_id, draw_info);
-		draw_id_to_instance.insert(draw_id, instances);
+		draw_id_to_instances.insert(draw_id, instances);
 		return draw_id;
 	}
 
@@ -775,8 +787,17 @@ namespace Vulkan {
 		Draw_Information draw_info = gen_draw_info(Const::DRAW_ID::DRAW_FONT_2D, draw_attributes);
 		std::vector<Draw_Instance_Information> instances = Font_2D::make_font_2D(draw_info, font_attributes);
 		draw_id_to_info.insert(draw_id, draw_info);
-		draw_id_to_instance.insert(draw_id, instances);
+		draw_id_to_instances.insert(draw_id, instances);
 		return draw_id;
+	}
+
+	void update_font_2D(uint32_t id, const Font_2D_Attributes& font_attributes) {
+		if (!draw_id_to_info.has(id)) {
+			return;
+		}
+		Draw_Information& draw_info = draw_id_to_info.modify(id);
+		std::vector<Draw_Instance_Information> instances = Font_2D::update_font_2D(draw_info, font_attributes);
+		draw_id_to_instances.insert(id, instances);
 	}
 
 	uint32_t make_model_3D(const Draw_Attribute& draw_attributes, const Model_3D_Attributes& model_attributes) {
@@ -784,9 +805,8 @@ namespace Vulkan {
 		Draw_Information draw_info = gen_draw_info(Const::DRAW_ID::DRAW_MODEL_3D, draw_attributes);
 		std::vector<Draw_Instance_Information> instances = Model_3D::make_model_3D(draw_info, model_attributes);
 		draw_id_to_info.insert(draw_id, draw_info);
-		draw_id_to_instance.insert(draw_id, instances);
+		draw_id_to_instances.insert(draw_id, instances);
 		return draw_id;
-		// return 0;
 	}
 
 	void update_triangle(uint32_t id, const Triangle_Attribultes& triangle_attributes) {

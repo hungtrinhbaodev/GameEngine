@@ -93,11 +93,10 @@ namespace Utils {
 		return DEFAULT_PATH + "/";
 	}
 
-	inline long now() {
-		auto now = std::chrono::system_clock::now();
-		auto duration = now.time_since_epoch();
-		auto mili_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration);
-		return mili_seconds.count();
+	inline double now() {
+		using Clock = std::chrono::steady_clock;
+		static const Clock::time_point start = Clock::now();
+		return std::chrono::duration<double>(Clock::now() - start).count();
 	}
 
 	inline bool is_little_endian() {

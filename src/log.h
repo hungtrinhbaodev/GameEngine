@@ -9,19 +9,11 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 
-inline std::ostream& operator<<(std::ostream& os, const VkBufferCopy& copy) {
-	os << "Buffer_Copy_Info: {src_offset: " << copy.srcOffset << ", dst_offset: " << copy.dstOffset
-	   << ", size: " << copy.size << "}";
-	return os;
-}
-
 template <typename T> inline std::ostream& operator<<(std::ostream& os, const std::vector<T>& vec) {
-	os << '{';
+	os << '{' << std::endl;
 	for (size_t i = 0; i < vec.size(); i++) {
 		os << vec[i];
-		if (i < vec.size() - 1) {
-			os << ", ";
-		}
+		os << ", " << std::endl;
 	}
 	os << '}';
 	return os;

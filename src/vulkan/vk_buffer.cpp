@@ -19,10 +19,8 @@ namespace Vulkan {
 		buffer = other.buffer;
 		memory = other.memory;
 		descriptor = other.descriptor;
-		if (other.auto_mapped && other.is_host_visible_buffer()) {
-			this->auto_mapped = other.auto_mapped;
-			vkMapMemory(device, memory, 0, size, 0, &mapped);
-		}
+		auto_mapped = other.auto_mapped;
+		mapped = other.mapped;
 	};
 
 	Buffer::~Buffer() {}
@@ -56,7 +54,7 @@ namespace Vulkan {
 
 		VkMemoryAllocateInfo allocate_info{};
 		allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		allocate_info.allocationSize = static_cast<VkDeviceSize>(size);
+		allocate_info.allocationSize = static_cast<VkDeviceSize>(memory_requirement.size);
 		allocate_info.memoryTypeIndex =
 			Utils::find_suitable_memory_type(memory_requirement.memoryTypeBits, property_flags, physical_device);
 
@@ -67,13 +65,13 @@ namespace Vulkan {
 		vkBindBufferMemory(device, buffer, memory, 0);
 		update_descriptor();
 
-		if (auto_mapped && is_host_visible_buffer()) {
-			this->auto_mapped = auto_map;
+		if (auto_map && is_host_visible_buffer()) {
+			auto_mapped = auto_map;
 			vkMapMemory(device, memory, 0, size, 0, &mapped);
 		}
 	}
 
-	void Buffer::copy_data(uint32_t size, void* data, uint32_t offset) const {
+	void Buffer::copy_data(uint32_t size, const void* data, uint32_t offset) const {
 		if (is_host_visible_buffer()) {
 			void* map_memory = nullptr;
 			if (!auto_mapped) {
@@ -118,6 +116,9 @@ namespace Vulkan {
 		size = new_size;
 		buffer = new_buffer.buffer;
 		memory = new_buffer.memory;
+		if (auto_mapped) {
+			vkMapMemory(device, memory, 0, size, 0, &mapped);
+		}
 		update_descriptor();
 		return current;
 	}
@@ -139,6 +140,9 @@ namespace Vulkan {
 		size = new_size;
 		buffer = new_buffer.buffer;
 		memory = new_buffer.memory;
+		if (auto_mapped) {
+			vkMapMemory(device, memory, 0, size, 0, &mapped);
+		}
 		update_descriptor();
 		return current;
 	}

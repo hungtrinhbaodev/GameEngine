@@ -131,9 +131,9 @@ namespace Vulkan {
 
 	void init_vulkan_core(GLFWwindow* window);
 
-	void start_frame();
+	void start_frame(float dt);
 
-	void draw_frame();
+	void draw_frame(float dt);
 
 	void destroy_vulkan();
 } // namespace Vulkan

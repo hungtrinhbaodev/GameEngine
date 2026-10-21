@@ -12,40 +12,21 @@ namespace Vulkan {
 
 	struct SSBO_Buffer {
 
-		struct Transfer_Data_Information {
-			uint32_t dst_offset = 0;
-			uint32_t src_offset = 0;
-			uint32_t size_transfer = 0;
-			VkBuffer dst_buffer = 0;
-		};
-
-		struct Remove_Buffer_Synchronize_Information {
-			Buffer remove_buffer{};
-			Resource_Synchronize_Information sync_info{};
-		};
-
 		uint32_t current_frame = 0;
 
-		std::array<Resize_Buffer_Synchronize_Information, Const::MAX_FRAMES_IN_FLIGHT>
-			frame_resize_storage_buffer_info{};
+		std::array<Resize_Buffer_Synchronize_Information, Const::MAX_FRAMES_IN_FLIGHT> frame_resize_storage_buffer_info;
 
-		std::array<Buffer, Const::MAX_FRAMES_IN_FLIGHT> storage_buffers{};
+		std::array<Buffer, Const::MAX_FRAMES_IN_FLIGHT> storage_buffers;
 
-		std::array<Sparse_Set<bool>, Const::MAX_FRAMES_IN_FLIGHT> frame_dirty_ids{};
+		std::array<Sparse_Set<bool>, Const::MAX_FRAMES_IN_FLIGHT> frame_dirty_ids;
 
 		VkDevice device = VK_NULL_HANDLE;
 
-		Buffer inner_buffer{};
+		std::array<Buffer, Const::MAX_FRAMES_IN_FLIGHT> staging_buffers;
 
 		std::priority_queue<Buffer_Range, std::vector<Buffer_Range>, Buffer_Range_Compare> available_ranges;
 
-		std::vector<Transfer_Data_Information> queue_transfer{};
-
-		std::vector<Remove_Buffer_Synchronize_Information> queue_remove_inner_buffer{};
-
-		Sparse_Set<Resource_Synchronize_Information> queue_remove_range_inner_buffer{};
-
-		std::vector<uint32_t> range_remove_ids{};
+		std::vector<uint32_t> range_remove_ids;
 
 		uint32_t current_offset = 0;
 
@@ -53,13 +34,15 @@ namespace Vulkan {
 
 		Sparse_Set<Buffer_Range> ranges_by_id;
 
-		std::vector<VkBufferCopy> copy_ranges{};
+		std::vector<VkBufferCopy> copy_ranges;
+
+		std::vector<uint8_t> bytes_data;
 
 		void init(uint32_t initialize_size, VkPhysicalDevice physical_device, VkDevice device);
 
 		void setup_frame(uint32_t current_frame);
 
-		uint32_t upload_data(void* data, uint32_t size, uint32_t element_stride = 1);
+		uint32_t upload_data(const void* data, uint32_t size, uint32_t element_stride = 1);
 
 		void update_data(uint32_t id, void* data, uint32_t offset = 0, uint32_t size = 0);
 
@@ -67,17 +50,9 @@ namespace Vulkan {
 
 		const Buffer_Range& view_slot(uint32_t id);
 
-		void transfer_data_to(uint32_t id, VkBuffer dst_buffer, uint32_t dst_offset);
+		void flush_data_to_staging_buffer(uint32_t current_frame);
 
 		void flush_data_to_storage_buffer(VkCommandBuffer command_buffer, uint32_t current_frame);
-
-		std::map<VkBuffer, std::vector<VkBufferCopy>> make_copied_data();
-
-		void flush_removed_data(uint32_t frame_index);
-
-		void flush_transfer_data();
-
-		void record_flush_transfer_data(VkCommandBuffer command_buffer);
 
 		bool is_storage_buffer_resizing(uint32_t frame_index);
 

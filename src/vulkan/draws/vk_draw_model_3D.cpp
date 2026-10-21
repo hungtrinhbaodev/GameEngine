@@ -17,11 +17,11 @@ namespace Vulkan {
 
 		struct Instance_Data {
 			uint32_t storage_offset = 0;
-			uint32_t mesh_transform_storage_offset = 0;
 			uint32_t texture_storage_offset = 0;
+			uint32_t mesh_descriptor_offset = 0;
 			friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
 				os << "{Model_3D::Instance_Data: storage_offset: " << instance.storage_offset
-				   << ", mesh_transform_storage_offset: " << instance.mesh_transform_storage_offset
+				   << ", mesh_descriptor_offset: " << instance.mesh_descriptor_offset
 				   << ", texture_storage_offset: " << instance.texture_storage_offset << "}";
 				return os;
 			}
@@ -35,16 +35,295 @@ namespace Vulkan {
 			}
 		};
 
-		struct Storage_Texture_Data {
+		struct Texture_Storage_Data {
 			int bucket_index = 0;
 			int slot_index = 0;
 			glm::vec2 tex_scale = {1.f, 1.f};
 		};
 
-		struct Draw_Data {
+		struct Skins_Descriptor_Storage_Data {
+			uint32_t skins_offset = 0;
+		};
+
+		struct Skins_Storage_Information {
 			uint32_t storage_id = 0;
-			std::vector<uint32_t> instance_ids{};
-			std::vector<uint32_t> storage_texture_ids{};
+		};
+
+		struct Primitive_Storage_Information {
+			int primitive_index = -1;
+		};
+
+		struct Mesh_Descriptor_Storage_Data {
+			uint32_t using_skin = 0;
+			uint32_t offset_skins = 0;
+			uint32_t offset_transform = 0;
+		};
+
+		struct Mesh_Storage_Information {
+			uint32_t transform_storage_id = 0;
+			Skins_Storage_Information skin_storage{};
+			std::vector<Primitive_Storage_Information> primitive_storages{};
+		};
+
+		struct Texture_Storage_Information {
+			uint32_t texture_storage_id = 0;
+		};
+
+		struct Node_Data {
+			uint8_t apply_flags = 0;
+			glm::vec3 translation{0.f};
+			glm::quat rotation{1.f, 0.f, 0.f, 0.f};
+			glm::vec3 scale{1.f};
+			glm::mat4 global_transform{1.f};
+
+			void clean() { apply_flags = 0; }
+
+			void set_translation(const glm::vec3 i_translation) {
+				translation = i_translation;
+				apply_flags |= (1 << 0);
+			}
+
+			void set_rotation(const glm::quat i_rotation) {
+				rotation = i_rotation;
+				apply_flags |= (1 << 1);
+			}
+
+			void set_scale(const glm::vec3 i_scale) {
+				scale = i_scale;
+				apply_flags |= (1 << 2);
+			}
+
+			glm::mat4 get_transform(const Model_Node& node) const {
+				glm::vec3 o_translation = (apply_flags & (1 << 0)) ? translation : node.translation;
+				glm::quat o_rotation = (apply_flags & (1 << 1)) ? rotation : node.rotation;
+				glm::vec3 o_scale = (apply_flags & (1 << 2)) ? scale : node.scale;
+				return Math::make_translation(o_translation) * glm::mat4_cast(o_rotation) * Math::make_scale(o_scale) *
+					   node.transform;
+			}
+		};
+
+		struct Model_Data {
+			uint32_t model_id = 0;
+			int scene_index = -1;
+			int animation_index = -1;
+			std::vector<Node_Data> nodes;
+
+			Sparse_Set<uint32_t> skins_indices_to_skins_storage_ids;
+			Sparse_Set<uint32_t> texture_ids_to_texture_storage_ids;
+			std::vector<uint32_t> storage_instance_ids;
+			uint32_t mesh_transforms_storage_id = 0;
+			uint32_t mesh_descriptors_storage_id = 0;
+			uint32_t storage_id = 0;
+
+			std::vector<float> animation_durations;
+			std::vector<glm::mat4> global_transforms;
+			std::vector<glm::mat4> skins_transforms;
+
+			bool is_changing(const Model_3D_Attributes& attributes) { return true; }
+
+			void clean() {}
+
+			void update_animation(float dt, SSBO_Buffer& ssbo) {
+				if (animation_index < 0)
+					return;
+				for (int i = 0; i < nodes.size(); i++) {
+					nodes[i].clean();
+					global_transforms[i] = {1.f};
+				}
+				const auto& model = view_model(model_id);
+				const auto& animation = model.animations[animation_index];
+				for (int i = 0; i < animation.channels.size(); i++) {
+					animation_durations[i] += dt;
+					const auto& channel = animation.channels[i];
+					const auto& sampler = animation.samplers[channel.sampler_index];
+					const float max_duration = sampler.max_duration();
+					if (animation_durations[i] > max_duration) {
+						animation_durations[i] -= max_duration;
+					}
+					const float duration = animation_durations[i];
+					if (channel.type_sampler == "translation") {
+						glm::vec3 translation = sampler.sampler_vec3(duration);
+						if (channel.use_node_index) {
+							nodes[channel.node_index].set_translation(translation);
+						}
+					} else if (channel.type_sampler == "rotation") {
+						glm::quat rotation = sampler.sampler_quat(duration);
+						if (channel.use_node_index) {
+							nodes[channel.node_index].set_rotation(rotation);
+						}
+					} else if (channel.type_sampler == "scale") {
+						glm::vec3 scale = sampler.sampler_vec3(duration);
+						if (channel.use_node_index) {
+							nodes[channel.node_index].set_scale(scale);
+						}
+					}
+				}
+				model.dfs_read(scene_index, [this](const Model& model, int, int parent_index, int children_index) {
+					if (parent_index == -1) {
+						const auto& node_data = nodes[children_index];
+						const auto& node_model = model.nodes[children_index];
+						global_transforms[children_index] = node_data.get_transform(node_model);
+					} else {
+						const auto& node_data = nodes[children_index];
+						const auto& node_model = model.nodes[children_index];
+						global_transforms[children_index] =
+							global_transforms[parent_index] * node_data.get_transform(node_model);
+					}
+				});
+				for (uint32_t i = 0; i < model.skins.size(); i++) {
+					const auto& skin = model.skins[i];
+					uint32_t skins_storage_id = skins_indices_to_skins_storage_ids.get(i);
+					skins_transforms.resize(skin.joints.size());
+					skins_transforms.assign(skins_transforms.size(), {1.f});
+					for (int j = 0; j < skin.joints.size(); j++) {
+						int node_index = skin.joints[j];
+						const auto& inverse_bind_pose = skin.inverse_bind_poses[j];
+						skins_transforms[j] = global_transforms[node_index] * inverse_bind_pose;
+					}
+					ssbo.update_data(skins_storage_id, skins_transforms.data());
+				}
+			};
+
+			std::vector<Draw_Instance_Information> make(const Model_3D_Attributes& attributes, SSBO_Buffer& ssbo) {
+				model_id = load_model(attributes.path);
+				const auto& model = view_model(model_id);
+				scene_index = model.find_scene_index_by(attributes.scene_name);
+				animation_index = model.find_animation_index_by(attributes.animation_name);
+				nodes.resize(model.nodes.size());
+				global_transforms.resize(nodes.size());
+				if (animation_index >= 0) {
+					animation_durations.resize(model.animations[animation_index].channels.size());
+					animation_durations.assign(animation_durations.size(), 0.f);
+				}
+				/**
+				 * Setup to instance storage data.
+				 */
+				glm::mat4 instance_transform = attributes.get_transform();
+				storage_id = ssbo.upload_data(&instance_transform, sizeof(glm::mat4), sizeof(glm::mat4));
+				Buffer_Range storage_range = ssbo.view_slot(storage_id);
+				const auto& draw_meshes_info = model.scene_index_to_draw_meshes_info.get(scene_index);
+				/**
+				 * Setup to texture using by all primitive.
+				 */
+				for (const auto& primitive : model.primitives) {
+					if (!texture_ids_to_texture_storage_ids.has(primitive.texture_id)) {
+						const Texture_View& texture_view = view_texture(primitive.texture_id);
+						Texture_Storage_Data texture_storage{
+							texture_view.bucket_index, texture_view.slot_index, texture_view.tex_scale()
+						};
+						uint32_t texture_storage_id = ssbo.upload_data(
+							&texture_storage, sizeof(Texture_Storage_Data), sizeof(Texture_Storage_Data)
+						);
+						texture_ids_to_texture_storage_ids.insert(primitive.texture_id, texture_storage_id);
+					}
+				}
+				/**
+				 * Setup to skins and mesh transform storage data common that using all mesh.
+				 */
+				std::vector<glm::mat4> skins_storage_data{};
+				std::vector<glm::mat4> mesh_transform_storages{};
+				for (const auto& draw_mesh_info : draw_meshes_info) {
+					int skin_index = draw_mesh_info.skin_index;
+					if (skin_index >= 0) {
+						if (skins_indices_to_skins_storage_ids.has((uint32_t)skin_index)) {
+							continue;
+						}
+						const auto& skin = model.skins[skin_index];
+						skins_storage_data.resize(skin.joints.size(), {1.f});
+						uint32_t skins_storage_id = ssbo.upload_data(
+							skins_storage_data.data(), skins_storage_data.size() * sizeof(glm::mat4), sizeof(glm::mat4)
+						);
+						skins_indices_to_skins_storage_ids.insert((uint32_t)skin_index, skins_storage_id);
+					} else {
+						mesh_transform_storages.push_back(draw_mesh_info.mesh_transform);
+					}
+				}
+				if (mesh_transform_storages.size() > 0) {
+					mesh_transforms_storage_id = ssbo.upload_data(
+						mesh_transform_storages.data(), mesh_transform_storages.size() * sizeof(glm::mat4),
+						sizeof(glm::mat4)
+					);
+				}
+				/**
+				 * Setup to mesh common storage data.
+				 */
+				int count_use_mesh_transform = 0;
+				Buffer_Range mesh_transform_storage_range = ssbo.view_slot(mesh_transforms_storage_id);
+				std::vector<Mesh_Descriptor_Storage_Data> mesh_descriptor_storages(draw_meshes_info.size());
+				for (int i = 0; i < draw_meshes_info.size(); i++) {
+					const auto& draw_mesh_info = draw_meshes_info[i];
+					Mesh_Descriptor_Storage_Data mesh_descriptor_storage_data{};
+					Mesh_Storage_Information mesh_storage_info{};
+					int skin_index = draw_mesh_info.skin_index;
+					mesh_descriptor_storage_data.using_skin = skin_index >= 0;
+					/**
+					 * Setup storage data for case mesh use skins.
+					 */
+					if (skin_index >= 0) {
+						const uint32_t skins_storage_id = skins_indices_to_skins_storage_ids.get((uint32_t)skin_index);
+						const Buffer_Range& skin_range = ssbo.view_slot(skins_storage_id);
+						mesh_descriptor_storage_data.offset_skins = skin_range.offset_as<glm::mat4>();
+					}
+					/**
+					 * Setup storage data for case mesh use rigid.
+					 */
+					else {
+						mesh_descriptor_storage_data.offset_transform =
+							mesh_transform_storage_range.offset_as<glm::mat4>() + count_use_mesh_transform;
+						count_use_mesh_transform++;
+					}
+					mesh_descriptor_storages[i] = mesh_descriptor_storage_data;
+				}
+				if (mesh_descriptor_storages.size() > 0) {
+					mesh_descriptors_storage_id = ssbo.upload_data(
+						mesh_descriptor_storages.data(),
+						mesh_descriptor_storages.size() * sizeof(Mesh_Descriptor_Storage_Data),
+						sizeof(Mesh_Descriptor_Storage_Data)
+					);
+				}
+				Buffer_Range mesh_descriptors_storage_range = ssbo.view_slot(mesh_descriptors_storage_id);
+				/**
+				 * Setup to each primitive of each mesh to produce instances data.
+				 */
+				Sparse_Set<std::vector<Instance_Data>> primitive_indices_to_instances{};
+				for (int i = 0; i < draw_meshes_info.size(); i++) {
+					const auto& draw_mesh_info = draw_meshes_info[i];
+					int mesh_index = draw_mesh_info.mesh_index;
+					auto& primitive_indices = model.meshes[mesh_index].primitive_indices;
+					for (const auto& primitive_index : primitive_indices) {
+						const auto& primitive = model.primitives[primitive_index];
+						uint32_t texture_storage_id = texture_ids_to_texture_storage_ids.get(primitive.texture_id);
+						const Buffer_Range& texture_storage_range = ssbo.view_slot(texture_storage_id);
+						Instance_Data instance_data{
+							storage_range.offset_as<glm::mat4>(),
+							texture_storage_range.offset_as<Texture_Storage_Data>(),
+							mesh_descriptors_storage_range.offset_as<Mesh_Descriptor_Storage_Data>() + i
+						};
+						if (!primitive_indices_to_instances.has((uint32_t)primitive_index)) {
+							primitive_indices_to_instances.insert((uint32_t)primitive_index, {});
+						}
+						auto& primitive_instances = primitive_indices_to_instances.modify(primitive_index);
+						primitive_instances.push_back(instance_data);
+					}
+				}
+				/**
+				 * Join all instances by primitive into one vector Draw_Instance_Information.
+				 */
+				std::vector<Draw_Instance_Information> draw_instances{};
+				for (const auto& primitive_index : primitive_indices_to_instances.keys()) {
+					const auto& primitive_instances = primitive_indices_to_instances.get(primitive_index);
+					uint32_t instances_id = ssbo.upload_data(
+						primitive_instances.data(), primitive_instances.size() * sizeof(Instance_Data),
+						sizeof(Instance_Data)
+					);
+					storage_instance_ids.push_back(instances_id);
+					Draw_Instance_Information draw_instance{
+						instances_id, (uint32_t)primitive_instances.size(), primitive_index
+					};
+					draw_instances.push_back(draw_instance);
+				}
+				return draw_instances;
+			}
 		};
 
 		Id_Generator unique_id_generator{};
@@ -55,12 +334,6 @@ namespace Vulkan {
 
 		std::vector<VkDescriptorSetLayout> layouts{};
 
-		Sparse_Set<std::vector<VkDescriptorSet>> texture_descriptor_sets{};
-
-		std::vector<VkDescriptorSet> texture_bucket_descriptor_sets{};
-
-		std::vector<VkDescriptorSet> default_texture_descriptor_sets{};
-
 		/**
 		 * @Note: now don't have camera so take the uniform buffer here.
 		 */
@@ -70,7 +343,7 @@ namespace Vulkan {
 
 		std::vector<VkDescriptorSet> uniform_descriptor_sets{};
 
-		Sparse_Set<Draw_Data> draws{};
+		Sparse_Set<Model_Data> models{};
 
 		bool is_material_equal(uint32_t a, uint32_t b) {
 			return a == b;
@@ -100,13 +373,13 @@ namespace Vulkan {
 				.add_attribute_description(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Geometry::Vertex_3D, normal))
 				.add_attribute_description(0, VK_FORMAT_R32G32_SFLOAT, offsetof(Geometry::Vertex_3D, tex_coord))
 				.add_attribute_description(0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Geometry::Vertex_3D, tangent))
-				.add_attribute_description(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Geometry::Vertex_3D, color));
+				.add_attribute_description(0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Geometry::Vertex_3D, color))
+				.add_attribute_description(0, VK_FORMAT_R16G16B16A16_UINT, offsetof(Geometry::Vertex_3D, joints))
+				.add_attribute_description(0, VK_FORMAT_R32G32B32A32_SFLOAT, offsetof(Geometry::Vertex_3D, weights));
 			vertex_builder.add_binding_description(1, sizeof(Instance_Data), VK_VERTEX_INPUT_RATE_INSTANCE)
 				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_offset))
-				.add_attribute_description(
-					1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, mesh_transform_storage_offset)
-				)
-				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, texture_storage_offset));
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, texture_storage_offset))
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, mesh_descriptor_offset));
 
 			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::STORAGE_BUFFER));
 			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::IMAGE_SAMPLER));
@@ -142,58 +415,16 @@ namespace Vulkan {
 		std::vector<Draw_Instance_Information> make_model_3D(
 			Draw_Information& draw_info, const Model_3D_Attributes& attributes
 		) {
-			uint32_t model_id = load_model(attributes.path);
-			const Model_Information& model = view_model(model_id);
-			Draw_Data draw{};
-			SSBO_Buffer& ssbo = get_ssbo();
-			Storage_Data storage{};
-			std::vector<Draw_Instance_Information> draw_instances{};
-			storage.transform = Math::make_translation(attributes.position) * Math::make_rotation(attributes.rotation) *
-								Math::make_scale(attributes.scale);
-			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
-			Buffer_Range storage_range = ssbo.view_slot(storage_id);
-			draw.storage_id = storage_id;
-			uint32_t scene_index = model.draw_scene_index;
-			for (int i = 0; i < model.meshes.size(); i++) {
-				const auto& mesh = model.meshes[i];
-				const auto& mesh_transform_offsets = mesh.get_mesh_transform_offsets(scene_index);
-				for (int j = 0; j < mesh.primitives.size(); j++) {
-					const auto& primitive = mesh.primitives[j];
-					const Texture_View& texture_view = view_texture(primitive.texture_id);
-					Storage_Texture_Data texture_storage{
-						texture_view.bucket_index, texture_view.slot_index, texture_view.tex_scale()
-					};
-					uint32_t texture_storage_id =
-						ssbo.upload_data(&texture_storage, sizeof(Storage_Texture_Data), sizeof(Storage_Texture_Data));
-					Buffer_Range texture_storage_range = ssbo.view_slot(texture_storage_id);
-					std::vector<Instance_Data> primitive_instances{};
-					for (const auto& mesh_tranform_offset : mesh_transform_offsets) {
-						Instance_Data primitive_instance_data{
-							storage_range.offset_as<Storage_Data>(), mesh_tranform_offset,
-							texture_storage_range.offset_as<Storage_Texture_Data>()
-						};
-						primitive_instances.push_back(primitive_instance_data);
-					}
-					uint32_t instance_id = ssbo.upload_data(
-						primitive_instances.data(), primitive_instances.size() * sizeof(Instance_Data),
-						sizeof(Instance_Data)
-					);
-					Draw_Instance_Information draw_instance{
-						instance_id, (uint32_t)primitive_instances.size(), primitive.flat_id
-					};
-					draw_instances.push_back(draw_instance);
-					draw.storage_texture_ids.push_back(texture_storage_id);
-					draw.instance_ids.push_back(instance_id);
-				}
-			}
-			draw_info.draw_material_id = model_id;
 			uint32_t unique_id = unique_id_generator.gen_id();
-			draws.insert(unique_id, draw);
+			Model_Data model_data{};
+			auto draw_instances = model_data.make(attributes, get_ssbo());
+			models.insert(unique_id, model_data);
 			draw_info.sub_unique_id = unique_id;
+			draw_info.draw_material_id = model_data.model_id;
 			return draw_instances;
 		}
 
-		void setup_draw(uint32_t frame_index) {
+		void setup_draw(uint32_t frame_index, float dt) {
 			Uniform uniform{};
 			glm::mat4 projection = glm::perspective(
 				glm::radians(45.0f), (float)swapchain_extent.width / (float)swapchain_extent.height, 0.1f, 100.f
@@ -207,6 +438,9 @@ namespace Vulkan {
 			uniform.view = view;
 			SSBO_Buffer& ssbo = get_ssbo();
 			ssbo.update_data(uniform_buffer_ids[frame_index], &uniform);
+			for (auto& model_data : models.modify_values()) {
+				model_data.update_animation(dt, ssbo);
+			}
 		}
 
 		void record_upload_uniform_buffer(VkCommandBuffer command_buffer, uint32_t frame_index) {
@@ -221,7 +455,9 @@ namespace Vulkan {
 			);
 			{
 				VkBufferCopy copy{(VkDeviceSize)range.inner_offset(), 0, (VkDeviceSize)range.inner_size()};
-				vkCmdCopyBuffer(command_buffer, ssbo.inner_buffer.buffer, uniform_buffer.buffer, 1, &copy);
+				vkCmdCopyBuffer(
+					command_buffer, ssbo.staging_buffers[frame_index].buffer, uniform_buffer.buffer, 1, &copy
+				);
 			}
 			Utils::record_buffer_barrier(
 				command_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT,
@@ -236,7 +472,9 @@ namespace Vulkan {
 		) {
 			Static_Buffer& static_buffer = get_static_buffer();
 			Buffer& instance_buffer = get_instance_buffer(frame_index);
-			const Model_Information& model = view_model(material_draw_id);
+			uint32_t model_id = material_draw_id;
+			uint32_t primitive_index = instance_material_id;
+			const Model& model = view_model(model_id);
 			uint32_t number_descriptor_set = 4;
 			VkDescriptorSet using_descriptor_sets[4] = {
 				get_storage_descriptor_set(frame_index), VK_NULL_HANDLE, VK_NULL_HANDLE,
@@ -244,8 +482,7 @@ namespace Vulkan {
 			};
 			VkBuffer binding_buffers[2] = {static_buffer.inner_buffer.buffer, instance_buffer.buffer};
 			VkDeviceSize buffer_offsets[2] = {0, 0};
-			uint32_t primitive_flat_id = instance_material_id;
-			const auto& primitive = model.flat_primitives[primitive_flat_id];
+			const auto& primitive = model.primitives[primitive_index];
 			const Buffer_Range& vertex_range = static_buffer.view_slot(primitive.vertex_id);
 			const Buffer_Range& indices_range = static_buffer.view_slot(primitive.indices_id);
 			std::array<VkDescriptorSet, 2> texture_descriptor_sets =

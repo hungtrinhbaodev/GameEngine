@@ -140,13 +140,7 @@ namespace Vulkan {
 		}
 
 		// find suitable id
-		int id = -1;
-		if (available_ids.size() > 0) {
-			id = available_ids.top();
-			available_ids.pop();
-		} else {
-			id = ++counter_id;
-		}
+		uint32_t id = id_generator.gen_id();
 
 		// TODO: we will implement async load texture later ?
 		Image used_image{};
@@ -224,8 +218,7 @@ namespace Vulkan {
 
 		// add id of texture to tracking
 		Texture_View view{file, used_image, (float)width, (float)height, storage_mode, bucket_index, slot_index};
-		ids_to_views[id] = view;
-		ids_to_views_2.insert(id, view);
+		ids_to_views.insert(id, view);
 		ids_to_files[id] = file;
 		files_to_ids[file] = id;
 
@@ -256,7 +249,7 @@ namespace Vulkan {
 	}
 
 	const Texture_View& Texture_System::view_texture(uint32_t id) {
-		return ids_to_views_2.get(id);
+		return ids_to_views.get(id);
 	}
 
 	uint32_t Texture_System::get_default_texture_id() {
@@ -267,12 +260,12 @@ namespace Vulkan {
 		if (ids_to_files.find(id) == ids_to_files.end()) {
 			return;
 		}
-		if (ids_to_views.find(id) == ids_to_views.end()) {
+		if (!ids_to_views.has(id)) {
 			throw std::runtime_error(
 				"Vulkan fail to remove texture in texture system: not found storage info, can't handle remove!"
 			);
 		}
-		Texture_View view_info = ids_to_views[id];
+		const Texture_View& view_info = ids_to_views.get(id);
 		switch (view_info.storage_mode) {
 			case Const::TEXTURE_STORAGE_MODE::INDIVIDUAL: {
 				if (ids_to_individual_textures.find(id) == ids_to_individual_textures.end()) {
@@ -294,10 +287,10 @@ namespace Vulkan {
 		}
 		std::string& file = ids_to_files[id];
 		ids_to_views.erase(id);
-		ids_to_views_2.erase(id);
 		files_to_ids.erase(file);
 		ids_to_files.erase(id);
 		ids_to_individual_textures.erase(id);
+		id_generator.release_id(id);
 	}
 
 	void Texture_System::destroy() const {

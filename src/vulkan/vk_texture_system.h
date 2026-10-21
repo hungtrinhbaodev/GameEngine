@@ -1,4 +1,5 @@
 #pragma once
+#include <id_generator.h>
 #include <map>
 #include <sparse_set.h>
 #include <stack>
@@ -29,21 +30,17 @@ namespace Vulkan {
 
 		std::map<uint32_t, Texture> ids_to_individual_textures;
 
-		uint32_t counter_id = 0;
-
-		std::stack<int> available_ids;
-
 		std::map<std::string, uint32_t> files_to_ids;
 
 		std::map<uint32_t, std::string> ids_to_files;
 
-		std::map<uint32_t, Texture_View> ids_to_views;
-
-		Sparse_Set<Texture_View> ids_to_views_2{};
+		Sparse_Set<Texture_View> ids_to_views{};
 
 		uint32_t default_texture_id = 0;
 
 		VkFormat format;
+
+		Id_Generator id_generator{};
 
 		bool can_gpu_blit = false;
 

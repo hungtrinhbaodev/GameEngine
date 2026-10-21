@@ -14,7 +14,7 @@ namespace Vulkan {
 
 	void init_draw();
 
-	void setup_draw();
+	void setup_draw(float dt);
 
 	void sort_draws();
 
@@ -40,7 +40,7 @@ namespace Vulkan {
 
 	uint32_t load_model(std::string path);
 
-	const Model_Information& view_model(uint32_t model_id);
+	const Model& view_model(uint32_t model_id);
 
 	VkDescriptorSet get_storage_descriptor_set(uint32_t frame_index);
 
@@ -74,6 +74,8 @@ namespace Vulkan {
 	void update_triangle(uint32_t id, const Triangle_Attribultes& triangle_attributes);
 
 	uint32_t make_font_2D(const Draw_Attribute& draw_attributes, const Font_2D_Attributes& font_attributes);
+
+	void update_font_2D(uint32_t id, const Font_2D_Attributes& font_attributes);
 
 	uint32_t make_model_3D(const Draw_Attribute& draw_attributes, const Model_3D_Attributes& model_attributes);
 

@@ -74,7 +74,7 @@ int main() {
 	// model_attributes.position = {-0.8f, 0.2f, 0.f};
 	// model_attributes.path = "res/CesiumMan.gltf";
 	// Vulkan::make_model_3D(model_draw_attributes, model_attributes);
-	// for (int i = 0; i < 1; i++) {
+	// for (int i = 0; i < 3; i++) {
 	// 	// model_attributes.path = "res/Fox.glb";
 	// 	// model_attributes.path = "res/cat 7.glb";
 	// 	// model_attributes.path = "res/CesiumMan.gltf";
@@ -82,31 +82,35 @@ int main() {
 	// 	Vulkan::Draw_Attribute model_draw_attributes{1000, true};
 	// 	Vulkan::Model_3D_Attributes model_attributes{};
 	// 	model_attributes.path = "res/MetalRoughSpheresNoTextures.glb";
-	// 	model_attributes.position = {i * -0.9, i * -0.9, i * 0.45};
+	// 	model_attributes.position = {-0.9, -0.9, i * 1.8 - 1.8};
 	// 	model_attributes.scale = {300.f, 300.f, 300.f};
 	// 	Vulkan::make_model_3D(model_draw_attributes, model_attributes);
 	// }
 
-	for (int i = 0; i < 300; i++) {
+	for (int i = 0; i < 100; i++) {
 		// model_attributes.path = "res/Fox.glb";
 		// model_attributes.path = "res/cat 7.glb";
 		Vulkan::Draw_Attribute model_draw_attributes{1000, true};
 		Vulkan::Model_3D_Attributes model_attributes{};
+		// model_attributes.path = "res/cat 7.glb";
 		model_attributes.path = "res/CesiumMan.gltf";
+		model_attributes.animation_name = "0";
 		model_attributes.position = {
-			Math::random_float(-5.f, 5.f), Math::random_float(-5.f, 3.f), Math::random_float(-2.f, 2.f)
+			Math::random_float(-1.f, 1.f), Math::random_float(-1.f, 1.f), Math::random_float(-2.f, 2.f)
 		};
+		// model_attributes.position = {0.f, -0.5f, 0.f};
 		Vulkan::make_model_3D(model_draw_attributes, model_attributes);
 	}
 
+	double start = Utils::now();
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
-		Vulkan::start_frame();
-		/**
-		 * TODO: logic of all component will be place here in future.
-		 * */
-
-		Vulkan::draw_frame();
+		double current = Utils::now();
+		float dt = (float)(current - start);
+		dt = std::min(dt, 0.1f);
+		start = current;
+		Vulkan::start_frame(dt);
+		Vulkan::draw_frame(dt);
 	}
 
 	Vulkan::destroy_vulkan();

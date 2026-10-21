@@ -6,9 +6,9 @@
 namespace Profiler {
 
 	struct Profiler_Data {
-		long total_call_duration = 0;
+		double total_call_duration = 0;
 		long number_call = 0;
-		long start_time_call = 0;
+		double start_time_call = 0;
 	};
 
 	std::map<std::string, Profiler_Data> profilers{};
@@ -32,10 +32,7 @@ namespace Profiler {
 		if (profilers.find(key) == profilers.end()) {
 			return;
 		}
-		Log::info(
-			"Scope " + key + " avarage time: ",
-			((double)profilers[key].total_call_duration / profilers[key].number_call) / 1000
-		);
+		Log::info("Scope " + key + " avarage time: ", profilers[key].total_call_duration / profilers[key].number_call);
 	}
 
 } // namespace Profiler

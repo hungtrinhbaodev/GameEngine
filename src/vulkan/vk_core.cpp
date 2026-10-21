@@ -82,6 +82,12 @@ namespace Vulkan {
 
 	bool frame_buffer_resize = false;
 
+	uint32_t fps_frame_count = 0;
+
+	double fps_total_duration = 0.f;
+
+	uint32_t label_fps = 0;
+
 	Pipeline_Config make_default_pipeline_config() {
 		Pipeline_Config pipeline_config{};
 		pipeline_config.depth_image = depth_image;
@@ -119,6 +125,12 @@ namespace Vulkan {
 	Static_Buffer& get_static_buffer() {
 		return static_buffer;
 	}
+
+	void init_text_fps() {
+		Font_2D_Attributes font_attribute{};
+		font_attribute.font_size = 12;
+		label_fps = make_font_2D({0, true}, font_attribute);
+	};
 
 	void init_vulkan_core(GLFWwindow* window) {
 
@@ -196,6 +208,8 @@ namespace Vulkan {
 		model_3D_system.init(&texture_system, &static_buffer, &ssbo_buffer);
 
 		init_draw();
+
+		init_text_fps();
 	}
 
 	void on_window_resize() {
@@ -209,7 +223,7 @@ namespace Vulkan {
 		);
 	}
 
-	void start_frame() {
+	void start_frame(float dt) {
 		/**
 		 * @Note: static buffer using for all frame
 		 * so when start every frame we need confirm
@@ -217,10 +231,24 @@ namespace Vulkan {
 		 */
 		static_buffer.wait_synchronize_finish(current_frame);
 		ssbo_buffer.setup_frame(current_frame);
-		setup_draw();
+		setup_draw(dt);
+		if (frame_count % 20 == 0) {
+			Font_2D_Attributes font_attribute{};
+			font_attribute.font_size = 10;
+			font_attribute.color = {1.f, 0.2f, 0.8f};
+			font_attribute.position = {7.f, 6.f};
+			double fps = fps_total_duration == 0 ? 0.f : double(fps_frame_count) / fps_total_duration;
+			font_attribute.text = "Frame rate: " + std::to_string(fps);
+			fps_frame_count = 0;
+			fps_total_duration = 0.f;
+			update_font_2D(label_fps, font_attribute);
+		} else {
+			fps_frame_count++;
+			fps_total_duration += dt;
+		}
 	}
 
-	void draw_frame() {
+	void draw_frame(float dt) {
 		VkFence draw_fence = draw_fences[current_frame];
 		VkSemaphore draw_semaphore = draw_semaphores[current_frame];
 		VkSemaphore finish_render_semaphore = render_finish_semaphores[current_frame];
@@ -251,7 +279,7 @@ namespace Vulkan {
 			/**
 			 * Set up ssbo local device to use as big storage
 			 */
-			ssbo_buffer.flush_removed_data(current_frame);
+			ssbo_buffer.flush_data_to_staging_buffer(current_frame);
 			ssbo_buffer.flush_data_to_storage_buffer(command_buffer, current_frame);
 			/**
 			 * Clear color to background and depth image before draw.
@@ -275,7 +303,6 @@ namespace Vulkan {
 			 * before being in render so we sort draw and record first.
 			 */
 			sort_draws();
-			// batching_draw_groups(command_buffer, current_frame);
 			batching_draw_groups(command_buffer, current_frame);
 			vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 			{

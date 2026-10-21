@@ -53,9 +53,11 @@ namespace Vulkan {
 			std::vector<uint32_t> storage_ids{};
 			uint32_t storage_id = 0;
 			std::vector<uint32_t> storage_char_ids{};
+			uint32_t storage_char_id = 0;
 			Font_2D_Attributes attributes{};
 			float width = 0;
 			float height = 0;
+			uint32_t number_sub_instance = 0;
 
 			std::vector<std::string> break_lines(std::string& text) {
 				std::vector<std::string> lines{};
@@ -97,7 +99,7 @@ namespace Vulkan {
 
 			bool is_changing(const Font_2D_Attributes& attributes) const { return this->attributes != attributes; }
 
-			void make_2(
+			void make(
 				const Font_2D_Attributes& attributes, const Font& font, const Texture_View& texture_view,
 				std::vector<Storage_Char_Data>& char_storages, Storage_Data& storage
 			) {
@@ -163,6 +165,7 @@ namespace Vulkan {
 				this->attributes = attributes;
 				width *= char_scale;
 				height *= char_scale;
+				number_sub_instance = char_storages.size();
 			}
 		};
 
@@ -275,7 +278,7 @@ namespace Vulkan {
 			Texture_View texture_view = view_font_texture(font_id);
 			std::vector<Storage_Char_Data> storage_chars{};
 			Storage_Data storage{};
-			text.make_2(text_attributes, font, texture_view, storage_chars, storage);
+			text.make(text_attributes, font, texture_view, storage_chars, storage);
 			SSBO_Buffer& ssbo = get_ssbo();
 			text.storage_ids.clear();
 			std::vector<Instance_Data> instances{};
@@ -286,15 +289,15 @@ namespace Vulkan {
 			uint32_t config_draw_offset = Utils::get_draw_2D_config_data_offset(device);
 			text.storage_id = storage_id;
 			text.storage_char_ids.clear();
-			for (Storage_Char_Data& storage : storage_chars) {
-				uint32_t storage_char_id =
-					ssbo.upload_data(&storage, sizeof(Storage_Char_Data), sizeof(Storage_Char_Data));
-				const Buffer_Range& storage_char_range = ssbo.view_slot(storage_char_id);
+			text.storage_char_id = ssbo.upload_data(
+				storage_chars.data(), storage_chars.size() * sizeof(Storage_Char_Data), sizeof(Storage_Char_Data)
+			);
+			const Buffer_Range& storage_char_range = ssbo.view_slot(text.storage_char_id);
+			for (uint32_t i = 0; i < storage_chars.size(); i++) {
 				instances.push_back(
-					{storage_range.offset_as<Storage_Data>(), storage_char_range.offset_as<Storage_Char_Data>(),
+					{storage_range.offset_as<Storage_Data>(), storage_char_range.offset_as<Storage_Char_Data>() + i,
 					 vertex_range.offset_as<Geometry::Vertex_2D>(), config_draw_offset}
 				);
-				text.storage_char_ids.push_back(storage_char_id);
 			}
 			uint32_t instance_id =
 				ssbo.upload_data(instances.data(), instances.size() * sizeof(Instance_Data), sizeof(Instance_Data));
@@ -307,26 +310,27 @@ namespace Vulkan {
 			Draw_Information& draw_info, const Font_2D_Attributes& text_attributes
 		) {
 			Text_Data text{};
-			uint32_t instance_id = update_text_data(draw_info, text, text_attributes);
-			texts.insert(instance_id, text);
-			return {{instance_id, (uint32_t)text.storage_char_ids.size()}};
+			uint32_t sub_unique_id = update_text_data(draw_info, text, text_attributes);
+			texts.insert(sub_unique_id, text);
+			return {{sub_unique_id, text.number_sub_instance}};
 		}
 
-		void update_font_2D(Draw_Information& draw_info, const Font_2D_Attributes& text_attributes) {
+		std::vector<Draw_Instance_Information> update_font_2D(
+			Draw_Information& draw_info, const Font_2D_Attributes& text_attributes
+		) {
 			const Text_Data& text = texts.get(draw_info.sub_unique_id);
 			if (!text.is_changing(text_attributes)) {
-				return;
+				return {{draw_info.sub_unique_id, text.number_sub_instance}};
 			}
 			SSBO_Buffer& ssbo = get_ssbo();
-			for (const uint32_t& char_storage_id : text.storage_char_ids) {
-				ssbo.remove_data(char_storage_id);
-			}
+			ssbo.remove_data(text.storage_char_id);
 			ssbo.remove_data(text.storage_id);
 			ssbo.remove_data(draw_info.sub_unique_id);
 			texts.erase(draw_info.sub_unique_id);
 			Text_Data new_text{};
-			uint32_t instance_id = update_text_data(draw_info, new_text, text_attributes);
-			texts.insert(instance_id, new_text);
+			uint32_t sub_unique_id = update_text_data(draw_info, new_text, text_attributes);
+			texts.insert(sub_unique_id, new_text);
+			return {{sub_unique_id, text.number_sub_instance}};
 		}
 
 		void destroy() {
