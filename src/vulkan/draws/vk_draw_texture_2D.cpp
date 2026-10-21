@@ -164,26 +164,22 @@ namespace Vulkan {
 			Buffer_Range vertex_range = static_buffer.view_slot(vertex_id);
 			Buffer instance_buffer = get_instance_buffer(frame_index);
 			uint32_t texture_id = material_draw_id;
-			VkDescriptorSet* descriptor_sets = nullptr;
-			uint32_t number_descriptor_set = 0;
 			VkDescriptorSet storage_descriptor_set = get_storage_descriptor_set(frame_index);
 			auto texture_descriptor = get_descriptor_set_texture_sampler(texture_id, frame_index);
+			VkDescriptorSet bind_descriptor_sets[3] = {
+				storage_descriptor_set, texture_descriptor[0], texture_descriptor[1]
+			};
+			uint32_t number_descriptor_set = 0;
 			if (Const::ENABLED_TEXTURE_BUCKETS) {
-				VkDescriptorSet bind_descriptor_sets[3] = {
-					storage_descriptor_set, texture_descriptor[0], texture_descriptor[1]
-				};
 				number_descriptor_set = 3;
-				descriptor_sets = bind_descriptor_sets;
 			} else {
-				VkDescriptorSet bind_descriptor_sets[2] = {storage_descriptor_set, texture_descriptor[0]};
 				number_descriptor_set = 2;
-				descriptor_sets = bind_descriptor_sets;
 			}
 			VkBuffer binding_buffers[2] = {static_buffer.inner_buffer.buffer, instance_buffer.buffer};
 			VkDeviceSize buffer_offsets[2] = {0, 0};
 			bind_draw_resource(
 				command_buffer, pipeline.pipeline, pipeline.layout, static_buffer.inner_buffer.buffer, 0,
-				VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, number_descriptor_set, descriptor_sets
+				VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, number_descriptor_set, bind_descriptor_sets
 			);
 			vkCmdDrawIndexed(
 				command_buffer, indices_range.size_as<uint16_t>(), number_instance, indices_range.offset_as<uint16_t>(),

@@ -1,3 +1,4 @@
+#include <profiler.h>
 #include <stdexcept>
 #include <vulkan/vk_ssbo_buffer.h>
 #include <vulkan/vk_utils.h>
@@ -45,7 +46,7 @@ namespace Vulkan {
 		return ranges_by_id.insert(range_id, using_range);
 	}
 
-	void SSBO_Buffer::update_data(uint32_t id, void* data, uint32_t offset, uint32_t size) {
+	void SSBO_Buffer::update_data(uint32_t id, const void* data, uint32_t offset, uint32_t size) {
 		Buffer_Range range = view_slot(id);
 		if (size <= 0) {
 			size = range.inner_size();
@@ -77,6 +78,7 @@ namespace Vulkan {
 	}
 
 	void SSBO_Buffer::flush_data_to_staging_buffer(uint32_t current_frame) {
+		Profiler::start_scope(Const::SCOPE_SSBO_COPY_DATA_TO_STAGINGS);
 		Buffer& staging_buffer = staging_buffers[current_frame];
 		if (staging_buffer.size < bytes_data.size()) {
 			staging_buffer.resize(bytes_data.size(), true);
@@ -93,9 +95,11 @@ namespace Vulkan {
 			copy_ranges.push_back({range.inner_offset(), range.inner_offset(), range.inner_size()});
 		}
 		dirty_ids.clear();
+		Profiler::end_scope(Const::SCOPE_SSBO_COPY_DATA_TO_STAGINGS);
 	}
 
 	void SSBO_Buffer::flush_data_to_storage_buffer(VkCommandBuffer command_buffer, uint32_t current_frame) {
+		Profiler::start_scope(Const::SCOPE_SSBO_COPY_DATA_TO_STORES);
 		Resize_Buffer_Synchronize_Information& resize_info = frame_resize_storage_buffer_info[current_frame];
 		if (resize_info.is_resizing) {
 			resize_info.old_buffer.destroy();
@@ -123,6 +127,7 @@ namespace Vulkan {
 			command_buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, storage_buffer.buffer, 0, storage_buffer.size
 		);
+		Profiler::end_scope(Const::SCOPE_SSBO_COPY_DATA_TO_STORES);
 	}
 
 	bool SSBO_Buffer::is_storage_buffer_resizing(uint32_t frame_index) {

@@ -78,7 +78,6 @@ namespace Vulkan {
 			index_type = VK_INDEX_TYPE_UINT16;
 			vertex_buffer_offsets.clear();
 			binding_vertex_buffers.clear();
-			binding_descriptor_sets.clear();
 		}
 	};
 
@@ -698,6 +697,12 @@ namespace Vulkan {
 			Profiler::view_scope(SCOPE_SORT_DRAW);
 			Profiler::view_scope(SCOPE_BATCHING_GROUP);
 			Profiler::view_scope(SCOPE_DRAW);
+			Profiler::view_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
+			Profiler::view_scope(Const::SCOPE_SAMPLER_ANIMATIONS);
+			Profiler::view_scope(Const::SCOPE_TRAVEL_TREE_NODE_ANIMATIONS);
+			Profiler::view_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
+			Profiler::view_scope(Const::SCOPE_SSBO_COPY_DATA_TO_STAGINGS);
+			Profiler::view_scope(Const::SCOPE_SSBO_COPY_DATA_TO_STORES);
 			Log::info("Number group instance drawn", draw_instance_batching_groups.size());
 			Log::info("Number instance drawn", total_instance_draws);
 			Log::info("Bind resource profiler", bind_resources_profiler);

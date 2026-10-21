@@ -1,6 +1,9 @@
+#include <cmath>
+#include <core.h>
 #include <geometry_structs.h>
 #include <id_generator.h>
 #include <math_custom.h>
+#include <profiler.h>
 #include <sparse_set.h>
 #include <vulkan/draws/vk_draw_model_3D.h>
 #include <vulkan/vk_core.h>
@@ -71,34 +74,47 @@ namespace Vulkan {
 
 		struct Node_Data {
 			uint8_t apply_flags = 0;
-			glm::vec3 translation{0.f};
-			glm::quat rotation{1.f, 0.f, 0.f, 0.f};
-			glm::vec3 scale{1.f};
+			glm::mat4 translation{0.f};
+			glm::mat4 rotation{1.f};
+			glm::mat4 scale{1.f};
 			glm::mat4 global_transform{1.f};
 
-			void clean() { apply_flags = 0; }
+			glm::mat4 default_translation{0.f};
+			glm::mat4 default_rotation{1.f};
+			glm::mat4 default_scale{1.f};
+			glm::mat4 default_transform{1.f};
+
+			bool is_use_matrix = false;
+			int parent_index;
+
+			void clean() {
+				apply_flags = 0;
+				global_transform = {1.f};
+			}
 
 			void set_translation(const glm::vec3 i_translation) {
-				translation = i_translation;
+				translation = Math::make_translation(i_translation);
 				apply_flags |= (1 << 0);
 			}
 
 			void set_rotation(const glm::quat i_rotation) {
-				rotation = i_rotation;
+				rotation = glm::mat4_cast(i_rotation);
 				apply_flags |= (1 << 1);
 			}
 
 			void set_scale(const glm::vec3 i_scale) {
-				scale = i_scale;
+				scale = Math::make_scale(i_scale);
 				apply_flags |= (1 << 2);
 			}
 
-			glm::mat4 get_transform(const Model_Node& node) const {
-				glm::vec3 o_translation = (apply_flags & (1 << 0)) ? translation : node.translation;
-				glm::quat o_rotation = (apply_flags & (1 << 1)) ? rotation : node.rotation;
-				glm::vec3 o_scale = (apply_flags & (1 << 2)) ? scale : node.scale;
-				return Math::make_translation(o_translation) * glm::mat4_cast(o_rotation) * Math::make_scale(o_scale) *
-					   node.transform;
+			glm::mat4 get_transform() const {
+				if (is_use_matrix) {
+					return default_transform;
+				}
+				glm::mat4 o_translation = (apply_flags & (1 << 0)) ? translation : default_translation;
+				glm::mat4 o_rotation = (apply_flags & (1 << 1)) ? rotation : default_rotation;
+				glm::mat4 o_scale = (apply_flags & (1 << 2)) ? scale : default_scale;
+				return o_translation * o_rotation * o_scale;
 			}
 		};
 
@@ -106,6 +122,8 @@ namespace Vulkan {
 			uint32_t model_id = 0;
 			int scene_index = -1;
 			int animation_index = -1;
+
+			Sparse_Set<uint32_t> node_indices_to_node_data_indices;
 			std::vector<Node_Data> nodes;
 
 			Sparse_Set<uint32_t> skins_indices_to_skins_storage_ids;
@@ -116,8 +134,9 @@ namespace Vulkan {
 			uint32_t storage_id = 0;
 
 			std::vector<float> animation_durations;
-			std::vector<glm::mat4> global_transforms;
+			std::vector<int> sampler_animation_indices;
 			std::vector<glm::mat4> skins_transforms;
+			Sparse_Set<std::vector<glm::mat4>> skins_indices_to_skins_transforms;
 
 			bool is_changing(const Model_3D_Attributes& attributes) { return true; }
 
@@ -126,9 +145,9 @@ namespace Vulkan {
 			void update_animation(float dt, SSBO_Buffer& ssbo) {
 				if (animation_index < 0)
 					return;
+				Profiler::start_scope(Const::SCOPE_SAMPLER_ANIMATIONS);
 				for (int i = 0; i < nodes.size(); i++) {
 					nodes[i].clean();
-					global_transforms[i] = {1.f};
 				}
 				const auto& model = view_model(model_id);
 				const auto& animation = model.animations[animation_index];
@@ -141,45 +160,64 @@ namespace Vulkan {
 						animation_durations[i] -= max_duration;
 					}
 					const float duration = animation_durations[i];
-					if (channel.type_sampler == "translation") {
-						glm::vec3 translation = sampler.sampler_vec3(duration);
-						if (channel.use_node_index) {
-							nodes[channel.node_index].set_translation(translation);
+					uint32_t node_index = node_indices_to_node_data_indices.get(channel.node_index);
+					switch (channel.sampler_type) {
+						case Model_Sampler_Type::TRANSLATION: {
+							glm::vec3 translation = sampler.sampler_vec3(duration, sampler_animation_indices[i]);
+							if (channel.use_node_index) {
+								nodes[node_index].set_translation(translation);
+							}
+							break;
 						}
-					} else if (channel.type_sampler == "rotation") {
-						glm::quat rotation = sampler.sampler_quat(duration);
-						if (channel.use_node_index) {
-							nodes[channel.node_index].set_rotation(rotation);
+						case Model_Sampler_Type::ROTATION: {
+							glm::quat rotation = sampler.sampler_quat(duration, sampler_animation_indices[i]);
+							if (channel.use_node_index) {
+								nodes[node_index].set_rotation(rotation);
+							}
+							break;
 						}
-					} else if (channel.type_sampler == "scale") {
-						glm::vec3 scale = sampler.sampler_vec3(duration);
-						if (channel.use_node_index) {
-							nodes[channel.node_index].set_scale(scale);
+						case Model_Sampler_Type::SCALE: {
+							glm::vec3 scale = sampler.sampler_vec3(duration, sampler_animation_indices[i]);
+							if (channel.use_node_index) {
+								nodes[node_index].set_scale(scale);
+							}
+							break;
+						}
+						default: {
+							break;
 						}
 					}
 				}
-				model.dfs_read(scene_index, [this](const Model& model, int, int parent_index, int children_index) {
-					if (parent_index == -1) {
-						const auto& node_data = nodes[children_index];
-						const auto& node_model = model.nodes[children_index];
-						global_transforms[children_index] = node_data.get_transform(node_model);
+				Profiler::end_scope(Const::SCOPE_SAMPLER_ANIMATIONS);
+				Profiler::start_scope(Const::SCOPE_TRAVEL_TREE_NODE_ANIMATIONS);
+				for (Node_Data& node : nodes) {
+					if (node.parent_index < 0) {
+						node.global_transform = node.get_transform();
 					} else {
-						const auto& node_data = nodes[children_index];
-						const auto& node_model = model.nodes[children_index];
-						global_transforms[children_index] =
-							global_transforms[parent_index] * node_data.get_transform(node_model);
+						uint32_t node_parent_index = node_indices_to_node_data_indices.get(node.parent_index);
+						const Node_Data& node_parent = nodes[node_parent_index];
+						node.global_transform = node_parent.global_transform * node.get_transform();
 					}
-				});
+				}
+				Profiler::end_scope(Const::SCOPE_TRAVEL_TREE_NODE_ANIMATIONS);
+				Profiler::start_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
 				for (uint32_t i = 0; i < model.skins.size(); i++) {
 					const auto& skin = model.skins[i];
-					uint32_t skins_storage_id = skins_indices_to_skins_storage_ids.get(i);
-					skins_transforms.resize(skin.joints.size());
-					skins_transforms.assign(skins_transforms.size(), {1.f});
+					auto& skins_transforms = skins_indices_to_skins_transforms.modify(i);
 					for (int j = 0; j < skin.joints.size(); j++) {
 						int node_index = skin.joints[j];
 						const auto& inverse_bind_pose = skin.inverse_bind_poses[j];
-						skins_transforms[j] = global_transforms[node_index] * inverse_bind_pose;
+						uint32_t node_data_index = node_indices_to_node_data_indices.get(node_index);
+						skins_transforms[j] = nodes[node_data_index].global_transform * inverse_bind_pose;
 					}
+				}
+				Profiler::end_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
+			};
+
+			void upload_animation_skins(SSBO_Buffer& ssbo) const {
+				for (const uint32_t& skin_index : skins_indices_to_skins_storage_ids.keys()) {
+					const uint32_t& skins_storage_id = skins_indices_to_skins_storage_ids.get(skin_index);
+					const auto& skins_transforms = skins_indices_to_skins_transforms.get(skin_index);
 					ssbo.update_data(skins_storage_id, skins_transforms.data());
 				}
 			};
@@ -189,12 +227,36 @@ namespace Vulkan {
 				const auto& model = view_model(model_id);
 				scene_index = model.find_scene_index_by(attributes.scene_name);
 				animation_index = model.find_animation_index_by(attributes.animation_name);
-				nodes.resize(model.nodes.size());
-				global_transforms.resize(nodes.size());
+				/**
+				 * @Note: if we can't file the animation,
+				 * the mesh transform will be activate
+				 * to model place in bind pose.
+				 */
+				bool has_animation = true;
 				if (animation_index >= 0) {
-					animation_durations.resize(model.animations[animation_index].channels.size());
-					animation_durations.assign(animation_durations.size(), 0.f);
+					size_t number_animation = model.animations[animation_index].channels.size();
+					animation_durations.resize(number_animation);
+					animation_durations.assign(number_animation, 0.f);
+					sampler_animation_indices.resize(number_animation);
+					sampler_animation_indices.resize(number_animation, -1);
+				} else {
+					has_animation = false;
 				}
+				/**
+				 * Set up node as scene for tree.
+				 */
+				model.dfs_read(scene_index, [this](const Model& model, int, int parent_index, int children_index) {
+					Node_Data node_data{};
+					const auto& node = model.nodes[children_index];
+					node_data.parent_index = parent_index;
+					node_data.default_transform = node.transform;
+					node_data.default_scale = Math::make_scale(node.scale);
+					node_data.default_rotation = glm::mat4_cast(node.rotation);
+					node_data.default_translation = Math::make_translation(node.translation);
+					node_data.is_use_matrix = node.is_use_matrix;
+					node_indices_to_node_data_indices.insert(children_index, (uint32_t)nodes.size());
+					nodes.push_back(node_data);
+				});
 				/**
 				 * Setup to instance storage data.
 				 */
@@ -220,7 +282,6 @@ namespace Vulkan {
 				/**
 				 * Setup to skins and mesh transform storage data common that using all mesh.
 				 */
-				std::vector<glm::mat4> skins_storage_data{};
 				std::vector<glm::mat4> mesh_transform_storages{};
 				for (const auto& draw_mesh_info : draw_meshes_info) {
 					int skin_index = draw_mesh_info.skin_index;
@@ -229,14 +290,16 @@ namespace Vulkan {
 							continue;
 						}
 						const auto& skin = model.skins[skin_index];
-						skins_storage_data.resize(skin.joints.size(), {1.f});
+						skins_indices_to_skins_transforms.insert(
+							(uint32_t)skin_index, std::vector<glm::mat4>(skin.joints.size(), {1.f})
+						);
+						const auto& skins_storage_data = skins_indices_to_skins_transforms.get((uint32_t)skin_index);
 						uint32_t skins_storage_id = ssbo.upload_data(
 							skins_storage_data.data(), skins_storage_data.size() * sizeof(glm::mat4), sizeof(glm::mat4)
 						);
 						skins_indices_to_skins_storage_ids.insert((uint32_t)skin_index, skins_storage_id);
-					} else {
-						mesh_transform_storages.push_back(draw_mesh_info.mesh_transform);
 					}
+					mesh_transform_storages.push_back(draw_mesh_info.mesh_transform);
 				}
 				if (mesh_transform_storages.size() > 0) {
 					mesh_transforms_storage_id = ssbo.upload_data(
@@ -247,7 +310,6 @@ namespace Vulkan {
 				/**
 				 * Setup to mesh common storage data.
 				 */
-				int count_use_mesh_transform = 0;
 				Buffer_Range mesh_transform_storage_range = ssbo.view_slot(mesh_transforms_storage_id);
 				std::vector<Mesh_Descriptor_Storage_Data> mesh_descriptor_storages(draw_meshes_info.size());
 				for (int i = 0; i < draw_meshes_info.size(); i++) {
@@ -255,7 +317,7 @@ namespace Vulkan {
 					Mesh_Descriptor_Storage_Data mesh_descriptor_storage_data{};
 					Mesh_Storage_Information mesh_storage_info{};
 					int skin_index = draw_mesh_info.skin_index;
-					mesh_descriptor_storage_data.using_skin = skin_index >= 0;
+					mesh_descriptor_storage_data.using_skin = skin_index >= 0 && has_animation;
 					/**
 					 * Setup storage data for case mesh use skins.
 					 */
@@ -267,11 +329,8 @@ namespace Vulkan {
 					/**
 					 * Setup storage data for case mesh use rigid.
 					 */
-					else {
-						mesh_descriptor_storage_data.offset_transform =
-							mesh_transform_storage_range.offset_as<glm::mat4>() + count_use_mesh_transform;
-						count_use_mesh_transform++;
-					}
+					mesh_descriptor_storage_data.offset_transform =
+						mesh_transform_storage_range.offset_as<glm::mat4>() + i;
 					mesh_descriptor_storages[i] = mesh_descriptor_storage_data;
 				}
 				if (mesh_descriptor_storages.size() > 0) {
@@ -438,9 +497,35 @@ namespace Vulkan {
 			uniform.view = view;
 			SSBO_Buffer& ssbo = get_ssbo();
 			ssbo.update_data(uniform_buffer_ids[frame_index], &uniform);
-			for (auto& model_data : models.modify_values()) {
-				model_data.update_animation(dt, ssbo);
+			Profiler::start_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
+			uint32_t number_thread = Core::global_thread_pool->get_thread_ids().size();
+			auto& models = Model_3D::models.modify_values();
+			if (models.size() <= number_thread * 5) {
+				for (auto& model : models) {
+					model.update_animation(dt, ssbo);
+					model.upload_animation_skins(ssbo);
+				}
+			} else {
+				int number_model_in_thread = (int)std::ceil((float)models.size() / number_thread);
+				std::vector<std::future<void>> results{};
+				for (int i = 0; i < number_thread; i++) {
+					int start = i * number_model_in_thread;
+					int end = start + number_model_in_thread;
+					auto result = Core::global_thread_pool->enqueue([&models, &ssbo, start, end, dt]() {
+						for (int i = start; i < end && i < models.size(); i++) {
+							models[i].update_animation(dt, ssbo);
+						}
+					});
+					results.push_back(std::move(result));
+				}
+				for (auto& result : results) {
+					result.get();
+				}
+				for (const auto& model : models) {
+					model.upload_animation_skins(ssbo);
+				}
 			}
+			Profiler::end_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
 		}
 
 		void record_upload_uniform_buffer(VkCommandBuffer command_buffer, uint32_t frame_index) {

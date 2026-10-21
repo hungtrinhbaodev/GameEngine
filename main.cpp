@@ -87,7 +87,7 @@ int main() {
 	// 	Vulkan::make_model_3D(model_draw_attributes, model_attributes);
 	// }
 
-	for (int i = 0; i < 100; i++) {
+	for (int i = 0; i < 300; i++) {
 		// model_attributes.path = "res/Fox.glb";
 		// model_attributes.path = "res/cat 7.glb";
 		Vulkan::Draw_Attribute model_draw_attributes{1000, true};
@@ -96,7 +96,7 @@ int main() {
 		model_attributes.path = "res/CesiumMan.gltf";
 		model_attributes.animation_name = "0";
 		model_attributes.position = {
-			Math::random_float(-1.f, 1.f), Math::random_float(-1.f, 1.f), Math::random_float(-2.f, 2.f)
+			Math::random_float(-3.f, 3.f), Math::random_float(-3.f, 3.f), Math::random_float(-2.f, 2.f)
 		};
 		// model_attributes.position = {0.f, -0.5f, 0.f};
 		Vulkan::make_model_3D(model_draw_attributes, model_attributes);

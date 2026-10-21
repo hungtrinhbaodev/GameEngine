@@ -222,6 +222,7 @@ namespace Vulkan {
 		std::vector<int> children_indices{};
 		int mesh_index = -1;
 		int skin_index = -1;
+		bool is_use_matrix = false;
 		void parse_from(Parser::Gltf_Node& node);
 		glm::mat4 get_transform() const;
 	};
@@ -245,14 +246,18 @@ namespace Vulkan {
 
 	struct Model_Skin {
 		std::vector<uint32_t> joints{};
-		glm::mat4 inverse_bind_pose{1.f};
 		std::vector<glm::mat4> inverse_bind_poses{1.f};
 		void parse_from(Parser::Gltf_Skin& skin);
 	};
 
+	enum Model_Sampler_Interpolation_Type {
+		LINEAR,
+		INTERPOLATION_UNSUPPORTED
+	};
+
 	struct Model_Sampler {
 		uint32_t number_apply = 0;
-		std::string interpolation = "";
+		Model_Sampler_Interpolation_Type interpolation = Model_Sampler_Interpolation_Type::INTERPOLATION_UNSUPPORTED;
 		std::vector<float> durations{};
 		std::vector<glm::vec3> vec3s{};
 		std::vector<glm::quat> quats{};
@@ -262,15 +267,22 @@ namespace Vulkan {
 		glm::quat max_quat{1.f, 0.f, 0.f, 0.f};
 		void parse_from(Parser::Gltf_Sampler& sampler);
 		float max_duration() const;
-		glm::vec3 sampler_vec3(float t) const;
-		glm::quat sampler_quat(float t) const;
+		glm::vec3 sampler_vec3(float t, int& last_index) const;
+		glm::quat sampler_quat(float t, int& last_index) const;
+	};
+
+	enum Model_Sampler_Type {
+		TRANSLATION,
+		ROTATION,
+		SCALE,
+		SAMPLER_UNSUPPORTED
 	};
 
 	struct Model_Channel {
 		bool use_node_index = false;
-		uint32_t sampler_index = 0;
-		std::string type_sampler = "";
-		uint32_t node_index = 0;
+		int sampler_index = 0;
+		Model_Sampler_Type sampler_type = Model_Sampler_Type::SAMPLER_UNSUPPORTED;
+		int node_index = 0;
 		void parse_from(Parser::Gltf_Channel& channel);
 	};
 

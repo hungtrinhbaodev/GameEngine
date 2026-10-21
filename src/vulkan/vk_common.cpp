@@ -14,6 +14,7 @@ namespace Vulkan {
 		children_indices = std::move(node.children_indices);
 		mesh_index = node.mesh_index;
 		skin_index = node.skin_index;
+		is_use_matrix = node.is_use_matrix;
 	}
 
 	void Model_Scene::parse_from(Parser::Gltf_Scene& scene) {
@@ -22,13 +23,14 @@ namespace Vulkan {
 
 	void Model_Skin::parse_from(Parser::Gltf_Skin& skin) {
 		joints = std::move(skin.joints);
-		inverse_bind_pose = std::move(skin.inverse_bind_pose);
 		inverse_bind_poses = std::move(skin.inverse_bind_poses);
 	}
 
 	void Model_Sampler::parse_from(Parser::Gltf_Sampler& sampler) {
 		number_apply = sampler.number_apply;
-		interpolation = sampler.interpolation;
+		if (sampler.interpolation == "LINEAR") {
+			interpolation = LINEAR;
+		}
 		durations = std::move(sampler.durations);
 		min_vec3 = std::move(sampler.min_vec3);
 		max_vec3 = std::move(sampler.max_vec3);
@@ -45,54 +47,78 @@ namespace Vulkan {
 		return durations.back();
 	}
 
-	glm::vec3 Model_Sampler::sampler_vec3(float t) const {
+	glm::vec3 Model_Sampler::sampler_vec3(float t, int& last_index) const {
 		if (t < durations.front()) {
+			last_index = 0;
 			return vec3s.front();
 		}
 		if (t >= durations.back()) {
+			last_index = durations.size() - 1;
 			return vec3s.back();
 		}
-		auto it = std::upper_bound(durations.begin(), durations.end(), t);
-		if (it != durations.end()) {
-			int index = std::distance(durations.begin(), it);
-			int next_index = index - 1;
-			float dt = durations[next_index] - durations[index];
-			float factor = (t - durations[index]) / dt;
-			if (interpolation == "LINEAR") {
-				return glm::mix(vec3s[index], vec3s[next_index], factor);
-			} else {
-				return vec3s[index];
+		if (durations[last_index] > t) {
+			last_index = 0;
+		}
+		while (last_index + 1 < durations.size() - 1 && durations[last_index + 1] <= t)
+			last_index++;
+
+		if (last_index >= durations.size() - 1) {
+			return vec3s.back();
+		}
+		int index = last_index + 1;
+		float dt = durations[index] - durations[last_index];
+		float factor = (durations[index] - t) / dt;
+		switch (interpolation) {
+			case Model_Sampler_Interpolation_Type::LINEAR: {
+				return glm::mix(vec3s[index], vec3s[last_index], factor);
+			}
+			default: {
+				return vec3s[last_index];
 			}
 		}
-		return vec3s.back();
 	}
 
-	glm::quat Model_Sampler::sampler_quat(float t) const {
+	glm::quat Model_Sampler::sampler_quat(float t, int& last_index) const {
 		if (t < durations.front()) {
+			last_index = 0;
 			return quats.front();
 		}
 		if (t >= durations.back()) {
+			last_index = durations.size() - 1;
 			return quats.back();
 		}
-		auto it = std::upper_bound(durations.begin(), durations.end(), t);
-		if (it != durations.end()) {
-			int index = std::distance(durations.begin(), it);
-			int next_index = index - 1;
-			float dt = durations[next_index] - durations[index];
-			float factor = (t - durations[index]) / dt;
-			if (interpolation == "LINEAR") {
-				return glm::slerp(quats[index], quats[next_index], factor);
-			} else {
-				return quats[index];
+		if (durations[last_index] > t) {
+			last_index = 0;
+		}
+		while (last_index + 1 < durations.size() - 1 && durations[last_index + 1] <= t)
+			last_index++;
+
+		if (last_index >= durations.size() - 1) {
+			return vec3s.back();
+		}
+		int index = last_index + 1;
+		float dt = durations[index] - durations[last_index];
+		float factor = (durations[index] - t) / dt;
+		switch (interpolation) {
+			case Model_Sampler_Interpolation_Type::LINEAR: {
+				return glm::slerp(quats[index], quats[last_index], factor);
+			}
+			default: {
+				return quats[last_index];
 			}
 		}
-		return quats.back();
 	}
 
 	void Model_Channel::parse_from(Parser::Gltf_Channel& channel) {
 		use_node_index = channel.use_node_index;
 		sampler_index = channel.sampler_index;
-		type_sampler = channel.type_sampler;
+		if (channel.type_sampler == "translation") {
+			sampler_type = TRANSLATION;
+		} else if (channel.type_sampler == "rotation") {
+			sampler_type = ROTATION;
+		} else if (channel.type_sampler == "scale") {
+			sampler_type = SCALE;
+		}
 		node_index = channel.node_index;
 	}
 

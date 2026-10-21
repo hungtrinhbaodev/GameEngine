@@ -19,6 +19,7 @@ namespace Parser {
 		glm::vec3 translation{0.f, 0.f, 0.f};
 		glm::quat rotation{1.f, 0.f, 0.f, 0.f};
 		glm::vec3 scale{1.f, 1.f, 1.f};
+		bool is_use_matrix = false;
 		glm::mat4 get_transform() const;
 		inline friend std::ostream& operator<<(std::ostream& os, const Gltf_Node& node) {
 			os << "Parser::Node: {Node name: " << node.name << ", transform: " << node.transform
@@ -70,7 +71,7 @@ namespace Parser {
 		bool use_node_index = false;
 		uint32_t sampler_index = 0;
 		std::string type_sampler = "";
-		uint32_t node_index = 0;
+		uint32_t node_index = -1;
 		inline friend std::ostream& operator<<(std::ostream& os, const Gltf_Channel& channel) {
 			os << "Parser::Gltf_Channel{sampler_index: " << channel.sampler_index
 			   << ", use_node_index: " << channel.use_node_index << ", type_sampler: " << channel.type_sampler
@@ -107,7 +108,6 @@ namespace Parser {
 
 	struct Gltf_Skin {
 		std::vector<uint32_t> joints;
-		glm::mat4 inverse_bind_pose{1.f};
 		std::vector<glm::mat4> inverse_bind_poses{1.f};
 	};
 

@@ -474,6 +474,7 @@ namespace Parser {
 				if (json_node.contains("matrix")) {
 					std::vector<float> cols = json_node["matrix"].get<std::vector<float>>();
 					node.transform = glm::make_mat4_from(cols);
+					node.is_use_matrix = true;
 				} else {
 					std::vector<float> flat_translation{}, flat_rotation{}, flat_scale{};
 					if (json_node.contains("translation")) {

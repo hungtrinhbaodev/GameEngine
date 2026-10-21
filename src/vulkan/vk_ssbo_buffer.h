@@ -44,7 +44,7 @@ namespace Vulkan {
 
 		uint32_t upload_data(const void* data, uint32_t size, uint32_t element_stride = 1);
 
-		void update_data(uint32_t id, void* data, uint32_t offset = 0, uint32_t size = 0);
+		void update_data(uint32_t id, const void* data, uint32_t offset = 0, uint32_t size = 0);
 
 		void remove_data(uint32_t id);
 

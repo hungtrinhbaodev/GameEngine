@@ -242,27 +242,23 @@ namespace Vulkan {
 			Buffer_Range indices_range = static_buffer.view_slot(indices_id);
 			Buffer_Range vertex_range = static_buffer.view_slot(vertex_id);
 			Buffer instance_buffer = get_instance_buffer(frame_index);
-			uint32_t number_descriptor_set = 0;
-			VkDescriptorSet* binding_descriptor_sets = nullptr;
 			VkDescriptorSet storage_descriptor_set = get_storage_descriptor_set(frame_index);
 			std::array<VkDescriptorSet, 2> font_texture_descriptor_sets =
 				get_descriptor_set_font_sampler(material_draw_id, frame_index);
+			uint32_t number_descriptor_set = 0;
+			VkDescriptorSet using_descriptor_sets[3] = {
+				storage_descriptor_set, font_texture_descriptor_sets[0], font_texture_descriptor_sets[1]
+			};
 			if (Const::ENABLED_TEXTURE_BUCKETS) {
-				VkDescriptorSet using_descriptor_sets[3] = {
-					storage_descriptor_set, font_texture_descriptor_sets[0], font_texture_descriptor_sets[1]
-				};
 				number_descriptor_set = 3;
-				binding_descriptor_sets = using_descriptor_sets;
 			} else {
-				VkDescriptorSet using_descriptor_sets[2] = {storage_descriptor_set, font_texture_descriptor_sets[0]};
 				number_descriptor_set = 2;
-				binding_descriptor_sets = using_descriptor_sets;
 			}
 			VkBuffer binding_buffers[2] = {static_buffer.inner_buffer.buffer, instance_buffer.buffer};
 			VkDeviceSize buffer_offsets[2] = {0, 0};
 			bind_draw_resource(
 				command_buffer, pipeline.pipeline, pipeline.layout, static_buffer.inner_buffer.buffer, 0,
-				VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, number_descriptor_set, binding_descriptor_sets
+				VK_INDEX_TYPE_UINT16, 2, binding_buffers, buffer_offsets, number_descriptor_set, using_descriptor_sets
 			);
 			vkCmdDrawIndexed(
 				command_buffer, indices_range.size_as<uint16_t>(), number_instance, indices_range.offset_as<uint16_t>(),

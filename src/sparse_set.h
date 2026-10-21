@@ -50,9 +50,9 @@ template <typename T> class Sparse_Set {
 		return dense[id_to_index[id]];
 	}
 
-	const std::vector<uint32_t>& keys() { return ids; }
+	const std::vector<uint32_t>& keys() const { return ids; }
 
-	const std::vector<T>& values() { return dense; }
+	const std::vector<T>& values() const { return dense; }
 
 	std::vector<T>& modify_values() { return dense; }
 

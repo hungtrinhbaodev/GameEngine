@@ -83,6 +83,18 @@ namespace Vulkan {
 			EMPTY
 		};
 
+		const inline std::string SCOPE_CALCULATE_ANIMATIONS = "CALCULATE ANIMATIONS";
+
+		const inline std::string SCOPE_SAMPLER_ANIMATIONS = "SAMPLER ANIMATIONS";
+
+		const inline std::string SCOPE_TRAVEL_TREE_NODE_ANIMATIONS = "TRAVEL TREE NODE ANIMATIONS";
+
+		const inline std::string SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS = "UPLOAD SKIN DATA ANIMATIONS";
+
+		const inline std::string SCOPE_SSBO_COPY_DATA_TO_STAGINGS = "SSBO COPY DATA TO STAGINGS";
+
+		const inline std::string SCOPE_SSBO_COPY_DATA_TO_STORES = "SSBO COPY DATA TO STORES";
+
 		const inline uint32_t MAX_DESCRIPTOR_STORAGE_BUFFER_BINDING = 5;
 
 		const inline uint32_t INITIALIZE_STATIC_BUFFER_SIZE = 3 * 1024 * 1024; // 3MB
