@@ -19,6 +19,108 @@
 
 #define VK_A 0x41
 
+std::vector<uint32_t> foxes;
+
+std::vector<uint32_t> cesiummans;
+
+std::vector<Vulkan::Model_3D_Attributes> cesiumman_attributes;
+
+std::vector<Vulkan::Model_3D_Attributes> fox_attributes;
+
+std::vector<std::string> fox_animations = {
+	"Survey",
+	"Walk",
+	"Run",
+};
+
+void gen_fox_3D() {
+	Vulkan::Draw_Attribute model_draw_attributes{1000, true};
+	Vulkan::Model_3D_Attributes model_attributes{};
+	model_attributes.path = "res/Fox_embedded.gltf";
+	int animation_index = Math::random_int(0, 100) % fox_animations.size();
+	model_attributes.animation_name = fox_animations[animation_index];
+	model_attributes.position = {
+		Math::random_float(-1.f, 1.f), Math::random_float(-1.f, 1.f), Math::random_float(-1.f, 1.f)
+	};
+	model_attributes.scale = {0.01f, 0.01f, 0.01f};
+	foxes.push_back(Vulkan::make_model_3D(model_draw_attributes, model_attributes));
+	fox_attributes.push_back(model_attributes);
+}
+
+void remove_fox_by_index(int remove_index) {
+	Vulkan::remove_model_3D(foxes[remove_index]);
+	foxes[remove_index] = foxes.back();
+	foxes.pop_back();
+	fox_attributes[remove_index] = fox_attributes.back();
+	fox_attributes.pop_back();
+}
+
+void remove_fox() {
+	if (foxes.size() <= 0)
+		return;
+	int remove_index = Math::random_int(0, foxes.size() - 1);
+	remove_fox_by_index(remove_index);
+}
+
+void update_fox_animation() {
+	if (foxes.size() <= 0)
+		return;
+	int update_index = Math::random_int(0, foxes.size() - 1);
+	auto& fox_attribute = fox_attributes[update_index];
+	auto it = std::find(fox_animations.begin(), fox_animations.end(), fox_attribute.animation_name);
+	if (it != fox_animations.end()) {
+		int index = it - fox_animations.begin();
+		index = (index + 1) % fox_animations.size();
+		fox_attribute.animation_name = fox_animations[index];
+	}
+	Vulkan::update_model_3D(foxes[update_index], fox_attribute);
+}
+
+void change_fox_to_cesiumman() {
+	if (foxes.size() <= 0)
+		return;
+	int remove_index = Math::random_int(0, foxes.size() - 1);
+	auto fox_attribute = fox_attributes[remove_index];
+	fox_attribute.path = "res/CesiumMan.gltf";
+	fox_attribute.animation_name = "0";
+	fox_attribute.scale = {1.f, 1.f, 1.f};
+	remove_fox_by_index(remove_index);
+	cesiummans.push_back(Vulkan::make_model_3D({1000, true}, fox_attribute));
+	cesiumman_attributes.push_back(fox_attribute);
+}
+
+void on_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
+	switch (action) {
+		case GLFW_PRESS: {
+			switch (key) {
+				case GLFW_KEY_W: {
+					gen_fox_3D();
+					break;
+				}
+				case GLFW_KEY_S: {
+					remove_fox();
+					break;
+				}
+				case GLFW_KEY_F: {
+					update_fox_animation();
+					break;
+				}
+				case GLFW_KEY_G: {
+					change_fox_to_cesiumman();
+					break;
+				}
+				default: {
+					break;
+				}
+			}
+			break;
+		}
+		default: {
+			break;
+		}
+	}
+}
+
 int main() {
 
 	if (!glfwInit()) {
@@ -29,6 +131,7 @@ int main() {
 	GLFWwindow* window = glfwCreateWindow(1200, 720, "game", nullptr, nullptr);
 
 	Vulkan::init_vulkan_core(window);
+	glfwSetKeyCallback(window, on_key);
 
 	glm::vec2 window_size = Vulkan::Utils::get_window_size(Vulkan::device);
 	std::vector<uint32_t> rectangles{};
@@ -86,20 +189,8 @@ int main() {
 	// 	model_attributes.scale = {300.f, 300.f, 300.f};
 	// 	Vulkan::make_model_3D(model_draw_attributes, model_attributes);
 	// }
-
-	for (int i = 0; i < 300; i++) {
-		// model_attributes.path = "res/Fox.glb";
-		// model_attributes.path = "res/cat 7.glb";
-		Vulkan::Draw_Attribute model_draw_attributes{1000, true};
-		Vulkan::Model_3D_Attributes model_attributes{};
-		// model_attributes.path = "res/cat 7.glb";
-		model_attributes.path = "res/CesiumMan.gltf";
-		model_attributes.animation_name = "0";
-		model_attributes.position = {
-			Math::random_float(-3.f, 3.f), Math::random_float(-3.f, 3.f), Math::random_float(-2.f, 2.f)
-		};
-		// model_attributes.position = {0.f, -0.5f, 0.f};
-		Vulkan::make_model_3D(model_draw_attributes, model_attributes);
+	for (int i = 0; i < 1; i++) {
+		gen_fox_3D();
 	}
 
 	double start = Utils::now();

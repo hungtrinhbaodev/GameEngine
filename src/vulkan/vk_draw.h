@@ -79,6 +79,10 @@ namespace Vulkan {
 
 	uint32_t make_model_3D(const Draw_Attribute& draw_attributes, const Model_3D_Attributes& model_attributes);
 
+	void update_model_3D(uint32_t id, const Model_3D_Attributes& model_attributes);
+
+	void remove_model_3D(uint32_t id);
+
 	void update_draw(uint32_t id, Draw_Attribute draw_attributes);
 
 } // namespace Vulkan

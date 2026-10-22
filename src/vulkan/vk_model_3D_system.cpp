@@ -42,6 +42,7 @@ namespace Vulkan {
 					texture_id = texture_system->load_texture(
 						texture.path, texture.data, texture.width, texture.height, 4, Const::ENABLED_TEXTURE_BUCKETS
 					);
+					delete (texture.data);
 				}
 				model_info.primitives.push_back({vertex_id, indices_id, texture_id});
 				primitive_indices.push_back(primitive_count);

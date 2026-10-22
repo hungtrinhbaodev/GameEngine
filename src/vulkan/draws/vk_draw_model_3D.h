@@ -16,6 +16,13 @@ namespace Vulkan {
 			Draw_Information& draw_info, const Model_3D_Attributes& attributes
 		);
 
+		void update_model_3D(
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
+			const Model_3D_Attributes& attributes
+		);
+
+		void remove_model_3D(uint32_t model_unique_id);
+
 		void setup_draw(uint32_t frame_index, float dt);
 
 		void record_upload_uniform_buffer(VkCommandBuffer command_buffer, uint32_t frame_index);

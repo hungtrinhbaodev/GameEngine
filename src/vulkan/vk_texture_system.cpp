@@ -165,7 +165,7 @@ namespace Vulkan {
 				need_use_individual_texture = true;
 			} else {
 				// find suitable slot index in texture bucket
-				Texture_Array using_bucket = texture_buckets[found_bucket_index];
+				Texture_Array& using_bucket = texture_buckets[found_bucket_index];
 				int available_slot = using_bucket.find_availale_slot();
 
 				if (available_slot < 0) {

@@ -77,9 +77,9 @@ namespace Vulkan {
 			if (!auto_mapped) {
 				vkMapMemory(device, memory, offset, size, 0, &map_memory);
 			} else {
-				map_memory = (char*)mapped + offset;
+				map_memory = (uint8_t*)mapped + offset;
 			}
-			memcpy(map_memory, data, static_cast<size_t>(size));
+			memcpy(map_memory, data, (size_t)size);
 			if (!auto_mapped) {
 				vkUnmapMemory(device, memory);
 			}
@@ -104,7 +104,8 @@ namespace Vulkan {
 		Buffer new_buffer{};
 
 		new_buffer.make_buffer(
-			new_size, usage_flags | VK_BUFFER_USAGE_TRANSFER_DST_BIT, property_flags, physical_device, device
+			new_size, usage_flags | VK_BUFFER_USAGE_TRANSFER_DST_BIT, property_flags, physical_device, device,
+			auto_mapped
 		);
 
 		uint32_t copied_size = std::min(size, new_size);
@@ -116,9 +117,7 @@ namespace Vulkan {
 		size = new_size;
 		buffer = new_buffer.buffer;
 		memory = new_buffer.memory;
-		if (auto_mapped) {
-			vkMapMemory(device, memory, 0, size, 0, &mapped);
-		}
+		mapped = new_buffer.mapped;
 		update_descriptor();
 		return current;
 	}
@@ -127,7 +126,8 @@ namespace Vulkan {
 		Buffer current{*this};
 		Buffer new_buffer{};
 		new_buffer.make_buffer(
-			new_size, usage_flags | VK_BUFFER_USAGE_TRANSFER_DST_BIT, property_flags, physical_device, device
+			new_size, usage_flags | VK_BUFFER_USAGE_TRANSFER_DST_BIT, property_flags, physical_device, device,
+			auto_mapped
 		);
 		uint32_t copy_size = std::min(size, new_size);
 		VkBufferMemoryBarrier copy_data_barrier =
@@ -140,9 +140,7 @@ namespace Vulkan {
 		size = new_size;
 		buffer = new_buffer.buffer;
 		memory = new_buffer.memory;
-		if (auto_mapped) {
-			vkMapMemory(device, memory, 0, size, 0, &mapped);
-		}
+		mapped = new_buffer.mapped;
 		update_descriptor();
 		return current;
 	}
@@ -182,12 +180,17 @@ namespace Vulkan {
 		}
 
 		if (src_buffer.is_host_visible_buffer() && dst_buffer.is_host_visible_buffer()) {
-			void* map_data;
-			vkMapMemory(src_buffer.device, src_buffer.memory, src_offset, size, 0, &map_data);
+			void* map_data = nullptr;
+			if (src_buffer.auto_mapped) {
+				map_data = (uint8_t*)src_buffer.mapped + src_offset;
+			} else {
+				vkMapMemory(src_buffer.device, src_buffer.memory, src_offset, size, 0, &map_data);
+			}
 			dst_buffer.copy_data(size, map_data, dst_offset);
-			vkUnmapMemory(src_buffer.device, src_buffer.memory);
+			if (!src_buffer.auto_mapped) {
+				vkUnmapMemory(src_buffer.device, src_buffer.memory);
+			}
 		} else {
-			VkBufferCopy region{src_offset, dst_offset, size};
 			VkCommandBuffer command_buffer = Utils::start_commands(src_buffer.device);
 			{
 				record_copy_buffer(command_buffer, src_buffer, dst_buffer, src_offset, dst_offset, size);
@@ -234,12 +237,18 @@ namespace Vulkan {
 		std::vector<char> data;
 		if (is_host_visible_buffer()) {
 			void* map = nullptr;
-			vkMapMemory(device, memory, 0, size, 0, &map);
+			if (auto_mapped) {
+				map = (char*)mapped;
+			} else {
+				vkMapMemory(device, memory, 0, size, 0, &map);
+			}
 			for (uint32_t i = offset; i < offset + parse_size; i++) {
 				char* cur_char = (char*)map + i;
 				data.push_back(*cur_char);
 			}
-			vkUnmapMemory(device, memory);
+			if (!auto_mapped) {
+				vkUnmapMemory(device, memory);
+			}
 		} else {
 			Buffer host_visible_buffer{};
 			host_visible_buffer.make_buffer(

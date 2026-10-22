@@ -56,7 +56,7 @@ namespace Vulkan {
 			last_index = durations.size() - 1;
 			return vec3s.back();
 		}
-		if (durations[last_index] > t) {
+		if (last_index < 0 || durations[last_index] > t) {
 			last_index = 0;
 		}
 		while (last_index + 1 < durations.size() - 1 && durations[last_index + 1] <= t)
@@ -87,14 +87,14 @@ namespace Vulkan {
 			last_index = durations.size() - 1;
 			return quats.back();
 		}
-		if (durations[last_index] > t) {
+		if (last_index < 0 || durations[last_index] > t) {
 			last_index = 0;
 		}
 		while (last_index + 1 < durations.size() - 1 && durations[last_index + 1] <= t)
 			last_index++;
 
 		if (last_index >= durations.size() - 1) {
-			return vec3s.back();
+			return quats.back();
 		}
 		int index = last_index + 1;
 		float dt = durations[index] - durations[last_index];

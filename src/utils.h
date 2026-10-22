@@ -159,4 +159,68 @@ namespace Utils {
 		return file_path.substr(0, last_backslash + 1);
 	}
 
+	inline const std::string BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+	inline std::unordered_map<char, uint32_t> decode_map{};
+
+	inline std::mutex decode_map_mutex{};
+
+	inline std::vector<char> base64_to_bytes(std::string_view data) {
+		if (data.size() <= 0) {
+			return {};
+		}
+		{
+			std::unique_lock<std::mutex> lock(decode_map_mutex);
+			if (decode_map.size() <= 0) {
+				for (uint32_t i = 0; i < BASE64_ALPHABET.size(); i++) {
+					decode_map[BASE64_ALPHABET[i]] = i;
+				}
+			}
+		}
+		std::vector<char> bytes;
+		std::array<char, 3> bytes_at_pattern{};
+		uint32_t filter = 0;
+		for (int i = 0; i < 8; i++) {
+			filter |= (1 << i);
+		}
+		int number_padding = 0;
+		int last_index = data.size() - 1;
+		while (last_index >= 0 && data[last_index] == '=') {
+			last_index--;
+			number_padding++;
+		}
+		if (last_index < 0) {
+			return {};
+		}
+		for (int i = 0; i < data.size() / 4; i++) {
+			int start = i * 4;
+			int end = start + 4;
+			uint32_t pattern = 0;
+			for (int j = start; j < end && j <= last_index; j++) {
+				const auto it = decode_map.find(data[j]);
+				if (it == decode_map.end()) {
+					throw std::runtime_error("Fail to parse base64 into bytes: not found char in data!");
+				}
+				int shift = (end - j - 1) * 6;
+				pattern |= (it->second << shift);
+			}
+			for (int j = 0; j < 3; j++) {
+				int byte_index = 3 - j - 1;
+				uint32_t value = pattern & filter;
+				bytes_at_pattern[byte_index] = (char)value;
+				pattern >>= 8;
+			}
+			if (i >= data.size() / 4 - 1) {
+				for (int j = 0; j < bytes_at_pattern.size() - number_padding; j++) {
+					bytes.push_back((char)bytes_at_pattern[j]);
+				}
+			} else {
+				for (int j = 0; j < bytes_at_pattern.size(); j++) {
+					bytes.push_back((char)bytes_at_pattern[j]);
+				}
+			}
+		}
+		return bytes;
+	}
+
 } // namespace Utils

@@ -192,11 +192,12 @@ namespace Parser {
 				size_t quate_index = uri.find(",");
 				if (quate_index != std::string::npos) {
 					auto quate_index = uri.find(",");
-					buffers[i] = (const uint8_t*)uri.data() + quate_index;
+					std::string_view data = std::string_view(uri).substr(quate_index + 1);
+					file_bin_buffers[i] = Utils::base64_to_bytes(data);
 				} else {
 					file_bin_buffers[i] = Files::read_file(Utils::get_folder_path_from(path) + uri);
-					buffers[i] = (const uint8_t*)file_bin_buffers[i].data();
 				}
+				buffers[i] = (const uint8_t*)file_bin_buffers[i].data();
 			}
 		} else {
 			throw std::runtime_error(("Fail to load model 3D, unsuported model, " + path + "!").data());
@@ -526,7 +527,7 @@ namespace Parser {
 				for (int i = 0; i < scene_size; i++) {
 					scenes[i].node_indices = json_scenes[i]["nodes"].get<std::vector<uint32_t>>();
 					if (json_scenes[i].contains("name")) {
-						scenes[i].name = json_scenes["name"];
+						scenes[i].name = json_scenes[i]["name"];
 					} else {
 						scenes[i].name = std::to_string(i);
 					}
@@ -569,20 +570,43 @@ namespace Parser {
 				model.textures.resize(json_images.size());
 				for (int i = 0; i < model.texture_paths.size(); i++) {
 					if (json_images[i].contains("uri")) {
-						model.texture_paths[i] = Utils::get_folder_path_from(path) + json_images[i].value("uri", "");
-						model.textures[i] = {
-							false, Utils::get_folder_path_from(path) + json_images[i].value("uri", "")
-						};
+						const std::string& uri = json_images[i]["uri"].get_ref<const std::string&>();
+						if (uri.find("data:") == 0) {
+							std::vector<char> bytes =
+								Utils::base64_to_bytes(std::string_view(uri).substr(uri.find(',') + 1));
+							const uint8_t* image_bytes = (const uint8_t*)bytes.data();
+							uint32_t byte_length = bytes.size();
+							int width = 0;
+							int height = 0;
+							stbi_uc* pixels = stbi_load_from_memory(
+								image_bytes, byte_length, &width, &height, nullptr, STBI_rgb_alpha
+							);
+							if (pixels == nullptr) {
+								throw std::runtime_error("Fail to load texture in uri data!");
+							}
+							model.textures[i] = {
+								true, path + std::to_string(i), (uint8_t*)pixels, (uint32_t)width, (uint32_t)height
+							};
+						} else {
+							model.texture_paths[i] =
+								Utils::get_folder_path_from(path) + json_images[i].value("uri", "");
+							model.textures[i] = {
+								false, Utils::get_folder_path_from(path) + json_images[i].value("uri", "")
+							};
+						}
 					} else if (json_images[i].contains("bufferView")) {
 						int bv_index = json_images[i]["bufferView"];
 						auto& bv = root["bufferViews"][bv_index];
 						int buffer_index = bv.value("buffer", 0);
-						const uint8_t* image_bytes = get_bin_data(buffer_index) + (uint32_t)bv["byteOffset"];
+						const uint8_t* image_bytes = get_bin_data(buffer_index) + (uint32_t)bv.value("byteOffset", 0);
 						uint32_t byte_length = bv["byteLength"];
 						int width = 0;
 						int height = 0;
 						stbi_uc* pixels =
 							stbi_load_from_memory(image_bytes, byte_length, &width, &height, nullptr, STBI_rgb_alpha);
+						if (pixels == nullptr) {
+							throw std::runtime_error("Fail to load texture in bin data!");
+						}
 						model.textures[i] = {
 							true, path + std::to_string(i), (uint8_t*)pixels, (uint32_t)width, (uint32_t)height
 						};
@@ -637,7 +661,11 @@ namespace Parser {
 						for (int j = 0; j < samplers.size(); j++) {
 							const auto& json_sampler = json_samplers[j];
 							auto& sampler = samplers[j];
-							sampler.interpolation = json_sampler["interpolation"];
+							if (json_sampler.contains("interpolation")) {
+								sampler.interpolation = json_sampler["interpolation"];
+							} else {
+								sampler.interpolation = "LINEAR";
+							}
 							const auto& duration_accessor = root["accessors"][(int)json_sampler["input"]];
 							const float* samplers_input_data = (const float*)get_bin_data_at(json_sampler, "input");
 							auto& durations = sampler.durations;
@@ -656,10 +684,14 @@ namespace Parser {
 										samplers_output_data, k, component_type, {0.f, 0.f, 0.f}
 									);
 								}
-								sampler.min_vec3 =
-									glm::make_vec_from<3>(data_accessor["min"].get<std::vector<float>>());
-								sampler.max_vec3 =
-									glm::make_vec_from<3>(data_accessor["max"].get<std::vector<float>>());
+								if (data_accessor.contains("min")) {
+									sampler.min_vec3 =
+										glm::make_vec_from<3>(data_accessor["min"].get<std::vector<float>>());
+								}
+								if (data_accessor.contains("max")) {
+									sampler.max_vec3 =
+										glm::make_vec_from<3>(data_accessor["max"].get<std::vector<float>>());
+								}
 							} else if (component_count_from_type(data_accessor["type"]) == 4) {
 								auto& quats = sampler.quats;
 								quats.resize(data_accessor["count"]);
@@ -668,14 +700,18 @@ namespace Parser {
 										samplers_output_data, k, component_type, {1.f, 0.f, 0.f, 0.f}
 									);
 								}
-								sampler.min_quat = read_quat_in_bin_by_component_type(
-									(const uint8_t*)data_accessor["min"].get<std::vector<float>>().data(), 0,
-									component_type, {1.f, 0.f, 0.f, 0.f}
-								);
-								sampler.max_quat = read_quat_in_bin_by_component_type(
-									(const uint8_t*)data_accessor["max"].get<std::vector<float>>().data(), 0,
-									component_type, {1.f, 0.f, 0.f, 0.f}
-								);
+								if (data_accessor.contains("min")) {
+									sampler.min_quat = read_quat_in_bin_by_component_type(
+										(const uint8_t*)data_accessor["min"].get<std::vector<float>>().data(), 0,
+										component_type, {1.f, 0.f, 0.f, 0.f}
+									);
+								}
+								if (data_accessor.contains("max")) {
+									sampler.max_quat = read_quat_in_bin_by_component_type(
+										(const uint8_t*)data_accessor["max"].get<std::vector<float>>().data(), 0,
+										component_type, {1.f, 0.f, 0.f, 0.f}
+									);
+								}
 							}
 							if (DEBUG_MODEL) {
 								// Log::info("What is sampler", j, sampler);
@@ -686,7 +722,11 @@ namespace Parser {
 			}
 		}
 		if (DEBUG_MODEL) {
-			// Log::info("Model information", path, model.get_bounding_box() * 300.f);
+			// std::vector<std::string> animation_names{};
+			// for (const auto& animation : model.animations) {
+			// 	animation_names.push_back(animation.name);
+			// }
+			// Log::info("Model information", path, animation_names);
 		}
 		return model;
 	}

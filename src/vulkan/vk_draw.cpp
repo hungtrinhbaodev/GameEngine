@@ -264,9 +264,9 @@ namespace Vulkan {
 			sorted_draws.begin(), sorted_draws.end(),
 			[](const Draw_Sort_Information& a, const Draw_Sort_Information& b) {
 				if (a.draw_index == b.draw_index) {
-					return a.create_index < b.create_index;
+					return a.create_index > b.create_index;
 				}
-				return a.draw_index < b.draw_index;
+				return a.draw_index > b.draw_index;
 			}
 		);
 		Profiler::end_scope(SCOPE_SORT_DRAW);
@@ -694,18 +694,16 @@ namespace Vulkan {
 		Profiler::end_scope(SCOPE_DRAW);
 		frame_count++;
 		if (frame_count % 60 == 0) {
-			Profiler::view_scope(SCOPE_SORT_DRAW);
-			Profiler::view_scope(SCOPE_BATCHING_GROUP);
-			Profiler::view_scope(SCOPE_DRAW);
-			Profiler::view_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
-			Profiler::view_scope(Const::SCOPE_SAMPLER_ANIMATIONS);
-			Profiler::view_scope(Const::SCOPE_TRAVEL_TREE_NODE_ANIMATIONS);
-			Profiler::view_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
-			Profiler::view_scope(Const::SCOPE_SSBO_COPY_DATA_TO_STAGINGS);
-			Profiler::view_scope(Const::SCOPE_SSBO_COPY_DATA_TO_STORES);
-			Log::info("Number group instance drawn", draw_instance_batching_groups.size());
-			Log::info("Number instance drawn", total_instance_draws);
-			Log::info("Bind resource profiler", bind_resources_profiler);
+			// Profiler::view_scope(SCOPE_SORT_DRAW);
+			// Profiler::view_scope(SCOPE_BATCHING_GROUP);
+			// Profiler::view_scope(SCOPE_DRAW);
+			// Profiler::view_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
+			// Profiler::view_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
+			// Profiler::view_scope(Const::SCOPE_SSBO_COPY_DATA_TO_STAGINGS);
+			// Profiler::view_scope(Const::SCOPE_SSBO_COPY_DATA_TO_STORES);
+			// Log::info("Number group instance drawn", draw_instance_batching_groups.size());
+			// Log::info("Number instance drawn", total_instance_draws);
+			// Log::info("Bind resource profiler", bind_resources_profiler);
 		}
 	}
 
@@ -812,6 +810,28 @@ namespace Vulkan {
 		draw_id_to_info.insert(draw_id, draw_info);
 		draw_id_to_instances.insert(draw_id, instances);
 		return draw_id;
+	}
+
+	void update_model_3D(uint32_t id, const Model_3D_Attributes& model_attributes) {
+		if (!draw_id_to_info.has(id) || !draw_id_to_instances.has(id)) {
+			return;
+		}
+		auto& draw_info = draw_id_to_info.modify(id);
+		auto& draw_instances = draw_id_to_instances.modify(id);
+		Model_3D::update_model_3D(draw_info, draw_instances, model_attributes);
+	}
+
+	void remove_model_3D(uint32_t id) {
+		if (!draw_id_to_info.has(id)) {
+			return;
+		}
+		const auto& draw_info = draw_id_to_info.get(id);
+		Model_3D::remove_model_3D(draw_info.sub_unique_id);
+		draw_id_to_info.erase(id);
+		if (!draw_id_to_instances.has(id)) {
+			return;
+		}
+		draw_id_to_instances.erase(id);
 	}
 
 	void update_triangle(uint32_t id, const Triangle_Attribultes& triangle_attributes) {

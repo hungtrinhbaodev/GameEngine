@@ -25,7 +25,7 @@ namespace Vulkan {
 
 		Buffer staging_buffer{};
 
-		Id_Generator range_id_generator{};
+		Id_Generator range_id_generator{true};
 
 		Sparse_Set<Buffer_Range> id_to_ranges{};
 

@@ -44,36 +44,13 @@ namespace Vulkan {
 			glm::vec2 tex_scale = {1.f, 1.f};
 		};
 
-		struct Skins_Descriptor_Storage_Data {
-			uint32_t skins_offset = 0;
-		};
-
-		struct Skins_Storage_Information {
-			uint32_t storage_id = 0;
-		};
-
-		struct Primitive_Storage_Information {
-			int primitive_index = -1;
-		};
-
 		struct Mesh_Descriptor_Storage_Data {
 			uint32_t using_skin = 0;
 			uint32_t offset_skins = 0;
 			uint32_t offset_transform = 0;
 		};
 
-		struct Mesh_Storage_Information {
-			uint32_t transform_storage_id = 0;
-			Skins_Storage_Information skin_storage{};
-			std::vector<Primitive_Storage_Information> primitive_storages{};
-		};
-
-		struct Texture_Storage_Information {
-			uint32_t texture_storage_id = 0;
-		};
-
 		struct Node_Data {
-			uint8_t apply_flags = 0;
 			glm::mat4 translation{0.f};
 			glm::mat4 rotation{1.f};
 			glm::mat4 scale{1.f};
@@ -84,6 +61,7 @@ namespace Vulkan {
 			glm::mat4 default_scale{1.f};
 			glm::mat4 default_transform{1.f};
 
+			uint8_t apply_flags = 0;
 			bool is_use_matrix = false;
 			int parent_index;
 
@@ -135,17 +113,41 @@ namespace Vulkan {
 
 			std::vector<float> animation_durations;
 			std::vector<int> sampler_animation_indices;
-			std::vector<glm::mat4> skins_transforms;
 			Sparse_Set<std::vector<glm::mat4>> skins_indices_to_skins_transforms;
 
-			bool is_changing(const Model_3D_Attributes& attributes) { return true; }
+			void clean(SSBO_Buffer& ssbo) const {
+				for (const auto& storage_instance_id : storage_instance_ids) {
+					ssbo.remove_data(storage_instance_id);
+				}
+				for (const auto& skins_storage_id : skins_indices_to_skins_storage_ids.values()) {
+					ssbo.remove_data(skins_storage_id);
+				}
+				for (const auto& texture_storage_id : texture_ids_to_texture_storage_ids.values()) {
+					ssbo.remove_data(texture_storage_id);
+				}
+				ssbo.remove_data(mesh_transforms_storage_id);
+				ssbo.remove_data(mesh_descriptors_storage_id);
+				ssbo.remove_data(storage_id);
+			}
 
-			void clean() {}
+			void clear(SSBO_Buffer& ssbo) {
+				clean(ssbo);
+				storage_instance_ids.clear();
+				skins_indices_to_skins_storage_ids.clear();
+				texture_ids_to_texture_storage_ids.clear();
+				mesh_transforms_storage_id = 0;
+				mesh_descriptors_storage_id = 0;
+				storage_id = 0;
+				node_indices_to_node_data_indices.clear();
+				nodes.clear();
+				animation_durations.clear();
+				sampler_animation_indices.clear();
+				skins_indices_to_skins_transforms.clear();
+			};
 
-			void update_animation(float dt, SSBO_Buffer& ssbo) {
+			void update_animation(float dt) {
 				if (animation_index < 0)
 					return;
-				Profiler::start_scope(Const::SCOPE_SAMPLER_ANIMATIONS);
 				for (int i = 0; i < nodes.size(); i++) {
 					nodes[i].clean();
 				}
@@ -188,8 +190,6 @@ namespace Vulkan {
 						}
 					}
 				}
-				Profiler::end_scope(Const::SCOPE_SAMPLER_ANIMATIONS);
-				Profiler::start_scope(Const::SCOPE_TRAVEL_TREE_NODE_ANIMATIONS);
 				for (Node_Data& node : nodes) {
 					if (node.parent_index < 0) {
 						node.global_transform = node.get_transform();
@@ -199,8 +199,6 @@ namespace Vulkan {
 						node.global_transform = node_parent.global_transform * node.get_transform();
 					}
 				}
-				Profiler::end_scope(Const::SCOPE_TRAVEL_TREE_NODE_ANIMATIONS);
-				Profiler::start_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
 				for (uint32_t i = 0; i < model.skins.size(); i++) {
 					const auto& skin = model.skins[i];
 					auto& skins_transforms = skins_indices_to_skins_transforms.modify(i);
@@ -211,7 +209,6 @@ namespace Vulkan {
 						skins_transforms[j] = nodes[node_data_index].global_transform * inverse_bind_pose;
 					}
 				}
-				Profiler::end_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
 			};
 
 			void upload_animation_skins(SSBO_Buffer& ssbo) const {
@@ -221,6 +218,55 @@ namespace Vulkan {
 					ssbo.update_data(skins_storage_id, skins_transforms.data());
 				}
 			};
+
+			void update_model_data(
+				std::vector<Draw_Instance_Information>& draw_instances, const Model_3D_Attributes& attributes,
+				SSBO_Buffer& ssbo
+			) {
+				uint32_t i_model_id = load_model(attributes.path);
+				const auto& model = view_model(i_model_id);
+				/**
+				 * @Note: if model or scene change we need
+				 * recompute all model data to make it right.
+				 */
+				int i_scene_index = model.find_scene_index_by(attributes.scene_name);
+				if (model_id != i_model_id || scene_index != i_scene_index) {
+					clear(ssbo);
+					draw_instances = make(attributes, ssbo);
+				} else {
+					int i_animation_index = model.find_animation_index_by(attributes.animation_name);
+					animation_index = i_animation_index;
+					/**
+					 * @Note: With case the animation change into invalid
+					 * we reset the mesh descriptor storage to redirect
+					 * model into bind pose mode.
+					 */
+					if (animation_index < 0) {
+						const Buffer_Range& meshes_descriptor_range = ssbo.view_slot(mesh_descriptors_storage_id);
+						uint32_t number_mesh =
+							meshes_descriptor_range.inner_size() / sizeof(Mesh_Descriptor_Storage_Data);
+						uint32_t use_skin = false;
+						for (int i = 0; i < number_mesh; i++) {
+							ssbo.update_data(
+								mesh_descriptors_storage_id, &use_skin,
+								meshes_descriptor_range.inner_offset() + sizeof(Mesh_Descriptor_Storage_Data) * i +
+									offsetof(Mesh_Descriptor_Storage_Data, using_skin),
+								sizeof(uint32_t)
+							);
+						}
+					} else {
+						/**
+						 * @Note: with case change into valid animation
+						 * we reset countdown of that animation.
+						 */
+						size_t number_animation = model.animations[animation_index].channels.size();
+						animation_durations.resize(number_animation);
+						animation_durations.assign(number_animation, 0.f);
+						sampler_animation_indices.resize(number_animation);
+						sampler_animation_indices.assign(number_animation, -1);
+					}
+				}
+			}
 
 			std::vector<Draw_Instance_Information> make(const Model_3D_Attributes& attributes, SSBO_Buffer& ssbo) {
 				model_id = load_model(attributes.path);
@@ -238,7 +284,7 @@ namespace Vulkan {
 					animation_durations.resize(number_animation);
 					animation_durations.assign(number_animation, 0.f);
 					sampler_animation_indices.resize(number_animation);
-					sampler_animation_indices.resize(number_animation, -1);
+					sampler_animation_indices.assign(number_animation, -1);
 				} else {
 					has_animation = false;
 				}
@@ -315,7 +361,6 @@ namespace Vulkan {
 				for (int i = 0; i < draw_meshes_info.size(); i++) {
 					const auto& draw_mesh_info = draw_meshes_info[i];
 					Mesh_Descriptor_Storage_Data mesh_descriptor_storage_data{};
-					Mesh_Storage_Information mesh_storage_info{};
 					int skin_index = draw_mesh_info.skin_index;
 					mesh_descriptor_storage_data.using_skin = skin_index >= 0 && has_animation;
 					/**
@@ -483,6 +528,27 @@ namespace Vulkan {
 			return draw_instances;
 		}
 
+		void update_model_3D(
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
+			const Model_3D_Attributes& attributes
+		) {
+			if (!models.has(draw_info.sub_unique_id)) {
+				return;
+			}
+			auto& model = models.modify(draw_info.sub_unique_id);
+			model.update_model_data(draw_instances, attributes, get_ssbo());
+			draw_info.draw_material_id = model.model_id;
+		}
+
+		void remove_model_3D(uint32_t model_unique_id) {
+			if (!models.has(model_unique_id)) {
+				return;
+			}
+			const auto& model_data = models.get(model_unique_id);
+			model_data.clean(get_ssbo());
+			models.erase(model_unique_id);
+		}
+
 		void setup_draw(uint32_t frame_index, float dt) {
 			Uniform uniform{};
 			glm::mat4 projection = glm::perspective(
@@ -502,18 +568,23 @@ namespace Vulkan {
 			auto& models = Model_3D::models.modify_values();
 			if (models.size() <= number_thread * 5) {
 				for (auto& model : models) {
-					model.update_animation(dt, ssbo);
+					model.update_animation(dt);
+				}
+				Profiler::end_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
+				Profiler::start_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
+				for (const auto& model : models) {
 					model.upload_animation_skins(ssbo);
 				}
+				Profiler::end_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
 			} else {
 				int number_model_in_thread = (int)std::ceil((float)models.size() / number_thread);
 				std::vector<std::future<void>> results{};
 				for (int i = 0; i < number_thread; i++) {
 					int start = i * number_model_in_thread;
 					int end = start + number_model_in_thread;
-					auto result = Core::global_thread_pool->enqueue([&models, &ssbo, start, end, dt]() {
+					auto result = Core::global_thread_pool->enqueue([&models, start, end, dt]() {
 						for (int i = start; i < end && i < models.size(); i++) {
-							models[i].update_animation(dt, ssbo);
+							models[i].update_animation(dt);
 						}
 					});
 					results.push_back(std::move(result));
@@ -521,11 +592,13 @@ namespace Vulkan {
 				for (auto& result : results) {
 					result.get();
 				}
+				Profiler::end_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
+				Profiler::start_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
 				for (const auto& model : models) {
 					model.upload_animation_skins(ssbo);
 				}
+				Profiler::end_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
 			}
-			Profiler::end_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
 		}
 
 		void record_upload_uniform_buffer(VkCommandBuffer command_buffer, uint32_t frame_index) {
