@@ -30,7 +30,7 @@ template <typename T> class Sparse_Set {
 		return id;
 	}
 
-	bool has(uint32_t id) const {
+	bool has(const uint32_t& id) const {
 		if (id >= id_to_index.size())
 			return false;
 		return id_to_index[id] != -1;

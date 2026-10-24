@@ -54,7 +54,7 @@ namespace Vulkan {
 			return instance_material_id < other.instance_material_id;
 		}
 		inline friend std::ostream& operator<<(std::ostream& os, const Draw_Instance_Information& instance) {
-			os << "Draw_Instance_Information: {instance_storage_id: " << instance.instance_storage_id
+			os << "{Draw_Instance_Information: {instance_storage_id: " << instance.instance_storage_id
 			   << " number_sub_instance: " << instance.number_sub_instance
 			   << ", instance_material_id: " << instance.instance_material_id << "}";
 			return os;
@@ -117,16 +117,6 @@ namespace Vulkan {
 		}
 
 		inline bool operator!=(const Font_2D_Attributes& other) const { return !(*this == other); }
-	};
-
-	struct Model_3D_Attributes {
-		std::string path = "";
-		glm::vec3 position = {0.f, 0.f, 0.f};
-		glm::vec3 scale = {1.f, 1.f, 1.f};
-		glm::vec3 rotation = {0.f, 0.f, 0.f};
-		std::string scene_name = "";
-		std::string animation_name = "";
-		glm::mat4 get_transform() const;
 	};
 
 	struct Resource_Synchronize_Information {

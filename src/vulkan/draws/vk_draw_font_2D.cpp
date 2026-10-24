@@ -1,4 +1,5 @@
 
+#include <consts.h>
 #include <geometry_structs.h>
 #include <log.h>
 #include <sparse_set.h>
@@ -20,6 +21,13 @@ namespace Vulkan {
 			uint32_t storage_char_offset = 0;
 			uint32_t vertex_offset = 0;
 			uint32_t config_draw_offset = 0;
+			friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
+				os << "{Font_2D::Instance_Data: storage_offset: " << instance.storage_offset
+				   << ", storage_char_offset: " << instance.storage_char_offset
+				   << ", vertex_offset: " << instance.vertex_offset
+				   << ", config_draw_offset: " << instance.config_draw_offset << "}";
+				return os;
+			}
 		};
 
 		struct Storage_Char_Data {
@@ -27,7 +35,7 @@ namespace Vulkan {
 			uint32_t char_offset = 0;			  // 4/4
 			float _pad = 0.f;					  // 4/4
 			friend std::ostream& operator<<(std::ostream& os, const Storage_Char_Data& instance) {
-				os << "{Rectangle::Storage_Char_Data: char_translation: " << instance.char_translation
+				os << "{Font_2D::Storage_Char_Data: char_translation: " << instance.char_translation
 				   << ", char_offset: " << instance.char_offset << "}";
 				return os;
 			}
@@ -50,17 +58,20 @@ namespace Vulkan {
 		};
 
 		struct Text_Data {
-			std::vector<uint32_t> storage_ids{};
-			uint32_t storage_id = 0;
-			std::vector<uint32_t> storage_char_ids{};
-			uint32_t storage_char_id = 0;
-			Font_2D_Attributes attributes{};
+			std::string text;
+			int align = 0;
+			std::vector<std::string> lines;
+			std::vector<glm::vec2> start_line_positions;
 			float width = 0;
 			float height = 0;
-			uint32_t number_sub_instance = 0;
+			uint32_t storage_char_id = ::Const::MAX_UINT32;
+			uint32_t storage_id = ::Const::MAX_UINT32;
+			uint32_t instance_id = ::Const::MAX_UINT32;
+			uint32_t font_id = ::Const::MAX_UINT32;
+			glm::vec2 text_anchor{0.f};
 
-			std::vector<std::string> break_lines(std::string& text) {
-				std::vector<std::string> lines{};
+			void break_lines(std::string text) {
+				lines.clear();
 				while (text.find("\n") != std::string::npos) {
 					auto enter_char_index = text.find("\n");
 					lines.push_back(text.substr(0, enter_char_index));
@@ -69,7 +80,6 @@ namespace Vulkan {
 				if (text != "") {
 					lines.push_back(text);
 				}
-				return lines;
 			}
 
 			glm::vec2 get_line_size(const std::string& line, const Font& font) {
@@ -97,21 +107,8 @@ namespace Vulkan {
 				return char_positions;
 			}
 
-			bool is_changing(const Font_2D_Attributes& attributes) const { return this->attributes != attributes; }
-
-			void make(
-				const Font_2D_Attributes& attributes, const Font& font, const Texture_View& texture_view,
-				std::vector<Storage_Char_Data>& char_storages, Storage_Data& storage
-			) {
-				if (this->attributes == attributes) {
-					return;
-				}
-				if (attributes.text == "") {
-					return;
-				}
-				std::string text = attributes.text;
-				std::vector<std::string> lines = break_lines(text);
-				std::vector<glm::vec2> start_line_positions(lines.size());
+			void make_lines_render_info(const Font& font, const Label_2D& attributes) {
+				start_line_positions.resize(lines.size());
 				float max_width_line = 0;
 				for (const std::string& line : lines) {
 					auto size = get_line_size(line, font);
@@ -122,7 +119,7 @@ namespace Vulkan {
 					const std::string& line = lines[i];
 					glm::vec2 line_size = get_line_size(line, font);
 					float line_x = 0;
-					switch (attributes.align) {
+					switch (attributes.get_align()) {
 						case 0: {
 							line_x = (max_width_line - line_size.x) / 2;
 							break;
@@ -141,8 +138,11 @@ namespace Vulkan {
 				}
 				width = max_width_line;
 				height = total_height;
-				glm::vec2 origin = -glm::vec2(width, height) * attributes.anchor;
-				float char_scale = font.get_char_scale(attributes.font_size);
+			}
+
+			std::vector<Storage_Char_Data> make_char_storages_data(const Font& font, const Label_2D& attributes) {
+				std::vector<Storage_Char_Data> char_storages;
+				glm::vec2 origin = -glm::vec2(width, height) * attributes.get_anchor();
 				for (int i = 0; i < lines.size(); i++) {
 					const std::string& line = lines[i];
 					const glm::vec2 start_line_position = start_line_positions[i];
@@ -155,19 +155,107 @@ namespace Vulkan {
 						char_storages.push_back(char_storage);
 					}
 				}
-				storage.translation = attributes.position;
-				storage.scale = attributes.scale * char_scale;
+				return char_storages;
+			};
+
+			Storage_Data make_storage_data(
+				const Font& font, const Texture_View& texture_view, const Label_2D& attributes
+			) {
+				Storage_Data storage{};
+				float char_scale = font.get_char_scale(attributes.get_font_size());
+				storage.translation = attributes.get_position();
+				storage.scale = attributes.get_scale() * char_scale;
 				storage.tex_size = {font.size_atlas, font.size_atlas};
 				storage.slot_index = texture_view.slot_index;
 				storage.bucket_index = texture_view.bucket_index;
-				storage.rotation = attributes.rotation;
-				storage.color = attributes.color;
-				this->attributes = attributes;
-				width *= char_scale;
-				height *= char_scale;
-				number_sub_instance = char_storages.size();
+				storage.rotation = attributes.get_rotation();
+				storage.color = attributes.get_color();
+				return storage;
+			}
+
+			void clear(SSBO_Buffer& ssbo) {
+				clean(ssbo);
+				storage_char_id = std::numeric_limits<uint32_t>::max();
+				storage_id = std::numeric_limits<uint32_t>::max();
+				instance_id = std::numeric_limits<uint32_t>::max();
+			}
+
+			void update_text_data(
+				const Label_2D& attributes, SSBO_Buffer& ssbo, Static_Buffer& static_buffer,
+				std::vector<Draw_Instance_Information>& draw_instances, uint32_t vertex_id
+			) {
+				uint32_t i_font_id = load_font(attributes.get_font_path());
+				if (attributes.get_text() == "" || text != attributes.get_text() || font_id != i_font_id) {
+					clear(ssbo);
+					make(attributes, ssbo, static_buffer, draw_instances, vertex_id);
+					return;
+				}
+				font_id = i_font_id;
+				const Font& font = view_font(font_id);
+				if (align != attributes.get_align() || text_anchor != attributes.get_anchor()) {
+					make_lines_render_info(font, attributes);
+					std::vector<Storage_Char_Data> char_storages = make_char_storages_data(font, attributes);
+					ssbo.update_data(storage_char_id, char_storages.data());
+				}
+				const Texture_View& texture_view = view_font_texture(font_id);
+				Storage_Data storage = make_storage_data(font, texture_view, attributes);
+				ssbo.update_data(storage_id, &storage);
+				text = attributes.get_text();
+				align = attributes.get_align();
+				text_anchor = attributes.get_anchor();
+				font_id = i_font_id;
+			}
+
+			void make(
+				const Label_2D& attributes, SSBO_Buffer& ssbo, Static_Buffer& static_buffer,
+				std::vector<Draw_Instance_Information>& draw_instances, uint32_t vertex_id
+			) {
+				if (attributes.get_text() == "") {
+					text = "";
+					draw_instances.clear();
+					return;
+				}
+				text = attributes.get_text();
+				align = attributes.get_align();
+				text_anchor = attributes.get_anchor();
+				font_id = load_font(attributes.get_font_path());
+				const Font& font = view_font(font_id);
+				break_lines(text);
+				make_lines_render_info(font, attributes);
+				const Texture_View& texture_view = view_font_texture(font_id);
+				Storage_Data storage = make_storage_data(font, texture_view, attributes);
+				storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
+				Buffer_Range storage_range = ssbo.view_slot(storage_id);
+				Buffer_Range vertex_range = static_buffer.view_slot(vertex_id);
+				std::vector<Storage_Char_Data> char_storages = make_char_storages_data(font, attributes);
+				storage_char_id = ssbo.upload_data(
+					char_storages.data(), char_storages.size() * sizeof(Storage_Char_Data), sizeof(Storage_Char_Data)
+				);
+				const Buffer_Range& storage_char_range = ssbo.view_slot(storage_char_id);
+				std::vector<Instance_Data> instances{};
+				uint32_t config_draw_offset = Utils::get_draw_2D_config_data_offset(device);
+				for (uint32_t i = 0; i < char_storages.size(); i++) {
+					instances.push_back(
+						{storage_range.offset_as<Storage_Data>(), storage_char_range.offset_as<Storage_Char_Data>() + i,
+						 vertex_range.offset_as<Geometry::Vertex_2D>(), config_draw_offset}
+					);
+				}
+				instance_id =
+					ssbo.upload_data(instances.data(), instances.size() * sizeof(Instance_Data), sizeof(Instance_Data));
+				draw_instances.clear();
+				draw_instances.push_back({instance_id, (uint32_t)char_storages.size()});
+			}
+
+			void clean(SSBO_Buffer& ssbo) const {
+				if (instance_id == ::Const::MAX_UINT32)
+					return;
+				ssbo.remove_data(storage_id);
+				ssbo.remove_data(storage_char_id);
+				ssbo.remove_data(instance_id);
 			}
 		};
+
+		Id_Generator unique_id_generator{};
 
 		std::vector<Geometry::Vertex_2D> FONT_VERTICES = {{{0.f, 0.f}}, {{0.f, 1.f}}, {{1.f, 1.f}}, {{1.f, 0.f}}};
 
@@ -188,6 +276,8 @@ namespace Vulkan {
 		bool is_material_equal(uint32_t a, uint32_t b) {
 			if (a == b)
 				return true;
+			if (a == ::Const::MAX_UINT32 || b == ::Const::MAX_UINT32)
+				return false;
 			const Texture_View& texture_view_a = view_font_texture(a);
 			const Texture_View& texture_view_b = view_font_texture(b);
 			return texture_view_a.storage_mode == Const::TEXTURE_STORAGE_MODE::BUCKET &&
@@ -266,67 +356,54 @@ namespace Vulkan {
 			);
 		}
 
-		uint32_t update_text_data(
-			Draw_Information& draw_info, Text_Data& text, const Font_2D_Attributes& text_attributes
-		) {
-			uint32_t font_id = load_font(text_attributes.path);
-			const Font& font = view_font(font_id);
-			Texture_View texture_view = view_font_texture(font_id);
-			std::vector<Storage_Char_Data> storage_chars{};
-			Storage_Data storage{};
-			text.make(text_attributes, font, texture_view, storage_chars, storage);
-			SSBO_Buffer& ssbo = get_ssbo();
-			text.storage_ids.clear();
-			std::vector<Instance_Data> instances{};
-			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
-			Buffer_Range storage_range = ssbo.view_slot(storage_id);
-			Static_Buffer& static_buffer = get_static_buffer();
-			Buffer_Range vertex_range = static_buffer.view_slot(vertex_id);
-			uint32_t config_draw_offset = Utils::get_draw_2D_config_data_offset(device);
-			text.storage_id = storage_id;
-			text.storage_char_ids.clear();
-			text.storage_char_id = ssbo.upload_data(
-				storage_chars.data(), storage_chars.size() * sizeof(Storage_Char_Data), sizeof(Storage_Char_Data)
-			);
-			const Buffer_Range& storage_char_range = ssbo.view_slot(text.storage_char_id);
-			for (uint32_t i = 0; i < storage_chars.size(); i++) {
-				instances.push_back(
-					{storage_range.offset_as<Storage_Data>(), storage_char_range.offset_as<Storage_Char_Data>() + i,
-					 vertex_range.offset_as<Geometry::Vertex_2D>(), config_draw_offset}
-				);
-			}
-			uint32_t instance_id =
-				ssbo.upload_data(instances.data(), instances.size() * sizeof(Instance_Data), sizeof(Instance_Data));
-			draw_info.sub_unique_id = instance_id;
-			draw_info.draw_material_id = font_id;
-			return instance_id;
+		uint32_t update_text_data(Draw_Information& draw_info, Text_Data& text, const Label_2D& text_attributes) {
+			return 0;
 		}
 
 		std::vector<Draw_Instance_Information> make_font_2D(
 			Draw_Information& draw_info, const Font_2D_Attributes& text_attributes
 		) {
-			Text_Data text{};
-			uint32_t sub_unique_id = update_text_data(draw_info, text, text_attributes);
-			texts.insert(sub_unique_id, text);
-			return {{sub_unique_id, text.number_sub_instance}};
+			return {};
 		}
 
 		std::vector<Draw_Instance_Information> update_font_2D(
 			Draw_Information& draw_info, const Font_2D_Attributes& text_attributes
 		) {
-			const Text_Data& text = texts.get(draw_info.sub_unique_id);
-			if (!text.is_changing(text_attributes)) {
-				return {{draw_info.sub_unique_id, text.number_sub_instance}};
+			return {};
+		}
+
+		void init_font(
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
+			const Label_2D& attributes
+		) {
+			uint32_t unique_id = unique_id_generator.gen_id();
+			Text_Data text{};
+			text.make(attributes, get_ssbo(), get_static_buffer(), draw_instances, vertex_id);
+			draw_info.draw_material_id = text.font_id;
+			draw_info.sub_unique_id = unique_id;
+			texts.insert(unique_id, text);
+		}
+
+		void update_font(
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
+			const Label_2D& attributes
+		) {
+			if (!texts.has(draw_info.sub_unique_id)) {
+				return;
 			}
-			SSBO_Buffer& ssbo = get_ssbo();
-			ssbo.remove_data(text.storage_char_id);
-			ssbo.remove_data(text.storage_id);
-			ssbo.remove_data(draw_info.sub_unique_id);
-			texts.erase(draw_info.sub_unique_id);
-			Text_Data new_text{};
-			uint32_t sub_unique_id = update_text_data(draw_info, new_text, text_attributes);
-			texts.insert(sub_unique_id, new_text);
-			return {{sub_unique_id, text.number_sub_instance}};
+			Text_Data& text = texts.modify(draw_info.sub_unique_id);
+			text.update_text_data(attributes, get_ssbo(), get_static_buffer(), draw_instances, vertex_id);
+			draw_info.draw_material_id = text.font_id;
+		}
+
+		void remove_font(uint32_t sub_unique_id) {
+			if (!texts.has(sub_unique_id)) {
+				return;
+			}
+			const Text_Data& text = texts.get(sub_unique_id);
+			text.clean(get_ssbo());
+			texts.erase(sub_unique_id);
+			unique_id_generator.release_id(sub_unique_id);
 		}
 
 		void destroy() {

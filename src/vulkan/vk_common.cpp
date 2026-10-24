@@ -221,10 +221,6 @@ namespace Vulkan {
 		return rect_storage_offset + char_index;
 	}
 
-	glm::mat4 Model_3D_Attributes::get_transform() const {
-		return Math::make_translation(position) * Math::make_rotation(rotation) * Math::make_scale(scale);
-	}
-
 	glm::vec3 Model_Mesh::get_mesh_origin() const {
 		return (max_bounding_box + min_bounding_box) * 0.5f;
 	}

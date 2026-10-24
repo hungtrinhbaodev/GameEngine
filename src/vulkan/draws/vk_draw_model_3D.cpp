@@ -1,4 +1,5 @@
 #include <cmath>
+#include <consts.h>
 #include <core.h>
 #include <geometry_structs.h>
 #include <id_generator.h>
@@ -16,7 +17,7 @@
 
 namespace Vulkan {
 
-	namespace Model_3D {
+	namespace Draw_Model_3D {
 
 		struct Instance_Data {
 			uint32_t storage_offset = 0;
@@ -97,7 +98,7 @@ namespace Vulkan {
 		};
 
 		struct Model_Data {
-			uint32_t model_id = 0;
+			uint32_t model_id = ::Const::MAX_UINT32;
 			int scene_index = -1;
 			int animation_index = -1;
 
@@ -107,15 +108,17 @@ namespace Vulkan {
 			Sparse_Set<uint32_t> skins_indices_to_skins_storage_ids;
 			Sparse_Set<uint32_t> texture_ids_to_texture_storage_ids;
 			std::vector<uint32_t> storage_instance_ids;
-			uint32_t mesh_transforms_storage_id = 0;
-			uint32_t mesh_descriptors_storage_id = 0;
-			uint32_t storage_id = 0;
+			uint32_t mesh_transforms_storage_id = ::Const::MAX_UINT32;
+			uint32_t mesh_descriptors_storage_id = ::Const::MAX_UINT32;
+			uint32_t storage_id = ::Const::MAX_UINT32;
 
 			std::vector<float> animation_durations;
 			std::vector<int> sampler_animation_indices;
 			Sparse_Set<std::vector<glm::mat4>> skins_indices_to_skins_transforms;
 
 			void clean(SSBO_Buffer& ssbo) const {
+				if (storage_id == ::Const::MAX_UINT32)
+					return;
 				for (const auto& storage_instance_id : storage_instance_ids) {
 					ssbo.remove_data(storage_instance_id);
 				}
@@ -130,19 +133,26 @@ namespace Vulkan {
 				ssbo.remove_data(storage_id);
 			}
 
-			void clear(SSBO_Buffer& ssbo) {
+			void clear(SSBO_Buffer& ssbo, std::vector<Draw_Instance_Information>& draw_instances) {
 				clean(ssbo);
 				storage_instance_ids.clear();
 				skins_indices_to_skins_storage_ids.clear();
 				texture_ids_to_texture_storage_ids.clear();
-				mesh_transforms_storage_id = 0;
-				mesh_descriptors_storage_id = 0;
-				storage_id = 0;
+
 				node_indices_to_node_data_indices.clear();
 				nodes.clear();
 				animation_durations.clear();
 				sampler_animation_indices.clear();
 				skins_indices_to_skins_transforms.clear();
+
+				mesh_transforms_storage_id = ::Const::MAX_UINT32;
+				mesh_descriptors_storage_id = ::Const::MAX_UINT32;
+				storage_id = ::Const::MAX_UINT32;
+
+				model_id = ::Const::MAX_UINT32;
+				scene_index = -1;
+				animation_index = -1;
+				draw_instances.clear();
 			};
 
 			void update_animation(float dt) {
@@ -220,59 +230,61 @@ namespace Vulkan {
 			};
 
 			void update_model_data(
-				std::vector<Draw_Instance_Information>& draw_instances, const Model_3D_Attributes& attributes,
-				SSBO_Buffer& ssbo
+				std::vector<Draw_Instance_Information>& draw_instances, const Model_3D& attributes, SSBO_Buffer& ssbo
 			) {
-				uint32_t i_model_id = load_model(attributes.path);
+				uint32_t i_model_id = load_model(attributes.get_model_path());
 				const auto& model = view_model(i_model_id);
 				/**
 				 * @Note: if model or scene change we need
 				 * recompute all model data to make it right.
 				 */
-				int i_scene_index = model.find_scene_index_by(attributes.scene_name);
+				int i_scene_index = model.find_scene_index_by(attributes.get_scene_name());
 				if (model_id != i_model_id || scene_index != i_scene_index) {
-					clear(ssbo);
-					draw_instances = make(attributes, ssbo);
-				} else {
-					int i_animation_index = model.find_animation_index_by(attributes.animation_name);
-					animation_index = i_animation_index;
-					/**
-					 * @Note: With case the animation change into invalid
-					 * we reset the mesh descriptor storage to redirect
-					 * model into bind pose mode.
-					 */
-					if (animation_index < 0) {
-						const Buffer_Range& meshes_descriptor_range = ssbo.view_slot(mesh_descriptors_storage_id);
-						uint32_t number_mesh =
-							meshes_descriptor_range.inner_size() / sizeof(Mesh_Descriptor_Storage_Data);
-						uint32_t use_skin = false;
-						for (int i = 0; i < number_mesh; i++) {
-							ssbo.update_data(
-								mesh_descriptors_storage_id, &use_skin,
-								meshes_descriptor_range.inner_offset() + sizeof(Mesh_Descriptor_Storage_Data) * i +
-									offsetof(Mesh_Descriptor_Storage_Data, using_skin),
-								sizeof(uint32_t)
-							);
-						}
-					} else {
-						/**
-						 * @Note: with case change into valid animation
-						 * we reset countdown of that animation.
-						 */
-						size_t number_animation = model.animations[animation_index].channels.size();
-						animation_durations.resize(number_animation);
-						animation_durations.assign(number_animation, 0.f);
-						sampler_animation_indices.resize(number_animation);
-						sampler_animation_indices.assign(number_animation, -1);
-					}
+					clear(ssbo, draw_instances);
+					make(attributes, draw_instances, ssbo);
+					return;
 				}
+				int i_animation_index = model.find_animation_index_by(attributes.get_animation_name());
+				animation_index = i_animation_index;
+				/**
+				 * @Note: With case the animation change into invalid
+				 * we reset the mesh descriptor storage to redirect
+				 * model into bind pose mode.
+				 */
+				if (animation_index < 0) {
+					const Buffer_Range& meshes_descriptor_range = ssbo.view_slot(mesh_descriptors_storage_id);
+					uint32_t number_mesh = meshes_descriptor_range.inner_size() / sizeof(Mesh_Descriptor_Storage_Data);
+					uint32_t use_skin = false;
+					for (int i = 0; i < number_mesh; i++) {
+						ssbo.update_data(
+							mesh_descriptors_storage_id, &use_skin,
+							meshes_descriptor_range.inner_offset() + sizeof(Mesh_Descriptor_Storage_Data) * i +
+								offsetof(Mesh_Descriptor_Storage_Data, using_skin),
+							sizeof(uint32_t)
+						);
+					}
+				} else {
+					/**
+					 * @Note: with case change into valid animation
+					 * we reset countdown of that animation.
+					 */
+					size_t number_animation = model.animations[animation_index].channels.size();
+					animation_durations.resize(number_animation);
+					animation_durations.assign(number_animation, 0.f);
+					sampler_animation_indices.resize(number_animation);
+					sampler_animation_indices.assign(number_animation, -1);
+				}
+				glm::mat4 instance_transform = attributes.get_transform();
+				ssbo.update_data(storage_id, &instance_transform);
 			}
 
-			std::vector<Draw_Instance_Information> make(const Model_3D_Attributes& attributes, SSBO_Buffer& ssbo) {
-				model_id = load_model(attributes.path);
+			void make(
+				const Model_3D& attributes, std::vector<Draw_Instance_Information>& draw_instances, SSBO_Buffer& ssbo
+			) {
+				model_id = load_model(attributes.get_model_path());
 				const auto& model = view_model(model_id);
-				scene_index = model.find_scene_index_by(attributes.scene_name);
-				animation_index = model.find_animation_index_by(attributes.animation_name);
+				scene_index = model.find_scene_index_by(attributes.get_scene_name());
+				animation_index = model.find_animation_index_by(attributes.get_animation_name());
 				/**
 				 * @Note: if we can't file the animation,
 				 * the mesh transform will be activate
@@ -413,7 +425,6 @@ namespace Vulkan {
 				/**
 				 * Join all instances by primitive into one vector Draw_Instance_Information.
 				 */
-				std::vector<Draw_Instance_Information> draw_instances{};
 				for (const auto& primitive_index : primitive_indices_to_instances.keys()) {
 					const auto& primitive_instances = primitive_indices_to_instances.get(primitive_index);
 					uint32_t instances_id = ssbo.upload_data(
@@ -426,7 +437,6 @@ namespace Vulkan {
 					};
 					draw_instances.push_back(draw_instance);
 				}
-				return draw_instances;
 			}
 		};
 
@@ -516,37 +526,34 @@ namespace Vulkan {
 			pipeline.init(pipeline_config);
 		}
 
-		std::vector<Draw_Instance_Information> make_model_3D(
-			Draw_Information& draw_info, const Model_3D_Attributes& attributes
+		void init_model(
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
+			const Model_3D& attributes
 		) {
 			uint32_t unique_id = unique_id_generator.gen_id();
 			Model_Data model_data{};
-			auto draw_instances = model_data.make(attributes, get_ssbo());
-			models.insert(unique_id, model_data);
+			model_data.make(attributes, draw_instances, get_ssbo());
 			draw_info.sub_unique_id = unique_id;
 			draw_info.draw_material_id = model_data.model_id;
-			return draw_instances;
+			models.insert(unique_id, model_data);
 		}
 
-		void update_model_3D(
+		void update_model(
 			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
-			const Model_3D_Attributes& attributes
+			const Model_3D& attributes
 		) {
-			if (!models.has(draw_info.sub_unique_id)) {
-				return;
-			}
 			auto& model = models.modify(draw_info.sub_unique_id);
 			model.update_model_data(draw_instances, attributes, get_ssbo());
 			draw_info.draw_material_id = model.model_id;
 		}
 
-		void remove_model_3D(uint32_t model_unique_id) {
-			if (!models.has(model_unique_id)) {
+		void remove_model(uint32_t unique_id) {
+			if (!models.has(unique_id)) {
 				return;
 			}
-			const auto& model_data = models.get(model_unique_id);
+			const auto& model_data = models.get(unique_id);
 			model_data.clean(get_ssbo());
-			models.erase(model_unique_id);
+			models.erase(unique_id);
 		}
 
 		void setup_draw(uint32_t frame_index, float dt) {
@@ -565,7 +572,7 @@ namespace Vulkan {
 			ssbo.update_data(uniform_buffer_ids[frame_index], &uniform);
 			Profiler::start_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
 			uint32_t number_thread = Core::global_thread_pool->get_thread_ids().size();
-			auto& models = Model_3D::models.modify_values();
+			auto& models = Draw_Model_3D::models.modify_values();
 			if (models.size() <= number_thread * 5) {
 				for (auto& model : models) {
 					model.update_animation(dt);
@@ -664,6 +671,6 @@ namespace Vulkan {
 			}
 		}
 
-	} // namespace Model_3D
+	} // namespace Draw_Model_3D
 
 } // namespace Vulkan

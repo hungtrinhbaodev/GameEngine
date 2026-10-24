@@ -25,6 +25,18 @@ namespace Vulkan {
 			Draw_Information& draw_info, const Font_2D_Attributes& text_attributes
 		);
 
+		void init_font(
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
+			const Label_2D& attributes
+		);
+
+		void update_font(
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
+			const Label_2D& attributes
+		);
+
+		void remove_font(uint32_t sub_unique_id);
+
 		void destroy();
 
 	} // namespace Font_2D

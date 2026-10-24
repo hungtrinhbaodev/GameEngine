@@ -1,5 +1,7 @@
 #pragma once
+#include <handle.h>
 #include <vulkan/draws/draw_structs.h>
+#include <vulkan/draws/vk_draw_attributes.h>
 #include <vulkan/vk_common.h>
 #include <vulkan/vk_consts.h>
 #include <vulkan/vk_ssbo_buffer.h>
@@ -23,6 +25,10 @@ namespace Vulkan {
 	void draw(VkCommandBuffer command_buffer);
 
 	void destroy_draw();
+
+	void show_debug();
+
+	size_t get_instance_size(Const::DRAW_ID draw_type);
 
 	Buffer& get_instance_buffer(uint32_t frame_index);
 
@@ -77,12 +83,36 @@ namespace Vulkan {
 
 	void update_font_2D(uint32_t id, const Font_2D_Attributes& font_attributes);
 
-	uint32_t make_model_3D(const Draw_Attribute& draw_attributes, const Model_3D_Attributes& model_attributes);
-
-	void update_model_3D(uint32_t id, const Model_3D_Attributes& model_attributes);
-
-	void remove_model_3D(uint32_t id);
-
 	void update_draw(uint32_t id, Draw_Attribute draw_attributes);
+
+	void assert_draw_handle(const Handle& handle);
+
+	void set_draw_dirty(const Handle& handle);
+
+	Handle create_model(
+		const std::string& path, const std::string& scene_name = "", const std::string& animation_name = "",
+		const glm::vec3& position = {0.f, 0.f, 0.f}, const glm::vec3& scale = {1.f, 1.f, 1.f},
+		const glm::vec3& rotation = {0.f, 0.f, 0.f}
+	);
+
+	Handle create_model(const Model_3D_Description& model_info);
+
+	Model_3D_Description view_model_description(const Handle& handle);
+
+	Model_3D& modify_model(const Handle& handle);
+
+	Handle create_label(
+		const std::string& font_path = "", int font_size = 12, const std::string& text = "", int align = 0,
+		glm::vec2 position = {0.f, 0.f}, glm::vec2 scale = {1.f, 1.f}, float rotation = 0.f,
+		glm::vec2 anchor_point = {0.f, 0.f}, glm::vec3 color = {1.f, 1.f, 1.f}
+	);
+
+	Handle create_label(const Label_Description& label_info);
+
+	Label_Description view_label_description(const Handle& handle);
+
+	Label_2D& modify_label(const Handle& handle);
+
+	void remove_draw(const Handle& handle);
 
 } // namespace Vulkan

@@ -99,8 +99,8 @@ namespace Vulkan {
 		create_info.ppEnabledLayerNames = layerEnableds.data();
 
 		// add debug utils for instance
+		VkDebugUtilsMessengerCreateInfoEXT debug_create_info{};
 		if (Const::IS_ENABLE_VALIDATION_LAYERS) {
-			VkDebugUtilsMessengerCreateInfoEXT debug_create_info{};
 			populate_debug_messenger_create_info(debug_create_info);
 			create_info.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debug_create_info;
 		}

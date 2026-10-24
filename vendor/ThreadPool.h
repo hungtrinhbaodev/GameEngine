@@ -2,19 +2,19 @@
 #ifndef THREAD_POOL_H
 #define THREAD_POOL_H
 
-#include <vector>
-#include <queue>
-#include <memory>
-#include <thread>
-#include <mutex>
 #include <condition_variable>
-#include <future>
 #include <functional>
-#include <stdexcept>
-#include <type_traits>
-#include <map>
+#include <future>
 #include <iostream>
 #include <log.h>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <queue>
+#include <stdexcept>
+#include <thread>
+#include <type_traits>
+#include <vector>
 
 class ThreadPool {
   public:
@@ -48,7 +48,8 @@ class ThreadPool {
 	std::queue<std::function<void()>>& get_personal_tasks(std::thread::id thread_id);
 
 	// synchronization
-	std::timed_mutex queue_mutex;
+	std::mutex queue_mutex;
+
 	std::condition_variable_any condition;
 	bool stop;
 };
@@ -71,15 +72,15 @@ inline ThreadPool::ThreadPool(size_t threads)
 		std::future<int> init_res = init_task->get_future();
 
 		workers.emplace_back([this, init_task] {
-			(*init_task)();
-
+			{
+				std::unique_lock<std::mutex> lock(queue_mutex);
+				(*init_task)();
+			}
 			std::thread::id thread_id = std::this_thread::get_id();
-
 			for (;;) {
 				std::function<void()> task;
-
 				{
-					std::unique_lock<std::timed_mutex> lock(this->queue_mutex);
+					std::unique_lock<std::mutex> lock(this->queue_mutex);
 					this->condition.wait(lock, [this, thread_id] {
 						return this->stop || !this->tasks.empty() || !this->get_personal_tasks(thread_id).empty();
 					});
@@ -114,7 +115,7 @@ inline auto ThreadPool::enqueue(F&& f, Args&&... args) -> std::future<typename s
 
 	std::future<return_type> res = task->get_future();
 	{
-		std::unique_lock<std::timed_mutex> lock(this->queue_mutex);
+		std::unique_lock<std::mutex> lock(this->queue_mutex);
 		// don't allow enqueueing after stopping the pool
 		if (stop)
 			throw std::runtime_error("enqueue on stopped ThreadPool");
@@ -146,11 +147,12 @@ inline auto ThreadPool::loop_all_threads(F&& f, Args&&... args)
 		auto& personal_tasks = get_personal_tasks(thread_id);
 
 		auto task = std::make_shared<std::packaged_task<result_type()>>(
-			std::bind(std::forward<F>(f), std::forward<Args>(args)...));
+			std::bind(std::forward<F>(f), std::forward<Args>(args)...)
+		);
 
 		result_res[thread_id] = task->get_future();
 		{
-			std::unique_lock<std::timed_mutex> lock(this->queue_mutex);
+			std::unique_lock<std::mutex> lock(this->queue_mutex);
 			if (stop) {
 				std::cout << "Fail to loop all threads, thread pool is stopped." << std::endl;
 				throw std::runtime_error("enqueue on stopped ThreadPool");
@@ -168,7 +170,7 @@ inline auto ThreadPool::loop_all_threads(F&& f, Args&&... args)
 // the destructor joins all threads
 inline ThreadPool::~ThreadPool() {
 	{
-		std::unique_lock<std::timed_mutex> lock(this->queue_mutex);
+		std::unique_lock<std::mutex> lock(this->queue_mutex);
 		stop = true;
 	}
 	condition.notify_all();

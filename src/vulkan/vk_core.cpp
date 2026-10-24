@@ -1,5 +1,6 @@
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <limits>
 #include <math_custom.h>
 #include <utils.h>
 #include <vulkan/vk_command_pool.h>
@@ -86,7 +87,7 @@ namespace Vulkan {
 
 	double fps_total_duration = 0.f;
 
-	uint32_t label_fps = 0;
+	Handle label_fps{};
 
 	Pipeline_Config make_default_pipeline_config() {
 		Pipeline_Config pipeline_config{};
@@ -127,9 +128,11 @@ namespace Vulkan {
 	}
 
 	void init_text_fps() {
-		Font_2D_Attributes font_attribute{};
-		font_attribute.font_size = 12;
-		label_fps = make_font_2D({0, true}, font_attribute);
+		label_fps = create_label("", 12);
+		Label_2D& label = modify_label(label_fps);
+		// label.set_draw_index(std::numeric_limits<uint32_t>::max());
+		label.set_color({1.f, 0.2f, 0.8f});
+		label.set_position({7.f, 6.f});
 	};
 
 	void init_vulkan_core(GLFWwindow* window) {
@@ -233,15 +236,11 @@ namespace Vulkan {
 		ssbo_buffer.setup_frame(current_frame);
 		setup_draw(dt);
 		if (frame_count % 20 == 0) {
-			Font_2D_Attributes font_attribute{};
-			font_attribute.font_size = 10;
-			font_attribute.color = {1.f, 0.2f, 0.8f};
-			font_attribute.position = {7.f, 6.f};
+			Label_2D& label = modify_label(label_fps);
 			double fps = fps_total_duration == 0 ? 0.f : double(fps_frame_count) / fps_total_duration;
-			font_attribute.text = "Frame rate: " + std::to_string(fps);
+			label.set_text("Frame rate: " + std::to_string(fps));
 			fps_frame_count = 0;
 			fps_total_duration = 0.f;
-			update_font_2D(label_fps, font_attribute);
 		} else {
 			fps_frame_count++;
 			fps_total_duration += dt;

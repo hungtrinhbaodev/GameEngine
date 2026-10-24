@@ -63,11 +63,10 @@ namespace Vulkan {
 	void SSBO_Buffer::remove_data(uint32_t id) {
 		if (!ranges_by_id.has(id))
 			return;
-		const Buffer_Range& range = ranges_by_id.get(id);
+		Buffer_Range range = ranges_by_id.get(id);
 		available_ranges.push(range);
 		range_id_generator.release_id(id);
 		ranges_by_id.erase(id);
-		range_remove_ids.push_back(id);
 		for (int i = 0; i < frame_dirty_ids.size(); i++) {
 			frame_dirty_ids[i].erase(id);
 		}
