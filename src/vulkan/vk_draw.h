@@ -1,6 +1,5 @@
 #pragma once
 #include <handle.h>
-#include <vulkan/draws/draw_structs.h>
 #include <vulkan/draws/vk_draw_attributes.h>
 #include <vulkan/vk_common.h>
 #include <vulkan/vk_consts.h>
@@ -71,17 +70,9 @@ namespace Vulkan {
 
 	void update_rectangle(uint32_t id, Rectangle_Attributes rectangle_attributes);
 
-	uint32_t make_texture_2D(const Draw_Attribute& draw_attributes, const Texture_2D_Attributes& texture_attributes);
-
-	void update_texture_2D(uint32_t id, const Texture_2D_Attributes& texture_attributes);
-
 	uint32_t make_triangle(const Draw_Attribute& draw_attributes, const Triangle_Attribultes& triangle_attributes);
 
 	void update_triangle(uint32_t id, const Triangle_Attribultes& triangle_attributes);
-
-	uint32_t make_font_2D(const Draw_Attribute& draw_attributes, const Font_2D_Attributes& font_attributes);
-
-	void update_font_2D(uint32_t id, const Font_2D_Attributes& font_attributes);
 
 	void update_draw(uint32_t id, Draw_Attribute draw_attributes);
 
@@ -107,11 +98,23 @@ namespace Vulkan {
 		glm::vec2 anchor_point = {0.f, 0.f}, glm::vec3 color = {1.f, 1.f, 1.f}
 	);
 
-	Handle create_label(const Label_Description& label_info);
+	Handle create_label(const Label_2D_Description& label_info);
 
-	Label_Description view_label_description(const Handle& handle);
+	Label_2D_Description view_label_description(const Handle& handle);
 
 	Label_2D& modify_label(const Handle& handle);
+
+	Handle create_texture(
+		const std::string& texture_path, const Geometry::Texture_Rect_2D& texture_rect = {0.f, 0.f, 1.f, 1.f},
+		glm::vec2 position = {0.f, 0.f}, glm::vec2 scale = {1.f, 1.f}, float rotation = 0.f,
+		glm::vec2 anchor_point = {0.f, 0.f}, glm::vec3 color = {1.f, 1.f, 1.f}
+	);
+
+	Handle create_texture(const Texture_2D_Description& texture_info);
+
+	Texture_2D_Description view_texture_description(const Handle& handle);
+
+	Texture_2D& modify_texture(const Handle& handle);
 
 	void remove_draw(const Handle& handle);
 

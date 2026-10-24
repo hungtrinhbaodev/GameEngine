@@ -94,31 +94,6 @@ namespace Vulkan {
 		glm::vec3 color{1.f, 1.f, 1.f};
 	};
 
-	struct Font_2D_Attributes {
-		std::string path = "";
-		std::string text = "";
-		int font_size = 1;
-		glm::vec2 position{0.f, 0.f};
-		glm::vec2 scale = {1.f, 1.f};
-		glm::vec2 anchor = {0.f, 0.f};
-		glm::vec3 color = {1.f, 1.f, 1.f};
-		float rotation = 0;
-		/**
-		 * @Note: row align type:
-		 * 0: center.
-		 * 1: left.
-		 * 2: right.
-		 */
-		int align = 0;
-		inline bool operator==(const Font_2D_Attributes& other) const {
-			return path == other.path && text == other.text && font_size == other.font_size &&
-				   position == other.position && scale == other.scale && anchor == other.anchor &&
-				   rotation == other.rotation;
-		}
-
-		inline bool operator!=(const Font_2D_Attributes& other) const { return !(*this == other); }
-	};
-
 	struct Resource_Synchronize_Information {
 
 		std::array<bool, Const::MAX_FRAMES_IN_FLIGHT> blocked{true};

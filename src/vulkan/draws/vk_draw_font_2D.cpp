@@ -14,7 +14,7 @@
 
 namespace Vulkan {
 
-	namespace Font_2D {
+	namespace Draw_Font_2D {
 
 		struct Instance_Data {
 			uint32_t storage_offset = 0;
@@ -58,7 +58,7 @@ namespace Vulkan {
 		};
 
 		struct Text_Data {
-			std::string text;
+			std::string text = "";
 			int align = 0;
 			std::vector<std::string> lines;
 			std::vector<glm::vec2> start_line_positions;
@@ -70,82 +70,12 @@ namespace Vulkan {
 			uint32_t font_id = ::Const::MAX_UINT32;
 			glm::vec2 text_anchor{0.f};
 
-			void break_lines(std::string text) {
-				lines.clear();
-				while (text.find("\n") != std::string::npos) {
-					auto enter_char_index = text.find("\n");
-					lines.push_back(text.substr(0, enter_char_index));
-					text.erase(0, enter_char_index + 1);
-				}
-				if (text != "") {
-					lines.push_back(text);
-				}
-			}
-
-			glm::vec2 get_line_size(const std::string& line, const Font& font) {
-				glm::vec2 line_size{0.f, font.line_height};
-				for (int i = 0; i < line.size(); i++) {
-					glm::vec2 char_bound_box = font.get_char_bounding_box(line[i]);
-					line_size.x += char_bound_box.x;
-				}
-				return line_size;
-			}
-
-			std::vector<glm::vec2> get_char_position_at(
-				std::string line, glm::vec2 start_line_position, const Font& font
-			) {
-				std::vector<glm::vec2> char_positions(line.size());
-				float start_x = 0;
-				for (int i = 0; i < line.size(); i++) {
-					char_positions[i] = start_line_position;
-					glm::vec local_offset = font.get_char_local_offset(line[i]);
-					char_positions[i].x += start_x + local_offset.x;
-					char_positions[i].y += local_offset.y;
-					glm::vec2 char_bound_box = font.get_char_bounding_box(line[i]);
-					start_x += char_bound_box.x;
-				}
-				return char_positions;
-			}
-
-			void make_lines_render_info(const Font& font, const Label_2D& attributes) {
-				start_line_positions.resize(lines.size());
-				float max_width_line = 0;
-				for (const std::string& line : lines) {
-					auto size = get_line_size(line, font);
-					max_width_line = std::max(size.x, max_width_line);
-				}
-				float total_height = 0;
-				for (int i = lines.size() - 1; i > -1; i--) {
-					const std::string& line = lines[i];
-					glm::vec2 line_size = get_line_size(line, font);
-					float line_x = 0;
-					switch (attributes.get_align()) {
-						case 0: {
-							line_x = (max_width_line - line_size.x) / 2;
-							break;
-						}
-						case 1: {
-							line_x = 0;
-							break;
-						}
-						default: {
-							line_x = max_width_line - line_size.x;
-							break;
-						}
-					}
-					start_line_positions[i] = {line_x, total_height};
-					total_height += line_size.y;
-				}
-				width = max_width_line;
-				height = total_height;
-			}
-
 			std::vector<Storage_Char_Data> make_char_storages_data(const Font& font, const Label_2D& attributes) {
 				std::vector<Storage_Char_Data> char_storages;
 				glm::vec2 origin = -glm::vec2(width, height) * attributes.get_anchor();
 				for (int i = 0; i < lines.size(); i++) {
 					const std::string& line = lines[i];
-					const glm::vec2 start_line_position = start_line_positions[i];
+					const glm::vec2& start_line_position = start_line_positions[i];
 					std::vector<glm::vec2> positions = get_char_position_at(line, start_line_position + origin, font);
 					for (int j = 0; j < positions.size(); j++) {
 						glm::vec2 position = positions[j];
@@ -173,11 +103,14 @@ namespace Vulkan {
 				return storage;
 			}
 
-			void clear(SSBO_Buffer& ssbo) {
+			void clear(SSBO_Buffer& ssbo, std::vector<Draw_Instance_Information>& draw_instances) {
 				clean(ssbo);
-				storage_char_id = std::numeric_limits<uint32_t>::max();
-				storage_id = std::numeric_limits<uint32_t>::max();
-				instance_id = std::numeric_limits<uint32_t>::max();
+				storage_char_id = ::Const::MAX_UINT32;
+				storage_id = ::Const::MAX_UINT32;
+				instance_id = ::Const::MAX_UINT32;
+				text = "";
+				text_anchor = {0.f, 0.f};
+				draw_instances.clear();
 			}
 
 			void update_text_data(
@@ -186,14 +119,17 @@ namespace Vulkan {
 			) {
 				uint32_t i_font_id = load_font(attributes.get_font_path());
 				if (attributes.get_text() == "" || text != attributes.get_text() || font_id != i_font_id) {
-					clear(ssbo);
+					clear(ssbo, draw_instances);
 					make(attributes, ssbo, static_buffer, draw_instances, vertex_id);
 					return;
 				}
 				font_id = i_font_id;
 				const Font& font = view_font(font_id);
 				if (align != attributes.get_align() || text_anchor != attributes.get_anchor()) {
-					make_lines_render_info(font, attributes);
+					make_lines_render_info(
+						font, attributes.get_align(), attributes.get_font_size(), start_line_positions, width, height,
+						lines
+					);
 					std::vector<Storage_Char_Data> char_storages = make_char_storages_data(font, attributes);
 					ssbo.update_data(storage_char_id, char_storages.data());
 				}
@@ -203,7 +139,6 @@ namespace Vulkan {
 				text = attributes.get_text();
 				align = attributes.get_align();
 				text_anchor = attributes.get_anchor();
-				font_id = i_font_id;
 			}
 
 			void make(
@@ -220,8 +155,10 @@ namespace Vulkan {
 				text_anchor = attributes.get_anchor();
 				font_id = load_font(attributes.get_font_path());
 				const Font& font = view_font(font_id);
-				break_lines(text);
-				make_lines_render_info(font, attributes);
+				break_lines(text, lines);
+				make_lines_render_info(
+					font, attributes.get_align(), attributes.get_font_size(), start_line_positions, width, height, lines
+				);
 				const Texture_View& texture_view = view_font_texture(font_id);
 				Storage_Data storage = make_storage_data(font, texture_view, attributes);
 				storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
@@ -242,7 +179,6 @@ namespace Vulkan {
 				}
 				instance_id =
 					ssbo.upload_data(instances.data(), instances.size() * sizeof(Instance_Data), sizeof(Instance_Data));
-				draw_instances.clear();
 				draw_instances.push_back({instance_id, (uint32_t)char_storages.size()});
 			}
 
@@ -276,8 +212,6 @@ namespace Vulkan {
 		bool is_material_equal(uint32_t a, uint32_t b) {
 			if (a == b)
 				return true;
-			if (a == ::Const::MAX_UINT32 || b == ::Const::MAX_UINT32)
-				return false;
 			const Texture_View& texture_view_a = view_font_texture(a);
 			const Texture_View& texture_view_b = view_font_texture(b);
 			return texture_view_a.storage_mode == Const::TEXTURE_STORAGE_MODE::BUCKET &&
@@ -324,6 +258,90 @@ namespace Vulkan {
 			return sizeof(Instance_Data);
 		}
 
+		void break_lines(std::string text, std::vector<std::string>& lines) {
+			lines.clear();
+			while (text.find("\n") != std::string::npos) {
+				auto enter_char_index = text.find("\n");
+				lines.push_back(text.substr(0, enter_char_index));
+				text.erase(0, enter_char_index + 1);
+			}
+			if (text != "") {
+				lines.push_back(text);
+			}
+		}
+
+		glm::vec2 get_line_size(const std::string& line, const Font& font) {
+			glm::vec2 line_size{0.f, font.line_height};
+			for (int i = 0; i < line.size(); i++) {
+				glm::vec2 char_bound_box = font.get_char_bounding_box(line[i]);
+				line_size.x += char_bound_box.x;
+			}
+			return line_size;
+		}
+
+		std::vector<glm::vec2> get_char_position_at(std::string line, glm::vec2 start_line_position, const Font& font) {
+			std::vector<glm::vec2> char_positions(line.size());
+			float start_x = 0;
+			for (int i = 0; i < line.size(); i++) {
+				char_positions[i] = start_line_position;
+				glm::vec local_offset = font.get_char_local_offset(line[i]);
+				char_positions[i].x += start_x + local_offset.x;
+				char_positions[i].y += local_offset.y;
+				glm::vec2 char_bound_box = font.get_char_bounding_box(line[i]);
+				start_x += char_bound_box.x;
+			}
+			return char_positions;
+		}
+
+		void make_lines_render_info(
+			const Font& font, int align, int font_size, std::vector<glm::vec2>& start_line_positions, float& width,
+			float& height, const std::vector<std::string>& lines
+		) {
+			start_line_positions.resize(lines.size());
+			float max_width_line = 0;
+			for (const std::string& line : lines) {
+				auto size = get_line_size(line, font);
+				max_width_line = std::max(size.x, max_width_line);
+			}
+			float total_height = 0;
+			for (int i = lines.size() - 1; i > -1; i--) {
+				const std::string& line = lines[i];
+				glm::vec2 line_size = get_line_size(line, font);
+				float line_x = 0;
+				switch (align) {
+					case 0: {
+						line_x = (max_width_line - line_size.x) / 2;
+						break;
+					}
+					case 1: {
+						line_x = 0;
+						break;
+					}
+					default: {
+						line_x = max_width_line - line_size.x;
+						break;
+					}
+				}
+				start_line_positions[i] = {line_x, total_height};
+				total_height += line_size.y;
+			}
+			float char_scale = font.get_char_scale(font_size);
+			width = max_width_line * char_scale;
+			height = total_height * char_scale;
+		}
+
+		Text_Helper gen_text_info_from(std::string font_path, std::string text, int align, int font_size) {
+			Text_Helper text_helper{};
+			uint32_t font_id = load_font(font_path);
+			const Font& font = view_font(font_id);
+			break_lines(text, text_helper.lines);
+			make_lines_render_info(
+				font, align, font_size, text_helper.start_line_positions, text_helper.width, text_helper.height,
+				text_helper.lines
+			);
+			return text_helper;
+		}
+
 		void draw(
 			VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t number_instance,
 			uint32_t first_instance_offset, int frame_index
@@ -360,39 +378,29 @@ namespace Vulkan {
 			return 0;
 		}
 
-		std::vector<Draw_Instance_Information> make_font_2D(
-			Draw_Information& draw_info, const Font_2D_Attributes& text_attributes
-		) {
-			return {};
-		}
-
-		std::vector<Draw_Instance_Information> update_font_2D(
-			Draw_Information& draw_info, const Font_2D_Attributes& text_attributes
-		) {
-			return {};
-		}
-
 		void init_font(
-			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
-			const Label_2D& attributes
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances, Label_2D& attributes
 		) {
 			uint32_t unique_id = unique_id_generator.gen_id();
 			Text_Data text{};
 			text.make(attributes, get_ssbo(), get_static_buffer(), draw_instances, vertex_id);
+			attributes.set_width(text.width);
+			attributes.set_height(text.height);
 			draw_info.draw_material_id = text.font_id;
 			draw_info.sub_unique_id = unique_id;
 			texts.insert(unique_id, text);
 		}
 
 		void update_font(
-			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
-			const Label_2D& attributes
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances, Label_2D& attributes
 		) {
 			if (!texts.has(draw_info.sub_unique_id)) {
 				return;
 			}
 			Text_Data& text = texts.modify(draw_info.sub_unique_id);
 			text.update_text_data(attributes, get_ssbo(), get_static_buffer(), draw_instances, vertex_id);
+			attributes.set_width(text.width);
+			attributes.set_height(text.height);
 			draw_info.draw_material_id = text.font_id;
 		}
 
@@ -410,6 +418,6 @@ namespace Vulkan {
 			pipeline.destroy();
 		}
 
-	} // namespace Font_2D
+	} // namespace Draw_Font_2D
 
 } // namespace Vulkan

@@ -433,7 +433,8 @@ namespace Vulkan {
 					);
 					storage_instance_ids.push_back(instances_id);
 					Draw_Instance_Information draw_instance{
-						instances_id, (uint32_t)primitive_instances.size(), primitive_index
+						instances_id, (uint32_t)primitive_instances.size(),
+						make_instance_material_id(model_id, primitive_index)
 					};
 					draw_instances.push_back(draw_instance);
 				}
@@ -460,7 +461,7 @@ namespace Vulkan {
 		Sparse_Set<Model_Data> models{};
 
 		bool is_material_equal(uint32_t a, uint32_t b) {
-			return a == b;
+			return true;
 		}
 
 		size_t get_instance_size() {
@@ -631,14 +632,31 @@ namespace Vulkan {
 			);
 		}
 
+		uint32_t make_instance_material_id(uint32_t model_id, uint32_t primitive_index) {
+			uint32_t result = 0;
+			result |= (model_id << 16);
+			result |= primitive_index;
+			return result;
+		}
+
+		void resovle_instance_material_id(
+			uint32_t instance_material_id, uint32_t& model_id, uint32_t& primitive_index
+		) {
+			uint16_t result_primitive_index = (uint16_t)instance_material_id;
+			uint16_t result_model_id = instance_material_id >> 16;
+			model_id = (uint32_t)result_model_id;
+			primitive_index = (uint32_t)result_primitive_index;
+		}
+
 		void draw(
 			VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t instance_material_id,
 			uint32_t number_instance, uint32_t first_instance_offset, uint32_t frame_index
 		) {
 			Static_Buffer& static_buffer = get_static_buffer();
 			Buffer& instance_buffer = get_instance_buffer(frame_index);
-			uint32_t model_id = material_draw_id;
-			uint32_t primitive_index = instance_material_id;
+			uint32_t model_id = 0;
+			uint32_t primitive_index = 0;
+			resovle_instance_material_id(instance_material_id, model_id, primitive_index);
 			const Model& model = view_model(model_id);
 			uint32_t number_descriptor_set = 4;
 			VkDescriptorSet using_descriptor_sets[4] = {

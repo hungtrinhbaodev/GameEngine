@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 
+#include <geometry_structs.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <handle.h>
@@ -123,7 +124,7 @@ namespace Vulkan {
 		Draw_2D_Attributes_Description get_description() const;
 	};
 
-	struct Label_Description : public Draw_2D_Attributes_Description {
+	struct Label_2D_Description : public Draw_2D_Attributes_Description {
 		std::string path = "";
 		std::string text = "";
 		int font_size = 12;
@@ -142,22 +143,53 @@ namespace Vulkan {
 		std::string text = "";
 		int font_size = 12;
 		int align = 0;
+		float width = 0.f;
+		float height = 0.f;
+		bool text_dirty = false;
+		void update_text_size();
 
 	  public:
 		Label_2D();
-		Label_2D(Handle handle, Label_Description description);
+		Label_2D(Handle handle, Label_2D_Description description);
 		~Label_2D();
 
 		void set_font_path(const std::string& path);
 		void set_text(const std::string& text);
 		void set_font_size(int font_size);
 		void set_align(int align);
+		void set_width(float width);
+		void set_height(float height);
 
+		float get_width();
+		float get_height();
 		std::string get_font_path() const;
 		std::string get_text() const;
 		int get_font_size() const;
 		int get_align() const;
-		Label_Description get_description() const;
+		Label_2D_Description get_description() const;
+	};
+
+	struct Texture_2D_Description : public Draw_2D_Attributes_Description {
+		std::string path = "";
+		Geometry::Texture_Rect_2D tex_rect{0.f, 0.f, 1.f, 1.f};
+	};
+
+	class Texture_2D : public Draw_2D {
+	  private:
+		std::string path = "";
+		Geometry::Texture_Rect_2D tex_rect = {0.f, 0.f, 1.f, 1.f};
+
+	  public:
+		Texture_2D();
+		Texture_2D(Handle handle, Texture_2D_Description description);
+		~Texture_2D();
+
+		void set_texture_path(const std::string& path);
+		void set_texture_rect(const Geometry::Texture_Rect_2D& tex_rect);
+
+		std::string get_texture_path() const;
+		Geometry::Texture_Rect_2D get_texture_rect() const;
+		Texture_2D_Description get_description() const;
 	};
 
 }; // namespace Vulkan

@@ -12,7 +12,7 @@
 
 namespace Vulkan {
 
-	namespace Texture_2D {
+	namespace Draw_Texture_2D {
 
 		struct Instance_Data {
 			uint32_t storage_offset = 0;
@@ -30,15 +30,16 @@ namespace Vulkan {
 			int32_t bucket_index = 0;			// 4
 			int32_t slot_index = 0;				// 4
 			float _pad = 0.f;					// 4
-			void make(Texture_2D_Attributes attributes, Texture_View texture_view) {
+			void make(const Texture_2D& attributes, Texture_View texture_view) {
+				Geometry::Texture_Rect_2D texture_rect = attributes.get_texture_rect();
 				tex_size = glm::vec2(
-					texture_view.width * attributes.texture_rect.ratio_width,
-					texture_view.height * attributes.texture_rect.ratio_height
+					texture_view.width * texture_rect.ratio_width, texture_view.height * texture_rect.ratio_height
 				);
-				translation = attributes.position;
-				scale = attributes.scale;
-				anchor = attributes.anchor;
-				rect = attributes.texture_rect.to_vec4();
+				translation = attributes.get_position();
+				scale = attributes.get_scale();
+				anchor = attributes.get_anchor();
+				rotation = attributes.get_rotation();
+				rect = texture_rect.to_vec4();
 				bucket_index = texture_view.bucket_index;
 				slot_index = texture_view.slot_index;
 			}
@@ -52,7 +53,7 @@ namespace Vulkan {
 			}
 		};
 
-		struct Draw_Data {
+		struct Texture_Data {
 			uint32_t storage_id = 0;
 		};
 
@@ -66,7 +67,9 @@ namespace Vulkan {
 
 		std::vector<VkDescriptorSetLayout> layouts{};
 
-		Sparse_Set<Draw_Data> draws{};
+		Id_Generator unique_id_generator{};
+
+		Sparse_Set<Texture_Data> textures{};
 
 		uint32_t vertex_id = 0;
 
@@ -120,13 +123,14 @@ namespace Vulkan {
 			return sizeof(Instance_Data);
 		}
 
-		std::vector<Draw_Instance_Information> make_texture_2D(
-			Draw_Information& draw_info, const Texture_2D_Attributes& texture_attributes
+		void init_texture(
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
+			const Texture_2D& attributes
 		) {
-			uint32_t texture_id = load_texture(texture_attributes.path);
-			Texture_View texture_view = view_texture(texture_id);
+			uint32_t texture_id = load_texture(attributes.get_texture_path());
+			const Texture_View& texture_view = view_texture(texture_id);
 			Storage_Data storage{};
-			storage.make(texture_attributes, texture_view);
+			storage.make(attributes, texture_view);
 			SSBO_Buffer& ssbo = get_ssbo();
 			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
 			Buffer_Range storage_range = ssbo.view_slot(storage_id);
@@ -138,21 +142,35 @@ namespace Vulkan {
 				config_draw_offset
 			};
 			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data));
-			draws.insert(instance_id, {storage_id});
+			uint32_t unique_id = unique_id_generator.gen_id();
+			textures.insert(unique_id, {storage_id});
 			draw_info.draw_material_id = texture_id;
-			draw_info.sub_unique_id = instance_id;
-			return {{instance_id}};
+			draw_info.sub_unique_id = unique_id;
+			draw_instances.clear();
+			draw_instances.push_back({instance_id});
 		}
 
-		void update_texture_2D(Draw_Information& draw_info, const Texture_2D_Attributes& texture_attributes) {
-			uint32_t texture_id = load_texture(texture_attributes.path);
-			Texture_View texture_view = view_texture(texture_id);
+		void update_texture(Draw_Information& draw_info, const Texture_2D& attributes) {
+			if (!textures.has(draw_info.sub_unique_id))
+				return;
+			uint32_t texture_id = load_texture(attributes.get_texture_path());
+			const Texture_View& texture_view = view_texture(texture_id);
 			draw_info.draw_material_id = texture_id;
 			Storage_Data storage{};
-			storage.make(texture_attributes, texture_view);
+			storage.make(attributes, texture_view);
 			SSBO_Buffer& ssbo = get_ssbo();
-			const Draw_Data& data = draws.get(draw_info.sub_unique_id);
+			const Texture_Data& data = textures.get(draw_info.sub_unique_id);
 			ssbo.update_data(data.storage_id, &storage);
+		}
+
+		void remove_texture(uint32_t sub_unique_id) {
+			if (!textures.has(sub_unique_id))
+				return;
+			const Texture_Data& texture = textures.get(sub_unique_id);
+			SSBO_Buffer& ssbo = get_ssbo();
+			ssbo.remove_data(texture.storage_id);
+			textures.erase(sub_unique_id);
+			unique_id_generator.release_id(sub_unique_id);
 		}
 
 		void draw(
@@ -191,6 +209,6 @@ namespace Vulkan {
 			pipeline.destroy();
 		}
 
-	} // namespace Texture_2D
+	} // namespace Draw_Texture_2D
 
 } // namespace Vulkan

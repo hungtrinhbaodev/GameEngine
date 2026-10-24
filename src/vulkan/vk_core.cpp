@@ -25,6 +25,60 @@
 
 namespace Vulkan {
 
+	struct Profiling {
+		uint32_t fps_frame_count = 0;
+		double fps_total_duration = 0.f;
+		uint32_t draw_calls = 0;
+		uint32_t number_instance_draw = 0;
+		Handle handl_label_fps;
+		Handle handle_label_draw_call;
+		Handle handle_label_number_instance;
+
+		void init() {
+			Label_2D_Description description{};
+			description.path = "";
+			description.font_size = 11;
+			description.color = {0.95f, 0.95f, 0.95f};
+			description.draw_index = std::numeric_limits<uint32_t>::max();
+			handl_label_fps = create_label(description);
+			handle_label_draw_call = create_label(description);
+			handle_label_number_instance = create_label(description);
+		}
+
+		void reload_labels() {
+			glm::vec2 start_position = {7.f, 6.f};
+			float pad = 1.3f;
+			std::array<Handle, 3> labels = {handl_label_fps, handle_label_draw_call, handle_label_number_instance};
+			for (auto& label_handle : labels) {
+				auto& label = modify_label(label_handle);
+				label.set_position(start_position);
+				start_position.y += pad + label.get_height();
+			}
+		}
+
+		void update_draw_call_labels() {
+			auto& label_draw_call = modify_label(handle_label_draw_call);
+			label_draw_call.set_text("Draw calls: " + std::to_string(draw_calls));
+			auto& label_number_instance = modify_label(handle_label_number_instance);
+			label_number_instance.set_text("Instances drawed: " + std::to_string(number_instance_draw));
+			reload_labels();
+		}
+
+		void update_label_fps(uint32_t frame_count, float dt) {
+			if (frame_count % 20 == 0) {
+				auto& label = modify_label(handl_label_fps);
+				double fps = fps_total_duration == 0 ? 0.f : double(fps_frame_count) / fps_total_duration;
+				label.set_text("Frame rate: " + std::to_string(fps));
+				fps_frame_count = 0;
+				fps_total_duration = 0.f;
+			} else {
+				fps_frame_count++;
+				fps_total_duration += dt;
+			}
+			reload_labels();
+		}
+	};
+
 	GLFWwindow* window = nullptr;
 
 	VkInstance instance = VK_NULL_HANDLE;
@@ -89,6 +143,8 @@ namespace Vulkan {
 
 	Handle label_fps{};
 
+	Profiling profiling{};
+
 	Pipeline_Config make_default_pipeline_config() {
 		Pipeline_Config pipeline_config{};
 		pipeline_config.depth_image = depth_image;
@@ -126,14 +182,6 @@ namespace Vulkan {
 	Static_Buffer& get_static_buffer() {
 		return static_buffer;
 	}
-
-	void init_text_fps() {
-		label_fps = create_label("", 12);
-		Label_2D& label = modify_label(label_fps);
-		// label.set_draw_index(std::numeric_limits<uint32_t>::max());
-		label.set_color({1.f, 0.2f, 0.8f});
-		label.set_position({7.f, 6.f});
-	};
 
 	void init_vulkan_core(GLFWwindow* window) {
 
@@ -212,7 +260,7 @@ namespace Vulkan {
 
 		init_draw();
 
-		init_text_fps();
+		profiling.init();
 	}
 
 	void on_window_resize() {
@@ -235,16 +283,17 @@ namespace Vulkan {
 		static_buffer.wait_synchronize_finish(current_frame);
 		ssbo_buffer.setup_frame(current_frame);
 		setup_draw(dt);
-		if (frame_count % 20 == 0) {
-			Label_2D& label = modify_label(label_fps);
-			double fps = fps_total_duration == 0 ? 0.f : double(fps_frame_count) / fps_total_duration;
-			label.set_text("Frame rate: " + std::to_string(fps));
-			fps_frame_count = 0;
-			fps_total_duration = 0.f;
-		} else {
-			fps_frame_count++;
-			fps_total_duration += dt;
-		}
+		// if (frame_count % 20 == 0) {
+		// 	Label_2D& label = modify_label(label_fps);
+		// 	double fps = fps_total_duration == 0 ? 0.f : double(fps_frame_count) / fps_total_duration;
+		// 	label.set_text("Frame rate: " + std::to_string(fps));
+		// 	fps_frame_count = 0;
+		// 	fps_total_duration = 0.f;
+		// } else {
+		// 	fps_frame_count++;
+		// 	fps_total_duration += dt;
+		// }
+		profiling.update_label_fps(frame_count, dt);
 	}
 
 	void draw_frame(float dt) {
@@ -375,6 +424,16 @@ namespace Vulkan {
 
 		// Destroy Vulkan Instance
 		destroy_instance(instance, debug_messenger);
+	}
+
+	void set_number_draw_call(uint32_t number_draw_call) {
+		profiling.draw_calls = number_draw_call;
+		profiling.update_draw_call_labels();
+	}
+
+	void set_total_instance_draw(uint32_t number_instance_draw) {
+		profiling.number_instance_draw = number_instance_draw;
+		profiling.update_draw_call_labels();
 	}
 
 } // namespace Vulkan

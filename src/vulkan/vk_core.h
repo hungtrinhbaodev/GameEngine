@@ -136,4 +136,8 @@ namespace Vulkan {
 	void draw_frame(float dt);
 
 	void destroy_vulkan();
+
+	void set_number_draw_call(uint32_t number_draw_call);
+
+	void set_total_instance_draw(uint32_t number_instance_draw);
 } // namespace Vulkan

@@ -196,6 +196,8 @@ namespace Vulkan {
 
 	Sparse_Set<Label_2D> draw_id_to_labels{};
 
+	Sparse_Set<Texture_2D> draw_id_to_textures{};
+
 	Frame_Debug_Batching debug_info{};
 
 	const bool DEBUG_LOG = false;
@@ -289,13 +291,13 @@ namespace Vulkan {
 				return Rectangle::is_material_equal(a.draw_material_id, b.draw_material_id);
 			}
 			case Const::DRAW_ID::DRAW_TEXTURE_2D: {
-				return Texture_2D::is_material_equal(a.draw_material_id, b.draw_material_id);
+				return Draw_Texture_2D::is_material_equal(a.draw_material_id, b.draw_material_id);
 			}
 			case Const::DRAW_ID::DRAW_TRIANGLE_2D: {
 				return Triangle::is_material_equal(a.draw_material_id, b.draw_material_id);
 			}
 			case Const::DRAW_ID::DRAW_FONT_2D: {
-				return Font_2D::is_material_equal(a.draw_material_id, b.draw_material_id);
+				return Draw_Font_2D::is_material_equal(a.draw_material_id, b.draw_material_id);
 			}
 			case Const::DRAW_ID::DRAW_MODEL_3D: {
 				return Draw_Model_3D::is_material_equal(a.draw_material_id, b.draw_material_id);
@@ -334,7 +336,7 @@ namespace Vulkan {
 				if (a.draw_index == b.draw_index) {
 					return a.create_index > b.create_index;
 				}
-				return a.draw_index > b.draw_index;
+				return a.draw_index < b.draw_index;
 			}
 		);
 		if (DEBUG_LOG) {
@@ -361,13 +363,13 @@ namespace Vulkan {
 				return Rectangle::get_instance_size();
 			}
 			case Const::DRAW_ID::DRAW_TEXTURE_2D: {
-				return Texture_2D::get_instance_size();
+				return Draw_Texture_2D::get_instance_size();
 			}
 			case Const::DRAW_ID::DRAW_TRIANGLE_2D: {
 				return Triangle::get_instance_size();
 			}
 			case Const::DRAW_ID::DRAW_FONT_2D: {
-				return Font_2D::get_instance_size();
+				return Draw_Font_2D::get_instance_size();
 			}
 			case Const::DRAW_ID::DRAW_MODEL_3D: {
 				return Draw_Model_3D::get_instance_size();
@@ -746,10 +748,10 @@ namespace Vulkan {
 		/**
 		 * Initialize all draw type.
 		 */
-		Texture_2D::init();
+		Draw_Texture_2D::init();
 		Rectangle::init();
 		Triangle::init();
-		Font_2D::init();
+		Draw_Font_2D::init();
 		Draw_Model_3D::init();
 	}
 
@@ -766,9 +768,15 @@ namespace Vulkan {
 					break;
 				}
 				case Const::DRAW_FONT_2D: {
-					const Label_2D& label = draw_id_to_labels.get(handle.id());
-					Font_2D::update_font(draw_info, draw_instances, label);
+					Label_2D& label = draw_id_to_labels.modify(handle.id());
+					Draw_Font_2D::update_font(draw_info, draw_instances, label);
 					update_draw_info(draw_info, label.get_description());
+					break;
+				}
+				case Const::DRAW_TEXTURE_2D: {
+					const Texture_2D& texture = draw_id_to_textures.get(handle.id());
+					Draw_Texture_2D::update_texture(draw_info, texture);
+					update_draw_info(draw_info, texture.get_description());
 					break;
 				}
 				default: {
@@ -789,13 +797,13 @@ namespace Vulkan {
 		for (const auto& group : draw_instance_batching_groups) {
 			switch (group.draw_type) {
 				case Const::DRAW_ID::DRAW_TEXTURE_2D: {
-					Texture_2D::draw(
+					Draw_Texture_2D::draw(
 						command_buffer, group.draw_material_id, group.number_instance, group.offset, current_frame
 					);
 					break;
 				}
 				case Const::DRAW_ID::DRAW_FONT_2D: {
-					Font_2D::draw(
+					Draw_Font_2D::draw(
 						command_buffer, group.draw_material_id, group.number_instance, group.offset, current_frame
 					);
 					break;
@@ -839,13 +847,15 @@ namespace Vulkan {
 			// Log::info("Number instance drawn", total_instance_draws);
 			// Log::info("Bind resource profiler", bind_resources_profiler);
 		}
+		set_number_draw_call(draw_instance_batching_groups.size());
+		set_total_instance_draw(total_instance_draws);
 	}
 
 	void destroy_draw() {
 		Draw_Model_3D::destroy();
-		Font_2D::destroy();
+		Draw_Font_2D::destroy();
 		Triangle::destroy();
-		Texture_2D::destroy();
+		Draw_Texture_2D::destroy();
 		Rectangle::destroy();
 		for (const Buffer& buffer : instance_buffers) {
 			buffer.destroy();
@@ -904,23 +914,6 @@ namespace Vulkan {
 		Rectangle::update_draw(draw_info.sub_unique_id, rectangle_attributes);
 	}
 
-	uint32_t make_texture_2D(const Draw_Attribute& draw_attributes, const Texture_2D_Attributes& texture_attributes) {
-		uint32_t draw_id = draw_id_generator.gen_id();
-		Draw_Information draw_info = gen_draw_info(Const::DRAW_ID::DRAW_TEXTURE_2D, draw_attributes);
-		std::vector<Draw_Instance_Information> instances = Texture_2D::make_texture_2D(draw_info, texture_attributes);
-		draw_id_to_info.insert(draw_id, draw_info);
-		draw_id_to_instances.insert(draw_id, instances);
-		return draw_id;
-	}
-
-	void update_texture_2D(uint32_t id, const Texture_2D_Attributes& texture_attributes) {
-		if (!draw_id_to_info.has(id)) {
-			return;
-		}
-		Draw_Information& draw_info = draw_id_to_info.modify(id);
-		Texture_2D::update_texture_2D(draw_info, texture_attributes);
-	}
-
 	uint32_t make_triangle(const Draw_Attribute& draw_attributes, const Triangle_Attribultes& triangle_attributes) {
 		uint32_t draw_id = draw_id_generator.gen_id();
 		Draw_Information draw_info = gen_draw_info(Const::DRAW_ID::DRAW_TRIANGLE_2D, draw_attributes);
@@ -928,24 +921,6 @@ namespace Vulkan {
 		draw_id_to_info.insert(draw_id, draw_info);
 		draw_id_to_instances.insert(draw_id, instances);
 		return draw_id;
-	}
-
-	uint32_t make_font_2D(const Draw_Attribute& draw_attributes, const Font_2D_Attributes& font_attributes) {
-		uint32_t draw_id = draw_handle_generator.gen_handle().id();
-		Draw_Information draw_info = gen_draw_info(Const::DRAW_ID::DRAW_FONT_2D, draw_attributes);
-		std::vector<Draw_Instance_Information> instances = Font_2D::make_font_2D(draw_info, font_attributes);
-		draw_id_to_info.insert(draw_id, draw_info);
-		draw_id_to_instances.insert(draw_id, instances);
-		return draw_id;
-	}
-
-	void update_font_2D(uint32_t id, const Font_2D_Attributes& font_attributes) {
-		if (!draw_id_to_info.has(id)) {
-			return;
-		}
-		Draw_Information& draw_info = draw_id_to_info.modify(id);
-		std::vector<Draw_Instance_Information> instances = Font_2D::update_font_2D(draw_info, font_attributes);
-		draw_id_to_instances.insert(id, instances);
 	}
 
 	void update_triangle(uint32_t id, const Triangle_Attribultes& triangle_attributes) {
@@ -998,12 +973,12 @@ namespace Vulkan {
 		return draw_id_to_models.modify(handle.id());
 	}
 
-	Handle create_label(const Label_Description& label_info) {
+	Handle create_label(const Label_2D_Description& label_info) {
 		Handle handle = draw_handle_generator.gen_handle();
 		Label_2D label{handle, label_info};
 		Draw_Information& draw_info = request_draw_info(handle, Const::DRAW_FONT_2D, label_info);
 		std::vector<Draw_Instance_Information>& draw_instances = request_draw_instances(handle);
-		Font_2D::init_font(draw_info, draw_instances, label);
+		Draw_Font_2D::init_font(draw_info, draw_instances, label);
 		draw_id_to_labels.insert(handle.id(), label);
 		return handle;
 	}
@@ -1012,13 +987,13 @@ namespace Vulkan {
 		const std::string& font_path, int font_size, const std::string& text, int align, glm::vec2 position,
 		glm::vec2 scale, float rotation, glm::vec2 anchor_point, glm::vec3 color
 	) {
-		Label_Description description{
+		Label_2D_Description description{
 			0, true, position, scale, rotation, anchor_point, color, font_path, text, font_size,
 		};
 		return create_label(description);
 	}
 
-	Label_Description view_label_description(const Handle& handle) {
+	Label_2D_Description view_label_description(const Handle& handle) {
 		assert_draw_handle(handle);
 		return draw_id_to_labels.get(handle.id()).get_description();
 	}
@@ -1026,6 +1001,36 @@ namespace Vulkan {
 	Label_2D& modify_label(const Handle& handle) {
 		assert_draw_handle(handle);
 		return draw_id_to_labels.modify(handle.id());
+	}
+
+	Handle create_texture(const Texture_2D_Description& texture_info) {
+		Handle handle = draw_handle_generator.gen_handle();
+		Texture_2D texture{handle, texture_info};
+		Draw_Information& draw_info = request_draw_info(handle, Const::DRAW_TEXTURE_2D, texture_info);
+		std::vector<Draw_Instance_Information>& draw_instances = request_draw_instances(handle);
+		Draw_Texture_2D::init_texture(draw_info, draw_instances, texture);
+		draw_id_to_textures.insert(handle.id(), texture);
+		return handle;
+	}
+
+	Handle create_texture(
+		const std::string& texture_path, const Geometry::Texture_Rect_2D& texture_rect, glm::vec2 position,
+		glm::vec2 scale, float rotation, glm::vec2 anchor_point, glm::vec3 color
+	) {
+		Texture_2D_Description description{
+			0, true, position, scale, rotation, anchor_point, color, texture_path, texture_rect,
+		};
+		return create_texture(description);
+	}
+
+	Texture_2D_Description view_texture_description(const Handle& handle) {
+		assert_draw_handle(handle);
+		return draw_id_to_textures.get(handle.id()).get_description();
+	}
+
+	Texture_2D& modify_texture(const Handle& handle) {
+		assert_draw_handle(handle);
+		return draw_id_to_textures.modify(handle.id());
 	}
 
 	void remove_draw(const Handle& handle) {
@@ -1038,8 +1043,13 @@ namespace Vulkan {
 				break;
 			}
 			case Const::DRAW_FONT_2D: {
-				Font_2D::remove_font(draw_info.sub_unique_id);
+				Draw_Font_2D::remove_font(draw_info.sub_unique_id);
 				draw_id_to_labels.erase(handle.id());
+				break;
+			}
+			case Const::DRAW_TEXTURE_2D: {
+				Draw_Texture_2D::remove_texture(draw_info.sub_unique_id);
+				draw_id_to_textures.erase(handle.id());
 				break;
 			}
 			default: {

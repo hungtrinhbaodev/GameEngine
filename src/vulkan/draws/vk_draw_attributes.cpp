@@ -1,5 +1,6 @@
 #include <math_custom.h>
 #include <vulkan/draws/vk_draw_attributes.h>
+#include <vulkan/draws/vk_draw_font_2D.h>
 #include <vulkan/vk_draw.h>
 
 namespace Vulkan {
@@ -226,9 +227,11 @@ namespace Vulkan {
 		return description;
 	}
 
-	Label_2D::Label_2D() {}
+	Label_2D::Label_2D() {
+		update_text_size();
+	}
 
-	Label_2D::Label_2D(Handle handle, Label_Description description)
+	Label_2D::Label_2D(Handle handle, Label_2D_Description description)
 		: Draw_2D(handle, description) {
 		path = description.path;
 		text = description.text;
@@ -238,21 +241,31 @@ namespace Vulkan {
 
 	Label_2D::~Label_2D() {}
 
+	void Label_2D::update_text_size() {
+		auto text_helper = Draw_Font_2D::gen_text_info_from(path, text, align, font_size);
+		width = text_helper.width;
+		height = text_helper.height;
+		text_dirty = false;
+	}
+
 	void Label_2D::set_font_path(const std::string& i_path) {
 		assert_handle();
 		set_dirty(path != i_path);
+		text_dirty = path != i_path;
 		path = i_path;
 	}
 
 	void Label_2D::set_text(const std::string& i_text) {
 		assert_handle();
 		set_dirty(text != i_text);
+		text_dirty = text != i_text;
 		text = i_text;
 	}
 
 	void Label_2D::set_font_size(int i_font_size) {
 		assert_handle();
 		set_dirty(font_size != i_font_size);
+		text_dirty = font_size != i_font_size;
 		font_size = i_font_size;
 	}
 
@@ -260,6 +273,14 @@ namespace Vulkan {
 		assert_handle();
 		set_dirty(align != i_align);
 		align = i_align;
+	}
+
+	void Label_2D::set_width(float i_width) {
+		width = i_width;
+	}
+
+	void Label_2D::set_height(float i_height) {
+		height = i_height;
 	}
 
 	std::string Label_2D::get_font_path() const {
@@ -282,8 +303,24 @@ namespace Vulkan {
 		return align;
 	}
 
-	Label_Description Label_2D::get_description() const {
-		Label_Description description{};
+	float Label_2D::get_width() {
+		assert_handle();
+		if (text_dirty) {
+			update_text_size();
+		}
+		return width;
+	}
+
+	float Label_2D::get_height() {
+		assert_handle();
+		if (text_dirty) {
+			update_text_size();
+		}
+		return height;
+	};
+
+	Label_2D_Description Label_2D::get_description() const {
+		Label_2D_Description description{};
 		static_cast<Draw_2D_Attributes_Description&>(description) = Draw_2D::get_description();
 		description.path = path;
 		description.text = text;
@@ -292,4 +329,39 @@ namespace Vulkan {
 		return description;
 	}
 
+	Texture_2D::Texture_2D() {}
+
+	Texture_2D::Texture_2D(Handle handle, Texture_2D_Description description)
+		: Draw_2D(handle, description) {
+		path = description.path;
+		tex_rect = description.tex_rect;
+	}
+
+	Texture_2D::~Texture_2D() {}
+
+	void Texture_2D::set_texture_path(const std::string& i_path) {
+		assert_handle();
+		set_dirty(path != i_path);
+		path = i_path;
+	}
+
+	void Texture_2D::set_texture_rect(const Geometry::Texture_Rect_2D& i_tex_rect) {
+		assert_handle();
+		set_dirty(tex_rect != i_tex_rect);
+		tex_rect = i_tex_rect;
+	}
+
+	std::string Texture_2D::get_texture_path() const {
+		assert_handle();
+		return path;
+	}
+
+	Geometry::Texture_Rect_2D Texture_2D::get_texture_rect() const {
+		assert_handle();
+		return tex_rect;
+	}
+
+	Texture_2D_Description Texture_2D::get_description() const {
+		return {Draw_2D::get_description(), path, tex_rect};
+	}
 } // namespace Vulkan

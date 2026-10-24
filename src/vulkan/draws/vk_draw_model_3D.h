@@ -1,5 +1,4 @@
 #pragma once
-#include <vulkan/draws/draw_structs.h>
 #include <vulkan/draws/vk_draw_attributes.h>
 #include <vulkan/vk_common.h>
 
@@ -16,6 +15,10 @@ namespace Vulkan {
 		void setup_draw(uint32_t frame_index, float dt);
 
 		void record_upload_uniform_buffer(VkCommandBuffer command_buffer, uint32_t frame_index);
+
+		uint32_t make_instance_material_id(uint32_t model_id, uint32_t primitive_index);
+
+		void resovle_instance_material_id(uint32_t instance_material_id, uint32_t& model_id, uint32_t& primitive_index);
 
 		void draw(
 			VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t instance_material_id,

@@ -12,11 +12,16 @@ namespace Geometry {
 	};
 
 	struct Texture_Rect_2D {
-		float raito_x = 0.f;
+		float ratio_x = 0.f;
 		float ratio_y = 0.f;
 		float ratio_width = 1.f;
 		float ratio_height = 1.f;
-		glm::vec4 to_vec4() { return glm::vec4(raito_x, ratio_y, ratio_width, ratio_height); }
+		glm::vec4 to_vec4() const { return glm::vec4(ratio_x, ratio_y, ratio_width, ratio_height); }
+		inline bool operator==(const Texture_Rect_2D& other) {
+			return ratio_x == other.ratio_x && ratio_y == other.ratio_y && ratio_width == other.ratio_width &&
+				   ratio_height == other.ratio_height;
+		}
+		inline bool operator!=(const Texture_Rect_2D& other) { return !(*this == other); }
 	};
 
 	struct Vertex_2D {
