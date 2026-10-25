@@ -66,16 +66,6 @@ namespace Vulkan {
 		VkDescriptorSet* binding_descriptor_sets
 	);
 
-	uint32_t make_rectangle(const Draw_Attribute& draw_attributes, Rectangle_Attributes rectangle_attributes);
-
-	void update_rectangle(uint32_t id, Rectangle_Attributes rectangle_attributes);
-
-	uint32_t make_triangle(const Draw_Attribute& draw_attributes, const Triangle_Attribultes& triangle_attributes);
-
-	void update_triangle(uint32_t id, const Triangle_Attribultes& triangle_attributes);
-
-	void update_draw(uint32_t id, Draw_Attribute draw_attributes);
-
 	void assert_draw_handle(const Handle& handle);
 
 	void set_draw_dirty(const Handle& handle);
@@ -115,6 +105,27 @@ namespace Vulkan {
 	Texture_2D_Description view_texture_description(const Handle& handle);
 
 	Texture_2D& modify_texture(const Handle& handle);
+
+	Handle create_rectangle(
+		float width, float height, glm::vec2 position = {0.f, 0.f}, glm::vec2 scale = {1.f, 1.f}, float rotation = 0.f,
+		glm::vec2 anchor_point = {0.f, 0.f}, glm::vec3 color = {1.f, 1.f, 1.f}
+	);
+
+	Handle create_rectangle(const Rectangle_2D_Description& rectangle_info);
+
+	Rectangle_2D_Description view_rectangle_description(const Handle& handle);
+
+	Rectangle_2D& modify_rectangle(const Handle& handle);
+
+	Handle create_triangle(
+		glm::vec2 first_position, glm::vec2 second_position, glm::vec2 third_position, glm::vec3 color = {1.f, 1.f, 1.f}
+	);
+
+	Handle create_triangle(const Triangle_2D_Description& triangle_info);
+
+	Triangle_2D_Description view_triangle_description(const Handle& handle);
+
+	Triangle_2D& modify_triangle(const Handle& handle);
 
 	void remove_draw(const Handle& handle);
 

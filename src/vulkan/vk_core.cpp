@@ -33,6 +33,32 @@ namespace Vulkan {
 		Handle handl_label_fps;
 		Handle handle_label_draw_call;
 		Handle handle_label_number_instance;
+		Handle handle_label_gpu_time;
+		Handle handle_label_cpu_time;
+		Handle handle_label_gpu_memory;
+
+		/**
+		 * GPU frame time: 2 timestamps per frame in flight (begin and end of the frame command buffer),
+		 * read back after the frame fence so it never waits on the GPU.
+		 */
+		VkQueryPool timestamp_query_pool = VK_NULL_HANDLE;
+		bool is_timestamp_supported = false;
+		float timestamp_period = 1.f;
+		uint64_t timestamp_mask = 0;
+		std::array<bool, Const::MAX_FRAMES_IN_FLIGHT> is_timestamp_written{};
+		double gpu_total_ms = 0.0;
+		uint32_t gpu_samples = 0;
+
+		/**
+		 * CPU frame time: from start_frame until just before submit in draw_frame, minus the time blocked on
+		 * the frame fence and acquire. Submit and present are left out because MoltenVK waits there for the next
+		 * drawable (VSync), which is not engine work.
+		 */
+		double cpu_frame_start = 0.0;
+		double cpu_wait_start = 0.0;
+		double cpu_wait_ms = 0.0;
+		double cpu_total_ms = 0.0;
+		uint32_t cpu_samples = 0;
 
 		void init() {
 			Label_2D_Description description{};
@@ -43,12 +69,60 @@ namespace Vulkan {
 			handl_label_fps = create_label(description);
 			handle_label_draw_call = create_label(description);
 			handle_label_number_instance = create_label(description);
+			handle_label_gpu_time = create_label(description);
+			handle_label_cpu_time = create_label(description);
+			handle_label_gpu_memory = create_label(description);
+			init_gpu_timestamps();
+		}
+
+		void init_gpu_timestamps();
+		void record_frame_begin(VkCommandBuffer command_buffer, uint32_t frame_index);
+		void record_frame_end(VkCommandBuffer command_buffer, uint32_t frame_index);
+		void read_frame_timestamps(uint32_t frame_index);
+		std::string make_gpu_memory_text() const;
+		void destroy();
+
+		void start_cpu_frame() {
+			cpu_frame_start = ::Utils::now();
+			cpu_wait_ms = 0.0;
+		}
+
+		void start_cpu_wait() { cpu_wait_start = ::Utils::now(); }
+
+		void end_cpu_wait() { cpu_wait_ms += (::Utils::now() - cpu_wait_start) * 1000.0; }
+
+		void end_cpu_frame() {
+			cpu_total_ms += (::Utils::now() - cpu_frame_start) * 1000.0 - cpu_wait_ms;
+			cpu_samples++;
+		}
+
+		static std::string format_ms(double total_ms, uint32_t samples) {
+			if (samples == 0) {
+				return "n/a";
+			}
+			char text[32];
+			snprintf(text, sizeof(text), "%.2f ms", total_ms / samples);
+			return text;
+		}
+
+		void update_gpu_labels() {
+			modify_label(handle_label_gpu_time)
+				.set_text("GPU: " + (is_timestamp_supported ? format_ms(gpu_total_ms, gpu_samples) : "n/a"));
+			modify_label(handle_label_cpu_time).set_text("CPU: " + format_ms(cpu_total_ms, cpu_samples));
+			modify_label(handle_label_gpu_memory).set_text("GPU memory: " + make_gpu_memory_text());
+			gpu_total_ms = 0.0;
+			gpu_samples = 0;
+			cpu_total_ms = 0.0;
+			cpu_samples = 0;
 		}
 
 		void reload_labels() {
 			glm::vec2 start_position = {7.f, 6.f};
 			float pad = 1.3f;
-			std::array<Handle, 3> labels = {handl_label_fps, handle_label_draw_call, handle_label_number_instance};
+			std::array<Handle, 6> labels = {
+				handl_label_fps,	   handle_label_draw_call, handle_label_number_instance,
+				handle_label_gpu_time, handle_label_cpu_time,  handle_label_gpu_memory,
+			};
 			for (auto& label_handle : labels) {
 				auto& label = modify_label(label_handle);
 				label.set_position(start_position);
@@ -71,6 +145,7 @@ namespace Vulkan {
 				label.set_text("Frame rate: " + std::to_string(fps));
 				fps_frame_count = 0;
 				fps_total_duration = 0.f;
+				update_gpu_labels();
 			} else {
 				fps_frame_count++;
 				fps_total_duration += dt;
@@ -144,6 +219,109 @@ namespace Vulkan {
 	Handle label_fps{};
 
 	Profiling profiling{};
+
+	void Profiling::init_gpu_timestamps() {
+		VkPhysicalDeviceProperties properties{};
+		vkGetPhysicalDeviceProperties(physical_device, &properties);
+		timestamp_period = properties.limits.timestampPeriod;
+
+		uint32_t graphic_family =
+			Utils::query_suitable_queue_family_indices(physical_device, surface).graphic_family.value();
+		uint32_t number_family = 0;
+		vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &number_family, nullptr);
+		std::vector<VkQueueFamilyProperties> families(number_family);
+		vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &number_family, families.data());
+		uint32_t valid_bits = families[graphic_family].timestampValidBits;
+		is_timestamp_supported = valid_bits > 0;
+		if (!is_timestamp_supported) {
+			Log::info("GPU timestamps not supported on the graphics queue, GPU time label shows n/a.");
+			return;
+		}
+		timestamp_mask = valid_bits >= 64 ? ~0ull : ((1ull << valid_bits) - 1);
+
+		VkQueryPoolCreateInfo create_info{};
+		create_info.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+		create_info.queryType = VK_QUERY_TYPE_TIMESTAMP;
+		create_info.queryCount = 2 * Const::MAX_FRAMES_IN_FLIGHT;
+		Utils::vk_check_result(
+			vkCreateQueryPool(device, &create_info, nullptr, &timestamp_query_pool),
+			"Vulkan create timestamp query pool successfully!", "Vulkan fail to create timestamp query pool!"
+		);
+	}
+
+	void Profiling::record_frame_begin(VkCommandBuffer command_buffer, uint32_t frame_index) {
+		if (!is_timestamp_supported) {
+			return;
+		}
+		vkCmdResetQueryPool(command_buffer, timestamp_query_pool, 2 * frame_index, 2);
+		vkCmdWriteTimestamp(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, timestamp_query_pool, 2 * frame_index);
+	}
+
+	void Profiling::record_frame_end(VkCommandBuffer command_buffer, uint32_t frame_index) {
+		if (!is_timestamp_supported) {
+			return;
+		}
+		vkCmdWriteTimestamp(
+			command_buffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, timestamp_query_pool, 2 * frame_index + 1
+		);
+		is_timestamp_written[frame_index] = true;
+	}
+
+	void Profiling::read_frame_timestamps(uint32_t frame_index) {
+		if (!is_timestamp_supported || !is_timestamp_written[frame_index]) {
+			return;
+		}
+		is_timestamp_written[frame_index] = false;
+		std::array<uint64_t, 2> timestamps{};
+		VkResult result = vkGetQueryPoolResults(
+			device, timestamp_query_pool, 2 * frame_index, 2, sizeof(timestamps), timestamps.data(), sizeof(uint64_t),
+			VK_QUERY_RESULT_64_BIT
+		);
+		if (result != VK_SUCCESS) {
+			return;
+		}
+		uint64_t ticks = ((timestamps[1] & timestamp_mask) - (timestamps[0] & timestamp_mask)) & timestamp_mask;
+		gpu_total_ms += (double)ticks * timestamp_period / 1000000.0;
+		gpu_samples++;
+	}
+
+	std::string Profiling::make_gpu_memory_text() const {
+		if (!is_memory_budget_enabled()) {
+			return "n/a";
+		}
+		auto get_memory_properties_2 = (PFN_vkGetPhysicalDeviceMemoryProperties2)vkGetInstanceProcAddr(
+			instance, "vkGetPhysicalDeviceMemoryProperties2"
+		);
+		if (get_memory_properties_2 == nullptr) {
+			return "n/a";
+		}
+		VkPhysicalDeviceMemoryBudgetPropertiesEXT budget{};
+		budget.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT;
+		VkPhysicalDeviceMemoryProperties2 properties{};
+		properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PROPERTIES_2;
+		properties.pNext = &budget;
+		get_memory_properties_2(physical_device, &properties);
+		// Only device local heaps: VRAM on a discrete GPU, the one unified heap on Apple Silicon.
+		VkDeviceSize used = 0;
+		VkDeviceSize available = 0;
+		for (uint32_t i = 0; i < properties.memoryProperties.memoryHeapCount; i++) {
+			if (properties.memoryProperties.memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) {
+				used += budget.heapUsage[i];
+				available += budget.heapBudget[i];
+			}
+		}
+		const double mb = 1024.0 * 1024.0;
+		char text[64];
+		snprintf(text, sizeof(text), "%.1f / %.0f MB", used / mb, available / mb);
+		return text;
+	}
+
+	void Profiling::destroy() {
+		if (timestamp_query_pool != VK_NULL_HANDLE) {
+			vkDestroyQueryPool(device, timestamp_query_pool, nullptr);
+			timestamp_query_pool = VK_NULL_HANDLE;
+		}
+	}
 
 	Pipeline_Config make_default_pipeline_config() {
 		Pipeline_Config pipeline_config{};
@@ -275,6 +453,7 @@ namespace Vulkan {
 	}
 
 	void start_frame(float dt) {
+		profiling.start_cpu_frame();
 		/**
 		 * @Note: static buffer using for all frame
 		 * so when start every frame we need confirm
@@ -302,9 +481,12 @@ namespace Vulkan {
 		VkSemaphore finish_render_semaphore = render_finish_semaphores[current_frame];
 
 		uint32_t image_index;
+		profiling.start_cpu_wait();
 		vkWaitForFences(device, 1, &draw_fence, VK_TRUE, UINT64_MAX);
 		VkResult result =
 			vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, draw_semaphore, VK_NULL_HANDLE, &image_index);
+		profiling.end_cpu_wait();
+		profiling.read_frame_timestamps(current_frame);
 		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 			on_window_resize();
 			return;
@@ -318,6 +500,7 @@ namespace Vulkan {
 
 		VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
 		vkBeginCommandBuffer(command_buffer, &begin_info);
+		profiling.record_frame_begin(command_buffer, current_frame);
 		{
 			/**
 			 * Setup static buffer using for all frame in flight.
@@ -358,7 +541,9 @@ namespace Vulkan {
 			}
 			vkCmdEndRenderPass(command_buffer);
 		}
+		profiling.record_frame_end(command_buffer, current_frame);
 		vkEndCommandBuffer(command_buffer);
+		profiling.end_cpu_frame();
 		VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		VkSubmitInfo submit_info =
 			Structs::make_submit_info(&command_buffer, 1, 1, &draw_semaphore, &wait_stage, 1, &finish_render_semaphore);
@@ -381,6 +566,9 @@ namespace Vulkan {
 
 		// Descrtroy all 2D draw component.
 		destroy_draw();
+
+		// Destroy profiling GPU timestamp query pool
+		profiling.destroy();
 
 		// Destroy font system
 		font_system.destroy();

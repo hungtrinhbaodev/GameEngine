@@ -4,56 +4,56 @@
 #include <vulkan/vk_draw.h>
 
 namespace Vulkan {
-	Draw_Atributes_2::Draw_Atributes_2() {}
+	Draw_Atributes::Draw_Atributes() {}
 
-	Draw_Atributes_2::Draw_Atributes_2(Handle i_handle, Draw_Attributes_Description description) {
+	Draw_Atributes::Draw_Atributes(const Handle& i_handle, const Draw_Attributes_Description& description) {
 		handle = i_handle;
 		draw_index = description.draw_index;
 		visible = description.is_visible;
 	}
 
-	Draw_Atributes_2::~Draw_Atributes_2() {}
+	Draw_Atributes::~Draw_Atributes() {}
 
-	void Draw_Atributes_2::assert_handle() const {
+	void Draw_Atributes::assert_handle() const {
 		assert_draw_handle(handle);
 	}
 
-	void Draw_Atributes_2::set_dirty(bool dirty) const {
+	void Draw_Atributes::set_dirty(bool dirty) const {
 		if (dirty) {
 			set_draw_dirty(handle);
 		}
 	}
 
-	void Draw_Atributes_2::set_visible(bool i_visible) {
+	void Draw_Atributes::set_visible(bool i_visible) {
 		assert_handle();
 		set_dirty(visible != i_visible);
 		visible = i_visible;
 	}
 
-	void Draw_Atributes_2::set_draw_index(uint32_t i_draw_index) {
+	void Draw_Atributes::set_draw_index(uint32_t i_draw_index) {
 		assert_handle();
 		set_dirty(draw_index != i_draw_index);
 		draw_index = i_draw_index;
 	}
 
-	bool Draw_Atributes_2::is_visible() const {
+	bool Draw_Atributes::is_visible() const {
 		assert_handle();
 		return visible;
 	}
 
-	uint32_t Draw_Atributes_2::get_draw_index() const {
+	uint32_t Draw_Atributes::get_draw_index() const {
 		assert_handle();
 		return draw_index;
 	}
 
-	Draw_Attributes_Description Draw_Atributes_2::get_description() const {
+	Draw_Attributes_Description Draw_Atributes::get_description() const {
 		return {draw_index, visible};
 	}
 
 	Model_3D::Model_3D() {}
 
-	Model_3D::Model_3D(Handle i_handle, Model_3D_Description description)
-		: Draw_Atributes_2(i_handle, description) {
+	Model_3D::Model_3D(const Handle& handle, const Model_3D_Description& description)
+		: Draw_Atributes(handle, description) {
 		path = description.path;
 		position = description.position;
 		scale = description.scale;
@@ -144,17 +144,16 @@ namespace Vulkan {
 
 	Model_3D_Description Model_3D::get_description() const {
 		return Model_3D_Description{
-			Draw_Atributes_2::get_description(), path, scene_name, animation_name, position, scale, rotation
+			Draw_Atributes::get_description(), path, scene_name, animation_name, position, scale, rotation
 		};
 	}
 
 	Draw_2D::Draw_2D() {}
 
-	Draw_2D::Draw_2D(Handle handle, Draw_2D_Attributes_Description description)
-		: Draw_Atributes_2(handle, description) {
+	Draw_2D::Draw_2D(const Handle& handle, const Draw_2D_Attributes_Description& description)
+		: Draw_Atributes(handle, description) {
 		position = description.position;
 		rotation = description.rotation;
-		scale = description.scale;
 		anchor = description.anchor;
 		color = description.color;
 	}
@@ -171,12 +170,6 @@ namespace Vulkan {
 		assert_handle();
 		set_dirty(rotation != i_rotation);
 		rotation = i_rotation;
-	}
-
-	void Draw_2D::set_scale(const glm::vec2& i_scale) {
-		assert_handle();
-		set_dirty(scale != i_scale);
-		scale = i_scale;
 	}
 
 	void Draw_2D::set_anchor(const glm::vec2& i_anchor) {
@@ -201,11 +194,6 @@ namespace Vulkan {
 		return rotation;
 	}
 
-	glm::vec2 Draw_2D::get_scale() const {
-		assert_handle();
-		return scale;
-	}
-
 	glm::vec2 Draw_2D::get_anchor() const {
 		assert_handle();
 		return anchor;
@@ -218,21 +206,44 @@ namespace Vulkan {
 
 	Draw_2D_Attributes_Description Draw_2D::get_description() const {
 		Draw_2D_Attributes_Description description{};
-		static_cast<Draw_Attributes_Description&>(description) = Draw_Atributes_2::get_description();
+		static_cast<Draw_Attributes_Description&>(description) = Draw_Atributes::get_description();
 		description.position = position;
-		description.scale = scale;
 		description.rotation = rotation;
 		description.anchor = anchor;
 		description.color = color;
 		return description;
 	}
 
+	Draw_2D_Scale_Aable::Draw_2D_Scale_Aable() {}
+
+	Draw_2D_Scale_Aable::Draw_2D_Scale_Aable(const Handle& handle, const Draw_2D_Scale_Able_Description& description)
+		: Draw_2D(handle, description) {
+		scale = description.scale;
+	}
+
+	Draw_2D_Scale_Aable::~Draw_2D_Scale_Aable() {}
+
+	void Draw_2D_Scale_Aable::set_scale(const glm::vec2& i_scale) {
+		assert_handle();
+		set_dirty(scale != i_scale);
+		scale = i_scale;
+	}
+
+	glm::vec2 Draw_2D_Scale_Aable::get_scale() const {
+		assert_handle();
+		return scale;
+	}
+
+	Draw_2D_Scale_Able_Description Draw_2D_Scale_Aable::get_description() const {
+		return {Draw_2D::get_description(), scale};
+	}
+
 	Label_2D::Label_2D() {
 		update_text_size();
 	}
 
-	Label_2D::Label_2D(Handle handle, Label_2D_Description description)
-		: Draw_2D(handle, description) {
+	Label_2D::Label_2D(const Handle& handle, const Label_2D_Description& description)
+		: Draw_2D_Scale_Aable(handle, description) {
 		path = description.path;
 		text = description.text;
 		font_size = description.font_size;
@@ -331,8 +342,8 @@ namespace Vulkan {
 
 	Texture_2D::Texture_2D() {}
 
-	Texture_2D::Texture_2D(Handle handle, Texture_2D_Description description)
-		: Draw_2D(handle, description) {
+	Texture_2D::Texture_2D(const Handle& handle, const Texture_2D_Description& description)
+		: Draw_2D_Scale_Aable(handle, description) {
 		path = description.path;
 		tex_rect = description.tex_rect;
 	}
@@ -362,6 +373,103 @@ namespace Vulkan {
 	}
 
 	Texture_2D_Description Texture_2D::get_description() const {
-		return {Draw_2D::get_description(), path, tex_rect};
+		return {Draw_2D_Scale_Aable::get_description(), path, tex_rect};
 	}
+
+	Rectangle_2D::Rectangle_2D() {}
+
+	Rectangle_2D::Rectangle_2D(const Handle& handle, const Rectangle_2D_Description& description)
+		: Draw_2D(handle, description) {
+		width = description.width;
+		height = description.height;
+	}
+
+	Rectangle_2D::~Rectangle_2D() {}
+
+	void Rectangle_2D::set_width(const float& i_width) {
+		assert_handle();
+		set_dirty(width != i_width);
+		width = i_width;
+	}
+
+	void Rectangle_2D::set_height(const float& i_height) {
+		assert_handle();
+		set_dirty(height != i_height);
+		height = i_height;
+	}
+
+	float Rectangle_2D::get_width() const {
+		assert_handle();
+		return width;
+	}
+
+	float Rectangle_2D::get_height() const {
+		assert_handle();
+		return height;
+	}
+
+	Rectangle_2D_Description Rectangle_2D::get_description() const {
+		return {Draw_2D::get_description(), width, height};
+	}
+
+	Triangle_2D::Triangle_2D() {}
+
+	Triangle_2D::Triangle_2D(const Handle& handle, const Triangle_2D_Description& description)
+		: Draw_Atributes(handle, description) {
+		first = description.first;
+		second = description.second;
+		third = description.third;
+		color = description.color;
+	}
+
+	Triangle_2D::~Triangle_2D() {}
+
+	void Triangle_2D::set_first_point(const glm::vec2& i_first) {
+		assert_handle();
+		set_dirty(first != i_first);
+		first = i_first;
+	}
+
+	void Triangle_2D::set_second_point(const glm::vec2& i_second) {
+		assert_handle();
+		set_dirty(second != i_second);
+		second = i_second;
+	}
+
+	void Triangle_2D::set_third_point(const glm::vec2& i_third) {
+		assert_handle();
+		set_dirty(third != i_third);
+		third = i_third;
+	}
+
+	void Triangle_2D::set_color(const glm::vec3& i_color) {
+		assert_handle();
+		set_dirty(color != i_color);
+		color = i_color;
+	}
+
+	glm::vec2 Triangle_2D::get_first_point() const {
+		assert_handle();
+		return first;
+	}
+
+	glm::vec2 Triangle_2D::get_second_point() const {
+		assert_handle();
+		return second;
+	}
+
+	glm::vec2 Triangle_2D::get_third_point() const {
+		assert_handle();
+		return third;
+	}
+
+	glm::vec3 Triangle_2D::get_color() const {
+		assert_handle();
+		return color;
+	}
+
+	Triangle_2D_Description Triangle_2D::get_description() const {
+		return {Draw_Atributes::get_description(), first, second, third, color};
+	}
+
 } // namespace Vulkan

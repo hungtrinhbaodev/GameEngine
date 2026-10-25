@@ -67,11 +67,7 @@ namespace Vulkan {
 		app_info.pEngineName = "No Engine";
 		app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 
-#if !defined(_WIN32)
-		app_info.apiVersion = VK_API_VERSION_1_1;
-#else
-		app_info.apiVersion = VK_API_VERSION_1_0;
-#endif
+		app_info.apiVersion = Const::VULKAN_API_VERSION;
 
 		VkInstanceCreateInfo create_info{};
 		create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;

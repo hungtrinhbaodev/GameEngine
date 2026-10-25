@@ -10,6 +10,7 @@ struct Instance_Data {
     vec3  instance_color;
     float rotation;
     vec2  anchor;
+    vec2 pad;
 };
 
 layout(std430, set = 0, binding = 0) readonly buffer Instance_Buffer {

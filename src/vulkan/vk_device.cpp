@@ -1,3 +1,4 @@
+#include <cstring>
 #include <set>
 
 #include <log.h>
@@ -6,6 +7,25 @@
 #include <vulkan/vk_utils.h>
 
 namespace Vulkan {
+
+	bool memory_budget_enabled = false;
+
+	bool is_device_extension_supported(VkPhysicalDevice physical_device, const char* extension_name) {
+		uint32_t number_extension = 0;
+		vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &number_extension, nullptr);
+		std::vector<VkExtensionProperties> extensions(number_extension);
+		vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &number_extension, extensions.data());
+		for (const VkExtensionProperties& extension : extensions) {
+			if (strcmp(extension.extensionName, extension_name) == 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool is_memory_budget_enabled() {
+		return memory_budget_enabled;
+	}
 
 	void init_device(VkDevice& device, VkSurfaceKHR surface, VkPhysicalDevice physical_device) {
 
@@ -33,6 +53,11 @@ namespace Vulkan {
 
 		std::vector<const char*> device_extensions =
 			Utils::query_physical_device_support_required_extensions(physical_device);
+		memory_budget_enabled = Const::VULKAN_API_VERSION >= VK_API_VERSION_1_1 &&
+								is_device_extension_supported(physical_device, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
+		if (memory_budget_enabled) {
+			device_extensions.push_back(VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
+		}
 		create_info.enabledExtensionCount = device_extensions.size();
 		create_info.ppEnabledExtensionNames = device_extensions.data();
 

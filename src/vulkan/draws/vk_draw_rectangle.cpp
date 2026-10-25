@@ -10,11 +10,16 @@
 
 namespace Vulkan {
 
-	namespace Rectangle {
+	namespace Draw_Rectangle_2D {
 
 		struct Instance_Data {
 			uint32_t storage_offset = 0;
 			uint32_t config_offset = 0;
+			friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
+				os << "{Rectangle::Storage_Data: storage_offset: " << instance.storage_offset
+				   << ",  config_offset: " << instance.config_offset << "}";
+				return os;
+			}
 		};
 
 		struct Storage_Data {
@@ -24,22 +29,22 @@ namespace Vulkan {
 			float rotation = 0.f;			 // 4
 			glm::vec2 anchor{0.f, 0.f};		 // 8
 			float _pad[2];					 // 8
-			void make(const Rectangle_Attributes& attributes) {
-				translation = attributes.position;
-				size = glm::vec2(attributes.width, attributes.height);
-				anchor = attributes.anchor;
-				color = attributes.color;
-				rotation = attributes.rotation;
+			void make(const Rectangle_2D& attributes) {
+				translation = attributes.get_position();
+				size = glm::vec2(attributes.get_width(), attributes.get_height());
+				anchor = attributes.get_anchor();
+				color = attributes.get_color();
+				rotation = attributes.get_rotation();
 			}
-			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& instance) {
-				os << "{Rectangle::Instance_Data: translation: " << instance.translation
-				   << ",  scale: " << instance.size << ", anchor: " << instance.anchor << ", color: " << instance.color
-				   << ", rotation: " << instance.rotation << "}";
+			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& storage) {
+				os << "{Rectangle::Storage_Data: translation: " << storage.translation << ",  size: " << storage.size
+				   << ", anchor: " << storage.anchor << ", color: " << storage.color
+				   << ", rotation: " << storage.rotation << "}";
 				return os;
 			}
 		};
 
-		struct Draw_Data {
+		struct Rectangle_Data {
 			uint32_t storage_id = 0;
 		};
 
@@ -57,7 +62,9 @@ namespace Vulkan {
 
 		std::vector<VkDescriptorSetLayout> layouts{};
 
-		Sparse_Set<Draw_Data> draws{};
+		Sparse_Set<Rectangle_Data> rectangles{};
+
+		Id_Generator unique_id_generator{};
 
 		bool is_material_equal(uint32_t a, uint32_t b) {
 			return true;
@@ -96,34 +103,51 @@ namespace Vulkan {
 			return sizeof(Instance_Data);
 		}
 
-		std::vector<Draw_Instance_Information> make_rectangle_2D(
-			Draw_Information& draw_info, const Rectangle_Attributes& rectangle_attributes
+		void init_rectangle(
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
+			const Rectangle_2D& attributes
 		) {
-			draw_info.draw_material_id = 0;
+			uint32_t unique_id = unique_id_generator.gen_id();
 			SSBO_Buffer& ssbo = get_ssbo();
 			Storage_Data storage{};
-			storage.make(rectangle_attributes);
+			storage.make(attributes);
 			uint32_t storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
 			const Buffer_Range& storage_range = ssbo.view_slot(storage_id);
 			uint32_t config_draw_offset = Utils::get_draw_2D_config_data_offset(device);
 			Instance_Data instance_data{storage_range.offset_as<Storage_Data>(), config_draw_offset};
 			uint32_t instance_id = ssbo.upload_data(&instance_data, sizeof(Instance_Data));
-			draws.insert(instance_id, {storage_id});
-			draw_info.sub_unique_id = instance_id;
-			return {{instance_id}};
+			rectangles.insert(unique_id, {storage_id});
+			draw_info.sub_unique_id = unique_id;
+			draw_info.draw_material_id = 0;
+			draw_instances.clear();
+			draw_instances.push_back({instance_id});
 		}
 
-		void update_draw(uint32_t instance_id, const Rectangle_Attributes& rectangle_attributes) {
+		void update_rectangle(Draw_Information& draw_info, const Rectangle_2D& attributes) {
+			if (!rectangles.has(draw_info.sub_unique_id)) {
+				return;
+			}
+			const Rectangle_Data& rectangle = rectangles.get(draw_info.sub_unique_id);
 			SSBO_Buffer& ssbo = get_ssbo();
 			Storage_Data storage{};
-			storage.make(rectangle_attributes);
-			const Draw_Data& draw = draws.get(instance_id);
-			ssbo.update_data(draw.storage_id, &storage);
+			storage.make(attributes);
+			ssbo.update_data(rectangle.storage_id, &storage);
+		}
+
+		void remove_rectangle(uint32_t sub_unique_id) {
+			if (!rectangles.has(sub_unique_id)) {
+				return;
+			}
+			const Rectangle_Data& rectangle = rectangles.get(sub_unique_id);
+			SSBO_Buffer& ssbo = get_ssbo();
+			ssbo.remove_data(rectangle.storage_id);
+			rectangles.erase(sub_unique_id);
+			unique_id_generator.release_id(sub_unique_id);
 		}
 
 		void draw(
-			VkCommandBuffer command_buffer, uint32_t material_draw_id, uint32_t number_instance,
-			uint32_t first_instance_offset, uint32_t frame_index
+			VkCommandBuffer command_buffer, uint32_t number_instance, uint32_t first_instance_offset,
+			uint32_t frame_index
 		) {
 			Static_Buffer& static_buffer = get_static_buffer();
 			Buffer_Range indices_range = static_buffer.view_slot(indices_id);
@@ -146,6 +170,6 @@ namespace Vulkan {
 			pipeline.destroy();
 		}
 
-	} // namespace Rectangle
+	} // namespace Draw_Rectangle_2D
 
 } // namespace Vulkan

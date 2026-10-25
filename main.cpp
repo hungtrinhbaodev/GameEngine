@@ -77,163 +77,28 @@ void change_fox_to_cesiumman() {
 }
 
 /**
- * Label 2D test.
- * L: create label, K: remove label, T: change text, P: change position, R: rotate,
- * A: change anchor, C: change color, Z: change scale, N: change font size, M: change align,
- * V: toggle visible, D: change draw index, X: change everything at once.
+ * 2D draw tests, each type only has create, remove and update everything at random.
+ * Label:     L create, K remove, J update all.
+ * Texture:   1 create, 2 remove, 3 update all.
+ * Rectangle: 7 create, 8 remove, 9 update all.
+ * Triangle:  4 create, 5 remove, 6 update all.
  */
 std::vector<Handle> labels{};
 
 std::vector<Handle> textures{};
 
+std::vector<Handle> rectangles{};
+
+std::vector<Handle> triangles{};
+
 std::vector<std::string> label_texts = {
 	"Hello!", "Frame rate: 60", "toi la hung!\nhaha\n12323-~yy", "", "A", "Line 1\nLine 2\nLine 3",
 };
 
-std::vector<glm::vec2> label_anchors = {
+std::vector<glm::vec2> anchors_2D = {
 	{0.f, 0.f}, {0.5f, 0.5f}, {1.f, 1.f}, {0.f, 1.f}, {1.f, 0.f},
 };
 
-int pick_label_index() {
-	if (labels.size() <= 0)
-		return -1;
-	return Math::random_int(0, labels.size() - 1);
-}
-
-glm::vec2 random_label_position() {
-	glm::vec2 window_size = Vulkan::Utils::get_window_size(Vulkan::device);
-	return {Math::random_float(0.f, window_size.x), Math::random_float(0.f, window_size.y)};
-}
-
-glm::vec2 random_texture_position() {
-	glm::vec2 window_size = Vulkan::Utils::get_window_size(Vulkan::device);
-	return {Math::random_float(0.f, window_size.x), Math::random_float(0.f, window_size.y)};
-}
-
-glm::vec3 random_color() {
-	return {Math::random_float(), Math::random_float(), Math::random_float()};
-}
-
-void gen_label() {
-	Vulkan::Label_2D_Description label_info{};
-	label_info.text = label_texts[Math::random_int(0, label_texts.size() - 1)];
-	label_info.font_size = Math::random_int(12, 32);
-	label_info.position = random_label_position();
-	label_info.color = random_color();
-	label_info.align = Math::random_int(0, 2);
-	labels.push_back(Vulkan::create_label(label_info));
-	Log::info("[Label test] create, number labels:", labels.size(), label_info.text);
-}
-
-void remove_label() {
-	int index = pick_label_index();
-	if (index < 0)
-		return;
-	Vulkan::remove_draw(labels[index]);
-	labels[index] = labels.back();
-	labels.pop_back();
-	Log::info("[Label test] remove, number labels:", labels.size());
-}
-
-void change_label_text() {
-	int index = pick_label_index();
-	if (index < 0)
-		return;
-	std::string text = label_texts[Math::random_int(0, label_texts.size() - 1)];
-	Vulkan::modify_label(labels[index]).set_text(text);
-	Log::info("[Label test] text:", text);
-}
-
-void change_label_position() {
-	int index = pick_label_index();
-	if (index < 0)
-		return;
-	Vulkan::modify_label(labels[index]).set_position(random_label_position());
-}
-
-void rotate_label() {
-	int index = pick_label_index();
-	if (index < 0)
-		return;
-	Vulkan::Label_2D& label = Vulkan::modify_label(labels[index]);
-	label.set_rotation(label.get_rotation() + 15.f);
-}
-
-void change_label_anchor() {
-	int index = pick_label_index();
-	if (index < 0)
-		return;
-	Vulkan::Label_2D& label = Vulkan::modify_label(labels[index]);
-	auto it = std::find(label_anchors.begin(), label_anchors.end(), label.get_anchor());
-	int anchor_index = it == label_anchors.end() ? 0 : (int)(it - label_anchors.begin());
-	label.set_anchor(label_anchors[(anchor_index + 1) % label_anchors.size()]);
-}
-
-void change_label_color() {
-	int index = pick_label_index();
-	if (index < 0)
-		return;
-	Vulkan::modify_label(labels[index]).set_color(random_color());
-}
-
-void change_label_scale() {
-	int index = pick_label_index();
-	if (index < 0)
-		return;
-	float scale = Math::random_float(0.5f, 2.f);
-	Vulkan::modify_label(labels[index]).set_scale({scale, scale});
-}
-
-void change_label_font_size() {
-	int index = pick_label_index();
-	if (index < 0)
-		return;
-	Vulkan::modify_label(labels[index]).set_font_size(Math::random_int(10, 40));
-}
-
-void change_label_align() {
-	int index = pick_label_index();
-	if (index < 0)
-		return;
-	Vulkan::Label_2D& label = Vulkan::modify_label(labels[index]);
-	label.set_align((label.get_align() + 1) % 3);
-}
-
-void toggle_label_visible() {
-	int index = pick_label_index();
-	if (index < 0)
-		return;
-	Vulkan::Label_2D& label = Vulkan::modify_label(labels[index]);
-	label.set_visible(!label.is_visible());
-}
-
-void change_label_draw_index() {
-	int index = pick_label_index();
-	if (index < 0)
-		return;
-	Vulkan::modify_label(labels[index]).set_draw_index(Math::random_int(1, 1000));
-}
-
-void change_label_everything() {
-	int index = pick_label_index();
-	if (index < 0)
-		return;
-	Vulkan::Label_2D& label = Vulkan::modify_label(labels[index]);
-	label.set_text(label_texts[Math::random_int(0, label_texts.size() - 1)]);
-	label.set_position(random_label_position());
-	label.set_rotation(Math::random_float(0.f, 360.f));
-	label.set_anchor(label_anchors[Math::random_int(0, label_anchors.size() - 1)]);
-	label.set_color(random_color());
-	label.set_font_size(Math::random_int(10, 40));
-	label.set_align(Math::random_int(0, 2));
-}
-
-/**
- * Texture 2D test.
- * 1: create texture, 2: remove texture, 3: change path, 4: change texture rect, 5: change position,
- * 6: rotate, 7: change anchor, 8: change color, 9: change scale, 0: toggle visible,
- * -: change draw index, O: change everything at once.
- */
 std::vector<std::string> texture_paths = {
 	"res/texture/texture1.png", "res/texture/texture2.png", "res/texture/texture3.png",
 	"res/texture/texture4.png", "res/AddonIcon5.png",		"res/AddonIcon7.png",
@@ -246,159 +111,218 @@ std::vector<Geometry::Texture_Rect_2D> texture_rects = {
 	{0.25f, 0.25f, 0.5f, 0.5f},
 };
 
-std::vector<float> texture_scales = {0.5f, 1.f, 1.5f, 2.f};
+template <typename T> const T& random_item(const std::vector<T>& values) {
+	return values[Math::random_int(0, values.size() - 1)];
+}
 
-int pick_texture_index() {
-	if (textures.size() <= 0)
+int pick_index(const std::vector<Handle>& handles) {
+	if (handles.size() <= 0)
 		return -1;
-	return Math::random_int(0, textures.size() - 1);
+	return Math::random_int(0, handles.size() - 1);
 }
 
-template <typename T> int find_cycle_index(const std::vector<T>& values, const T& value) {
-	auto it = std::find(values.begin(), values.end(), value);
-	return it == values.end() ? 0 : (int)(it - values.begin());
+void remove_random_draw(std::vector<Handle>& handles) {
+	int index = pick_index(handles);
+	if (index < 0)
+		return;
+	Vulkan::remove_draw(handles[index]);
+	handles[index] = handles.back();
+	handles.pop_back();
 }
 
+glm::vec2 random_position_2D() {
+	glm::vec2 window_size = Vulkan::Utils::get_window_size(Vulkan::device);
+	return {Math::random_float(0.f, window_size.x), Math::random_float(0.f, window_size.y)};
+}
+
+glm::vec3 random_color() {
+	return {Math::random_float(), Math::random_float(), Math::random_float()};
+}
+
+/**
+ * @Note: mostly visible so most updates can still be seen on screen.
+ */
+bool random_visible() {
+	return Math::random_int(0, 4) > 0;
+}
+
+/**
+ * Label 2D test.
+ */
+void gen_label() {
+	Vulkan::Label_2D_Description label_info{};
+	label_info.text = random_item(label_texts);
+	label_info.font_size = Math::random_int(12, 32);
+	label_info.position = random_position_2D();
+	label_info.color = random_color();
+	label_info.align = Math::random_int(0, 2);
+	labels.push_back(Vulkan::create_label(label_info));
+	Log::info("[Label test] create, number labels:", labels.size(), label_info.text);
+}
+
+void remove_label() {
+	remove_random_draw(labels);
+	Log::info("[Label test] remove, number labels:", labels.size());
+}
+
+void update_label_everything() {
+	int index = pick_index(labels);
+	if (index < 0)
+		return;
+	Vulkan::Label_2D& label = Vulkan::modify_label(labels[index]);
+	label.set_text(random_item(label_texts));
+	label.set_font_size(Math::random_int(10, 40));
+	label.set_align(Math::random_int(0, 2));
+	label.set_position(random_position_2D());
+	label.set_rotation(Math::random_float(0.f, 360.f));
+	label.set_anchor(random_item(anchors_2D));
+	label.set_color(random_color());
+	float scale = Math::random_float(0.5f, 2.f);
+	label.set_scale({scale, scale});
+	label.set_visible(random_visible());
+	label.set_draw_index(Math::random_int(1, 1000));
+}
+
+/**
+ * Texture 2D test.
+ */
 void gen_texture() {
 	Vulkan::Texture_2D_Description texture_info{};
-	texture_info.path = texture_paths[Math::random_int(0, texture_paths.size() - 1)];
-	texture_info.position = random_texture_position();
+	texture_info.path = random_item(texture_paths);
+	texture_info.position = random_position_2D();
 	texture_info.color = {1.f, 1.f, 1.f};
 	textures.push_back(Vulkan::create_texture(texture_info));
 	Log::info("[Texture test] create, number textures:", textures.size(), texture_info.path);
 }
 
 void remove_texture() {
-	int index = pick_texture_index();
-	if (index < 0)
-		return;
-	Vulkan::remove_draw(textures[index]);
-	textures[index] = textures.back();
-	textures.pop_back();
+	remove_random_draw(textures);
 	Log::info("[Texture test] remove, number textures:", textures.size());
 }
 
-void change_texture_path() {
-	int index = pick_texture_index();
+void update_texture_everything() {
+	int index = pick_index(textures);
 	if (index < 0)
 		return;
 	Vulkan::Texture_2D& texture = Vulkan::modify_texture(textures[index]);
-	int path_index = find_cycle_index(texture_paths, texture.get_texture_path());
-	std::string path = texture_paths[(path_index + 1) % texture_paths.size()];
-	texture.set_texture_path(path);
-	Log::info("[Texture test] path:", path);
-}
-
-void change_texture_rect() {
-	int index = pick_texture_index();
-	if (index < 0)
-		return;
-	Vulkan::Texture_2D& texture = Vulkan::modify_texture(textures[index]);
-	glm::vec4 current = texture.get_texture_rect().to_vec4();
-	int rect_index = 0;
-	for (int i = 0; i < (int)texture_rects.size(); i++) {
-		if (texture_rects[i].to_vec4() == current) {
-			rect_index = i;
-			break;
-		}
-	}
-	texture.set_texture_rect(texture_rects[(rect_index + 1) % texture_rects.size()]);
-}
-
-void change_texture_position() {
-	int index = pick_texture_index();
-	if (index < 0)
-		return;
-	Vulkan::modify_texture(textures[index]).set_position(random_label_position());
-}
-
-void rotate_texture() {
-	int index = pick_texture_index();
-	if (index < 0)
-		return;
-	Vulkan::Texture_2D& texture = Vulkan::modify_texture(textures[index]);
-	texture.set_rotation(texture.get_rotation() + 15.f);
-}
-
-void change_texture_anchor() {
-	int index = pick_texture_index();
-	if (index < 0)
-		return;
-	Vulkan::Texture_2D& texture = Vulkan::modify_texture(textures[index]);
-	int anchor_index = find_cycle_index(label_anchors, texture.get_anchor());
-	texture.set_anchor(label_anchors[(anchor_index + 1) % label_anchors.size()]);
-}
-
-void change_texture_color() {
-	int index = pick_texture_index();
-	if (index < 0)
-		return;
-	Vulkan::modify_texture(textures[index]).set_color(random_color());
-}
-
-void change_texture_scale() {
-	int index = pick_texture_index();
-	if (index < 0)
-		return;
-	Vulkan::Texture_2D& texture = Vulkan::modify_texture(textures[index]);
-	int scale_index = find_cycle_index(texture_scales, texture.get_scale().x);
-	float scale = texture_scales[(scale_index + 1) % texture_scales.size()];
-	texture.set_scale({scale, scale});
-}
-
-void toggle_texture_visible() {
-	int index = pick_texture_index();
-	if (index < 0)
-		return;
-	Vulkan::Texture_2D& texture = Vulkan::modify_texture(textures[index]);
-	texture.set_visible(!texture.is_visible());
-}
-
-void change_texture_draw_index() {
-	int index = pick_texture_index();
-	if (index < 0)
-		return;
-	Vulkan::modify_texture(textures[index]).set_draw_index(Math::random_int(1, 1000));
-}
-
-void change_texture_everything() {
-	int index = pick_texture_index();
-	if (index < 0)
-		return;
-	Vulkan::Texture_2D& texture = Vulkan::modify_texture(textures[index]);
-	texture.set_texture_path(texture_paths[Math::random_int(0, texture_paths.size() - 1)]);
-	texture.set_texture_rect(texture_rects[Math::random_int(0, texture_rects.size() - 1)]);
-	texture.set_position(random_label_position());
+	texture.set_texture_path(random_item(texture_paths));
+	texture.set_texture_rect(random_item(texture_rects));
+	texture.set_position(random_position_2D());
 	texture.set_rotation(Math::random_float(0.f, 360.f));
-	texture.set_anchor(label_anchors[Math::random_int(0, label_anchors.size() - 1)]);
+	texture.set_anchor(random_item(anchors_2D));
 	texture.set_color(random_color());
-	float scale = texture_scales[Math::random_int(0, texture_scales.size() - 1)];
+	float scale = Math::random_float(0.5f, 2.f);
 	texture.set_scale({scale, scale});
+	texture.set_visible(random_visible());
+	texture.set_draw_index(Math::random_int(1, 1000));
+}
+
+/**
+ * Rectangle 2D test.
+ */
+void gen_rectangle() {
+	Vulkan::Rectangle_2D_Description rectangle_info{};
+	rectangle_info.width = Math::random_float(50.f, 300.f);
+	rectangle_info.height = Math::random_float(50.f, 300.f);
+	rectangle_info.anchor = {0.5f, 0.5f};
+	rectangle_info.position = random_position_2D();
+	rectangle_info.color = random_color();
+	rectangles.push_back(Vulkan::create_rectangle(rectangle_info));
+	Log::info("[Rectangle test] create, number rectangles:", rectangles.size());
+}
+
+void remove_rectangle() {
+	remove_random_draw(rectangles);
+	Log::info("[Rectangle test] remove, number rectangles:", rectangles.size());
+}
+
+void update_rectangle_everything() {
+	int index = pick_index(rectangles);
+	if (index < 0)
+		return;
+	Vulkan::Rectangle_2D& rectangle = Vulkan::modify_rectangle(rectangles[index]);
+	rectangle.set_width(Math::random_float(50.f, 300.f));
+	rectangle.set_height(Math::random_float(50.f, 300.f));
+	rectangle.set_position(random_position_2D());
+	rectangle.set_rotation(Math::random_float(0.f, 360.f));
+	rectangle.set_anchor(random_item(anchors_2D));
+	rectangle.set_color(random_color());
+	rectangle.set_visible(random_visible());
+	rectangle.set_draw_index(Math::random_int(1, 1000));
+}
+
+/**
+ * Triangle 2D test.
+ */
+glm::vec2 random_triangle_point(const glm::vec2& center) {
+	return center + glm::vec2{Math::random_float(-150.f, 150.f), Math::random_float(-150.f, 150.f)};
+}
+
+/**
+ * @Note: the engine only accepts clockwise triangles (Math::is_valid_triangle_with_clockwise),
+ * so swap the last two points when the random winding is the other way, and retry flat triangles.
+ */
+std::array<glm::vec2, 3> random_triangle_points() {
+	glm::vec2 center = random_position_2D();
+	std::array<glm::vec2, 3> points{};
+	do {
+		points = {random_triangle_point(center), random_triangle_point(center), random_triangle_point(center)};
+		if (!Math::is_valid_triangle_with_clockwise(points[0], points[1], points[2])) {
+			std::swap(points[1], points[2]);
+		}
+	} while (!Math::is_valid_triangle_with_clockwise(points[0], points[1], points[2]));
+	return points;
+}
+
+void gen_triangle() {
+	std::array<glm::vec2, 3> points = random_triangle_points();
+	Vulkan::Triangle_2D_Description triangle_info{};
+	triangle_info.first = points[0];
+	triangle_info.second = points[1];
+	triangle_info.third = points[2];
+	triangle_info.color = random_color();
+	triangles.push_back(Vulkan::create_triangle(triangle_info));
+	Log::info("[Triangle test] create, number triangles:", triangles.size());
+}
+
+void remove_triangle() {
+	remove_random_draw(triangles);
+	Log::info("[Triangle test] remove, number triangles:", triangles.size());
+}
+
+void update_triangle_everything() {
+	int index = pick_index(triangles);
+	if (index < 0)
+		return;
+	std::array<glm::vec2, 3> points = random_triangle_points();
+	Vulkan::Triangle_2D& triangle = Vulkan::modify_triangle(triangles[index]);
+	triangle.set_first_point(points[0]);
+	triangle.set_second_point(points[1]);
+	triangle.set_third_point(points[2]);
+	triangle.set_color(random_color());
+	triangle.set_visible(random_visible());
+	triangle.set_draw_index(Math::random_int(1, 1000));
 }
 
 /**
  * Debug scene (key B): rebuild the 18 objects of debug/draw_batching.json in the same sorted order,
  * so the draw groups and batches come out the same. Positions and colors are fixed to make every run
  * identical. Sorting draws higher draw_index first, so each object gets a decreasing draw_index.
+ * Textures and rectangles are added after the json objects.
  * Press N afterwards to print the draw groups and compare with the json.
  */
 void clear_test_scene() {
-	for (const Handle& fox : foxes) {
-		Vulkan::remove_draw(fox);
-	}
-	for (const Handle& cesiumman : cesiummans) {
-		Vulkan::remove_draw(cesiumman);
-	}
-	for (const Handle& label : labels) {
-		Vulkan::remove_draw(label);
-	}
-	for (const Handle& texture : textures) {
-		Vulkan::remove_draw(texture);
+	for (const std::vector<Handle>* handles : {&foxes, &cesiummans, &labels, &textures, &rectangles, &triangles}) {
+		for (const Handle& handle : *handles) {
+			Vulkan::remove_draw(handle);
+		}
 	}
 	foxes.clear();
 	cesiummans.clear();
 	labels.clear();
 	textures.clear();
+	rectangles.clear();
+	triangles.clear();
 }
 
 void build_debug_scene() {
@@ -471,7 +395,7 @@ void build_debug_scene() {
 		}
 		draw_index--;
 	}
-	// Textures after the json objects: the first two share a texture (one batch), the third uses another.
+	// Textures: the first two share a texture (one batch), the third uses another.
 	std::vector<std::string> debug_texture_paths = {texture_paths[0], texture_paths[0], texture_paths[1]};
 	for (int i = 0; i < (int)debug_texture_paths.size(); i++) {
 		Vulkan::Texture_2D_Description texture_info{};
@@ -481,9 +405,33 @@ void build_debug_scene() {
 		textures.push_back(Vulkan::create_texture(texture_info));
 		draw_index--;
 	}
+	// Rectangles: three neighbours in the sorted order (one batch), each with its own size and color.
+	for (int i = 0; i < 3; i++) {
+		Vulkan::Rectangle_2D_Description rectangle_info{};
+		rectangle_info.draw_index = draw_index;
+		rectangle_info.width = 120.f + i * 40.f;
+		rectangle_info.height = 80.f;
+		rectangle_info.anchor = {0.5f, 0.5f};
+		rectangle_info.position = {window_size.x * 0.5f + (i - 1) * 200.f, window_size.y - 120.f};
+		rectangle_info.color = {0.2f + 0.3f * i, 0.8f - 0.25f * i, 0.4f};
+		rectangles.push_back(Vulkan::create_rectangle(rectangle_info));
+		draw_index--;
+	}
+	// Triangles: three neighbours in the sorted order (one batch), above the rectangles.
+	for (int i = 0; i < 3; i++) {
+		glm::vec2 center = {window_size.x * 0.5f + (i - 1) * 200.f, window_size.y - 260.f};
+		Vulkan::Triangle_2D_Description triangle_info{};
+		triangle_info.draw_index = draw_index;
+		triangle_info.first = center + glm::vec2{-60.f, -50.f};
+		triangle_info.second = center + glm::vec2{0.f, 60.f};
+		triangle_info.third = center + glm::vec2{60.f, -50.f};
+		triangle_info.color = {0.4f, 0.3f + 0.3f * i, 0.9f - 0.3f * i};
+		triangles.push_back(Vulkan::create_triangle(triangle_info));
+		draw_index--;
+	}
 	Log::info(
 		"[Debug scene] built, labels:", labels.size(), "foxes:", foxes.size(), "cesiummans:", cesiummans.size(),
-		"textures:", textures.size()
+		"textures:", textures.size(), "rectangles:", rectangles.size(), "triangles:", triangles.size()
 	);
 }
 
@@ -515,53 +463,8 @@ void on_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
 					remove_label();
 					break;
 				}
-				case GLFW_KEY_T: {
-					change_label_text();
-					break;
-				}
-				case GLFW_KEY_P: {
-					change_label_position();
-					break;
-				}
-				case GLFW_KEY_R: {
-					rotate_label();
-					break;
-				}
-				case GLFW_KEY_A: {
-					change_label_anchor();
-					break;
-				}
-				case GLFW_KEY_C: {
-					change_label_color();
-					break;
-				}
-				case GLFW_KEY_Z: {
-					change_label_scale();
-					break;
-				}
-				case GLFW_KEY_N: {
-					// change_label_font_size();
-					Vulkan::show_debug();
-					break;
-				}
-				case GLFW_KEY_M: {
-					change_label_align();
-					break;
-				}
-				case GLFW_KEY_V: {
-					toggle_label_visible();
-					break;
-				}
-				case GLFW_KEY_D: {
-					change_label_draw_index();
-					break;
-				}
-				case GLFW_KEY_X: {
-					change_label_everything();
-					break;
-				}
-				case GLFW_KEY_B: {
-					build_debug_scene();
+				case GLFW_KEY_J: {
+					update_label_everything();
 					break;
 				}
 				case GLFW_KEY_1: {
@@ -573,43 +476,39 @@ void on_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
 					break;
 				}
 				case GLFW_KEY_3: {
-					change_texture_path();
+					update_texture_everything();
 					break;
 				}
 				case GLFW_KEY_4: {
-					change_texture_rect();
+					gen_triangle();
 					break;
 				}
 				case GLFW_KEY_5: {
-					change_texture_position();
+					remove_triangle();
 					break;
 				}
 				case GLFW_KEY_6: {
-					rotate_texture();
+					update_triangle_everything();
 					break;
 				}
 				case GLFW_KEY_7: {
-					change_texture_anchor();
+					gen_rectangle();
 					break;
 				}
 				case GLFW_KEY_8: {
-					change_texture_color();
+					remove_rectangle();
 					break;
 				}
 				case GLFW_KEY_9: {
-					change_texture_scale();
+					update_rectangle_everything();
 					break;
 				}
-				case GLFW_KEY_0: {
-					toggle_texture_visible();
+				case GLFW_KEY_N: {
+					Vulkan::show_debug();
 					break;
 				}
-				case GLFW_KEY_MINUS: {
-					change_texture_draw_index();
-					break;
-				}
-				case GLFW_KEY_O: {
-					change_texture_everything();
+				case GLFW_KEY_B: {
+					build_debug_scene();
 					break;
 				}
 				default: {
@@ -636,18 +535,7 @@ int main() {
 	Vulkan::init_vulkan_core(window);
 	glfwSetKeyCallback(window, on_key);
 
-	glm::vec2 window_size = Vulkan::Utils::get_window_size(Vulkan::device);
-	std::vector<uint32_t> rectangles{};
-	for (int i = 0; i < 0; i++) {
-		Vulkan::Draw_Attribute draw_attributes{(uint32_t)Math::random_int(1, 1000), true};
-		Vulkan::Rectangle_Attributes rectangle_attributes{
-			200, 100, {Math::random_float(0, window_size.x), Math::random_float(0, window_size.y)}
-		};
-		rectangle_attributes.color = {Math::random_float(), Math::random_float(), Math::random_float()};
-		rectangles.push_back(Vulkan::make_rectangle(draw_attributes, rectangle_attributes));
-	}
-
-	for (int i = 0; i < 1; i++) {
+	for (int i = 0; i < 3; i++) {
 		gen_fox_3D();
 	}
 

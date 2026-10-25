@@ -10,7 +10,7 @@
 
 namespace Vulkan {
 
-	namespace Triangle {
+	namespace Draw_Triangle_2D {
 
 		struct Instance_Data {
 			uint32_t storage_offset = 0;
@@ -25,15 +25,15 @@ namespace Vulkan {
 			float _pad = 0.f;				// 4
 			glm::vec2 third{0.f, 0.f};		// 8/8
 			float _pad2[2];					// 8/8
-			void make(const Triangle_Attribultes& attributes) {
-				first = attributes.first;
-				second = attributes.second;
-				third = attributes.third;
-				color = attributes.color;
+			void make(const Triangle_2D& attributes) {
+				first = attributes.get_first_point();
+				second = attributes.get_second_point();
+				third = attributes.get_third_point();
+				color = attributes.get_color();
 			}
 		};
 
-		struct Draw_Data {
+		struct Triangle_Data {
 			uint32_t storage_id = 0;
 		};
 
@@ -51,7 +51,9 @@ namespace Vulkan {
 
 		uint32_t indices_id = 0;
 
-		Sparse_Set<Draw_Data> draws{};
+		Sparse_Set<Triangle_Data> triangles{};
+
+		Id_Generator unique_id_generator{};
 
 		bool is_material_equal(uint32_t a, uint32_t b) {
 			return true;
@@ -92,12 +94,16 @@ namespace Vulkan {
 			return sizeof(Instance_Data);
 		}
 
-		std::vector<Draw_Instance_Information> make_triangle(
-			Draw_Information& draw_info, const Triangle_Attribultes& attributes
+		void init_triangle(
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
+			const Triangle_2D& attributes
 		) {
-			if (!Math::is_valid_triangle_with_clockwise(attributes.first, attributes.second, attributes.third)) {
+			if (!Math::is_valid_triangle_with_clockwise(
+					attributes.get_first_point(), attributes.get_second_point(), attributes.get_third_point()
+				)) {
 				throw std::runtime_error("Fail to make triangle invalid clockwise points!");
 			}
+			uint32_t unique_id = unique_id_generator.gen_id();
 			SSBO_Buffer& ssbo = get_ssbo();
 			Storage_Data storage{};
 			storage.make(attributes);
@@ -111,21 +117,36 @@ namespace Vulkan {
 				config_draw_offset
 			};
 			uint32_t instance_id = ssbo.upload_data(&instance, sizeof(Instance_Data), 1);
-			draws.insert(instance_id, {storage_id});
-			return {{instance_id}};
+			triangles.insert(unique_id, {storage_id});
+			draw_info.sub_unique_id = unique_id;
+			draw_instances.clear();
+			draw_instances.push_back({instance_id});
 		}
 
-		void update_triangle(uint32_t instance_id, const Triangle_Attribultes& attributes) {
-			if (!Math::is_valid_triangle_with_clockwise(attributes.first, attributes.second, attributes.third)) {
+		void update_triangle(Draw_Information& draw_info, const Triangle_2D& attributes) {
+			if (!Math::is_valid_triangle_with_clockwise(
+					attributes.get_first_point(), attributes.get_second_point(), attributes.get_third_point()
+				)) {
 				throw std::runtime_error(
-					"Fail to update triangle invalid clockwise points: " + std::to_string(instance_id) + "!"
+					"Fail to update triangle invalid clockwise points: " + std::to_string(draw_info.sub_unique_id) + "!"
 				);
 			}
 			SSBO_Buffer& ssbo = get_ssbo();
-			const Draw_Data& draw = draws.get(instance_id);
+			const Triangle_Data& draw = triangles.get(draw_info.sub_unique_id);
 			Storage_Data storage{};
 			storage.make(attributes);
 			ssbo.update_data(draw.storage_id, &instance);
+		}
+
+		void remove_triangle(uint32_t sub_unique_id) {
+			if (!triangles.has(sub_unique_id)) {
+				return;
+			}
+			const Triangle_Data& triangle = triangles.get(sub_unique_id);
+			SSBO_Buffer& ssbo = get_ssbo();
+			ssbo.remove_data(triangle.storage_id);
+			triangles.erase(sub_unique_id);
+			unique_id_generator.release_id(sub_unique_id);
 		}
 
 		void draw(
@@ -153,6 +174,6 @@ namespace Vulkan {
 			pipeline.destroy();
 		}
 
-	} // namespace Triangle
+	} // namespace Draw_Triangle_2D
 
 } // namespace Vulkan

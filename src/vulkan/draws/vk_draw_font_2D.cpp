@@ -66,7 +66,6 @@ namespace Vulkan {
 			float height = 0;
 			uint32_t storage_char_id = ::Const::MAX_UINT32;
 			uint32_t storage_id = ::Const::MAX_UINT32;
-			uint32_t instance_id = ::Const::MAX_UINT32;
 			uint32_t font_id = ::Const::MAX_UINT32;
 			glm::vec2 text_anchor{0.f};
 
@@ -107,7 +106,6 @@ namespace Vulkan {
 				clean(ssbo);
 				storage_char_id = ::Const::MAX_UINT32;
 				storage_id = ::Const::MAX_UINT32;
-				instance_id = ::Const::MAX_UINT32;
 				text = "";
 				text_anchor = {0.f, 0.f};
 				draw_instances.clear();
@@ -177,17 +175,16 @@ namespace Vulkan {
 						 vertex_range.offset_as<Geometry::Vertex_2D>(), config_draw_offset}
 					);
 				}
-				instance_id =
+				uint32_t instance_id =
 					ssbo.upload_data(instances.data(), instances.size() * sizeof(Instance_Data), sizeof(Instance_Data));
 				draw_instances.push_back({instance_id, (uint32_t)char_storages.size()});
 			}
 
 			void clean(SSBO_Buffer& ssbo) const {
-				if (instance_id == ::Const::MAX_UINT32)
+				if (storage_id == ::Const::MAX_UINT32)
 					return;
 				ssbo.remove_data(storage_id);
 				ssbo.remove_data(storage_char_id);
-				ssbo.remove_data(instance_id);
 			}
 		};
 
@@ -374,33 +371,27 @@ namespace Vulkan {
 			);
 		}
 
-		uint32_t update_text_data(Draw_Information& draw_info, Text_Data& text, const Label_2D& text_attributes) {
-			return 0;
-		}
-
 		void init_font(
-			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances, Label_2D& attributes
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
+			const Label_2D& attributes
 		) {
 			uint32_t unique_id = unique_id_generator.gen_id();
 			Text_Data text{};
 			text.make(attributes, get_ssbo(), get_static_buffer(), draw_instances, vertex_id);
-			attributes.set_width(text.width);
-			attributes.set_height(text.height);
 			draw_info.draw_material_id = text.font_id;
 			draw_info.sub_unique_id = unique_id;
 			texts.insert(unique_id, text);
 		}
 
 		void update_font(
-			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances, Label_2D& attributes
+			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
+			const Label_2D& attributes
 		) {
 			if (!texts.has(draw_info.sub_unique_id)) {
 				return;
 			}
 			Text_Data& text = texts.modify(draw_info.sub_unique_id);
 			text.update_text_data(attributes, get_ssbo(), get_static_buffer(), draw_instances, vertex_id);
-			attributes.set_width(text.width);
-			attributes.set_height(text.height);
 			draw_info.draw_material_id = text.font_id;
 		}
 

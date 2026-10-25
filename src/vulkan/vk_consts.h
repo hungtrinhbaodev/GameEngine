@@ -15,11 +15,15 @@ namespace Vulkan {
 
 #ifdef _DEBUG
 		const inline bool IS_ENABLE_VALIDATION_LAYERS = true;
-#elif __APPLE__
-		const inline bool IS_ENABLE_VALIDATION_LAYERS = true;
 #else
 		const inline bool IS_ENABLE_VALIDATION_LAYERS = false;
 #endif // _DEBUG
+
+#if !defined(_WIN32)
+		const inline uint32_t VULKAN_API_VERSION = VK_API_VERSION_1_1;
+#else
+		const inline uint32_t VULKAN_API_VERSION = VK_API_VERSION_1_0;
+#endif
 
 		const inline int MAX_FRAMES_IN_FLIGHT = 3;
 
@@ -50,11 +54,11 @@ namespace Vulkan {
 
 		const inline std::vector<uint32_t> TEXTURE_BUCKET_SIZES{{16, 32, 64, 128, 256, 512, 1024, 2048}};
 
-		const inline std::vector<uint32_t> NUMBER_LAYER_TEXTURE_PER_BUCKETS{{128, 128, 64, 64, 64, 32, 16, 4}};
+		const inline std::vector<uint32_t> NUMBER_LAYER_TEXTURE_PER_BUCKETS{{128, 128, 64, 64, 64, 16, 8, 2}};
 
 		const inline std::vector<uint32_t> FONT_TEXTURE_BUCKET_SIZE{512, 1024, 2048};
 
-		const inline std::vector<uint32_t> NUMBER_LAYER_FONT_TEXTURE_PER_BUCKETS{16, 8, 4};
+		const inline std::vector<uint32_t> NUMBER_LAYER_FONT_TEXTURE_PER_BUCKETS{8, 4, 2};
 
 		const inline bool ENEABLED_IMAGE_MIPMAP = true;
 

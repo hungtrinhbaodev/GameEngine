@@ -198,6 +198,10 @@ namespace Vulkan {
 
 	Sparse_Set<Texture_2D> draw_id_to_textures{};
 
+	Sparse_Set<Rectangle_2D> draw_id_to_rectangles{};
+
+	Sparse_Set<Triangle_2D> draw_id_to_triangles{};
+
 	Frame_Debug_Batching debug_info{};
 
 	const bool DEBUG_LOG = false;
@@ -288,13 +292,13 @@ namespace Vulkan {
 			return false;
 		switch (a.draw_type) {
 			case Const::DRAW_ID::DRAW_RECTANGLE_2D: {
-				return Rectangle::is_material_equal(a.draw_material_id, b.draw_material_id);
+				return Draw_Rectangle_2D::is_material_equal(a.draw_material_id, b.draw_material_id);
 			}
 			case Const::DRAW_ID::DRAW_TEXTURE_2D: {
 				return Draw_Texture_2D::is_material_equal(a.draw_material_id, b.draw_material_id);
 			}
 			case Const::DRAW_ID::DRAW_TRIANGLE_2D: {
-				return Triangle::is_material_equal(a.draw_material_id, b.draw_material_id);
+				return Draw_Triangle_2D::is_material_equal(a.draw_material_id, b.draw_material_id);
 			}
 			case Const::DRAW_ID::DRAW_FONT_2D: {
 				return Draw_Font_2D::is_material_equal(a.draw_material_id, b.draw_material_id);
@@ -360,13 +364,13 @@ namespace Vulkan {
 	size_t get_instance_size(Const::DRAW_ID draw_type) {
 		switch (draw_type) {
 			case Const::DRAW_ID::DRAW_RECTANGLE_2D: {
-				return Rectangle::get_instance_size();
+				return Draw_Rectangle_2D::get_instance_size();
 			}
 			case Const::DRAW_ID::DRAW_TEXTURE_2D: {
 				return Draw_Texture_2D::get_instance_size();
 			}
 			case Const::DRAW_ID::DRAW_TRIANGLE_2D: {
-				return Triangle::get_instance_size();
+				return Draw_Triangle_2D::get_instance_size();
 			}
 			case Const::DRAW_ID::DRAW_FONT_2D: {
 				return Draw_Font_2D::get_instance_size();
@@ -749,8 +753,8 @@ namespace Vulkan {
 		 * Initialize all draw type.
 		 */
 		Draw_Texture_2D::init();
-		Rectangle::init();
-		Triangle::init();
+		Draw_Rectangle_2D::init();
+		Draw_Triangle_2D::init();
 		Draw_Font_2D::init();
 		Draw_Model_3D::init();
 	}
@@ -768,7 +772,7 @@ namespace Vulkan {
 					break;
 				}
 				case Const::DRAW_FONT_2D: {
-					Label_2D& label = draw_id_to_labels.modify(handle.id());
+					const Label_2D& label = draw_id_to_labels.get(handle.id());
 					Draw_Font_2D::update_font(draw_info, draw_instances, label);
 					update_draw_info(draw_info, label.get_description());
 					break;
@@ -777,6 +781,18 @@ namespace Vulkan {
 					const Texture_2D& texture = draw_id_to_textures.get(handle.id());
 					Draw_Texture_2D::update_texture(draw_info, texture);
 					update_draw_info(draw_info, texture.get_description());
+					break;
+				}
+				case Const::DRAW_RECTANGLE_2D: {
+					const Rectangle_2D& rectangle = draw_id_to_rectangles.get(handle.id());
+					Draw_Rectangle_2D::update_rectangle(draw_info, rectangle);
+					update_draw_info(draw_info, rectangle.get_description());
+					break;
+				}
+				case Const::DRAW_TRIANGLE_2D: {
+					const Triangle_2D& triangle = draw_id_to_triangles.get(handle.id());
+					Draw_Triangle_2D::update_triangle(draw_info, triangle);
+					update_draw_info(draw_info, triangle.get_description());
 					break;
 				}
 				default: {
@@ -809,15 +825,13 @@ namespace Vulkan {
 					break;
 				}
 				case Const::DRAW_ID::DRAW_TRIANGLE_2D: {
-					Triangle::draw(
+					Draw_Triangle_2D::draw(
 						command_buffer, group.draw_material_id, group.number_instance, group.offset, current_frame
 					);
 					break;
 				}
 				case Const::DRAW_ID::DRAW_RECTANGLE_2D: {
-					Rectangle::draw(
-						command_buffer, group.draw_material_id, group.number_instance, group.offset, current_frame
-					);
+					Draw_Rectangle_2D::draw(command_buffer, group.number_instance, group.offset, current_frame);
 					break;
 				}
 				case Const::DRAW_ID::DRAW_MODEL_3D: {
@@ -835,18 +849,6 @@ namespace Vulkan {
 		}
 		Profiler::end_scope(SCOPE_DRAW);
 		frame_count++;
-		if (frame_count % 60 == 0) {
-			// Profiler::view_scope(SCOPE_SORT_DRAW);
-			// Profiler::view_scope(SCOPE_BATCHING_GROUP);
-			// Profiler::view_scope(SCOPE_DRAW);
-			// Profiler::view_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
-			// Profiler::view_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
-			// Profiler::view_scope(Const::SCOPE_SSBO_COPY_DATA_TO_STAGINGS);
-			// Profiler::view_scope(Const::SCOPE_SSBO_COPY_DATA_TO_STORES);
-			// Log::info("Number group instance drawn", draw_instance_batching_groups.size());
-			// Log::info("Number instance drawn", total_instance_draws);
-			// Log::info("Bind resource profiler", bind_resources_profiler);
-		}
 		set_number_draw_call(draw_instance_batching_groups.size());
 		set_total_instance_draw(total_instance_draws);
 	}
@@ -854,9 +856,9 @@ namespace Vulkan {
 	void destroy_draw() {
 		Draw_Model_3D::destroy();
 		Draw_Font_2D::destroy();
-		Triangle::destroy();
+		Draw_Triangle_2D::destroy();
 		Draw_Texture_2D::destroy();
-		Rectangle::destroy();
+		Draw_Rectangle_2D::destroy();
 		for (const Buffer& buffer : instance_buffers) {
 			buffer.destroy();
 		}
@@ -877,58 +879,6 @@ namespace Vulkan {
 			Log::info("What is group_offsets", debug_info.group_offsets);
 			Log::info("What is all_draw_instances", debug_info.all_draw_instances);
 		}
-	}
-
-	Draw_Information gen_draw_info(Const::DRAW_ID draw_type, const Draw_Attribute& draw_attributes) {
-		Draw_Information draw_info{draw_type};
-		draw_info.draw_index = draw_attributes.draw_index;
-		draw_info.visible = draw_attributes.is_visible;
-		draw_info.create_index = ++current_create_index;
-		return draw_info;
-	}
-
-	void update_draw(uint32_t id, Draw_Attribute draw_attributes) {
-		if (!draw_id_to_info.has(id)) {
-			return;
-		}
-		auto& draw_info = draw_id_to_info.modify(id);
-		draw_info.draw_index = draw_attributes.draw_index;
-		draw_info.visible = draw_attributes.is_visible;
-	}
-
-	uint32_t make_rectangle(const Draw_Attribute& draw_attributes, Rectangle_Attributes rectangle_attributes) {
-		uint32_t draw_id = draw_id_generator.gen_id();
-		Draw_Information draw_info = gen_draw_info(Const::DRAW_ID::DRAW_RECTANGLE_2D, draw_attributes);
-		std::vector<Draw_Instance_Information> instances =
-			Rectangle::make_rectangle_2D(draw_info, rectangle_attributes);
-		draw_id_to_info.insert(draw_id, draw_info);
-		draw_id_to_instances.insert(draw_id, instances);
-		return draw_id;
-	}
-
-	void update_rectangle(uint32_t id, Rectangle_Attributes rectangle_attributes) {
-		if (!draw_id_to_info.has(id)) {
-			return;
-		}
-		const Draw_Information& draw_info = draw_id_to_info.get(id);
-		Rectangle::update_draw(draw_info.sub_unique_id, rectangle_attributes);
-	}
-
-	uint32_t make_triangle(const Draw_Attribute& draw_attributes, const Triangle_Attribultes& triangle_attributes) {
-		uint32_t draw_id = draw_id_generator.gen_id();
-		Draw_Information draw_info = gen_draw_info(Const::DRAW_ID::DRAW_TRIANGLE_2D, draw_attributes);
-		std::vector<Draw_Instance_Information> instances = Triangle::make_triangle(draw_info, triangle_attributes);
-		draw_id_to_info.insert(draw_id, draw_info);
-		draw_id_to_instances.insert(draw_id, instances);
-		return draw_id;
-	}
-
-	void update_triangle(uint32_t id, const Triangle_Attribultes& triangle_attributes) {
-		if (!draw_id_to_info.has(id)) {
-			return;
-		}
-		const Draw_Information& draw_info = draw_id_to_info.get(id);
-		Triangle::update_triangle(draw_info.sub_unique_id, triangle_attributes);
 	}
 
 	void assert_draw_handle(const Handle& handle) {
@@ -959,7 +909,15 @@ namespace Vulkan {
 		const std::string& path, const std::string& scene_name, const std::string& animation_name,
 		const glm::vec3& position, const glm::vec3& scale, const glm::vec3& rotation
 	) {
-		Model_3D_Description description{0, true, path, scene_name, animation_name, position, scale, rotation};
+		Model_3D_Description description{};
+		description.draw_index = 0;
+		description.is_visible = true;
+		description.rotation = rotation;
+		description.position = position;
+		description.scale = scale;
+		description.path = path;
+		description.animation_name = animation_name;
+		description.scene_name = scene_name;
 		return create_model(description);
 	}
 
@@ -987,9 +945,17 @@ namespace Vulkan {
 		const std::string& font_path, int font_size, const std::string& text, int align, glm::vec2 position,
 		glm::vec2 scale, float rotation, glm::vec2 anchor_point, glm::vec3 color
 	) {
-		Label_2D_Description description{
-			0, true, position, scale, rotation, anchor_point, color, font_path, text, font_size,
-		};
+		Label_2D_Description description{};
+		description.draw_index = 0;
+		description.is_visible = true;
+		description.rotation = rotation;
+		description.position = position;
+		description.anchor = anchor_point;
+		description.color = color;
+		description.scale = scale;
+		description.path = font_path;
+		description.font_size = font_size;
+		description.align = align;
 		return create_label(description);
 	}
 
@@ -1017,9 +983,16 @@ namespace Vulkan {
 		const std::string& texture_path, const Geometry::Texture_Rect_2D& texture_rect, glm::vec2 position,
 		glm::vec2 scale, float rotation, glm::vec2 anchor_point, glm::vec3 color
 	) {
-		Texture_2D_Description description{
-			0, true, position, scale, rotation, anchor_point, color, texture_path, texture_rect,
-		};
+		Texture_2D_Description description{};
+		description.draw_index = 0;
+		description.is_visible = true;
+		description.rotation = rotation;
+		description.position = position;
+		description.anchor = anchor_point;
+		description.color = color;
+		description.scale = scale;
+		description.path = texture_path;
+		description.tex_rect = texture_rect;
 		return create_texture(description);
 	}
 
@@ -1031,6 +1004,75 @@ namespace Vulkan {
 	Texture_2D& modify_texture(const Handle& handle) {
 		assert_draw_handle(handle);
 		return draw_id_to_textures.modify(handle.id());
+	}
+
+	Handle create_rectangle(const Rectangle_2D_Description& rectangle_info) {
+		Handle handle = draw_handle_generator.gen_handle();
+		Rectangle_2D rectangle{handle, rectangle_info};
+		Draw_Information& draw_info = request_draw_info(handle, Const::DRAW_RECTANGLE_2D, rectangle_info);
+		std::vector<Draw_Instance_Information>& draw_instances = request_draw_instances(handle);
+		Draw_Rectangle_2D::init_rectangle(draw_info, draw_instances, rectangle);
+		draw_id_to_rectangles.insert(handle.id(), rectangle);
+		return handle;
+	}
+
+	Handle create_rectangle(
+		float width, float height, glm::vec2 position, glm::vec2 scale, float rotation, glm::vec2 anchor_point,
+		glm::vec3 color
+	) {
+		Rectangle_2D_Description description{};
+		description.draw_index = 0;
+		description.is_visible = true;
+		description.rotation = rotation;
+		description.position = position;
+		description.anchor = anchor_point;
+		description.color = color;
+		description.width = width;
+		description.height = height;
+		return create_rectangle(description);
+	}
+
+	Rectangle_2D_Description view_rectangle_description(const Handle& handle) {
+		assert_draw_handle(handle);
+		return draw_id_to_rectangles.get(handle.id()).get_description();
+	}
+
+	Rectangle_2D& modify_rectangle(const Handle& handle) {
+		assert_draw_handle(handle);
+		return draw_id_to_rectangles.modify(handle.id());
+	}
+
+	Handle create_triangle(
+		glm::vec2 first_position, glm::vec2 second_position, glm::vec2 third_position, glm::vec3 color
+	) {
+		Triangle_2D_Description description{};
+		description.draw_index = 0;
+		description.is_visible = true;
+		description.first = first_position;
+		description.second = second_position;
+		description.third = third_position;
+		description.color = color;
+		return create_triangle(description);
+	}
+
+	Handle create_triangle(const Triangle_2D_Description& triangle_info) {
+		Handle handle = draw_handle_generator.gen_handle();
+		Triangle_2D triangle{handle, triangle_info};
+		Draw_Information& draw_info = request_draw_info(handle, Const::DRAW_TRIANGLE_2D, triangle_info);
+		std::vector<Draw_Instance_Information>& draw_instances = request_draw_instances(handle);
+		Draw_Triangle_2D::init_triangle(draw_info, draw_instances, triangle);
+		draw_id_to_triangles.insert(handle.id(), triangle);
+		return handle;
+	}
+
+	Triangle_2D_Description view_triangle_description(const Handle& handle) {
+		assert_draw_handle(handle);
+		return draw_id_to_triangles.get(handle.id()).get_description();
+	}
+
+	Triangle_2D& modify_triangle(const Handle& handle) {
+		assert_draw_handle(handle);
+		return draw_id_to_triangles.modify(handle.id());
 	}
 
 	void remove_draw(const Handle& handle) {
@@ -1052,11 +1094,26 @@ namespace Vulkan {
 				draw_id_to_textures.erase(handle.id());
 				break;
 			}
+			case Const::DRAW_RECTANGLE_2D: {
+				Draw_Rectangle_2D::remove_rectangle(draw_info.sub_unique_id);
+				draw_id_to_rectangles.erase(handle.id());
+				break;
+			}
+			case Const::DRAW_TRIANGLE_2D: {
+				Draw_Triangle_2D::remove_triangle(draw_info.sub_unique_id);
+				draw_id_to_triangles.erase(handle.id());
+				break;
+			}
 			default: {
 				break;
 			}
 		}
 		draw_id_to_info.erase(handle.id());
+		SSBO_Buffer& ssbo = get_ssbo();
+		const auto& draw_instances = draw_id_to_instances.get(handle.id());
+		for (const auto& draw_instance : draw_instances) {
+			ssbo.remove_data(draw_instance.instance_storage_id);
+		}
 		draw_id_to_instances.erase(handle.id());
 		dirty_handles.erase(handle.id());
 		draw_handle_generator.release_handle(handle);

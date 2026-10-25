@@ -27,7 +27,7 @@ namespace Geometry {
 	struct Vertex_2D {
 		glm::vec2 position{0.f, 0.f};
 		inline friend std::ostream& operator<<(std::ostream& os, const Vertex_2D& vertex) {
-			os << "{position: " << vertex.position << "}" << std::endl;
+			os << "{position: " << vertex.position << "}";
 			return os;
 		}
 	};

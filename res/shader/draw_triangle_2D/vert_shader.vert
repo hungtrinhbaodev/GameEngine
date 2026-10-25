@@ -9,8 +9,9 @@ struct Instance_Data{
     vec2  first_point;
     vec2  second_point;
     vec3  color;
-    float pad;
+    float _pad0;
     vec2  third_point;
+    vec2  _pad1;
 };
 
 layout(std430, set = 0, binding = 0) readonly buffer Instance_Buffer {

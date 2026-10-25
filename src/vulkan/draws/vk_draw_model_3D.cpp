@@ -107,7 +107,6 @@ namespace Vulkan {
 
 			Sparse_Set<uint32_t> skins_indices_to_skins_storage_ids;
 			Sparse_Set<uint32_t> texture_ids_to_texture_storage_ids;
-			std::vector<uint32_t> storage_instance_ids;
 			uint32_t mesh_transforms_storage_id = ::Const::MAX_UINT32;
 			uint32_t mesh_descriptors_storage_id = ::Const::MAX_UINT32;
 			uint32_t storage_id = ::Const::MAX_UINT32;
@@ -119,9 +118,6 @@ namespace Vulkan {
 			void clean(SSBO_Buffer& ssbo) const {
 				if (storage_id == ::Const::MAX_UINT32)
 					return;
-				for (const auto& storage_instance_id : storage_instance_ids) {
-					ssbo.remove_data(storage_instance_id);
-				}
 				for (const auto& skins_storage_id : skins_indices_to_skins_storage_ids.values()) {
 					ssbo.remove_data(skins_storage_id);
 				}
@@ -135,7 +131,6 @@ namespace Vulkan {
 
 			void clear(SSBO_Buffer& ssbo, std::vector<Draw_Instance_Information>& draw_instances) {
 				clean(ssbo);
-				storage_instance_ids.clear();
 				skins_indices_to_skins_storage_ids.clear();
 				texture_ids_to_texture_storage_ids.clear();
 
@@ -431,7 +426,6 @@ namespace Vulkan {
 						primitive_instances.data(), primitive_instances.size() * sizeof(Instance_Data),
 						sizeof(Instance_Data)
 					);
-					storage_instance_ids.push_back(instances_id);
 					Draw_Instance_Information draw_instance{
 						instances_id, (uint32_t)primitive_instances.size(),
 						make_instance_material_id(model_id, primitive_index)
@@ -574,16 +568,11 @@ namespace Vulkan {
 			Profiler::start_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
 			uint32_t number_thread = Core::global_thread_pool->get_thread_ids().size();
 			auto& models = Draw_Model_3D::models.modify_values();
-			if (models.size() <= number_thread * 5) {
+			if (models.size() <= number_thread * 3) {
 				for (auto& model : models) {
 					model.update_animation(dt);
-				}
-				Profiler::end_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
-				Profiler::start_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
-				for (const auto& model : models) {
 					model.upload_animation_skins(ssbo);
 				}
-				Profiler::end_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
 			} else {
 				int number_model_in_thread = (int)std::ceil((float)models.size() / number_thread);
 				std::vector<std::future<void>> results{};
@@ -597,16 +586,16 @@ namespace Vulkan {
 					});
 					results.push_back(std::move(result));
 				}
-				for (auto& result : results) {
-					result.get();
+				for (int i = 0; i < results.size(); i++) {
+					results[i].get();
+					int start = i * number_model_in_thread;
+					int end = start + number_model_in_thread;
+					for (int j = start; j < end && j < models.size(); j++) {
+						models[j].upload_animation_skins(ssbo);
+					}
 				}
-				Profiler::end_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
-				Profiler::start_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
-				for (const auto& model : models) {
-					model.upload_animation_skins(ssbo);
-				}
-				Profiler::end_scope(Const::SCOPE_UPLOAD_SKIN_DATA_ANIMATIONS);
 			}
+			Profiler::end_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
 		}
 
 		void record_upload_uniform_buffer(VkCommandBuffer command_buffer, uint32_t frame_index) {
