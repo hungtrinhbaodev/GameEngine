@@ -519,7 +519,7 @@ namespace Vulkan {
 			 * Clear color to background and depth image before draw.
 			 */
 			std::vector<VkClearValue> clear_colors(2);
-			clear_colors[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+			clear_colors[0].color = {{0.5f, 0.5f, 0.5f, 1.0f}};
 			clear_colors[1].depthStencil = {1.0f, 0};
 			VkRenderPassBeginInfo render_pass_info = Structs::make_render_pass_begin_info(
 				render_pass, frame_buffers[image_index], swapchain_extent, clear_colors
