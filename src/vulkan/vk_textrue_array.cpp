@@ -10,18 +10,21 @@ namespace Vulkan {
 
 	void Texture_Array::init(
 		uint32_t number_layer, uint32_t width, uint32_t height, bool can_gpu_blit_image,
-		VkPhysicalDevice physical_device, VkDevice device, VkFormat format, uint32_t mip_level
+		VkPhysicalDevice physical_device, VkDevice device, VkFormat format, uint32_t mip_level,
+		VkSamplerMipmapMode sampler_mipmap_mode
 	) {
 		this->device = device;
 		this->number_layer = number_layer;
 		this->mip_level = mip_level;
 		this->can_gpu_blit_image = can_gpu_blit_image;
+		this->sampler_mipmap_mode = sampler_mipmap_mode;
 		used_indices.resize(number_layer, false);
 		VkImageUsageFlags image_usages = (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT) |
 										 (can_gpu_blit_image ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : 0);
 		inner_image.make_image(
 			width, height, format, VK_IMAGE_TILING_OPTIMAL, image_usages, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			VK_IMAGE_ASPECT_COLOR_BIT, physical_device, device, number_layer, VK_IMAGE_VIEW_TYPE_2D_ARRAY, mip_level
+			VK_IMAGE_ASPECT_COLOR_BIT, physical_device, device, number_layer, VK_IMAGE_VIEW_TYPE_2D_ARRAY, mip_level,
+			sampler_mipmap_mode
 		);
 		VkCommandBuffer command_buffer = Utils::start_commands(device);
 		{

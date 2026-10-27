@@ -39,16 +39,20 @@ namespace Vulkan {
 
 		void break_lines(std::string text, std::vector<std::string>& lines);
 
-		glm::vec2 get_line_size(const std::string& line, const Font& font);
+		glm::vec2 get_line_size(const std::string& line, const Font& font, int font_size, float stroke_size);
 
-		std::vector<glm::vec2> get_char_position_at(std::string line, glm::vec2 start_line_position, const Font& font);
+		std::vector<glm::vec2> get_char_position_at(
+			std::string line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size
+		);
 
 		void make_lines_render_info(
 			const Font& font, int align, int font_size, std::vector<glm::vec2>& start_line_positions, float& width,
-			float& height, const std::vector<std::string>& lines
+			float& height, const std::vector<std::string>& lines, float stroke_size
 		);
 
-		Text_Helper gen_text_info_from(std::string font_path, std::string text, int align, int font_size);
+		Text_Helper gen_text_info_from(
+			std::string font_path, std::string text, int align, int font_size, float stroke_size
+		);
 
 	} // namespace Draw_Font_2D
 

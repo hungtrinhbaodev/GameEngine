@@ -248,12 +248,14 @@ namespace Vulkan {
 		text = description.text;
 		font_size = description.font_size;
 		align = description.align;
+		stroke_color = description.stroke_color;
+		stroke_size = description.stroke_size;
 	}
 
 	Label_2D::~Label_2D() {}
 
 	void Label_2D::update_text_size() {
-		auto text_helper = Draw_Font_2D::gen_text_info_from(path, text, align, font_size);
+		auto text_helper = Draw_Font_2D::gen_text_info_from(path, text, align, font_size, stroke_size);
 		width = text_helper.width;
 		height = text_helper.height;
 		text_dirty = false;
@@ -294,6 +296,18 @@ namespace Vulkan {
 		height = i_height;
 	}
 
+	void Label_2D::set_stroke_size(float i_size) {
+		assert_handle();
+		set_dirty(stroke_size != i_size);
+		stroke_size = i_size;
+	}
+
+	void Label_2D::set_stroke_color(const glm::vec3& i_color) {
+		assert_handle();
+		set_dirty(stroke_color != i_color);
+		stroke_color = i_color;
+	}
+
 	std::string Label_2D::get_font_path() const {
 		assert_handle();
 		return path;
@@ -312,6 +326,16 @@ namespace Vulkan {
 	int Label_2D::get_align() const {
 		assert_handle();
 		return align;
+	}
+
+	float Label_2D::get_stroke_size() const {
+		assert_handle();
+		return stroke_size;
+	}
+
+	glm::vec3 Label_2D::get_stroke_color() const {
+		assert_handle();
+		return stroke_color;
 	}
 
 	float Label_2D::get_width() {

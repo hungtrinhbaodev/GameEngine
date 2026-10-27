@@ -30,7 +30,8 @@ namespace Vulkan {
 	void Image::make_image(
 		uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
 		VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags, VkPhysicalDevice physical_device,
-		VkDevice device, uint32_t array_layers, VkImageViewType image_view_type, uint32_t mip_level
+		VkDevice device, uint32_t array_layers, VkImageViewType image_view_type, uint32_t mip_level,
+		VkSamplerMipmapMode sampler_mipmap_mode
 	) {
 
 		if (device == VK_NULL_HANDLE || physical_device == VK_NULL_HANDLE) {
@@ -46,6 +47,7 @@ namespace Vulkan {
 		this->array_layers = array_layers;
 		this->image_view_type = image_view_type;
 		this->mip_level = mip_level;
+		this->sampler_mipmap_mode = sampler_mipmap_mode;
 		this->descriptor_image_layers.resize(array_layers, {VK_NULL_HANDLE, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_UNDEFINED});
 
 		VkImageCreateInfo create_info{};
@@ -342,7 +344,7 @@ namespace Vulkan {
 		create_info.unnormalizedCoordinates = VK_FALSE;
 		create_info.compareEnable = VK_FALSE;
 		create_info.compareOp = VK_COMPARE_OP_ALWAYS;
-		create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		create_info.mipmapMode = sampler_mipmap_mode;
 		create_info.minLod = 0.f;
 		create_info.maxLod = VK_LOD_CLAMP_NONE;
 

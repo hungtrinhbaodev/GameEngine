@@ -15,6 +15,7 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <profiler.h>
 #include <vulkan/vk_draw.h>
 
 #define VK_A 0x41
@@ -152,7 +153,11 @@ bool random_visible() {
 void gen_label() {
 	Vulkan::Label_2D_Description label_info{};
 	label_info.text = random_item(label_texts);
-	label_info.font_size = Math::random_int(12, 32);
+	// label_info.font_size = Math::random_int(12, 32);
+	label_info.font_size = 32;
+	// label_info.scale = {3.f, 3.f};
+	label_info.stroke_color = {0.98f, 0.98f, 0.98f};
+	label_info.stroke_size = 2.f;
 	label_info.position = random_position_2D();
 	label_info.color = random_color();
 	label_info.align = Math::random_int(0, 2);
@@ -504,7 +509,12 @@ void on_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
 					break;
 				}
 				case GLFW_KEY_N: {
-					Vulkan::show_debug();
+					// Vulkan::show_debug();
+					Profiler::view_scope(Parser::SCOPE_LOAD_FONT_V1);
+					Profiler::view_scope(Parser::SCOPE_LOAD_FONT);
+					Profiler::view_scope(Parser::SCOPE_PARSE_GLYPH);
+					Profiler::view_scope(Parser::SCOPE_FIND_SUITABLE_ATLAS);
+					Profiler::view_scope(Parser::SCOPE_MERGE_ATLAS);
 					break;
 				}
 				case GLFW_KEY_B: {
@@ -524,7 +534,6 @@ void on_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
 }
 
 int main() {
-
 	if (!glfwInit()) {
 		throw std::runtime_error("fail to init glfw!");
 	}
@@ -538,6 +547,8 @@ int main() {
 	for (int i = 0; i < 3; i++) {
 		gen_fox_3D();
 	}
+
+	Parser::parse_font("res/fonts/anonymous_pro_bold.ttf");
 
 	double start = Utils::now();
 	while (!glfwWindowShouldClose(window)) {

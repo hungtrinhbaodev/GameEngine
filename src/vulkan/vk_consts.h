@@ -5,9 +5,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <vulkan/vulkan.h>
 
-#if !defined(_WIN32)
 #include <vulkan/vulkan_beta.h>
-#endif
 
 namespace Vulkan {
 
@@ -22,7 +20,7 @@ namespace Vulkan {
 #if !defined(_WIN32)
 		const inline uint32_t VULKAN_API_VERSION = VK_API_VERSION_1_1;
 #else
-		const inline uint32_t VULKAN_API_VERSION = VK_API_VERSION_1_0;
+		const inline uint32_t VULKAN_API_VERSION = VK_API_VERSION_1_1;
 #endif
 
 		const inline int MAX_FRAMES_IN_FLIGHT = 3;
@@ -56,7 +54,7 @@ namespace Vulkan {
 
 		const inline std::vector<uint32_t> NUMBER_LAYER_TEXTURE_PER_BUCKETS{{128, 128, 64, 64, 64, 16, 8, 2}};
 
-		const inline std::vector<uint32_t> FONT_TEXTURE_BUCKET_SIZE{512, 1024, 2048};
+		const inline std::vector<uint32_t> FONT_TEXTURE_BUCKET_SIZES{512, 1024, 2048};
 
 		const inline std::vector<uint32_t> NUMBER_LAYER_FONT_TEXTURE_PER_BUCKETS{8, 4, 2};
 

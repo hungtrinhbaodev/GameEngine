@@ -6,6 +6,16 @@
 
 namespace Parser {
 
+	const std::string SCOPE_LOAD_FONT_V1 = "LOAD_FONT_V1";
+
+	const std::string SCOPE_LOAD_FONT = "LOAD_FONT";
+
+	const std::string SCOPE_PARSE_GLYPH = "PARSE_GLYPH";
+
+	const std::string SCOPE_FIND_SUITABLE_ATLAS = "FIND_SUITABLE_ATLAS";
+
+	const std::string SCOPE_MERGE_ATLAS = "MERGE_ATLAS";
+
 	struct Char_Rect {
 		float tex_coord_x = 0.f, tex_coord_y = 0.f;
 		float tex_coord_width = 0.f, tex_coord_height = 0.f;
@@ -24,14 +34,19 @@ namespace Parser {
 		std::vector<char> bytes;
 		char start_char = 0;
 		std::vector<Char_Rect> rects;
-		std::vector<uint8_t> atlas{};
+		std::vector<uint8_t> atlas;
 		int max_char_height = 0;
 		int size_atlas = 0;
 		int min_font_size = 0;
+		int center_font_size = 0;
 		int max_font_size = 0;
 		float line_height = 0.f;
+		float max_stroke_size = 0.f;
+		float sfd_padding = 0.f;
 	};
 
 	Font parse_font(std::string file_path);
+
+	Font parse_font_2(const std::string& file_path);
 
 } // namespace Parser

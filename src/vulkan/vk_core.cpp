@@ -1,5 +1,6 @@
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <consts.h>
 #include <limits>
 #include <math_custom.h>
 #include <utils.h>
@@ -63,9 +64,11 @@ namespace Vulkan {
 		void init() {
 			Label_2D_Description description{};
 			description.path = "";
-			description.font_size = 11;
-			description.color = {0.95f, 0.95f, 0.95f};
-			description.draw_index = std::numeric_limits<uint32_t>::max();
+			description.font_size = 9;
+			description.color = {0.f, 0.f, 0.f};
+			description.stroke_color = {0.92f, 0.92f, 0.92f};
+			description.stroke_size = 1.2f;
+			description.draw_index = ::Const::MAX_UINT32;
 			handl_label_fps = create_label(description);
 			handle_label_draw_call = create_label(description);
 			handle_label_number_instance = create_label(description);

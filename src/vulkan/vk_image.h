@@ -35,6 +35,8 @@ namespace Vulkan {
 
 		std::vector<VkDescriptorImageInfo> descriptor_image_layers;
 
+		VkSamplerMipmapMode sampler_mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
 		Image();
 
 		Image(const Image& other);
@@ -43,7 +45,7 @@ namespace Vulkan {
 			uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
 			VkMemoryPropertyFlags properties, VkImageAspectFlags aspect_flags, VkPhysicalDevice physical_device,
 			VkDevice device, uint32_t array_layers = 1, VkImageViewType image_view_type = VK_IMAGE_VIEW_TYPE_2D,
-			uint32_t mip_level = 1
+			uint32_t mip_level = 1, VkSamplerMipmapMode sampler_mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR
 		);
 
 		void record_transition_image_layout(

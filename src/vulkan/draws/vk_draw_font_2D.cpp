@@ -42,13 +42,15 @@ namespace Vulkan {
 		};
 
 		struct Storage_Data {
-			glm::vec2 tex_size{0.f, 0.f};	 // 8/8
-			glm::vec2 translation{0.f, 0.f}; // 8/8
-			glm::vec3 color{1.f, 1.f, 1.f};	 // 12/16
-			float rotation = 0.f;			 // 4/4
-			glm::vec2 scale{1.f, 1.f};		 // 8/8
-			int32_t bucket_index = 0;		 // 4/4
-			int32_t slot_index = 0;			 // 4/4
+			glm::vec2 tex_size{0.f, 0.f};		   // 8/8
+			glm::vec2 translation{0.f, 0.f};	   // 8/8
+			glm::vec3 color{1.f, 1.f, 1.f};		   // 12/16
+			float rotation = 0.f;				   // 4/4
+			glm::vec2 scale{1.f, 1.f};			   // 8/8
+			int32_t bucket_index = 0;			   // 4/4
+			int32_t slot_index = 0;				   // 4/4
+			glm::vec3 stroke_color{1.f, 1.f, 1.f}; // 12/16
+			float stroke_size = 0.f;			   // 4/4
 			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& instance) {
 				os << "{Rectangle::Storage_Data_2: translation: " << instance.translation
 				   << ",  tex_size: " << instance.tex_size << ",  scale: " << instance.scale
@@ -75,7 +77,10 @@ namespace Vulkan {
 				for (int i = 0; i < lines.size(); i++) {
 					const std::string& line = lines[i];
 					const glm::vec2& start_line_position = start_line_positions[i];
-					std::vector<glm::vec2> positions = get_char_position_at(line, start_line_position + origin, font);
+					std::vector<glm::vec2> positions = get_char_position_at(
+						line, start_line_position + origin, font, attributes.get_font_size(),
+						attributes.get_stroke_size()
+					);
 					for (int j = 0; j < positions.size(); j++) {
 						glm::vec2 position = positions[j];
 						Storage_Char_Data char_storage{};
@@ -99,6 +104,8 @@ namespace Vulkan {
 				storage.bucket_index = texture_view.bucket_index;
 				storage.rotation = attributes.get_rotation();
 				storage.color = attributes.get_color();
+				storage.stroke_color = attributes.get_stroke_color();
+				storage.stroke_size = font.claim_stroke(attributes.get_font_size(), attributes.get_stroke_size());
 				return storage;
 			}
 
@@ -126,7 +133,7 @@ namespace Vulkan {
 				if (align != attributes.get_align() || text_anchor != attributes.get_anchor()) {
 					make_lines_render_info(
 						font, attributes.get_align(), attributes.get_font_size(), start_line_positions, width, height,
-						lines
+						lines, attributes.get_stroke_size()
 					);
 					std::vector<Storage_Char_Data> char_storages = make_char_storages_data(font, attributes);
 					ssbo.update_data(storage_char_id, char_storages.data());
@@ -155,7 +162,8 @@ namespace Vulkan {
 				const Font& font = view_font(font_id);
 				break_lines(text, lines);
 				make_lines_render_info(
-					font, attributes.get_align(), attributes.get_font_size(), start_line_positions, width, height, lines
+					font, attributes.get_align(), attributes.get_font_size(), start_line_positions, width, height,
+					lines, attributes.get_stroke_size()
 				);
 				const Texture_View& texture_view = view_font_texture(font_id);
 				Storage_Data storage = make_storage_data(font, texture_view, attributes);
@@ -267,24 +275,26 @@ namespace Vulkan {
 			}
 		}
 
-		glm::vec2 get_line_size(const std::string& line, const Font& font) {
+		glm::vec2 get_line_size(const std::string& line, const Font& font, int font_size, float stroke_size) {
 			glm::vec2 line_size{0.f, font.line_height};
 			for (int i = 0; i < line.size(); i++) {
-				glm::vec2 char_bound_box = font.get_char_bounding_box(line[i]);
+				glm::vec2 char_bound_box = font.get_char_bounding_box(line[i], font_size, stroke_size);
 				line_size.x += char_bound_box.x;
 			}
 			return line_size;
 		}
 
-		std::vector<glm::vec2> get_char_position_at(std::string line, glm::vec2 start_line_position, const Font& font) {
+		std::vector<glm::vec2> get_char_position_at(
+			std::string line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size
+		) {
 			std::vector<glm::vec2> char_positions(line.size());
 			float start_x = 0;
 			for (int i = 0; i < line.size(); i++) {
 				char_positions[i] = start_line_position;
-				glm::vec local_offset = font.get_char_local_offset(line[i]);
+				glm::vec local_offset = font.get_char_local_offset(line[i], font_size, stroke_size);
 				char_positions[i].x += start_x + local_offset.x;
 				char_positions[i].y += local_offset.y;
-				glm::vec2 char_bound_box = font.get_char_bounding_box(line[i]);
+				glm::vec2 char_bound_box = font.get_char_bounding_box(line[i], font_size, stroke_size);
 				start_x += char_bound_box.x;
 			}
 			return char_positions;
@@ -292,18 +302,18 @@ namespace Vulkan {
 
 		void make_lines_render_info(
 			const Font& font, int align, int font_size, std::vector<glm::vec2>& start_line_positions, float& width,
-			float& height, const std::vector<std::string>& lines
+			float& height, const std::vector<std::string>& lines, float stroke_size
 		) {
 			start_line_positions.resize(lines.size());
 			float max_width_line = 0;
 			for (const std::string& line : lines) {
-				auto size = get_line_size(line, font);
+				auto size = get_line_size(line, font, font_size, stroke_size);
 				max_width_line = std::max(size.x, max_width_line);
 			}
 			float total_height = 0;
 			for (int i = lines.size() - 1; i > -1; i--) {
 				const std::string& line = lines[i];
-				glm::vec2 line_size = get_line_size(line, font);
+				glm::vec2 line_size = get_line_size(line, font, font_size, stroke_size);
 				float line_x = 0;
 				switch (align) {
 					case 0: {
@@ -327,14 +337,16 @@ namespace Vulkan {
 			height = total_height * char_scale;
 		}
 
-		Text_Helper gen_text_info_from(std::string font_path, std::string text, int align, int font_size) {
+		Text_Helper gen_text_info_from(
+			std::string font_path, std::string text, int align, int font_size, float stroke_size
+		) {
 			Text_Helper text_helper{};
 			uint32_t font_id = load_font(font_path);
 			const Font& font = view_font(font_id);
 			break_lines(text, text_helper.lines);
 			make_lines_render_info(
 				font, align, font_size, text_helper.start_line_positions, text_helper.width, text_helper.height,
-				text_helper.lines
+				text_helper.lines, stroke_size
 			);
 			return text_helper;
 		}

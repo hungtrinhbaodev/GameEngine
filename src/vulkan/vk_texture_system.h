@@ -44,11 +44,16 @@ namespace Vulkan {
 
 		bool can_gpu_blit = false;
 
+		bool enalbe_mipmap = true;
+
+		VkSamplerMipmapMode sampler_mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+
 		void init(
 			std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets, VkDevice device,
 			std::vector<VkDescriptorPool> descriptor_pools,
 			std::array<VkDescriptorPool, Const::MAX_FRAMES_IN_FLIGHT> descriptor_pools_2,
-			VkPhysicalDevice physical_device, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB
+			VkPhysicalDevice physical_device, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB, bool enalbe_mipmap = true,
+			VkSamplerMipmapMode sampler_mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR
 		);
 
 		VkDescriptorSetLayout make_bucket_descriptor_set_layout();

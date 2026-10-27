@@ -9,8 +9,8 @@ namespace Vulkan {
 	) {
 		this->ssbo = ssbo;
 		texture_system.init(
-			Const::FONT_TEXTURE_BUCKET_SIZE, Const::NUMBER_LAYER_FONT_TEXTURE_PER_BUCKETS, device, descriptor_pools,
-			descriptor_pools_2, physical_device, VK_FORMAT_R8_UNORM
+			Const::FONT_TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_FONT_TEXTURE_PER_BUCKETS, device, descriptor_pools,
+			descriptor_pools_2, physical_device, VK_FORMAT_R8_UNORM, true, VK_SAMPLER_MIPMAP_MODE_NEAREST
 		);
 	}
 
@@ -22,7 +22,7 @@ namespace Vulkan {
 			return file_to_ids[font_path];
 		}
 		uint32_t font_id = font_id_generator.gen_id();
-		Parser::Font font = Parser::parse_font(::Utils::get_root_path() + font_path);
+		Parser::Font font = Parser::parse_font_2(::Utils::get_root_path() + font_path);
 		uint32_t texture_id = texture_system.load_texture(
 			font_path, font.atlas.data(), font.size_atlas, font.size_atlas, 1, Const::ENABLED_TEXTURE_BUCKETS
 		);

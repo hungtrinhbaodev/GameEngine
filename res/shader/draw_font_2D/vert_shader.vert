@@ -12,8 +12,10 @@ struct Instance_Data {
     vec3  color;
     float rotation;
     vec2  scale;
-    int  bucket_index;
-    int  slot_index;
+    int   bucket_index;
+    int   slot_index;
+    vec3  stroke_color;
+    float stroke_size;
 };
 
 layout(std430, set = 0, binding = 0) readonly buffer Instance_Buffer {
@@ -49,6 +51,8 @@ layout (location = 0) out vec2 frag_tex_coord;
 layout (location = 1) out vec3 out_color;
 layout (location = 2) out int bucket_index;
 layout (location = 3) out int slot_index;
+layout (location = 4) out vec3 out_stroke_color;
+layout (location = 5) out float out_stroke_size;
 
 vec2 norm_position(vec2 position, vec2 screen_size) {
     return vec2(position.x / screen_size.x, position.y / screen_size.y);
@@ -119,4 +123,6 @@ void main() {
     bucket_index = data.bucket_index;
     slot_index = data.slot_index;
     out_color = data.color;
+    out_stroke_color = data.stroke_color;
+    out_stroke_size = data.stroke_size;
 }

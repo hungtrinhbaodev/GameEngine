@@ -17,13 +17,15 @@ namespace Vulkan {
 		std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets, VkDevice device,
 		std::vector<VkDescriptorPool> descriptor_pools,
 		std::array<VkDescriptorPool, Const::MAX_FRAMES_IN_FLIGHT> descriptor_pools_2, VkPhysicalDevice physical_device,
-		VkFormat format
+		VkFormat format, bool enalbe_mipmap, VkSamplerMipmapMode sampler_mipmap_mode
 	) {
 		this->device = device;
 		this->physical_device = physical_device;
 		this->descriptor_pools = descriptor_pools;
 		this->descriptor_pools_2 = descriptor_pools_2;
 		this->format = format;
+		this->enalbe_mipmap = Const::ENEABLED_IMAGE_MIPMAP && enalbe_mipmap;
+		this->sampler_mipmap_mode = sampler_mipmap_mode;
 		this->can_gpu_blit =
 			Utils::can_gpu_blit_image(physical_device, format, VK_FILTER_LINEAR) && Const::ENEABLED_IMAGE_MIPMAP;
 
@@ -52,11 +54,10 @@ namespace Vulkan {
 		for (int i = 0; i < bucket_sizes.size(); i++) {
 			uint32_t number_texture_per_bucket = number_texture_per_buckets[i];
 			uint32_t texture_size = bucket_sizes[i];
-			uint32_t mip_level =
-				Const::ENEABLED_IMAGE_MIPMAP ? Utils::calculate_mip_level(texture_size, texture_size) : 1;
+			uint32_t mip_level = this->enalbe_mipmap ? Utils::calculate_mip_level(texture_size, texture_size) : 1;
 			texture_buckets[i].init(
-				number_texture_per_bucket, texture_size, texture_size, this->can_gpu_blit, physical_device, device,
-				format, mip_level
+				number_texture_per_bucket, texture_size, texture_size, can_gpu_blit, physical_device, device, format,
+				mip_level, sampler_mipmap_mode
 			);
 		}
 	}
@@ -207,8 +208,8 @@ namespace Vulkan {
 		if (need_use_individual_texture) {
 			// load single individual texture
 			Texture texture{};
-			uint32_t mip_level = Const::ENEABLED_IMAGE_MIPMAP ? Utils::calculate_mip_level(width, height) : 1;
-			texture.init(width, height, can_gpu_blit, physical_device, device, format, mip_level);
+			uint32_t mip_level = this->enalbe_mipmap ? Utils::calculate_mip_level(width, height) : 1;
+			texture.init(width, height, can_gpu_blit, physical_device, device, format, mip_level, sampler_mipmap_mode);
 			texture.upload_data(pixels);
 			ids_to_individual_textures[id] = texture;
 

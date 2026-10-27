@@ -140,10 +140,11 @@ namespace Vulkan {
 		uint32_t rect_storage_id = 0;
 		uint32_t rect_storage_offset = 0;
 		char to_char_index(char value) const;
-		glm::vec2 get_char_bounding_box(char value) const;
-		glm::vec2 get_char_local_offset(char value) const;
+		glm::vec2 get_char_bounding_box(char value, int font_size, float stroke_size) const;
+		glm::vec2 get_char_local_offset(char value, int font_size, float stroke_size) const;
 		float get_char_scale(int font_size) const;
 		uint32_t get_char_rect_offset(char value) const;
+		float claim_stroke(int font_size, float stroke_size) const;
 	};
 
 	struct Model_Node {

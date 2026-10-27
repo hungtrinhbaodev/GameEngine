@@ -150,6 +150,8 @@ namespace Vulkan {
 		 * 2: right.
 		 */
 		int align = 0;
+		float stroke_size = 0.f;
+		glm::vec3 stroke_color = {0.f, 0.f, 0.f};
 	};
 
 	class Label_2D : public Draw_2D_Scale_Aable {
@@ -160,6 +162,8 @@ namespace Vulkan {
 		int align = 0;
 		float width = 0.f;
 		float height = 0.f;
+		float stroke_size = 0.f;
+		glm::vec3 stroke_color = {0.f, 0.f, 0.f};
 		bool text_dirty = false;
 		void update_text_size();
 
@@ -174,6 +178,8 @@ namespace Vulkan {
 		void set_align(int align);
 		void set_width(float width);
 		void set_height(float height);
+		void set_stroke_size(float size);
+		void set_stroke_color(const glm::vec3& color);
 
 		float get_width();
 		float get_height();
@@ -181,6 +187,8 @@ namespace Vulkan {
 		std::string get_text() const;
 		int get_font_size() const;
 		int get_align() const;
+		float get_stroke_size() const;
+		glm::vec3 get_stroke_color() const;
 		Label_2D_Description get_description() const;
 	};
 

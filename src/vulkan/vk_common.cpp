@@ -199,26 +199,37 @@ namespace Vulkan {
 		return char_index;
 	}
 
-	glm::vec2 Font::get_char_bounding_box(char value) const {
+	glm::vec2 Font::get_char_bounding_box(char value, int font_size, float stroke_size) const {
 		uint32_t char_index = to_char_index(value);
 		const auto& rect = rects[char_index];
-		return {rect.bounding_width, line_height};
+		float scale = get_char_scale(font_size);
+		float stroke = claim_stroke(font_size, stroke_size) * sfd_padding * scale;
+		return {rect.bounding_width + 2 * stroke, line_height + 2 * stroke};
 	}
 
-	glm::vec2 Font::get_char_local_offset(char value) const {
+	glm::vec2 Font::get_char_local_offset(char value, int font_size, float stroke_size) const {
 		uint32_t char_index = to_char_index(value);
 		const auto& rect = rects[char_index];
-		return {rect.offset_x, rect.offset_y};
+		float scale = get_char_scale(font_size);
+		float stroke = claim_stroke(font_size, stroke_size) * sfd_padding * scale;
+		return {rect.offset_x + stroke, rect.offset_y + stroke};
 	}
 
 	float Font::get_char_scale(int font_size) const {
 		font_size = std::max(std::min(font_size, max_font_size), min_font_size);
-		return (float)font_size / max_font_size;
+		return (float)font_size / center_font_size;
 	}
 
 	uint32_t Font::get_char_rect_offset(char value) const {
 		uint32_t char_index = to_char_index(value);
 		return rect_storage_offset + char_index;
+	}
+
+	float Font::claim_stroke(int font_size, float stroke_size) const {
+		float scale = get_char_scale(font_size);
+		float max_font_stroke_size = stroke_size / scale;
+		max_font_stroke_size = std::clamp(max_font_stroke_size, 0.f, max_stroke_size);
+		return max_font_stroke_size / sfd_padding;
 	}
 
 	glm::vec3 Model_Mesh::get_mesh_origin() const {
