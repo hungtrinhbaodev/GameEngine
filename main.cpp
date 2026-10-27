@@ -510,11 +510,7 @@ void on_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
 				}
 				case GLFW_KEY_N: {
 					// Vulkan::show_debug();
-					Profiler::view_scope(Parser::SCOPE_LOAD_FONT_V1);
 					Profiler::view_scope(Parser::SCOPE_LOAD_FONT);
-					Profiler::view_scope(Parser::SCOPE_PARSE_GLYPH);
-					Profiler::view_scope(Parser::SCOPE_FIND_SUITABLE_ATLAS);
-					Profiler::view_scope(Parser::SCOPE_MERGE_ATLAS);
 					break;
 				}
 				case GLFW_KEY_B: {
@@ -547,8 +543,6 @@ int main() {
 	for (int i = 0; i < 3; i++) {
 		gen_fox_3D();
 	}
-
-	Parser::parse_font("res/fonts/anonymous_pro_bold.ttf");
 
 	double start = Utils::now();
 	while (!glfwWindowShouldClose(window)) {

@@ -156,7 +156,25 @@ namespace Utils {
 
 	inline std::string get_folder_path_from(const std::string& file_path) {
 		int last_backslash = file_path.find_last_of("/");
+		if (last_backslash == std::string::npos) {
+			return "";
+		}
 		return file_path.substr(0, last_backslash + 1);
+	}
+
+	inline std::string get_file_name_from(const std::string& file_path) {
+		int last_backslash = file_path.find_last_of("/");
+		std::string full_file_name = "";
+		if (last_backslash == std::string::npos) {
+			full_file_name = file_path;
+		} else {
+			full_file_name = file_path.substr(last_backslash + 1);
+		}
+		int dot = full_file_name.find(".");
+		if (dot == std::string::npos) {
+			return full_file_name;
+		}
+		return full_file_name.substr(0, dot);
 	}
 
 	inline const std::string BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -221,6 +239,21 @@ namespace Utils {
 			}
 		}
 		return bytes;
+	}
+
+	inline void put_byte_from(void* data, std::vector<char>& to_bytes, size_t offset, size_t size_of) {
+		size_t current_size = to_bytes.size();
+		to_bytes.resize(current_size + size_of, (uint8_t)0);
+		void* dst = to_bytes.data() + current_size;
+		void* src = (char*)data + offset;
+		memcpy(dst, src, size_of);
+	}
+
+	template <typename T> inline size_t read_byte_from(std::vector<char>& from_bytes, T* to_data, size_t offset) {
+		void* dst = to_data;
+		void* src = from_bytes.data() + offset;
+		memcpy(dst, src, sizeof(T));
+		return sizeof(T);
 	}
 
 } // namespace Utils

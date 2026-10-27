@@ -4,6 +4,7 @@ import shutil
 import subprocess
 
 SHADER_EXTENSIONS = (".vert", ".frag")
+CACHE_EXTENSIONS = (".font_meta", ".bin_cached")
 
 
 def find_glslc():
@@ -98,6 +99,9 @@ def sync_resources(src_dir, dst_dir):
         src_root = os.path.join(src_dir, rel_root)
 
         for file in files:
+            if file.endswith(CACHE_EXTENSIONS):
+                continue
+
             src_file = os.path.join(src_root, file)
             dst_file = os.path.join(root, file)
             if not os.path.exists(src_file):
