@@ -35,7 +35,11 @@ void gen_fox_3D() {
 	glm::vec3 position = {
 		Math::random_float(-2.5f, 2.5f), Math::random_float(-2.f, 2.f), Math::random_float(-2.f, 2.f)
 	};
+	// glm::vec3 position = {0.f, 0.f, 0.f};
 	Handle fox = Vulkan::create_model("res/Fox_embedded.gltf", "", animation_name, position, {0.01f, 0.01f, 0.01f});
+	auto& fox_model = Vulkan::modify_model(fox);
+	fox_model.play_animation(0, animation_name, true);
+	fox_model.play_animation(1, "Survey", true);
 	foxes.push_back(fox);
 }
 
@@ -57,11 +61,11 @@ void update_fox_animation() {
 		return;
 	int update_index = Math::random_int(0, foxes.size() - 1);
 	Vulkan::Model_3D& fox_model = Vulkan::modify_model(foxes[update_index]);
-	auto it = std::find(fox_animations.begin(), fox_animations.end(), fox_model.get_animation_name());
+	auto it = std::find(fox_animations.begin(), fox_animations.end(), fox_model.get_animation_name_at_track(0));
 	if (it != fox_animations.end()) {
 		int index = it - fox_animations.begin();
 		index = (index + 1) % fox_animations.size();
-		fox_model.set_animation_name(fox_animations[index]);
+		fox_model.play_animation(0, fox_animations[index], true);
 	}
 }
 
@@ -74,7 +78,10 @@ void change_fox_to_cesiumman() {
 	model_info.animation_name = "0";
 	model_info.scale = {1.f, 1.f, 1.f};
 	remove_fox_by_index(remove_index);
-	cesiummans.push_back(Vulkan::create_model(model_info));
+	Handle cesiumman = Vulkan::create_model(model_info);
+	auto& cesiumman_model = Vulkan::modify_model(cesiumman);
+	cesiumman_model.play_animation(0, "0", true);
+	cesiummans.push_back(cesiumman);
 }
 
 /**
@@ -153,11 +160,9 @@ bool random_visible() {
 void gen_label() {
 	Vulkan::Label_2D_Description label_info{};
 	label_info.text = random_item(label_texts);
-	// label_info.font_size = Math::random_int(12, 32);
-	label_info.font_size = 32;
-	// label_info.scale = {3.f, 3.f};
-	label_info.stroke_color = {0.98f, 0.98f, 0.98f};
-	label_info.stroke_size = 2.f;
+	label_info.font_size = Math::random_int(12, 32);
+	label_info.stroke_color = {0.98f, 0.2f, 0.1f};
+	label_info.stroke_size = Math::random_float(0.f, 4.f);
 	label_info.position = random_position_2D();
 	label_info.color = random_color();
 	label_info.align = Math::random_int(0, 2);
@@ -540,7 +545,7 @@ int main() {
 	Vulkan::init_vulkan_core(window);
 	glfwSetKeyCallback(window, on_key);
 
-	for (int i = 0; i < 3; i++) {
+	for (int i = 0; i < 300; i++) {
 		gen_fox_3D();
 	}
 

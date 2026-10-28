@@ -337,10 +337,10 @@ namespace Vulkan {
 			height = total_height * char_scale;
 		}
 
-		Text_Helper gen_text_info_from(
+		Label_Helper gen_text_info_from(
 			std::string font_path, std::string text, int align, int font_size, float stroke_size
 		) {
-			Text_Helper text_helper{};
+			Label_Helper text_helper{};
 			uint32_t font_id = load_font(font_path);
 			const Font& font = view_font(font_id);
 			break_lines(text, text_helper.lines);

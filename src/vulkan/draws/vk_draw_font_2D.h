@@ -5,7 +5,7 @@ namespace Vulkan {
 
 	namespace Draw_Font_2D {
 
-		struct Text_Helper {
+		struct Label_Helper {
 			std::vector<std::string> lines{};
 			std::vector<glm::vec2> start_line_positions{};
 			float width = 0;
@@ -50,7 +50,7 @@ namespace Vulkan {
 			float& height, const std::vector<std::string>& lines, float stroke_size
 		);
 
-		Text_Helper gen_text_info_from(
+		Label_Helper gen_text_info_from(
 			std::string font_path, std::string text, int align, int font_size, float stroke_size
 		);
 

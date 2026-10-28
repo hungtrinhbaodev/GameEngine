@@ -3,6 +3,7 @@
 #include <consts.h>
 #include <limits>
 #include <math_custom.h>
+#include <profiler.h>
 #include <utils.h>
 #include <vulkan/vk_command_pool.h>
 #include <vulkan/vk_consts.h>
@@ -37,6 +38,7 @@ namespace Vulkan {
 		Handle handle_label_gpu_time;
 		Handle handle_label_cpu_time;
 		Handle handle_label_gpu_memory;
+		Handle handle_label_animation_update;
 
 		/**
 		 * GPU frame time: 2 timestamps per frame in flight (begin and end of the frame command buffer),
@@ -75,6 +77,7 @@ namespace Vulkan {
 			handle_label_gpu_time = create_label(description);
 			handle_label_cpu_time = create_label(description);
 			handle_label_gpu_memory = create_label(description);
+			handle_label_animation_update = create_label(description);
 			init_gpu_timestamps();
 		}
 
@@ -122,9 +125,9 @@ namespace Vulkan {
 		void reload_labels() {
 			glm::vec2 start_position = {7.f, 6.f};
 			float pad = 1.3f;
-			std::array<Handle, 6> labels = {
-				handl_label_fps,	   handle_label_draw_call, handle_label_number_instance,
-				handle_label_gpu_time, handle_label_cpu_time,  handle_label_gpu_memory,
+			std::array<Handle, 7> labels = {
+				handl_label_fps,	   handle_label_draw_call,	handle_label_number_instance,  handle_label_gpu_time,
+				handle_label_cpu_time, handle_label_gpu_memory, handle_label_animation_update,
 			};
 			for (auto& label_handle : labels) {
 				auto& label = modify_label(label_handle);
@@ -149,6 +152,12 @@ namespace Vulkan {
 				fps_frame_count = 0;
 				fps_total_duration = 0.f;
 				update_gpu_labels();
+				auto& label_animation = modify_label(handle_label_animation_update);
+				label_animation.set_text(
+					"Animations: " +
+					std::to_string(Profiler::get_scope_time(Const::SCOPE_CALCULATE_ANIMATIONS) * 1000).substr(0, 6) +
+					" ms"
+				);
 			} else {
 				fps_frame_count++;
 				fps_total_duration += dt;

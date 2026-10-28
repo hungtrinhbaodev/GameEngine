@@ -6,6 +6,18 @@ namespace Vulkan {
 
 	namespace Draw_Model_3D {
 
+		struct Model_Animation_Helper {
+			std::string animation_name = "";
+			float duration = 0.f;
+		};
+
+		struct Model_Helper {
+			std::vector<std::string> scene_names;
+			std::vector<Model_Animation_Helper> animations;
+			bool has_animation(const std::string& animation_name) const;
+			const Model_Animation_Helper& get_animation_heler(const std::string& animation_name) const;
+		};
+
 		bool is_material_equal(uint32_t a, uint32_t b);
 
 		void init();
@@ -38,6 +50,10 @@ namespace Vulkan {
 		void remove_model(uint32_t unique_id);
 
 		void destroy();
+
+		const Model_Helper& get_model_helper(const std::string& model_path);
+
+		void make_model_helper(const std::string& model_path);
 
 	} // namespace Draw_Model_3D
 

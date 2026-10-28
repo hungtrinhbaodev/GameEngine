@@ -122,6 +122,14 @@ namespace Vulkan {
 		node_index = channel.node_index;
 	}
 
+	float Model_Animation::get_animation_duration() const {
+		float max_duration = 0;
+		for (const auto& sampler : samplers) {
+			max_duration = std::max(max_duration, sampler.max_duration());
+		}
+		return max_duration;
+	}
+
 	void Model_Animation::parse_from(Parser::Gltf_Animation& animation) {
 		name = animation.name;
 		channels.resize(animation.channels.size());

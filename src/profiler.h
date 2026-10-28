@@ -7,6 +7,8 @@ namespace Profiler {
 
 	void end_scope(std::string key);
 
+	double get_scope_time(std::string key);
+
 	void view_scope(std::string key);
 
 } // namespace Profiler

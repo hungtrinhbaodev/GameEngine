@@ -223,6 +223,7 @@ namespace Vulkan {
 		std::vector<Model_Channel> channels{};
 		std::vector<Model_Sampler> samplers{};
 		std::string name = "";
+		float get_animation_duration() const;
 		void parse_from(Parser::Gltf_Animation& animation);
 	};
 

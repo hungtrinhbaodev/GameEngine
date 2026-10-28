@@ -1,6 +1,7 @@
 #include <math_custom.h>
 #include <vulkan/draws/vk_draw_attributes.h>
 #include <vulkan/draws/vk_draw_font_2D.h>
+#include <vulkan/draws/vk_draw_model_3D.h>
 #include <vulkan/vk_draw.h>
 
 namespace Vulkan {
@@ -65,9 +66,39 @@ namespace Vulkan {
 
 	Model_3D::~Model_3D() {}
 
+	void Model_3D::reload_animation_factors() {
+		const auto& config_factors = Const::MODEL_ANIMATION_MIX_RATIOS;
+		float sum_factor = 0;
+		for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
+			const auto& animation = animations[i];
+			if (animation.is_active) {
+				sum_factor += config_factors[i];
+			}
+		}
+		for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
+			const auto& animation = animations[i];
+			if (animation.is_active) {
+				animation_factors[i] = config_factors[i] / sum_factor;
+			} else {
+				animation_factors[i] = 0.f;
+			}
+		}
+	}
+
+	void Model_3D::clean_animations() {
+		for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
+			animations[i] = {};
+			animation_factors[i] = 0.f;
+			animation_start_times[i] = Utils::now();
+		}
+	}
+
 	void Model_3D::set_model_path(const std::string& i_model_path) {
 		assert_handle();
 		set_dirty(path != i_model_path);
+		if (path != i_model_path) {
+			clean_animations();
+		}
 		path = i_model_path;
 	}
 
@@ -100,6 +131,40 @@ namespace Vulkan {
 		assert_handle();
 		set_dirty(animation_name != i_animation_name);
 		animation_name = i_animation_name;
+	}
+
+	void Model_3D::play_animation(int track_index, const std::string& animation_name, bool is_loop) {
+		if (track_index < 0 || track_index >= Const::MAX_TRACK_MODEL_ANIMATION)
+			return;
+		const auto& model_helper = Draw_Model_3D::get_model_helper(path);
+		auto& animation = animations[track_index];
+		if (!model_helper.has_animation(animation_name)) {
+			animation = {};
+		} else {
+			animation.animation_name = animation_name;
+			animation.is_loop = is_loop;
+			animation.is_active = true;
+		}
+		animation_start_times[track_index] = ::Utils::now();
+		changing_animations[track_index] = true;
+		reload_animation_factors();
+		set_dirty(true);
+	}
+
+	bool Model_3D::is_track_changing(int track_index) const {
+		if (track_index < 0 || track_index >= Const::MAX_TRACK_MODEL_ANIMATION)
+			return false;
+		return changing_animations[track_index];
+	}
+
+	std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> Model_3D::get_animation_factors() const {
+		return animation_factors;
+	}
+
+	void Model_3D::clean_chaging_animations() {
+		for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
+			changing_animations[i] = false;
+		}
 	}
 
 	std::string Model_3D::get_model_path() const {
@@ -142,10 +207,22 @@ namespace Vulkan {
 		return Math::make_translation(position) * glm::mat4_cast(quat_rotation) * Math::make_scale(scale);
 	}
 
+	const std::array<Model_3D_Animation_Description, Const::MAX_TRACK_MODEL_ANIMATION>& Model_3D::
+		get_animations() const {
+		assert_handle();
+		return animations;
+	}
+
 	Model_3D_Description Model_3D::get_description() const {
 		return Model_3D_Description{
 			Draw_Atributes::get_description(), path, scene_name, animation_name, position, scale, rotation
 		};
+	}
+
+	std::string Model_3D::get_animation_name_at_track(int track_index) const {
+		if (track_index < 0 || track_index >= Const::MAX_TRACK_MODEL_ANIMATION)
+			return "";
+		return animations[track_index].is_active ? animations[track_index].animation_name : "";
 	}
 
 	Draw_2D::Draw_2D() {}

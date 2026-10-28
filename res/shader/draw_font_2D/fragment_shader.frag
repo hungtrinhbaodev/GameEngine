@@ -16,6 +16,11 @@ void main() {
     float smooth_width = fwidth(distance);
     clamp(smooth_width, 0.01, 0.05); 
     float alpha = smoothstep(0.5 - smooth_width, 0.5 + smooth_width, distance);
-    float stroke_alpha = smoothstep((0.5 - stroke_size) - smooth_width, (0.5 - stroke_size) + smooth_width, distance);
-    out_color = mix(vec4(stroke_color, stroke_alpha) , vec4(in_color, 1.f), alpha);
+    if (stroke_size <= 0) {
+        out_color = vec4(in_color, alpha);
+    }
+    else {
+        float stroke_alpha = smoothstep((0.5 - stroke_size) - smooth_width, (0.5 - stroke_size) + smooth_width, distance);
+        out_color = mix(vec4(stroke_color, stroke_alpha) , vec4(in_color, 1.f), alpha);
+    }
 }

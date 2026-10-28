@@ -1,4 +1,5 @@
 #pragma once
+#include <array>
 #include <string>
 #include <vector>
 
@@ -54,11 +55,15 @@ namespace Vulkan {
 
 		const inline std::vector<uint32_t> NUMBER_LAYER_TEXTURE_PER_BUCKETS{{128, 128, 64, 64, 64, 16, 8, 2}};
 
-		const inline std::vector<uint32_t> FONT_TEXTURE_BUCKET_SIZES{512, 1024, 2048};
+		const inline std::vector<uint32_t> FONT_TEXTURE_BUCKET_SIZES{1024};
 
-		const inline std::vector<uint32_t> NUMBER_LAYER_FONT_TEXTURE_PER_BUCKETS{8, 4, 2};
+		const inline std::vector<uint32_t> NUMBER_LAYER_FONT_TEXTURE_PER_BUCKETS{8};
 
 		const inline bool ENEABLED_IMAGE_MIPMAP = true;
+
+		const inline uint32_t MAX_TRACK_MODEL_ANIMATION = 3;
+
+		const std::array<float, MAX_TRACK_MODEL_ANIMATION> MODEL_ANIMATION_MIX_RATIOS = {0.6f, 0.3f, 0.1f};
 
 		enum DRAW_ID {
 			DRAW_2D_MESH,					// draw primitive with raw color that user input.

@@ -14,6 +14,7 @@ layout (location = 2) in vec3 frag_normal;
 layout (location = 3) in vec3 frag_world_pos;
 layout (location = 4) in flat int bucket_index;
 layout (location = 5) in flat int slot_index;
+layout (location = 6) in flat uint in_use_skins;
 
 layout (location = 0) out vec4 out_color;
 

@@ -766,9 +766,10 @@ namespace Vulkan {
 			std::vector<Draw_Instance_Information>& draw_instances = draw_id_to_instances.modify(handle.id());
 			switch (draw_info.draw_type) {
 				case Const::DRAW_MODEL_3D: {
-					const Model_3D& model = draw_id_to_models.get(handle.id());
+					Model_3D& model = draw_id_to_models.modify(handle.id());
 					Draw_Model_3D::update_model(draw_info, draw_instances, model);
 					update_draw_info(draw_info, model.get_description());
+					model.clean_chaging_animations();
 					break;
 				}
 				case Const::DRAW_FONT_2D: {

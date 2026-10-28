@@ -28,11 +28,15 @@ namespace Profiler {
 		profilers[key].number_call++;
 	}
 
+	double get_scope_time(std::string key) {
+		return profilers[key].total_call_duration / profilers[key].number_call;
+	}
+
 	void view_scope(std::string key) {
 		if (profilers.find(key) == profilers.end()) {
 			return;
 		}
-		Log::info("Scope " + key + " avarage time: ", profilers[key].total_call_duration / profilers[key].number_call);
+		Log::info("Scope " + key + " avarage time: ", get_scope_time(key));
 	}
 
 } // namespace Profiler

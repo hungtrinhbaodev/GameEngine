@@ -47,6 +47,7 @@ layout (location = 2) out vec3 frag_normal;
 layout (location = 3) out vec3 frag_world_pos;
 layout (location = 4) out int bucket_index;
 layout (location = 5) out int slot_index;
+layout (location = 6) out uint out_use_skins;
 
 void main() {
     mat4 model = mat4_buffer.data[in_storage_offset];
@@ -73,5 +74,6 @@ void main() {
     out_tex_coord = in_tex_coord * texture.tex_scale;
     bucket_index = texture.bucket_index;
     slot_index = texture.slot_index;
+    out_use_skins = mesh_descriptor.using_skins;
 }
 
