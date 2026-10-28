@@ -70,9 +70,9 @@ namespace Vulkan {
 		};
 
 		struct Node_Data {
-			glm::vec3 translation{0.f};
-			glm::quat rotation{1.f, 0.f, 0.f, 0.f};
-			glm::vec3 scale{1.f};
+			glm::vec3 final_translation{0.f};
+			glm::quat final_rotation{1.f, 0.f, 0.f, 0.f};
+			glm::vec3 final_scale{1.f};
 			glm::mat4 global_transform{1.f};
 
 			uint8_t apply_flags = 0;
@@ -81,34 +81,14 @@ namespace Vulkan {
 			std::array<glm::vec3, Const::MAX_TRACK_MODEL_ANIMATION> track_translations;
 			std::array<glm::quat, Const::MAX_TRACK_MODEL_ANIMATION> track_rotations;
 			std::array<glm::vec3, Const::MAX_TRACK_MODEL_ANIMATION> track_scales;
-			std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> track_factors;
 			std::array<uint8_t, Const::MAX_TRACK_MODEL_ANIMATION> track_apply_flags;
 
 			void clean() {
 				apply_flags = 0;
 				global_transform = {1.f};
 				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
-					track_translations[i] = {0.f, 0.f, 0.f};
-					track_rotations[i] = {1.f, 0.f, 0.f, 0.f};
-					track_scales[i] = {1.f, 1.f, 1.f};
-					track_factors[i] = 0.f;
 					track_apply_flags[i] = 0;
 				}
-			}
-
-			void set_translation(const glm::vec3 i_translation) {
-				translation = i_translation;
-				apply_flags |= (1 << 0);
-			}
-
-			void set_rotation(const glm::quat i_rotation) {
-				rotation = i_rotation;
-				apply_flags |= (1 << 1);
-			}
-
-			void set_scale(const glm::vec3 i_scale) {
-				scale = i_scale;
-				apply_flags |= (1 << 2);
 			}
 
 			void set_translation(const glm::vec3 translation, int track_index) {
@@ -126,32 +106,19 @@ namespace Vulkan {
 				track_scales[track_index] = scale;
 			}
 
-			glm::mat4 get_transform(const Model_Node& node) const {
-				if (is_use_matrix) {
-					return node.transform;
-				}
-				glm::vec3 o_translation = (apply_flags & (1 << 0)) ? translation : node.translation;
-				glm::quat o_rotation = (apply_flags & (1 << 1)) ? rotation : node.rotation;
-				glm::vec3 o_scale = (apply_flags & (1 << 2)) ? scale : node.scale;
-				return Math::make_translation(o_translation) * glm::mat4_cast(o_rotation) * Math::make_scale(o_scale);
-			}
-
-			glm::mat4 get_transform(
+			glm::mat4 calculate_transform(
 				const Model_Node& node, std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> factors
-			) const {
+			) {
 				if (is_use_matrix) {
 					return node.transform;
 				}
-				glm::vec3 final_translation{0.f}, final_scale{0.f};
-				glm::quat final_rotation{0.f, 0.f, 0.f, 0.f};
 				float current_factor = 0.f;
+				glm::vec3 translation, scale;
+				glm::quat rotation;
 				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
-					glm::vec3 translation =
-						(track_apply_flags[i] & (1 << 0) && factors[i] > 0) ? track_translations[i] : node.translation;
-					glm::quat rotation =
-						(track_apply_flags[i] & (1 << 1) && factors[i] > 0) ? track_rotations[i] : node.rotation;
-					glm::vec3 scale =
-						(track_apply_flags[i] & (1 << 2) && factors[i] > 0) ? track_scales[i] : node.scale;
+					translation = (track_apply_flags[i] & (1 << 0)) ? track_translations[i] : node.translation;
+					rotation = (track_apply_flags[i] & (1 << 1)) ? track_rotations[i] : node.rotation;
+					scale = (track_apply_flags[i] & (1 << 2)) ? track_scales[i] : node.scale;
 					if (i <= 0) {
 						final_rotation = rotation;
 						final_translation = translation;
@@ -197,7 +164,6 @@ namespace Vulkan {
 		struct Model_Data {
 			uint32_t model_id = ::Const::MAX_UINT32;
 			int scene_index = -1;
-			int animation_index = -1;
 			std::vector<Node_Data> nodes;
 
 			Sparse_Set<uint32_t> skins_indices_to_skins_storage_ids;
@@ -206,8 +172,6 @@ namespace Vulkan {
 			uint32_t mesh_descriptors_storage_id = ::Const::MAX_UINT32;
 			uint32_t storage_id = ::Const::MAX_UINT32;
 
-			std::vector<float> animation_durations;
-			std::vector<int> sampler_animation_indices;
 			std::array<Model_Animation_Data, Const::MAX_TRACK_MODEL_ANIMATION> animations;
 			Sparse_Set<std::vector<glm::mat4>> skins_indices_to_skins_transforms;
 
@@ -231,8 +195,6 @@ namespace Vulkan {
 				texture_ids_to_texture_storage_ids.clear();
 
 				nodes.clear();
-				animation_durations.clear();
-				sampler_animation_indices.clear();
 				for (auto& animation : animations) {
 					animation.clean();
 				}
@@ -244,21 +206,20 @@ namespace Vulkan {
 
 				model_id = ::Const::MAX_UINT32;
 				scene_index = -1;
-				animation_index = -1;
 				draw_instances.clear();
 			};
 
-			void update_animation_tracks() {
+			void update_animation_tracks(double current_time) {
 				const auto& model = view_model(model_id);
 				for (int j = 0; j < Const::MAX_TRACK_MODEL_ANIMATION; j++) {
 					auto& animation_data = animations[j];
 					if (!animation_data.is_active)
 						continue;
 					const auto& animation = model.animations[animation_data.animation_index];
+					float t = (float)(current_time - animation_data.start_time);
 					for (int i = 0; i < animation.channels.size(); i++) {
 						const auto& channel = animation.channels[i];
 						const auto& sampler = animation.samplers[channel.sampler_index];
-						float t = (float)(::Utils::now() - animation_data.start_time);
 						const float max_duration = sampler.max_duration();
 						if (t > max_duration && !animation_data.is_loop) {
 							animation_data.is_active = false;
@@ -297,12 +258,12 @@ namespace Vulkan {
 				}
 			}
 
-			void update_animation_2() {
+			void update_animation(double current_time) {
 				if (is_playing_some_animation()) {
 					for (int i = 0; i < nodes.size(); i++) {
 						nodes[i].clean();
 					}
-					update_animation_tracks();
+					update_animation_tracks(current_time);
 					std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> factors{};
 					for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
 						factors[i] = animations[i].factor;
@@ -313,12 +274,12 @@ namespace Vulkan {
 							const auto& node_config = model.nodes[children_index];
 							if (parent_index < 0) {
 								auto& child = nodes[children_index];
-								child.global_transform = child.get_transform(node_config, factors);
+								child.global_transform = child.calculate_transform(node_config, factors);
 							} else {
 								const auto& parent = nodes[parent_index];
 								auto& child = nodes[children_index];
 								child.global_transform =
-									parent.global_transform * child.get_transform(node_config, factors);
+									parent.global_transform * child.calculate_transform(node_config, factors);
 							}
 						}
 					);
@@ -331,86 +292,25 @@ namespace Vulkan {
 							skins_transforms[j] = nodes[node_index].global_transform * inverse_bind_pose;
 						}
 					}
-				}
-				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
-					if (!animations[i].is_active) {
-						animations[i].clean();
+					for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
+						if (!animations[i].is_active) {
+							animations[i].clean();
+						}
 					}
 				}
 			}
-
-			void update_animation(float dt) {
-				if (animation_index < 0)
-					return;
-				for (int i = 0; i < nodes.size(); i++) {
-					nodes[i].clean();
-				}
-				const auto& model = view_model(model_id);
-				const auto& animation = model.animations[animation_index];
-				for (int i = 0; i < animation.channels.size(); i++) {
-					animation_durations[i] += dt;
-					const auto& channel = animation.channels[i];
-					const auto& sampler = animation.samplers[channel.sampler_index];
-					const float max_duration = sampler.max_duration();
-					if (animation_durations[i] > max_duration) {
-						animation_durations[i] -= max_duration;
-					}
-					const float duration = animation_durations[i];
-					int node_index = channel.node_index;
-					switch (channel.sampler_type) {
-						case Model_Sampler_Type::TRANSLATION: {
-							glm::vec3 translation = sampler.sampler_vec3(duration, sampler_animation_indices[i]);
-							if (channel.use_node_index) {
-								nodes[node_index].set_translation(translation);
-							}
-							break;
-						}
-						case Model_Sampler_Type::ROTATION: {
-							glm::quat rotation = sampler.sampler_quat(duration, sampler_animation_indices[i]);
-							if (channel.use_node_index) {
-								nodes[node_index].set_rotation(rotation);
-							}
-							break;
-						}
-						case Model_Sampler_Type::SCALE: {
-							glm::vec3 scale = sampler.sampler_vec3(duration, sampler_animation_indices[i]);
-							if (channel.use_node_index) {
-								nodes[node_index].set_scale(scale);
-							}
-							break;
-						}
-						default: {
-							break;
-						}
-					}
-				}
-				model.dfs_read(scene_index, [this](const Model& model, int, int parent_index, int children_index) {
-					const auto& node_config = model.nodes[children_index];
-					if (parent_index < 0) {
-						auto& child = nodes[children_index];
-						child.global_transform = child.get_transform(node_config);
-					} else {
-						const auto& parent = nodes[parent_index];
-						auto& child = nodes[children_index];
-						child.global_transform = parent.global_transform * child.get_transform(node_config);
-					}
-				});
-				for (uint32_t i = 0; i < model.skins.size(); i++) {
-					const auto& skin = model.skins[i];
-					auto& skins_transforms = skins_indices_to_skins_transforms.modify(i);
-					for (int j = 0; j < skin.joints.size(); j++) {
-						int node_index = skin.joints[j];
-						const auto& inverse_bind_pose = skin.inverse_bind_poses[j];
-						skins_transforms[j] = nodes[node_index].global_transform * inverse_bind_pose;
-					}
-				}
-			};
 
 			void upload_animation_skins(SSBO_Buffer& ssbo) const {
 				for (const uint32_t& skin_index : skins_indices_to_skins_storage_ids.keys()) {
 					const uint32_t& skins_storage_id = skins_indices_to_skins_storage_ids.get(skin_index);
 					const auto& skins_transforms = skins_indices_to_skins_transforms.get(skin_index);
 					ssbo.update_data(skins_storage_id, skins_transforms.data());
+				}
+			}
+
+			void clean_animation_when_finish_all(SSBO_Buffer& ssbo) const {
+				if (!is_playing_some_animation()) {
+					update_using_skin_storage(false, ssbo);
 				}
 			};
 
@@ -441,7 +341,7 @@ namespace Vulkan {
 				}
 			};
 
-			bool is_playing_some_animation() {
+			bool is_playing_some_animation() const {
 				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
 					if (animations[i].is_active) {
 						return true;
@@ -452,10 +352,10 @@ namespace Vulkan {
 
 			/**
 			 * @Note: With case the animation change into invalid
-			 * we reset the mesh descriptor storage to redirect
-			 * model into bind pose mode.
+			 * or end animation we reset the mesh descriptor storage
+			 * to redirect model into bind pose mode.
 			 */
-			void update_using_skin_storage(uint32_t use_skin, SSBO_Buffer& ssbo) {
+			void update_using_skin_storage(uint32_t use_skin, SSBO_Buffer& ssbo) const {
 				const Buffer_Range& meshes_descriptor_range = ssbo.view_slot(mesh_descriptors_storage_id);
 				uint32_t number_mesh = meshes_descriptor_range.inner_size() / sizeof(Mesh_Descriptor_Storage_Data);
 				for (int i = 0; i < number_mesh; i++) {
@@ -497,16 +397,9 @@ namespace Vulkan {
 				model_id = load_model(attributes.get_model_path());
 				const auto& model = view_model(model_id);
 				scene_index = model.find_scene_index_by(attributes.get_scene_name());
-				animation_index = model.find_animation_index_by(attributes.get_animation_name());
 				for (auto& animation : animations) {
 					animation.clean();
 				}
-				/**
-				 * @Note: if we can't file the animation,
-				 * the mesh transform will be activate
-				 * to model place in bind pose.
-				 */
-				bool has_animation = false;
 				/**
 				 * Set up node as scene for tree.
 				 */
@@ -575,7 +468,10 @@ namespace Vulkan {
 					const auto& draw_mesh_info = draw_meshes_info[i];
 					Mesh_Descriptor_Storage_Data mesh_descriptor_storage_data{};
 					int skin_index = draw_mesh_info.skin_index;
-					mesh_descriptor_storage_data.using_skin = skin_index >= 0 && has_animation;
+					/**
+					 * @Note: using skin will be update in update animation phase.
+					 */
+					mesh_descriptor_storage_data.using_skin = 0;
 					/**
 					 * Setup storage data for case mesh use skins.
 					 */
@@ -776,10 +672,12 @@ namespace Vulkan {
 			Profiler::start_scope(Const::SCOPE_CALCULATE_ANIMATIONS);
 			uint32_t number_thread = Core::global_thread_pool->get_thread_ids().size();
 			auto& models = Draw_Model_3D::models.modify_values();
+			double current_time = ::Utils::now();
 			if (models.size() <= number_thread * 5) {
 				for (auto& model : models) {
-					model.update_animation_2();
+					model.update_animation(current_time);
 					model.upload_animation_skins(ssbo);
+					model.clean_animation_when_finish_all(ssbo);
 				}
 			} else {
 				int number_model_in_thread = (int)std::ceil((float)models.size() / number_thread);
@@ -787,9 +685,9 @@ namespace Vulkan {
 				for (int i = 0; i < number_thread; i++) {
 					int start = i * number_model_in_thread;
 					int end = start + number_model_in_thread;
-					auto result = Core::global_thread_pool->enqueue([&models, start, end]() {
+					auto result = Core::global_thread_pool->enqueue([&models, start, end, current_time]() {
 						for (int i = start; i < end && i < models.size(); i++) {
-							models[i].update_animation_2();
+							models[i].update_animation(current_time);
 						}
 					});
 					results.push_back(std::move(result));
@@ -800,6 +698,7 @@ namespace Vulkan {
 					int end = start + number_model_in_thread;
 					for (int j = start; j < end && j < models.size(); j++) {
 						models[j].upload_animation_skins(ssbo);
+						models[j].clean_animation_when_finish_all(ssbo);
 					}
 				}
 			}

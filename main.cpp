@@ -39,7 +39,7 @@ void gen_fox_3D() {
 	Handle fox = Vulkan::create_model("res/Fox_embedded.gltf", "", animation_name, position, {0.01f, 0.01f, 0.01f});
 	auto& fox_model = Vulkan::modify_model(fox);
 	fox_model.play_animation(0, animation_name, true);
-	fox_model.play_animation(1, "Survey", true);
+	// fox_model.play_animation(1, "Survey", true);
 	foxes.push_back(fox);
 }
 
@@ -545,7 +545,7 @@ int main() {
 	Vulkan::init_vulkan_core(window);
 	glfwSetKeyCallback(window, on_key);
 
-	for (int i = 0; i < 300; i++) {
+	for (int i = 0; i < 10; i++) {
 		gen_fox_3D();
 	}
 

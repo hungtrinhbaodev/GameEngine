@@ -24,7 +24,7 @@ namespace Vulkan {
 		const inline uint32_t VULKAN_API_VERSION = VK_API_VERSION_1_1;
 #endif
 
-		const inline int MAX_FRAMES_IN_FLIGHT = 3;
+		const inline int MAX_FRAMES_IN_FLIGHT = 2;
 
 		const inline char* VALIDATION_LAYER_NAME = "VK_LAYER_KHRONOS_validation";
 
