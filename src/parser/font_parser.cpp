@@ -30,7 +30,7 @@ namespace Parser {
 		friend std::ostream& operator<<(std::ostream& os, const Font_SFD_Meta_Data_Cache& meta_data) {
 			os << "{max_font_size: " << meta_data.max_font_size << ", max_char_height: " << meta_data.max_char_height
 			   << ", sfd_padding: " << meta_data.sfd_padding
-			   << ", last_time_save: " << meta_data.last_time_save.time_since_epoch().count()
+			   << ", last_time_save: " << (long long)meta_data.last_time_save.time_since_epoch().count()
 			   << ", file_size: " << (size_t)meta_data.file_size << "}" << std::endl;
 			return os;
 		}

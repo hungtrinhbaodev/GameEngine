@@ -49,7 +49,7 @@ namespace Vulkan {
 		std::string path = "";
 		std::string scene_name = "";
 		glm::vec3 position{0.f}, scale{1.f}, rotation{0.f};
-		float blend_animation_duration = 0.2f;
+		float blend_animation_duration = 0.25f;
 		float blend_animation_factor = 0.25f;
 	};
 

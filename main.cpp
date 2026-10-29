@@ -32,10 +32,10 @@ std::vector<Handle> cesiummans{};
 void gen_fox_3D() {
 	int animation_index = Math::random_int(0, 100) % fox_animations.size();
 	std::string animation_name = fox_animations[animation_index];
-	glm::vec3 position = {
-		Math::random_float(-3.5f, 3.5f), Math::random_float(-3.f, 3.f), Math::random_float(-2.5f, 2.5f)
-	};
-	// glm::vec3 position{0.f};
+	// glm::vec3 position = {
+	// 	Math::random_float(-3.5f, 3.5f), Math::random_float(-3.f, 3.f), Math::random_float(-2.5f, 2.5f)
+	// };
+	glm::vec3 position{0.f};
 	Handle fox = Vulkan::create_model("res/Fox_embedded.gltf", "", animation_name, position, {0.01f, 0.01f, 0.01f});
 	auto& fox_model = Vulkan::modify_model(fox);
 	// fox_model.play_animation(0, animation_name, true);
@@ -557,7 +557,7 @@ int main() {
 	Vulkan::init_vulkan_core(window);
 	glfwSetKeyCallback(window, on_key);
 
-	for (int i = 0; i < 300; i++) {
+	for (int i = 0; i < 1; i++) {
 		gen_fox_3D();
 	}
 
