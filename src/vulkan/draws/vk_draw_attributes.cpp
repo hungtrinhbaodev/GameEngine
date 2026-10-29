@@ -61,24 +61,22 @@ namespace Vulkan {
 		rotation = description.rotation;
 		quat_rotation = glm::quat(glm::radians(description.rotation));
 		scene_name = description.scene_name;
-		animation_name = description.animation_name;
 	}
 
 	Model_3D::~Model_3D() {}
 
 	void Model_3D::reload_animation_factors() {
-		const auto& config_factors = Const::MODEL_ANIMATION_MIX_RATIOS;
 		float sum_factor = 0;
 		for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
 			const auto& animation = animations[i];
 			if (animation.is_active) {
-				sum_factor += config_factors[i];
+				sum_factor += animations[i].factor;
 			}
 		}
 		for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
 			const auto& animation = animations[i];
-			if (animation.is_active) {
-				animation_factors[i] = config_factors[i] / sum_factor;
+			if (animation.is_active && sum_factor > 0) {
+				animation_factors[i] = animations[i].factor / sum_factor;
 			} else {
 				animation_factors[i] = 0.f;
 			}
@@ -133,7 +131,9 @@ namespace Vulkan {
 		animation_name = i_animation_name;
 	}
 
-	void Model_3D::play_animation(int track_index, const std::string& animation_name, bool is_loop) {
+	void Model_3D::play_animation(
+		int track_index, const std::string& animation_name, bool is_loop, float factor, float speed
+	) {
 		if (track_index < 0 || track_index >= Const::MAX_TRACK_MODEL_ANIMATION)
 			return;
 		const auto& model_helper = Draw_Model_3D::get_model_helper(path);
@@ -143,7 +143,9 @@ namespace Vulkan {
 		} else {
 			animation.animation_name = animation_name;
 			animation.is_loop = is_loop;
+			animation.factor = factor;
 			animation.is_active = true;
+			animation.speed = std::min(std::max(speed, 0.01f), 5.f);
 		}
 		animation_start_times[track_index] = ::Utils::now();
 		changing_animations[track_index] = true;
@@ -214,9 +216,7 @@ namespace Vulkan {
 	}
 
 	Model_3D_Description Model_3D::get_description() const {
-		return Model_3D_Description{
-			Draw_Atributes::get_description(), path, scene_name, animation_name, position, scale, rotation
-		};
+		return Model_3D_Description{Draw_Atributes::get_description(), path, scene_name, position, scale, rotation};
 	}
 
 	std::string Model_3D::get_animation_name_at_track(int track_index) const {

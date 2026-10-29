@@ -69,6 +69,32 @@ namespace Vulkan {
 			uint32_t offset_transform = 0;
 		};
 
+		struct Model_Animation_Data {
+			int animation_index = -1;
+			std::vector<int> sampler_animation_indices;
+			bool is_active = false;
+			bool is_loop = false;
+			double start_time = 0.f;
+			float factor = 0.f;
+			float speed = 0.f;
+			void clean() {
+				animation_index = -1;
+				factor = 0.f;
+				is_active = false;
+				is_loop = false;
+				sampler_animation_indices.clear();
+			}
+			void update_animation_index(int i_animation_index, const Model& model) {
+				if (i_animation_index < 0)
+					return;
+				animation_index = i_animation_index;
+				const auto& animation = model.animations[animation_index];
+				int number_channel = animation.channels.size();
+				sampler_animation_indices.resize(number_channel);
+				sampler_animation_indices.assign(number_channel, -1);
+			}
+		};
+
 		struct Node_Data {
 			glm::vec3 final_translation{0.f};
 			glm::quat final_rotation{1.f, 0.f, 0.f, 0.f};
@@ -83,6 +109,17 @@ namespace Vulkan {
 			std::array<glm::vec3, Const::MAX_TRACK_MODEL_ANIMATION> track_scales;
 			std::array<uint8_t, Const::MAX_TRACK_MODEL_ANIMATION> track_apply_flags;
 
+			/**
+			 * @Note: node will be relative with animation
+			 * if the node don't relative with animation
+			 * we will get it factor = 0 when calculate
+			 * transform.
+			 */
+			std::vector<uint32_t> animation_indices_to_apply_flags;
+			std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> translation_factors;
+			std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> rotation_factors;
+			std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> scale_factors;
+
 			void clean() {
 				apply_flags = 0;
 				global_transform = {1.f};
@@ -90,6 +127,18 @@ namespace Vulkan {
 					track_apply_flags[i] = 0;
 				}
 			}
+
+			void update_apply_flags(const std::vector<Model_Animation>& animations, int node_index) {
+				animation_indices_to_apply_flags.clear();
+				animation_indices_to_apply_flags.resize(animations.size(), 0);
+				for (int i = 0; i < animations.size(); i++) {
+					const auto& animation = animations[i];
+					const auto& node_indices_to_apply_flags = animation.node_indices_to_apply_flags;
+					if (node_indices_to_apply_flags.find(node_index) == node_indices_to_apply_flags.end())
+						continue;
+					animation_indices_to_apply_flags[i] = node_indices_to_apply_flags.at(node_index);
+				}
+			};
 
 			void set_translation(const glm::vec3 translation, int track_index) {
 				track_apply_flags[track_index] |= (1 << 0);
@@ -106,58 +155,106 @@ namespace Vulkan {
 				track_scales[track_index] = scale;
 			}
 
+			void update_factors(const std::array<Model_Animation_Data, Const::MAX_TRACK_MODEL_ANIMATION>& animations) {
+				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
+					const auto& animation = animations[i];
+					if (!animation.is_active)
+						continue;
+					uint32_t animation_apply_flags = animation_indices_to_apply_flags[animation.animation_index];
+					translation_factors[i] = 0.f;
+					rotation_factors[i] = 0.f;
+					scale_factors[i] = 0.f;
+					if (animation_apply_flags > 0) {
+						translation_factors[i] = (animation_apply_flags & (1 << 0)) ? animation.factor : 0.f;
+						rotation_factors[i] = (animation_apply_flags & (1 << 1)) ? animation.factor : 0.f;
+						scale_factors[i] = (animation_apply_flags & (1 << 2)) ? animation.factor : 0.f;
+					}
+				}
+				float sum_factor_translation = 0, sum_factor_rotation = 0, sum_factor_scale = 0;
+				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
+					sum_factor_translation += translation_factors[i];
+					sum_factor_rotation += rotation_factors[i];
+					sum_factor_scale += scale_factors[i];
+				}
+				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
+					if (sum_factor_translation != 0)
+						translation_factors[i] /= sum_factor_translation;
+					if (sum_factor_rotation != 0)
+						rotation_factors[i] /= sum_factor_rotation;
+					if (sum_factor_scale != 0)
+						scale_factors[i] /= sum_factor_scale;
+				}
+			}
+
 			glm::mat4 calculate_transform(
-				const Model_Node& node, std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> factors
+				const Model_Node& node,
+				const std::array<Model_Animation_Data, Const::MAX_TRACK_MODEL_ANIMATION>& animations
 			) {
 				if (is_use_matrix) {
 					return node.transform;
 				}
+				update_factors(animations);
+				float sum_factor_translation = 0, sum_factor_rotation = 0, sum_factor_scale = 0;
+				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
+					sum_factor_translation += translation_factors[i];
+					sum_factor_rotation += rotation_factors[i];
+					sum_factor_scale += scale_factors[i];
+				}
 				float current_factor = 0.f;
 				glm::vec3 translation, scale;
 				glm::quat rotation;
+				float current_translation_factor = 0.f, current_rotation_factor = 0.f, current_scale_factor = 0.f;
 				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
 					translation = (track_apply_flags[i] & (1 << 0)) ? track_translations[i] : node.translation;
 					rotation = (track_apply_flags[i] & (1 << 1)) ? track_rotations[i] : node.rotation;
 					scale = (track_apply_flags[i] & (1 << 2)) ? track_scales[i] : node.scale;
-					if (i <= 0) {
-						final_rotation = rotation;
+					/**
+					 * Handle translation.
+					 */
+					if (sum_factor_translation <= 0) {
 						final_translation = translation;
+					} else {
+						if (i <= 0 || current_translation_factor + translation_factors[i] <= 0) {
+							final_translation = translation;
+						} else {
+							float translation_factor =
+								current_translation_factor / (current_translation_factor + translation_factors[i]);
+							final_translation = glm::mix(final_translation, translation, 1.f - translation_factor);
+						}
+					}
+					/**
+					 * Handle scale.
+					 */
+					if (sum_factor_scale <= 0) {
 						final_scale = scale;
 					} else {
-						float factor = 1.f - current_factor / (current_factor + factors[i]);
-						final_rotation = glm::slerp(final_rotation, rotation, factor);
-						final_translation = glm::mix(final_translation, translation, factor);
-						final_scale = glm::mix(final_scale, scale, factor);
+						if (i <= 0 || current_scale_factor + scale_factors[i] <= 0) {
+							final_scale = scale;
+						} else {
+							float scale_factor = current_scale_factor / (current_scale_factor + scale_factors[i]);
+							final_scale = glm::mix(final_scale, scale, 1.f - scale_factor);
+						}
 					}
-					current_factor += factors[i];
+					/**
+					 * Handle rotation.
+					 */
+					if (sum_factor_rotation <= 0) {
+						final_rotation = rotation;
+					} else {
+						if (i <= 0 || current_rotation_factor + rotation_factors[i] <= 0) {
+							final_rotation = rotation;
+						} else {
+							float rotation_factor =
+								current_rotation_factor / (current_rotation_factor + rotation_factors[i]);
+							final_rotation = glm::slerp(final_rotation, rotation, 1.f - rotation_factor);
+						}
+					}
+					current_translation_factor += translation_factors[i];
+					current_rotation_factor += rotation_factors[i];
+					current_scale_factor += scale_factors[i];
 				}
 				return Math::make_translation(final_translation) * glm::mat4_cast(final_rotation) *
 					   Math::make_scale(final_scale);
-			}
-		};
-
-		struct Model_Animation_Data {
-			int animation_index = -1;
-			std::vector<int> sampler_animation_indices;
-			bool is_active = false;
-			bool is_loop = false;
-			double start_time = 0.f;
-			float factor = 0.f;
-			void clean() {
-				animation_index = -1;
-				factor = 0.f;
-				is_active = false;
-				is_loop = false;
-				sampler_animation_indices.clear();
-			}
-			void update_animation_index(int i_animation_index, const Model& model) {
-				if (i_animation_index < 0)
-					return;
-				animation_index = i_animation_index;
-				const auto& animation = model.animations[animation_index];
-				int number_channel = animation.channels.size();
-				sampler_animation_indices.resize(number_channel);
-				sampler_animation_indices.assign(number_channel, -1);
 			}
 		};
 
@@ -216,7 +313,8 @@ namespace Vulkan {
 					if (!animation_data.is_active)
 						continue;
 					const auto& animation = model.animations[animation_data.animation_index];
-					float t = (float)(current_time - animation_data.start_time);
+					float animation_speed = animation_data.speed;
+					float t = (float)(current_time - animation_data.start_time) * animation_speed;
 					for (int i = 0; i < animation.channels.size(); i++) {
 						const auto& channel = animation.channels[i];
 						const auto& sampler = animation.samplers[channel.sampler_index];
@@ -231,21 +329,21 @@ namespace Vulkan {
 						switch (channel.sampler_type) {
 							case Model_Sampler_Type::TRANSLATION: {
 								glm::vec3 translation = sampler.sampler_vec3(duration, sampler_animation_indices[i]);
-								if (channel.use_node_index) {
+								if (node_index >= 0) {
 									nodes[node_index].set_translation(translation, j);
 								}
 								break;
 							}
 							case Model_Sampler_Type::ROTATION: {
 								glm::quat rotation = sampler.sampler_quat(duration, sampler_animation_indices[i]);
-								if (channel.use_node_index) {
+								if (node_index >= 0) {
 									nodes[node_index].set_rotation(rotation, j);
 								}
 								break;
 							}
 							case Model_Sampler_Type::SCALE: {
 								glm::vec3 scale = sampler.sampler_vec3(duration, sampler_animation_indices[i]);
-								if (channel.use_node_index) {
+								if (node_index >= 0) {
 									nodes[node_index].set_scale(scale, j);
 								}
 								break;
@@ -264,25 +362,22 @@ namespace Vulkan {
 						nodes[i].clean();
 					}
 					update_animation_tracks(current_time);
-					std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> factors{};
-					for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
-						factors[i] = animations[i].factor;
-					}
 					const auto& model = view_model(model_id);
-					model.dfs_read(
-						scene_index, [this, &factors](const Model& model, int, int parent_index, int children_index) {
-							const auto& node_config = model.nodes[children_index];
-							if (parent_index < 0) {
-								auto& child = nodes[children_index];
-								child.global_transform = child.calculate_transform(node_config, factors);
-							} else {
-								const auto& parent = nodes[parent_index];
-								auto& child = nodes[children_index];
-								child.global_transform =
-									parent.global_transform * child.calculate_transform(node_config, factors);
+					model.dfs_read(scene_index, [this](const Model& model, int, int parent_index, int children_index) {
+						const auto& node_config = model.nodes[children_index];
+						if (parent_index < 0) {
+							auto& child = nodes[children_index];
+							child.global_transform = child.calculate_transform(node_config, animations);
+						} else {
+							if (children_index == 4) {
+								int a = 5;
 							}
+							const auto& parent = nodes[parent_index];
+							auto& child = nodes[children_index];
+							child.global_transform =
+								parent.global_transform * child.calculate_transform(node_config, animations);
 						}
-					);
+					});
 					for (uint32_t i = 0; i < model.skins.size(); i++) {
 						const auto& skin = model.skins[i];
 						auto& skins_transforms = skins_indices_to_skins_transforms.modify(i);
@@ -336,6 +431,7 @@ namespace Vulkan {
 							animation.is_loop = animation_attribute.is_loop;
 							animation.start_time = ::Utils::now();
 							animation.factor = animation_factors[i];
+							animation.speed = animation_attribute.speed;
 						}
 					}
 				}
@@ -408,6 +504,7 @@ namespace Vulkan {
 					auto& node_data = nodes[i];
 					auto& node = model.nodes[i];
 					node_data.is_use_matrix = node.is_use_matrix;
+					node_data.update_apply_flags(model.animations, i);
 				}
 				/**
 				 * Setup to instance storage data.

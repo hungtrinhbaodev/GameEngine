@@ -161,7 +161,7 @@ namespace Vulkan {
 	};
 
 	struct Model_Scene {
-		std::vector<uint32_t> node_root_indices;
+		std::vector<int> node_root_indices;
 		std::string name = "";
 		void parse_from(Parser::Gltf_Scene& scene);
 	};
@@ -212,10 +212,9 @@ namespace Vulkan {
 	};
 
 	struct Model_Channel {
-		bool use_node_index = false;
 		int sampler_index = 0;
 		Model_Sampler_Type sampler_type = Model_Sampler_Type::SAMPLER_UNSUPPORTED;
-		int node_index = 0;
+		int node_index = -1;
 		void parse_from(Parser::Gltf_Channel& channel);
 	};
 
@@ -223,6 +222,7 @@ namespace Vulkan {
 		std::vector<Model_Channel> channels{};
 		std::vector<Model_Sampler> samplers{};
 		std::string name = "";
+		std::unordered_map<int, uint32_t> node_indices_to_apply_flags{};
 		float get_animation_duration() const;
 		void parse_from(Parser::Gltf_Animation& animation);
 	};

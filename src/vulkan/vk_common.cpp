@@ -110,7 +110,6 @@ namespace Vulkan {
 	}
 
 	void Model_Channel::parse_from(Parser::Gltf_Channel& channel) {
-		use_node_index = channel.use_node_index;
 		sampler_index = channel.sampler_index;
 		if (channel.type_sampler == "translation") {
 			sampler_type = TRANSLATION;
@@ -140,6 +139,7 @@ namespace Vulkan {
 		for (int i = 0; i < samplers.size(); i++) {
 			samplers[i].parse_from(animation.samplers[i]);
 		}
+		node_indices_to_apply_flags = std::move(animation.node_indices_to_apply_flags);
 	}
 
 	void Resource_Synchronize_Information::release_frame(uint32_t frame_index) {

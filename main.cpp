@@ -33,13 +33,13 @@ void gen_fox_3D() {
 	int animation_index = Math::random_int(0, 100) % fox_animations.size();
 	std::string animation_name = fox_animations[animation_index];
 	glm::vec3 position = {
-		Math::random_float(-2.5f, 2.5f), Math::random_float(-2.f, 2.f), Math::random_float(-2.f, 2.f)
+		Math::random_float(-3.5f, 3.5f), Math::random_float(-3.f, 3.f), Math::random_float(-2.5f, 2.5f)
 	};
-	// glm::vec3 position = {0.f, 0.f, 0.f};
 	Handle fox = Vulkan::create_model("res/Fox_embedded.gltf", "", animation_name, position, {0.01f, 0.01f, 0.01f});
 	auto& fox_model = Vulkan::modify_model(fox);
-	fox_model.play_animation(0, animation_name, true);
-	// fox_model.play_animation(1, "Survey", true);
+	// fox_model.play_animation(0, animation_name, true);
+	fox_model.play_animation(1, "Run", true, 0.65f, Math::random_float(1.5f, 2.f));
+	fox_model.play_animation(0, "Survey", true, 0.35f, Math::random_float(1.f, 1.35f));
 	foxes.push_back(fox);
 }
 
@@ -75,12 +75,11 @@ void change_fox_to_cesiumman() {
 	int remove_index = Math::random_int(0, foxes.size() - 1);
 	Vulkan::Model_3D_Description model_info = Vulkan::view_model_description(foxes[remove_index]);
 	model_info.path = "res/CesiumMan.gltf";
-	model_info.animation_name = "0";
 	model_info.scale = {1.f, 1.f, 1.f};
 	remove_fox_by_index(remove_index);
 	Handle cesiumman = Vulkan::create_model(model_info);
 	auto& cesiumman_model = Vulkan::modify_model(cesiumman);
-	cesiumman_model.play_animation(0, "0", true);
+	cesiumman_model.play_animation(0, "0", true, 2.f);
 	cesiummans.push_back(cesiumman);
 }
 
@@ -392,14 +391,18 @@ void build_debug_scene() {
 			model_info.position = {-1.5f + model_count * 0.5f, -0.5f, 0.f};
 			if (object.type == DEBUG_FOX) {
 				model_info.path = "res/Fox_embedded.gltf";
-				model_info.animation_name = "Walk";
 				model_info.scale = {0.01f, 0.01f, 0.01f};
-				foxes.push_back(Vulkan::create_model(model_info));
+				Handle fox = Vulkan::create_model(model_info);
+				auto& fox_model = Vulkan::modify_model(fox);
+				fox_model.play_animation(0, "Walk", true);
+				foxes.push_back(fox);
 			} else {
 				model_info.path = "res/CesiumMan.gltf";
-				model_info.animation_name = "0";
 				model_info.scale = {1.f, 1.f, 1.f};
-				cesiummans.push_back(Vulkan::create_model(model_info));
+				Handle cesiumman = Vulkan::create_model(model_info);
+				auto& cesiumman_model = Vulkan::modify_model(cesiumman);
+				cesiumman_model.play_animation(0, "0", true);
+				cesiummans.push_back(cesiumman);
 			}
 			model_count++;
 		}
@@ -545,7 +548,7 @@ int main() {
 	Vulkan::init_vulkan_core(window);
 	glfwSetKeyCallback(window, on_key);
 
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < 30; i++) {
 		gen_fox_3D();
 	}
 

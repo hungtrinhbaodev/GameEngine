@@ -525,7 +525,7 @@ namespace Parser {
 				int scene_size = json_scenes.size();
 				scenes.resize(scene_size);
 				for (int i = 0; i < scene_size; i++) {
-					scenes[i].node_indices = json_scenes[i]["nodes"].get<std::vector<uint32_t>>();
+					scenes[i].node_indices = json_scenes[i]["nodes"].get<std::vector<int>>();
 					if (json_scenes[i].contains("name")) {
 						scenes[i].name = json_scenes[i]["name"];
 					} else {
@@ -645,7 +645,6 @@ namespace Parser {
 									channel.type_sampler = json_target["path"];
 								}
 								if (json_target.contains("node")) {
-									channel.use_node_index = true;
 									channel.node_index = json_target["node"];
 								}
 							}
@@ -716,17 +715,30 @@ namespace Parser {
 							if (DEBUG_MODEL) {
 								// Log::info("What is sampler", j, sampler);
 							}
+							for (auto& animation : model.animations) {
+								const auto& channels = animation.channels;
+								for (const auto& channel : channels) {
+									if (channel.node_index >= 0) {
+										int node_index = channel.node_index;
+										auto& node_indices_to_apply_flags = animation.node_indices_to_apply_flags;
+										if (node_indices_to_apply_flags.find(node_index) ==
+											node_indices_to_apply_flags.end()) {
+											node_indices_to_apply_flags[node_index] = 0;
+										}
+										if (channel.type_sampler == "translation") {
+											node_indices_to_apply_flags[node_index] |= (1 << 0);
+										} else if (channel.type_sampler == "rotation") {
+											node_indices_to_apply_flags[node_index] |= (1 << 1);
+										} else if (channel.type_sampler == "scale") {
+											node_indices_to_apply_flags[node_index] |= (1 << 2);
+										}
+									}
+								}
+							}
 						}
 					}
 				}
 			}
-		}
-		if (DEBUG_MODEL) {
-			// std::vector<std::string> animation_names{};
-			// for (const auto& animation : model.animations) {
-			// 	animation_names.push_back(animation.name);
-			// }
-			// Log::info("Model information", path, animation_names);
 		}
 		return model;
 	}

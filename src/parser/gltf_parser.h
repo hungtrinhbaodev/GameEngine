@@ -29,7 +29,7 @@ namespace Parser {
 	};
 
 	struct Gltf_Scene {
-		std::vector<uint32_t> node_indices;
+		std::vector<int> node_indices;
 		std::string name = "";
 		inline friend std::ostream& operator<<(std::ostream& os, const Gltf_Scene& scene) {
 			os << "Parser::Scene {Node indices: " << scene.node_indices << "}";
@@ -69,9 +69,9 @@ namespace Parser {
 
 	struct Gltf_Channel {
 		bool use_node_index = false;
-		uint32_t sampler_index = 0;
+		int sampler_index = 0;
 		std::string type_sampler = "";
-		uint32_t node_index = -1;
+		int node_index = -1;
 		inline friend std::ostream& operator<<(std::ostream& os, const Gltf_Channel& channel) {
 			os << "Parser::Gltf_Channel{sampler_index: " << channel.sampler_index
 			   << ", use_node_index: " << channel.use_node_index << ", type_sampler: " << channel.type_sampler
@@ -104,6 +104,7 @@ namespace Parser {
 		std::vector<Gltf_Channel> channels{};
 		std::vector<Gltf_Sampler> samplers{};
 		std::string name = "";
+		std::unordered_map<int, uint32_t> node_indices_to_apply_flags{};
 	};
 
 	struct Gltf_Skin {

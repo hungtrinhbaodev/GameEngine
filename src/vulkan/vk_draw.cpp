@@ -917,7 +917,6 @@ namespace Vulkan {
 		description.position = position;
 		description.scale = scale;
 		description.path = path;
-		description.animation_name = animation_name;
 		description.scene_name = scene_name;
 		return create_model(description);
 	}

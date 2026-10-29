@@ -41,12 +41,13 @@ namespace Vulkan {
 		bool is_active = false;
 		std::string animation_name = "";
 		bool is_loop = false;
+		float factor = 0.f;
+		float speed = 1.f;
 	};
 
 	struct Model_3D_Description : public Draw_Attributes_Description {
 		std::string path = "";
 		std::string scene_name = "";
-		std::string animation_name = "";
 		glm::vec3 position{0.f}, scale{1.f}, rotation{0.f};
 	};
 
@@ -82,11 +83,15 @@ namespace Vulkan {
 		void set_scene_name(const std::string& scene_name);
 		void set_animation_name(const std::string& animation_name);
 		/**
-		 * @Note: animations will be support in 3 track
-		 * each track factor is {0.5, 0.3, 0.2} relative
-		 * to it's index.
+		 * @Note: animations will be supported in 3 track
+		 * each track factor and speed will be applied with
+		 * param factor and speed, which speed large animation
+		 * will be run fast!
 		 */
-		void play_animation(int track_index, const std::string& animation_name, bool is_loop = false);
+		void play_animation(
+			int track_index, const std::string& animation_name, bool is_loop = false, float factor = 1.f,
+			float speed = 1.f
+		);
 
 		std::string get_model_path() const;
 		glm::vec3 get_position() const;
