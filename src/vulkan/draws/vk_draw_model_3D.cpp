@@ -95,6 +95,50 @@ namespace Vulkan {
 			}
 		};
 
+		struct Node_Snapshoot_Data {
+			glm::vec3 translation{0.f};
+			glm::quat rotation{1.f, 0.f, 0.f, 0.f};
+			glm::vec3 scale{1.f};
+		};
+
+		struct Snapshoot_Animation_Data {
+			double start_time_blend = 0.f;
+			float blend_duration = 0.f;
+			float blend_factor = 0.f;
+			std::vector<Node_Snapshoot_Data> node_snapshoots{};
+
+			void update_blend_info(const Model_3D& attributes) {
+				blend_duration = attributes.get_blend_animation_duration();
+				blend_factor = attributes.get_blend_animation_factor();
+			}
+
+			void clean_snapshoot() {
+				start_time_blend = 0.f;
+				node_snapshoots.clear();
+			}
+
+			void clean() {
+				clean_snapshoot();
+				blend_factor = 0.f;
+				node_snapshoots.clear();
+			}
+
+			bool is_enabled() { return blend_duration > 0.f && blend_factor > 0.f; }
+
+			bool is_blend_finish(double current_time) const {
+				if (node_snapshoots.size() <= 0)
+					return true;
+				if (blend_duration <= 0.f || blend_factor <= 0.f)
+					return true;
+				return (float)(current_time - start_time_blend) >= blend_duration;
+			}
+
+			float get_factor_at(double current_time) const {
+				float rate = (float)(current_time - start_time_blend) / blend_duration;
+				return blend_factor * (1.f - rate);
+			}
+		};
+
 		struct Node_Data {
 			glm::vec3 final_translation{0.f};
 			glm::quat final_rotation{1.f, 0.f, 0.f, 0.f};
@@ -188,7 +232,8 @@ namespace Vulkan {
 
 			glm::mat4 calculate_transform(
 				const Model_Node& node,
-				const std::array<Model_Animation_Data, Const::MAX_TRACK_MODEL_ANIMATION>& animations
+				const std::array<Model_Animation_Data, Const::MAX_TRACK_MODEL_ANIMATION>& animations,
+				const Snapshoot_Animation_Data& snapshoot, double current_time, int node_index
 			) {
 				if (is_use_matrix) {
 					return node.transform;
@@ -253,6 +298,17 @@ namespace Vulkan {
 					current_rotation_factor += rotation_factors[i];
 					current_scale_factor += scale_factors[i];
 				}
+				if (!snapshoot.is_blend_finish(current_time)) {
+					const auto& snapshoot_transform = snapshoot.node_snapshoots[node_index];
+					float ffactor = snapshoot.get_factor_at(current_time);
+					final_translation = glm::mix(
+						final_translation, snapshoot_transform.translation, snapshoot.get_factor_at(current_time)
+					);
+					final_rotation =
+						glm::slerp(final_rotation, snapshoot_transform.rotation, snapshoot.get_factor_at(current_time));
+					final_scale =
+						glm::mix(final_scale, snapshoot_transform.scale, snapshoot.get_factor_at(current_time));
+				}
 				return Math::make_translation(final_translation) * glm::mat4_cast(final_rotation) *
 					   Math::make_scale(final_scale);
 			}
@@ -271,6 +327,8 @@ namespace Vulkan {
 
 			std::array<Model_Animation_Data, Const::MAX_TRACK_MODEL_ANIMATION> animations;
 			Sparse_Set<std::vector<glm::mat4>> skins_indices_to_skins_transforms;
+			Snapshoot_Animation_Data snapshoot;
+			uint32_t current_use_skin = 0;
 
 			void clean(SSBO_Buffer& ssbo) const {
 				if (storage_id == ::Const::MAX_UINT32)
@@ -295,6 +353,7 @@ namespace Vulkan {
 				for (auto& animation : animations) {
 					animation.clean();
 				}
+				snapshoot.clean();
 				skins_indices_to_skins_transforms.clear();
 
 				mesh_transforms_storage_id = ::Const::MAX_UINT32;
@@ -306,8 +365,34 @@ namespace Vulkan {
 				draw_instances.clear();
 			};
 
+			void take_snaphoot_animation() {
+				snapshoot.clean_snapshoot();
+				snapshoot.node_snapshoots.resize(nodes.size());
+				for (int i = 0; i < nodes.size(); i++) {
+					const auto& node = nodes[i];
+					snapshoot.node_snapshoots[i] = {node.final_translation, node.final_rotation, node.final_scale};
+				}
+				snapshoot.start_time_blend = ::Utils::now();
+			}
+
 			void update_animation_tracks(double current_time) {
 				const auto& model = view_model(model_id);
+				bool need_take_snapshoot = false;
+				for (int j = 0; j < Const::MAX_TRACK_MODEL_ANIMATION; j++) {
+					auto& animation_data = animations[j];
+					if (!animation_data.is_active)
+						continue;
+					float animation_speed = animation_data.speed;
+					const auto& animation = model.animations[animation_data.animation_index];
+					float t = (float)(current_time - animation_data.start_time) * animation_speed;
+					if (t >= animation.get_animation_duration() && !animation_data.is_loop) {
+						animation_data.is_active = false;
+						need_take_snapshoot = true;
+					}
+				}
+				if (need_take_snapshoot && snapshoot.is_enabled()) {
+					take_snaphoot_animation();
+				}
 				for (int j = 0; j < Const::MAX_TRACK_MODEL_ANIMATION; j++) {
 					auto& animation_data = animations[j];
 					if (!animation_data.is_active)
@@ -319,9 +404,6 @@ namespace Vulkan {
 						const auto& channel = animation.channels[i];
 						const auto& sampler = animation.samplers[channel.sampler_index];
 						const float max_duration = sampler.max_duration();
-						if (t > max_duration && !animation_data.is_loop) {
-							animation_data.is_active = false;
-						}
 						auto& sampler_animation_indices = animation_data.sampler_animation_indices;
 						int stride = std::floor(t / max_duration);
 						float duration = t - max_duration * stride;
@@ -363,28 +445,32 @@ namespace Vulkan {
 					}
 					update_animation_tracks(current_time);
 					const auto& model = view_model(model_id);
-					model.dfs_read(scene_index, [this](const Model& model, int, int parent_index, int children_index) {
-						const auto& node_config = model.nodes[children_index];
-						if (parent_index < 0) {
-							auto& child = nodes[children_index];
-							child.global_transform = child.calculate_transform(node_config, animations);
-						} else {
-							if (children_index == 4) {
-								int a = 5;
+					model.dfs_read(
+						scene_index,
+						[this, &current_time](const Model& model, int, int parent_index, int children_index) {
+							const auto& node_config = model.nodes[children_index];
+							if (parent_index < 0) {
+								auto& child = nodes[children_index];
+								child.global_transform = child.calculate_transform(
+									node_config, animations, snapshoot, current_time, children_index
+								);
+							} else {
+								const auto& parent = nodes[parent_index];
+								auto& child = nodes[children_index];
+								child.global_transform =
+									parent.global_transform *
+									child.calculate_transform(
+										node_config, animations, snapshoot, current_time, children_index
+									);
 							}
-							const auto& parent = nodes[parent_index];
-							auto& child = nodes[children_index];
-							child.global_transform =
-								parent.global_transform * child.calculate_transform(node_config, animations);
 						}
-					});
+					);
 					for (uint32_t i = 0; i < model.skins.size(); i++) {
 						const auto& skin = model.skins[i];
 						auto& skins_transforms = skins_indices_to_skins_transforms.modify(i);
 						for (int j = 0; j < skin.joints.size(); j++) {
 							int node_index = skin.joints[j];
-							const auto& inverse_bind_pose = skin.inverse_bind_poses[j];
-							skins_transforms[j] = nodes[node_index].global_transform * inverse_bind_pose;
+							skins_transforms[j] = nodes[node_index].global_transform * skin.inverse_bind_poses[j];
 						}
 					}
 					for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
@@ -392,6 +478,9 @@ namespace Vulkan {
 							animations[i].clean();
 						}
 					}
+				}
+				if (snapshoot.is_blend_finish(current_time)) {
+					snapshoot.clean();
 				}
 			}
 
@@ -403,8 +492,8 @@ namespace Vulkan {
 				}
 			}
 
-			void clean_animation_when_finish_all(SSBO_Buffer& ssbo) const {
-				if (!is_playing_some_animation()) {
+			void clean_animation_when_finish_all(SSBO_Buffer& ssbo, double current_time) {
+				if (!is_playing_some_animation() && snapshoot.is_blend_finish(current_time)) {
 					update_using_skin_storage(false, ssbo);
 				}
 			};
@@ -414,14 +503,13 @@ namespace Vulkan {
 				const auto& model = view_model(model_id);
 				const auto& animation_attributes = attributes.get_animations();
 				const auto& animation_factors = attributes.get_animation_factors();
+				bool need_take_snapshoot = false;
 				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
 					auto& animation = animations[i];
 					const auto& animation_attribute = animation_attributes[i];
 					if (attributes.is_track_changing(i)) {
 						if (animation.is_active) {
-							/**
-							 * TODO: take a snapshoot here!
-							 */
+							need_take_snapshoot = true;
 						}
 						animation.clean();
 						const std::string& animation_name = animation_attribute.animation_name;
@@ -434,6 +522,9 @@ namespace Vulkan {
 							animation.speed = animation_attribute.speed;
 						}
 					}
+				}
+				if (need_take_snapshoot) {
+					take_snaphoot_animation();
 				}
 			};
 
@@ -451,16 +542,19 @@ namespace Vulkan {
 			 * or end animation we reset the mesh descriptor storage
 			 * to redirect model into bind pose mode.
 			 */
-			void update_using_skin_storage(uint32_t use_skin, SSBO_Buffer& ssbo) const {
-				const Buffer_Range& meshes_descriptor_range = ssbo.view_slot(mesh_descriptors_storage_id);
-				uint32_t number_mesh = meshes_descriptor_range.inner_size() / sizeof(Mesh_Descriptor_Storage_Data);
-				for (int i = 0; i < number_mesh; i++) {
-					ssbo.update_data(
-						mesh_descriptors_storage_id, &use_skin,
-						meshes_descriptor_range.inner_offset() + sizeof(Mesh_Descriptor_Storage_Data) * i +
-							offsetof(Mesh_Descriptor_Storage_Data, using_skin),
-						sizeof(uint32_t)
-					);
+			void update_using_skin_storage(uint32_t use_skin, SSBO_Buffer& ssbo) {
+				if (current_use_skin != use_skin) {
+					const Buffer_Range& meshes_descriptor_range = ssbo.view_slot(mesh_descriptors_storage_id);
+					uint32_t number_mesh = meshes_descriptor_range.inner_size() / sizeof(Mesh_Descriptor_Storage_Data);
+					for (int i = 0; i < number_mesh; i++) {
+						ssbo.update_data(
+							mesh_descriptors_storage_id, &use_skin,
+							meshes_descriptor_range.inner_offset() + sizeof(Mesh_Descriptor_Storage_Data) * i +
+								offsetof(Mesh_Descriptor_Storage_Data, using_skin),
+							sizeof(uint32_t)
+						);
+					}
+					current_use_skin = use_skin;
 				}
 			}
 
@@ -477,12 +571,13 @@ namespace Vulkan {
 				if (model_id != i_model_id || scene_index != i_scene_index) {
 					clear(ssbo, draw_instances);
 					make(attributes, draw_instances, ssbo);
-					update_animation_data(attributes);
-					update_using_skin_storage(is_playing_some_animation(), ssbo);
 					return;
 				}
+				snapshoot.update_blend_info(attributes);
 				update_animation_data(attributes);
-				update_using_skin_storage(is_playing_some_animation(), ssbo);
+				update_using_skin_storage(
+					is_playing_some_animation() || !snapshoot.is_blend_finish(::Utils::now()), ssbo
+				);
 				glm::mat4 instance_transform = attributes.get_transform();
 				ssbo.update_data(storage_id, &instance_transform);
 			}
@@ -506,6 +601,14 @@ namespace Vulkan {
 					node_data.is_use_matrix = node.is_use_matrix;
 					node_data.update_apply_flags(model.animations, i);
 				}
+				/**
+				 * Set up snapshoot model to blend animation.
+				 */
+				snapshoot.update_blend_info(attributes);
+				/**
+				 * Set up animation info.
+				 */
+				update_animation_data(attributes);
 				/**
 				 * Setup to instance storage data.
 				 */
@@ -568,7 +671,7 @@ namespace Vulkan {
 					/**
 					 * @Note: using skin will be update in update animation phase.
 					 */
-					mesh_descriptor_storage_data.using_skin = 0;
+					current_use_skin = mesh_descriptor_storage_data.using_skin = is_playing_some_animation();
 					/**
 					 * Setup storage data for case mesh use skins.
 					 */
@@ -774,7 +877,7 @@ namespace Vulkan {
 				for (auto& model : models) {
 					model.update_animation(current_time);
 					model.upload_animation_skins(ssbo);
-					model.clean_animation_when_finish_all(ssbo);
+					model.clean_animation_when_finish_all(ssbo, current_time);
 				}
 			} else {
 				int number_model_in_thread = (int)std::ceil((float)models.size() / number_thread);
@@ -795,7 +898,7 @@ namespace Vulkan {
 					int end = start + number_model_in_thread;
 					for (int j = start; j < end && j < models.size(); j++) {
 						models[j].upload_animation_skins(ssbo);
-						models[j].clean_animation_when_finish_all(ssbo);
+						models[j].clean_animation_when_finish_all(ssbo, current_time);
 					}
 				}
 			}

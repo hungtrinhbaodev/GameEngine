@@ -49,6 +49,8 @@ namespace Vulkan {
 		std::string path = "";
 		std::string scene_name = "";
 		glm::vec3 position{0.f}, scale{1.f}, rotation{0.f};
+		float blend_animation_duration = 0.2f;
+		float blend_animation_factor = 0.25f;
 	};
 
 	class Model_3D : public Draw_Atributes {
@@ -60,6 +62,8 @@ namespace Vulkan {
 		glm::quat quat_rotation{1.f, 0.f, 0.f, 0.f};
 		std::string scene_name = "";
 		std::string animation_name = "";
+		float blend_animation_duration = 0.f;
+		float blend_animation_factor = 0.f;
 		std::array<bool, Const::MAX_TRACK_MODEL_ANIMATION> changing_animations;
 		std::array<Model_3D_Animation_Description, Const::MAX_TRACK_MODEL_ANIMATION> animations;
 		std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> animation_factors;
@@ -82,6 +86,8 @@ namespace Vulkan {
 		void set_rotation(const glm::vec3& rotation);
 		void set_scene_name(const std::string& scene_name);
 		void set_animation_name(const std::string& animation_name);
+		void set_blend_animation_duration(float blend_duration);
+		void set_blend_animation_factor(float blend_factor);
 		/**
 		 * @Note: animations will be supported in 3 track
 		 * each track factor and speed will be applied with
@@ -106,11 +112,13 @@ namespace Vulkan {
 		glm::mat4 get_transform() const;
 		Model_3D_Description get_description() const;
 		std::string get_animation_name_at_track(int track_index) const;
+		float get_blend_animation_duration() const;
+		float get_blend_animation_factor() const;
 
 		const std::array<Model_3D_Animation_Description, Const::MAX_TRACK_MODEL_ANIMATION>& get_animations() const;
 		bool is_track_changing(int track_index) const;
 		std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> get_animation_factors() const;
-		void clean_chaging_animations();
+		void clean_changing_animations();
 	};
 
 	struct Draw_2D_Attributes_Description : public Draw_Attributes_Description {

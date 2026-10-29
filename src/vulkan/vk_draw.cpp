@@ -769,7 +769,7 @@ namespace Vulkan {
 					Model_3D& model = draw_id_to_models.modify(handle.id());
 					Draw_Model_3D::update_model(draw_info, draw_instances, model);
 					update_draw_info(draw_info, model.get_description());
-					model.clean_chaging_animations();
+					model.clean_changing_animations();
 					break;
 				}
 				case Const::DRAW_FONT_2D: {

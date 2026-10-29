@@ -35,11 +35,12 @@ void gen_fox_3D() {
 	glm::vec3 position = {
 		Math::random_float(-3.5f, 3.5f), Math::random_float(-3.f, 3.f), Math::random_float(-2.5f, 2.5f)
 	};
+	// glm::vec3 position{0.f};
 	Handle fox = Vulkan::create_model("res/Fox_embedded.gltf", "", animation_name, position, {0.01f, 0.01f, 0.01f});
 	auto& fox_model = Vulkan::modify_model(fox);
 	// fox_model.play_animation(0, animation_name, true);
-	fox_model.play_animation(1, "Run", true, 0.65f, Math::random_float(1.5f, 2.f));
-	fox_model.play_animation(0, "Survey", true, 0.35f, Math::random_float(1.f, 1.35f));
+	fox_model.play_animation(0, "Run", true, 0.65f, 1.5f);
+	fox_model.play_animation(1, "Survey", true, 0.35f, Math::random_float(1.f, 1.35f));
 	foxes.push_back(fox);
 }
 
@@ -65,7 +66,15 @@ void update_fox_animation() {
 	if (it != fox_animations.end()) {
 		int index = it - fox_animations.begin();
 		index = (index + 1) % fox_animations.size();
-		fox_model.play_animation(0, fox_animations[index], true);
+		std::string animation_name = fox_animations[index];
+		if (animation_name == "Survey") {
+			animation_name = "Walk";
+		}
+		float speed = 1.f;
+		if (animation_name == "Run") {
+			speed = 1.5f;
+		}
+		fox_model.play_animation(0, animation_name, true, 0.65f, speed);
 	}
 }
 
@@ -548,7 +557,7 @@ int main() {
 	Vulkan::init_vulkan_core(window);
 	glfwSetKeyCallback(window, on_key);
 
-	for (int i = 0; i < 30; i++) {
+	for (int i = 0; i < 300; i++) {
 		gen_fox_3D();
 	}
 

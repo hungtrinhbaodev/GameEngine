@@ -61,6 +61,8 @@ namespace Vulkan {
 		rotation = description.rotation;
 		quat_rotation = glm::quat(glm::radians(description.rotation));
 		scene_name = description.scene_name;
+		blend_animation_duration = description.blend_animation_duration;
+		blend_animation_factor = std::min(std::max(description.blend_animation_factor, 0.f), 1.f);
 	}
 
 	Model_3D::~Model_3D() {}
@@ -131,6 +133,19 @@ namespace Vulkan {
 		animation_name = i_animation_name;
 	}
 
+	void Model_3D::set_blend_animation_duration(float blend_duration) {
+		assert_handle();
+		set_dirty(blend_animation_duration != blend_duration);
+		blend_animation_duration = blend_duration;
+	}
+
+	void Model_3D::set_blend_animation_factor(float blend_factor) {
+		assert_handle();
+		blend_factor = std::min(std::max(blend_factor, 0.f), 1.f);
+		set_dirty(blend_animation_factor != blend_factor);
+		blend_animation_factor = blend_factor;
+	}
+
 	void Model_3D::play_animation(
 		int track_index, const std::string& animation_name, bool is_loop, float factor, float speed
 	) {
@@ -163,7 +178,7 @@ namespace Vulkan {
 		return animation_factors;
 	}
 
-	void Model_3D::clean_chaging_animations() {
+	void Model_3D::clean_changing_animations() {
 		for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
 			changing_animations[i] = false;
 		}
@@ -220,9 +235,20 @@ namespace Vulkan {
 	}
 
 	std::string Model_3D::get_animation_name_at_track(int track_index) const {
+		assert_handle();
 		if (track_index < 0 || track_index >= Const::MAX_TRACK_MODEL_ANIMATION)
 			return "";
 		return animations[track_index].is_active ? animations[track_index].animation_name : "";
+	}
+
+	float Model_3D::get_blend_animation_duration() const {
+		assert_handle();
+		return blend_animation_duration;
+	}
+
+	float Model_3D::get_blend_animation_factor() const {
+		assert_handle();
+		return blend_animation_factor;
 	}
 
 	Draw_2D::Draw_2D() {}
