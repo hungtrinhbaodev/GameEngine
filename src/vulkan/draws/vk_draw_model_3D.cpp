@@ -300,14 +300,10 @@ namespace Vulkan {
 				}
 				if (!snapshoot.is_blend_finish(current_time)) {
 					const auto& snapshoot_transform = snapshoot.node_snapshoots[node_index];
-					float ffactor = snapshoot.get_factor_at(current_time);
-					final_translation = glm::mix(
-						final_translation, snapshoot_transform.translation, snapshoot.get_factor_at(current_time)
-					);
-					final_rotation =
-						glm::slerp(final_rotation, snapshoot_transform.rotation, snapshoot.get_factor_at(current_time));
-					final_scale =
-						glm::mix(final_scale, snapshoot_transform.scale, snapshoot.get_factor_at(current_time));
+					float blend_factor = snapshoot.get_factor_at(current_time);
+					final_translation = glm::mix(final_translation, snapshoot_transform.translation, blend_factor);
+					final_rotation = glm::slerp(final_rotation, snapshoot_transform.rotation, blend_factor);
+					final_scale = glm::mix(final_scale, snapshoot_transform.scale, blend_factor);
 				}
 				return Math::make_translation(final_translation) * glm::mat4_cast(final_rotation) *
 					   Math::make_scale(final_scale);
