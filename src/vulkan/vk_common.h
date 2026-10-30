@@ -222,7 +222,7 @@ namespace Vulkan {
 		std::vector<Model_Channel> channels{};
 		std::vector<Model_Sampler> samplers{};
 		std::string name = "";
-		std::unordered_map<int, uint32_t> node_indices_to_apply_flags{};
+		std::vector<std::array<float, 3>> nodes_animation_factors{};
 		float get_animation_duration() const;
 		void parse_from(Parser::Gltf_Animation& animation);
 	};

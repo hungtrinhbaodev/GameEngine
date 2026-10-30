@@ -26,4 +26,10 @@ namespace Math {
 
 	std::array<glm::vec2, 4> make_tex_coord_from(const Geometry::Texture_Rect_2D& texture_rect);
 
+	float get_quat_rotation_angle(const glm::quat& start_rotation, const glm::quat& end_rotation);
+
+	float normalize_factors(float* factors, int number_factor);
+
+	float to_degree(float raidan);
+
 } // namespace Math

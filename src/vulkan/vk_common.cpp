@@ -32,11 +32,11 @@ namespace Vulkan {
 			interpolation = LINEAR;
 		}
 		durations = std::move(sampler.durations);
-		min_vec3 = std::move(sampler.min_vec3);
-		max_vec3 = std::move(sampler.max_vec3);
+		min_vec3 = sampler.min_vec3();
+		max_vec3 = sampler.max_vec3();
 		vec3s = std::move(sampler.vec3s);
-		min_quat = std::move(sampler.min_quat);
-		max_quat = std::move(sampler.max_quat);
+		min_quat = sampler.min_quat();
+		max_quat = sampler.max_quat();
 		quats = std::move(sampler.quats);
 	}
 
@@ -139,7 +139,7 @@ namespace Vulkan {
 		for (int i = 0; i < samplers.size(); i++) {
 			samplers[i].parse_from(animation.samplers[i]);
 		}
-		node_indices_to_apply_flags = std::move(animation.node_indices_to_apply_flags);
+		nodes_animation_factors = std::move(animation.nodes_animation_factors);
 	}
 
 	void Resource_Synchronize_Information::release_frame(uint32_t frame_index) {

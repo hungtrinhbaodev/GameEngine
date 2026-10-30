@@ -86,16 +86,16 @@ namespace Parser {
 		std::vector<float> durations{};
 		std::vector<glm::vec3> vec3s{};
 		std::vector<glm::quat> quats{};
-		glm::vec3 min_vec3{0};
-		glm::vec3 max_vec3{0};
-		glm::quat min_quat{1.f, 0.f, 0.f, 0.f};
-		glm::quat max_quat{1.f, 0.f, 0.f, 0.f};
+		glm::vec3 min_vec3() const;
+		glm::vec3 max_vec3() const;
+		glm::quat min_quat() const;
+		glm::quat max_quat() const;
 		inline friend std::ostream& operator<<(std::ostream& os, const Gltf_Sampler& sampler) {
 			os << "Parser::Gltf_Sampler{number_apply: " << sampler.number_apply
 			   << ", interpolation: " << sampler.interpolation << ", durations: " << sampler.durations
-			   << ", vec3s: " << sampler.vec3s << ", quats: " << sampler.quats << ", min_vec3: " << sampler.min_vec3
-			   << ", max_vec3: " << sampler.max_vec3 << ", min_quat: " << sampler.min_quat
-			   << "max_quat: " << sampler.max_quat << "}";
+			   << ", vec3s: " << sampler.vec3s << ", quats: " << sampler.quats << ", min_vec3: " << sampler.min_vec3()
+			   << ", max_vec3: " << sampler.max_vec3() << ", min_quat: " << sampler.min_quat()
+			   << "max_quat: " << sampler.max_quat() << "}";
 			return os;
 		}
 	};
@@ -104,7 +104,13 @@ namespace Parser {
 		std::vector<Gltf_Channel> channels{};
 		std::vector<Gltf_Sampler> samplers{};
 		std::string name = "";
-		std::unordered_map<int, uint32_t> node_indices_to_apply_flags{};
+		/**
+		 * @Note: array 3 is 3 attribute of animation.
+		 * 0: translation.
+		 * 1: rotation.
+		 * 2: scale.
+		 */
+		std::vector<std::array<float, 3>> nodes_animation_factors{};
 	};
 
 	struct Gltf_Skin {
@@ -117,13 +123,11 @@ namespace Parser {
 		std::vector<Gltf_Node> nodes;
 		std::vector<Gltf_Scene> scenes;
 		std::vector<Gltf_Material> materials;
-		std::vector<std::string> texture_paths;
 		std::vector<Gltf_Texture> textures;
 		std::vector<Gltf_Animation> animations;
 		std::vector<Gltf_Skin> skins;
 		int default_scene_index = -1;
 		int default_skin_index = -1;
-		std::string get_primitive_texture_path(uint32_t mesh_index, uint32_t primitive_index);
 		Gltf_Texture get_primitive_texture(uint32_t mesh_index, uint32_t primitive_index);
 		glm::vec3 get_bounding_box() const;
 	};

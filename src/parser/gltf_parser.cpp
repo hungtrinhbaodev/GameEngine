@@ -14,28 +14,52 @@ const uint32_t CHUNK_TYPE_BIN = 0x004E4942;
 
 namespace Parser {
 
-	glm::mat4 Gltf_Node::get_transform() const {
-		return (Math::make_translation(translation) * glm::mat4_cast(rotation) * Math::make_scale(scale) * transform);
+	glm::vec3 Gltf_Sampler::min_vec3() const {
+		glm::vec3 min{std::numeric_limits<float>::max()};
+		for (const auto& vec : vec3s) {
+			min = glm::min(min, vec);
+		}
+		return min;
 	}
 
-	std::string Gltf_Model::get_primitive_texture_path(uint32_t mesh_index, uint32_t primitive_index) {
-		if (mesh_index < 0 || mesh_index >= meshes.size()) {
-			return "";
+	glm::vec3 Gltf_Sampler::max_vec3() const {
+		glm::vec3 max{-std::numeric_limits<float>::max()};
+		for (const auto& vec : vec3s) {
+			max = glm::max(max, vec);
 		}
-		Gltf_Mesh& mesh = meshes[mesh_index];
-		if (primitive_index < 0 || primitive_index >= mesh.primitives.size()) {
-			return "";
+		return max;
+	}
+
+	glm::quat Gltf_Sampler::min_quat() const {
+		glm::quat min{
+			std::numeric_limits<float>::max(), std::numeric_limits<float>::max(), std::numeric_limits<float>::max(),
+			std::numeric_limits<float>::max()
+		};
+		for (const auto& quat : quats) {
+			min.x = std::min(min.x, quat.x);
+			min.y = std::min(min.y, quat.y);
+			min.z = std::min(min.z, quat.z);
+			min.w = std::min(min.w, quat.w);
 		}
-		int material_index = mesh.primitives[primitive_index].material_index;
-		if (material_index < 0 || material_index >= materials.size()) {
-			return "";
+		return min;
+	}
+
+	glm::quat Gltf_Sampler::max_quat() const {
+		glm::quat max{
+			-std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(), -std::numeric_limits<float>::max(),
+			-std::numeric_limits<float>::max()
+		};
+		for (const auto& quat : quats) {
+			max.x = std::max(max.x, quat.x);
+			max.y = std::max(max.y, quat.y);
+			max.z = std::max(max.z, quat.z);
+			max.w = std::max(max.w, quat.w);
 		}
-		Gltf_Material& material = materials[material_index];
-		int texture_index = material.texture_index;
-		if (texture_index < 0 || texture_index >= texture_paths.size()) {
-			return "";
-		}
-		return texture_paths[texture_index];
+		return max;
+	}
+
+	glm::mat4 Gltf_Node::get_transform() const {
+		return (Math::make_translation(translation) * glm::mat4_cast(rotation) * Math::make_scale(scale) * transform);
 	}
 
 	Gltf_Texture Gltf_Model::get_primitive_texture(uint32_t mesh_index, uint32_t primitive_index) {
@@ -52,7 +76,7 @@ namespace Parser {
 		}
 		Gltf_Material& material = materials[material_index];
 		int texture_index = material.texture_index;
-		if (texture_index < 0 || texture_index >= texture_paths.size()) {
+		if (texture_index < 0 || texture_index >= textures.size()) {
 			return {};
 		}
 		return textures[texture_index];
@@ -566,9 +590,8 @@ namespace Parser {
 		{
 			if (root.contains("images")) {
 				auto& json_images = root["images"];
-				model.texture_paths.resize(json_images.size());
 				model.textures.resize(json_images.size());
-				for (int i = 0; i < model.texture_paths.size(); i++) {
+				for (int i = 0; i < model.textures.size(); i++) {
 					if (json_images[i].contains("uri")) {
 						const std::string& uri = json_images[i]["uri"].get_ref<const std::string&>();
 						if (uri.find("data:") == 0) {
@@ -588,8 +611,6 @@ namespace Parser {
 								true, path + std::to_string(i), (uint8_t*)pixels, (uint32_t)width, (uint32_t)height
 							};
 						} else {
-							model.texture_paths[i] =
-								Utils::get_folder_path_from(path) + json_images[i].value("uri", "");
 							model.textures[i] = {
 								false, Utils::get_folder_path_from(path) + json_images[i].value("uri", "")
 							};
@@ -683,14 +704,6 @@ namespace Parser {
 										samplers_output_data, k, component_type, {0.f, 0.f, 0.f}
 									);
 								}
-								if (data_accessor.contains("min")) {
-									sampler.min_vec3 =
-										glm::make_vec_from<3>(data_accessor["min"].get<std::vector<float>>());
-								}
-								if (data_accessor.contains("max")) {
-									sampler.max_vec3 =
-										glm::make_vec_from<3>(data_accessor["max"].get<std::vector<float>>());
-								}
 							} else if (component_count_from_type(data_accessor["type"]) == 4) {
 								auto& quats = sampler.quats;
 								quats.resize(data_accessor["count"]);
@@ -699,41 +712,66 @@ namespace Parser {
 										samplers_output_data, k, component_type, {1.f, 0.f, 0.f, 0.f}
 									);
 								}
-								if (data_accessor.contains("min")) {
-									sampler.min_quat = read_quat_in_bin_by_component_type(
-										(const uint8_t*)data_accessor["min"].get<std::vector<float>>().data(), 0,
-										component_type, {1.f, 0.f, 0.f, 0.f}
-									);
+							}
+							/**
+							 * Initialize animation base factor of each node
+							 * to calculate blend factor when mix animations.
+							 */
+							for (auto& animation : model.animations) {
+								const auto& channels = animation.channels;
+								const auto& samplers = animation.samplers;
+								auto& nodes_animation_factors = animation.nodes_animation_factors;
+								nodes_animation_factors.resize(model.nodes.size());
+								for (int i = 0; i < nodes_animation_factors.size(); i++) {
+									for (int j = 0; j < nodes_animation_factors[i].size(); j++) {
+										nodes_animation_factors[i][j] = 0.f;
+									}
 								}
-								if (data_accessor.contains("max")) {
-									sampler.max_quat = read_quat_in_bin_by_component_type(
-										(const uint8_t*)data_accessor["max"].get<std::vector<float>>().data(), 0,
-										component_type, {1.f, 0.f, 0.f, 0.f}
-									);
+								float total_diff_rotation = 0.f, total_diff_translation = 0.f, total_diff_scale = 0.f;
+								for (const auto& channel : channels) {
+									if (channel.node_index >= 0) {
+										int node_index = channel.node_index;
+										const auto& sampler = samplers[channel.sampler_index];
+										if (channel.type_sampler == "translation") {
+											glm::vec3 diff = glm::abs(sampler.max_vec3() - sampler.min_vec3());
+											total_diff_translation += (diff.x + diff.y + diff.z) / 3.f;
+
+										} else if (channel.type_sampler == "rotation") {
+											total_diff_rotation +=
+												Math::get_quat_rotation_angle(sampler.min_quat(), sampler.max_quat());
+										} else if (channel.type_sampler == "scale") {
+											glm::vec3 diff = glm::abs(sampler.max_vec3() - sampler.min_vec3());
+											total_diff_scale += (diff.x + diff.y + diff.z) / 3.f;
+										}
+										nodes_animation_factors[node_index][0] = total_diff_translation;
+										nodes_animation_factors[node_index][1] = total_diff_rotation;
+										nodes_animation_factors[node_index][2] = total_diff_scale;
+									}
+								}
+							}
+							float total_rotation = 0.f, total_translation = 0.f, total_scale = 0.f;
+							for (int i = 0; i < model.nodes.size(); i++) {
+								for (const auto& animation : model.animations) {
+									total_translation += animation.nodes_animation_factors[i][0];
+									total_rotation += animation.nodes_animation_factors[i][1];
+									total_scale += animation.nodes_animation_factors[i][2];
+								}
+							}
+							for (int i = 0; i < model.nodes.size(); i++) {
+								for (auto& animation : model.animations) {
+									if (total_translation > 0) {
+										animation.nodes_animation_factors[i][0] /= total_translation;
+									}
+									if (total_rotation > 0) {
+										animation.nodes_animation_factors[i][1] /= total_rotation;
+									}
+									if (total_scale > 0) {
+										animation.nodes_animation_factors[i][2] /= total_scale;
+									}
 								}
 							}
 							if (DEBUG_MODEL) {
 								// Log::info("What is sampler", j, sampler);
-							}
-							for (auto& animation : model.animations) {
-								const auto& channels = animation.channels;
-								for (const auto& channel : channels) {
-									if (channel.node_index >= 0) {
-										int node_index = channel.node_index;
-										auto& node_indices_to_apply_flags = animation.node_indices_to_apply_flags;
-										if (node_indices_to_apply_flags.find(node_index) ==
-											node_indices_to_apply_flags.end()) {
-											node_indices_to_apply_flags[node_index] = 0;
-										}
-										if (channel.type_sampler == "translation") {
-											node_indices_to_apply_flags[node_index] |= (1 << 0);
-										} else if (channel.type_sampler == "rotation") {
-											node_indices_to_apply_flags[node_index] |= (1 << 1);
-										} else if (channel.type_sampler == "scale") {
-											node_indices_to_apply_flags[node_index] |= (1 << 2);
-										}
-									}
-								}
 							}
 						}
 					}

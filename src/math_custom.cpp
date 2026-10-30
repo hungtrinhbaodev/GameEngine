@@ -1,3 +1,4 @@
+#include <glm/gtc/constants.hpp>
 #include <math_custom.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -59,5 +60,26 @@ namespace Math {
 			 {texture_rect.ratio_x + texture_rect.ratio_width, texture_rect.ratio_y + texture_rect.ratio_height},
 			 {texture_rect.ratio_x + texture_rect.ratio_width, texture_rect.ratio_y}},
 		};
+	}
+
+	float get_quat_rotation_angle(const glm::quat& start_rotation, const glm::quat& end_rotation) {
+		float cos_half_angle = glm::abs(glm::dot(start_rotation, end_rotation));
+		return 2.f * std::acos(glm::clamp(cos_half_angle, -1.f, 1.f));
+	}
+
+	float normalize_factors(float* factors, int number_factor) {
+		float total_factor = 0.f;
+		for (int i = 0; i < number_factor; i++) {
+			total_factor += factors[i];
+		}
+		for (int i = 0; i < number_factor; i++) {
+			if (total_factor > 0)
+				factors[i] /= total_factor;
+		}
+		return total_factor;
+	}
+
+	float to_degree(float raidan) {
+		return raidan * 180.f / glm::pi<float>();
 	}
 } // namespace Math

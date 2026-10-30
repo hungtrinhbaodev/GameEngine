@@ -69,7 +69,7 @@ namespace Vulkan {
 			uint32_t offset_transform = 0;
 		};
 
-		struct Model_Animation_Data {
+		struct Model_Track_Animation_Data {
 			int animation_index = -1;
 			std::vector<int> sampler_animation_indices;
 			bool is_active = false;
@@ -159,7 +159,6 @@ namespace Vulkan {
 			 * we will get it factor = 0 when calculate
 			 * transform.
 			 */
-			std::vector<uint32_t> animation_indices_to_apply_flags;
 			std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> translation_factors;
 			std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> rotation_factors;
 			std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> scale_factors;
@@ -171,18 +170,6 @@ namespace Vulkan {
 					track_apply_flags[i] = 0;
 				}
 			}
-
-			void update_apply_flags(const std::vector<Model_Animation>& animations, int node_index) {
-				animation_indices_to_apply_flags.clear();
-				animation_indices_to_apply_flags.resize(animations.size(), 0);
-				for (int i = 0; i < animations.size(); i++) {
-					const auto& animation = animations[i];
-					const auto& node_indices_to_apply_flags = animation.node_indices_to_apply_flags;
-					if (node_indices_to_apply_flags.find(node_index) == node_indices_to_apply_flags.end())
-						continue;
-					animation_indices_to_apply_flags[i] = node_indices_to_apply_flags.at(node_index);
-				}
-			};
 
 			void set_translation(const glm::vec3 translation, int track_index) {
 				track_apply_flags[track_index] |= (1 << 0);
@@ -199,52 +186,36 @@ namespace Vulkan {
 				track_scales[track_index] = scale;
 			}
 
-			void update_factors(const std::array<Model_Animation_Data, Const::MAX_TRACK_MODEL_ANIMATION>& animations) {
+			void update_factors(
+				const std::array<Model_Track_Animation_Data, Const::MAX_TRACK_MODEL_ANIMATION>& animations,
+				const std::vector<Model_Animation>& model_animations, int node_index
+			) {
 				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
 					const auto& animation = animations[i];
 					if (!animation.is_active)
 						continue;
-					uint32_t animation_apply_flags = animation_indices_to_apply_flags[animation.animation_index];
-					translation_factors[i] = 0.f;
-					rotation_factors[i] = 0.f;
-					scale_factors[i] = 0.f;
-					if (animation_apply_flags > 0) {
-						translation_factors[i] = (animation_apply_flags & (1 << 0)) ? animation.factor : 0.f;
-						rotation_factors[i] = (animation_apply_flags & (1 << 1)) ? animation.factor : 0.f;
-						scale_factors[i] = (animation_apply_flags & (1 << 2)) ? animation.factor : 0.f;
-					}
-				}
-				float sum_factor_translation = 0, sum_factor_rotation = 0, sum_factor_scale = 0;
-				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
-					sum_factor_translation += translation_factors[i];
-					sum_factor_rotation += rotation_factors[i];
-					sum_factor_scale += scale_factors[i];
-				}
-				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
-					if (sum_factor_translation != 0)
-						translation_factors[i] /= sum_factor_translation;
-					if (sum_factor_rotation != 0)
-						rotation_factors[i] /= sum_factor_rotation;
-					if (sum_factor_scale != 0)
-						scale_factors[i] /= sum_factor_scale;
+					const auto& model_animation = model_animations[animation.animation_index];
+					const auto& model_node_animation_factors = model_animation.nodes_animation_factors[node_index];
+					translation_factors[i] = animation.factor * model_node_animation_factors[0];
+					rotation_factors[i] = animation.factor * model_node_animation_factors[1];
+					scale_factors[i] = animation.factor * model_node_animation_factors[2];
 				}
 			}
 
 			glm::mat4 calculate_transform(
 				const Model_Node& node,
-				const std::array<Model_Animation_Data, Const::MAX_TRACK_MODEL_ANIMATION>& animations,
-				const Snapshoot_Animation_Data& snapshoot, double current_time, int node_index
+				const std::array<Model_Track_Animation_Data, Const::MAX_TRACK_MODEL_ANIMATION>& animations,
+				const Snapshoot_Animation_Data& snapshoot, double current_time, int node_index,
+				const std::vector<Model_Animation>& model_animations
 			) {
 				if (is_use_matrix) {
 					return node.transform;
 				}
-				update_factors(animations);
-				float sum_factor_translation = 0, sum_factor_rotation = 0, sum_factor_scale = 0;
-				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
-					sum_factor_translation += translation_factors[i];
-					sum_factor_rotation += rotation_factors[i];
-					sum_factor_scale += scale_factors[i];
-				}
+				update_factors(animations, model_animations, node_index);
+				float sum_factor_translation =
+					Math::normalize_factors(translation_factors.data(), translation_factors.size());
+				float sum_factor_rotation = Math::normalize_factors(rotation_factors.data(), rotation_factors.size());
+				float sum_factor_scale = Math::normalize_factors(scale_factors.data(), scale_factors.size());
 				float current_factor = 0.f;
 				glm::vec3 translation, scale;
 				glm::quat rotation;
@@ -321,7 +292,7 @@ namespace Vulkan {
 			uint32_t mesh_descriptors_storage_id = ::Const::MAX_UINT32;
 			uint32_t storage_id = ::Const::MAX_UINT32;
 
-			std::array<Model_Animation_Data, Const::MAX_TRACK_MODEL_ANIMATION> animations;
+			std::array<Model_Track_Animation_Data, Const::MAX_TRACK_MODEL_ANIMATION> animations;
 			Sparse_Set<std::vector<glm::mat4>> skins_indices_to_skins_transforms;
 			Snapshoot_Animation_Data snapshoot;
 			uint32_t current_use_skin = 0;
@@ -448,16 +419,15 @@ namespace Vulkan {
 							if (parent_index < 0) {
 								auto& child = nodes[children_index];
 								child.global_transform = child.calculate_transform(
-									node_config, animations, snapshoot, current_time, children_index
+									node_config, animations, snapshoot, current_time, children_index, model.animations
 								);
 							} else {
 								const auto& parent = nodes[parent_index];
 								auto& child = nodes[children_index];
-								child.global_transform =
-									parent.global_transform *
-									child.calculate_transform(
-										node_config, animations, snapshoot, current_time, children_index
-									);
+								auto child_transform = child.calculate_transform(
+									node_config, animations, snapshoot, current_time, children_index, model.animations
+								);
+								child.global_transform = parent.global_transform * child_transform;
 							}
 						}
 					);
@@ -595,7 +565,6 @@ namespace Vulkan {
 					auto& node_data = nodes[i];
 					auto& node = model.nodes[i];
 					node_data.is_use_matrix = node.is_use_matrix;
-					node_data.update_apply_flags(model.animations, i);
 				}
 				/**
 				 * Set up snapshoot model to blend animation.

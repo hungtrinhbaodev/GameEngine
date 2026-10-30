@@ -39,8 +39,8 @@ void gen_fox_3D() {
 	Handle fox = Vulkan::create_model("res/Fox_embedded.gltf", "", animation_name, position, {0.01f, 0.01f, 0.01f});
 	auto& fox_model = Vulkan::modify_model(fox);
 	// fox_model.play_animation(0, animation_name, true);
-	fox_model.play_animation(0, "Run", true, 0.65f, 1.5f);
-	fox_model.play_animation(1, "Survey", true, 0.35f, Math::random_float(1.f, 1.35f));
+	fox_model.play_animation(0, "Run", true, 0.4f, 1.5f);
+	fox_model.play_animation(1, "Survey", true, 0.6f, Math::random_float(1.f, 1.35f));
 	foxes.push_back(fox);
 }
 
