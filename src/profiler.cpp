@@ -11,7 +11,7 @@ namespace Profiler {
 		double start_time_call = 0;
 	};
 
-	std::map<std::string, Profiler_Data> profilers{};
+	std::unordered_map<std::string, Profiler_Data> profilers{};
 
 	void start_scope(std::string key) {
 		if (profilers.find(key) == profilers.end()) {

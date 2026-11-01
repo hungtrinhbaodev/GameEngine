@@ -28,11 +28,11 @@ namespace Vulkan {
 
 		std::vector<Texture_Array> texture_buckets;
 
-		std::map<uint32_t, Texture> ids_to_individual_textures;
+		std::unordered_map<uint32_t, Texture> ids_to_individual_textures;
 
-		std::map<std::string, uint32_t> files_to_ids;
+		std::unordered_map<std::string, uint32_t> files_to_ids;
 
-		std::map<uint32_t, std::string> ids_to_files;
+		std::unordered_map<uint32_t, std::string> ids_to_files;
 
 		Sparse_Set<Texture_View> ids_to_views{};
 

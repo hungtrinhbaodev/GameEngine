@@ -51,6 +51,7 @@ namespace Vulkan {
 		glm::vec3 position{0.f}, scale{1.f}, rotation{0.f};
 		float blend_animation_duration = 0.2f;
 		float blend_animation_factor = 1.f;
+		std::vector<std::string> animations_component_paths;
 	};
 
 	class Model_3D : public Draw_Atributes {
@@ -61,13 +62,13 @@ namespace Vulkan {
 		glm::vec3 rotation{0.f, 0.f, 0.f};
 		glm::quat quat_rotation{1.f, 0.f, 0.f, 0.f};
 		std::string scene_name = "";
-		std::string animation_name = "";
 		float blend_animation_duration = 0.f;
 		float blend_animation_factor = 0.f;
 		std::array<bool, Const::MAX_TRACK_MODEL_ANIMATION> changing_animations;
 		std::array<Model_3D_Animation_Description, Const::MAX_TRACK_MODEL_ANIMATION> animations;
 		std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> animation_factors;
 		std::array<double, Const::MAX_TRACK_MODEL_ANIMATION> animation_start_times;
+		std::vector<std::string> animations_component_paths;
 
 		void reload_animation_factors();
 		void clean_animations();
@@ -77,6 +78,7 @@ namespace Vulkan {
 		Model_3D(const Handle& handle, const Model_3D_Description& description);
 		~Model_3D();
 
+		void update_data_before_modify();
 		void set_model_path(const std::string& model_path);
 		void set_position(const glm::vec3& position);
 		void set_scale(const glm::vec3& scale);
@@ -85,7 +87,6 @@ namespace Vulkan {
 		 */
 		void set_rotation(const glm::vec3& rotation);
 		void set_scene_name(const std::string& scene_name);
-		void set_animation_name(const std::string& animation_name);
 		void set_blend_animation_duration(float blend_duration);
 		void set_blend_animation_factor(float blend_factor);
 		/**
@@ -108,10 +109,11 @@ namespace Vulkan {
 		glm::vec3 get_rotation() const;
 		glm::quat get_quat_rotation() const;
 		std::string get_scene_name() const;
-		std::string get_animation_name() const;
 		glm::mat4 get_transform() const;
 		Model_3D_Description get_description() const;
-		std::string get_animation_name_at_track(int track_index) const;
+		Model_3D_Animation_Description view_animation_at(int track_index) const;
+		const std::vector<std::string>& get_animations_component_paths() const;
+		std::vector<std::string> view_all_animation_name() const;
 		float get_blend_animation_duration() const;
 		float get_blend_animation_factor() const;
 

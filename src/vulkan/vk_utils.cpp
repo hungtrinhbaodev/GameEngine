@@ -55,7 +55,8 @@ namespace Vulkan {
 		}
 
 		void copy_data_to_multi_buffer(
-			VkBuffer src_buffer, const std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data, VkDevice device
+			VkBuffer src_buffer, const std::unordered_map<VkBuffer, std::vector<VkBufferCopy>>& copied_data,
+			VkDevice device
 		) {
 			VkCommandBuffer command_buffer = start_commands(device);
 			record_copy_data_to_multi_buffer(command_buffer, src_buffer, copied_data);
@@ -64,7 +65,7 @@ namespace Vulkan {
 
 		void record_copy_data_to_multi_buffer(
 			VkCommandBuffer command_buffer, VkBuffer src_buffer,
-			const std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data
+			const std::unordered_map<VkBuffer, std::vector<VkBufferCopy>>& copied_data
 		) {
 			for (auto& [dst_buffer, copied_ranges] : copied_data) {
 				vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, copied_ranges.size(), copied_ranges.data());

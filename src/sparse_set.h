@@ -12,10 +12,10 @@ template <typename T> class Sparse_Set {
 	float size_factor = 1.5f;
 
   public:
-	uint32_t insert(uint32_t id, const T& data) {
+	uint32_t insert(uint32_t id, T data) {
 		if (has(id)) {
 			uint32_t index = id_to_index[id];
-			dense[index] = data;
+			dense[index] = std::move(data);
 			return id;
 		}
 		if (id_to_index.size() <= id + 1) {
@@ -23,7 +23,7 @@ template <typename T> class Sparse_Set {
 			id_to_index.resize(new_size, -1);
 			index_to_id.resize(new_size, 0);
 		}
-		dense.push_back(data);
+		dense.push_back(std::move(data));
 		ids.push_back(id);
 		index_to_id[dense.size() - 1] = id;
 		id_to_index[id] = dense.size() - 1;
@@ -66,7 +66,9 @@ template <typename T> class Sparse_Set {
 		int last_index = dense.size() - 1;
 		int last_id = index_to_id[last_index];
 		ids[index] = last_id;
-		dense[index] = dense.back();
+		if (index != last_index) {
+			dense[index] = std::move(dense.back());
+		}
 		id_to_index[last_id] = index;
 		index_to_id[index] = last_id;
 		id_to_index[id] = -1;

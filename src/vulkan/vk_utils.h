@@ -302,12 +302,12 @@ namespace Vulkan {
 		uint32_t get_draw_2D_config_data_offset(VkDevice device);
 
 		void copy_data_to_multi_buffer(
-			VkBuffer src_buffer, const std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data, VkDevice device
+			VkBuffer src_buffer, const std::unordered_map<VkBuffer, std::vector<VkBufferCopy>>& copied_data, VkDevice device
 		);
 
 		void record_copy_data_to_multi_buffer(
 			VkCommandBuffer command_buffer, VkBuffer src_buffer,
-			const std::map<VkBuffer, std::vector<VkBufferCopy>>& copied_data
+			const std::unordered_map<VkBuffer, std::vector<VkBufferCopy>>& copied_data
 		);
 
 		inline int get_number_channel_by(VkFormat format) {

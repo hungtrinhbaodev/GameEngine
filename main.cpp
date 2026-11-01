@@ -26,22 +26,37 @@ std::vector<std::string> fox_animations = {
 	"Run",
 };
 
+std::vector<std::string> character_animations;
+
 std::vector<Handle> foxes{};
 std::vector<Handle> cesiummans{};
+std::vector<Handle> characters{};
 
 void gen_fox_3D() {
 	int animation_index = Math::random_int(0, 100) % fox_animations.size();
 	std::string animation_name = fox_animations[animation_index];
-	// glm::vec3 position = {
-	// 	Math::random_float(-3.5f, 3.5f), Math::random_float(-3.f, 3.f), Math::random_float(-2.5f, 2.5f)
-	// };
 	glm::vec3 position{0.f};
 	Handle fox = Vulkan::create_model("res/Fox_embedded.gltf", "", animation_name, position, {0.01f, 0.01f, 0.01f});
 	auto& fox_model = Vulkan::modify_model(fox);
-	// fox_model.play_animation(0, animation_name, true);
-	fox_model.play_animation(0, "Run", true, 0.4f, 1.5f);
-	fox_model.play_animation(1, "Survey", true, 0.6f, Math::random_float(1.f, 1.35f));
+	fox_model.play_animation(0, "Run", true, 0.5f, 1.5f);
+	fox_model.play_animation(1, "Survey", true, 0.5f, Math::random_float(1.f, 1.35f));
 	foxes.push_back(fox);
+}
+
+void gen_character_3D() {
+	Vulkan::Model_3D_Description description{};
+	description.path = "res/Knight.glb";
+	description.draw_index = 1000;
+	description.scale = {0.75f, 0.75f, 0.75f};
+	description.position = {0.f, -1.f, 0.f};
+	description.animations_component_paths = {
+		"res/Rig_Medium_CombatMelee.glb", "res/Rig_Medium_MovementBasic.glb", "res/Rig_Medium_General.glb"
+	};
+	Handle character = Vulkan::create_model(description);
+	auto& character_model = Vulkan::modify_model(character);
+	character_animations = character_model.view_all_animation_name();
+	character_model.play_animation(0, character_animations[0], true);
+	characters.push_back(character);
 }
 
 void remove_fox_by_index(int remove_index) {
@@ -62,7 +77,7 @@ void update_fox_animation() {
 		return;
 	int update_index = Math::random_int(0, foxes.size() - 1);
 	Vulkan::Model_3D& fox_model = Vulkan::modify_model(foxes[update_index]);
-	auto it = std::find(fox_animations.begin(), fox_animations.end(), fox_model.get_animation_name_at_track(0));
+	auto it = std::find(fox_animations.begin(), fox_animations.end(), fox_model.view_animation_at(0).animation_name);
 	if (it != fox_animations.end()) {
 		int index = it - fox_animations.begin();
 		index = (index + 1) % fox_animations.size();
@@ -75,6 +90,22 @@ void update_fox_animation() {
 			speed = 1.5f;
 		}
 		fox_model.play_animation(0, animation_name, true, 0.65f, speed);
+	}
+}
+
+void update_character_animation() {
+	if (characters.size() <= 0)
+		return;
+	int update_index = Math::random_int(0, characters.size() - 1);
+	Vulkan::Model_3D& character_model = Vulkan::modify_model(characters[update_index]);
+	auto it = std::find(
+		character_animations.begin(), character_animations.end(), character_model.view_animation_at(0).animation_name
+	);
+	if (it != character_animations.end()) {
+		int index = it - character_animations.begin();
+		index = (index + 1) % character_animations.size();
+		std::string animation_name = character_animations[index];
+		character_model.play_animation(0, animation_name, true);
 	}
 }
 
@@ -470,7 +501,8 @@ void on_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
 					break;
 				}
 				case GLFW_KEY_F: {
-					update_fox_animation();
+					// update_fox_animation();
+					update_character_animation();
 					break;
 				}
 				case GLFW_KEY_G: {
@@ -558,7 +590,8 @@ int main() {
 	glfwSetKeyCallback(window, on_key);
 
 	for (int i = 0; i < 1; i++) {
-		gen_fox_3D();
+		// gen_fox_3D();
+		gen_character_3D();
 	}
 
 	double start = Utils::now();

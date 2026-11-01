@@ -5,6 +5,7 @@
 #include <iostream>
 #include <parser/font_parser.h>
 #include <parser/gltf_parser.h>
+#include <set>
 #include <sparse_set.h>
 #include <vulkan/vk_buffer.h>
 #include <vulkan/vk_consts.h>
@@ -153,6 +154,7 @@ namespace Vulkan {
 		glm::quat rotation{1.f, 0.f, 0.f, 0.f};
 		glm::mat4 transform{1.f};
 		std::vector<int> children_indices{};
+		std::string name = "";
 		int mesh_index = -1;
 		int skin_index = -1;
 		bool is_use_matrix = false;
@@ -245,6 +247,12 @@ namespace Vulkan {
 		}
 	};
 
+	struct Model_Animation_Component {
+		std::vector<Model_Node> nodes;
+		std::vector<Model_Animation> animations;
+		void parse_from(Parser::Gltf_Model_Animation_Component& animation_component);
+	};
+
 	struct Model {
 		std::vector<Model_Node> nodes;
 		std::vector<Model_Mesh> meshes;
@@ -255,6 +263,7 @@ namespace Vulkan {
 		Sparse_Set<std::vector<Model_Mesh_Draw_Info>> scene_index_to_draw_meshes_info{};
 		int default_scene_index = -1;
 		int default_skin_index = -1;
+		std::set<uint32_t> attached_animation_components;
 		int find_scene_index_by(const std::string& name) const;
 		int find_animation_index_by(const std::string& name) const;
 		void dfs_write(int scene_index, std::function<void(Model&, int, int, int)> execute);

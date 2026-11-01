@@ -25,7 +25,7 @@ class ThreadPool {
 
 	template <class F, class... Args>
 	auto loop_all_threads(F&& f, Args&&... args)
-		-> std::map<std::thread::id, std::future<typename std::invoke_result<F, Args...>::type>>;
+		-> std::unordered_map<std::thread::id, std::future<typename std::invoke_result<F, Args...>::type>>;
 
 	const std::vector<std::thread::id>& get_thread_ids();
 
@@ -33,7 +33,7 @@ class ThreadPool {
 
   private:
 	// personal thread task
-	std::map<std::thread::id, std::queue<std::function<void()>>> personal_tasks;
+	std::unordered_map<std::thread::id, std::queue<std::function<void()>>> personal_tasks;
 
 	// need to keep track of threads so we can join them
 	std::vector<std::thread> workers;
@@ -137,10 +137,10 @@ inline std::queue<std::function<void()>>& ThreadPool::get_personal_tasks(std::th
 // add work that all thread need to do
 template <class F, class... Args>
 inline auto ThreadPool::loop_all_threads(F&& f, Args&&... args)
-	-> std::map<std::thread::id, std::future<typename std::invoke_result<F, Args...>::type>> {
+	-> std::unordered_map<std::thread::id, std::future<typename std::invoke_result<F, Args...>::type>> {
 
 	using result_type = typename std::invoke_result<F, Args...>::type;
-	std::map<std::thread::id, std::future<result_type>> result_res;
+	std::unordered_map<std::thread::id, std::future<result_type>> result_res;
 
 	for (auto& thread_id : thread_ids) {
 

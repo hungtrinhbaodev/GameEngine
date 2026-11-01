@@ -132,6 +132,13 @@ namespace Parser {
 		glm::vec3 get_bounding_box() const;
 	};
 
-	Gltf_Model parse_gltf_model(const std::string& path);
+	struct Gltf_Model_Animation_Component {
+		std::vector<Gltf_Node> nodes;
+		std::vector<Gltf_Animation> animations;
+	};
+
+	Gltf_Model parse_gltf_model_by(const std::string& path);
+
+	Gltf_Model_Animation_Component parse_gltf_animations_component_by(const std::string& path);
 
 } // namespace Parser

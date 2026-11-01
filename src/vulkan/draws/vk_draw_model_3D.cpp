@@ -119,13 +119,12 @@ namespace Vulkan {
 
 			void clean() {
 				clean_snapshoot();
-				blend_factor = 0.f;
 				node_snapshoots.clear();
 			}
 
 			bool is_enabled() { return blend_duration > 0.f && blend_factor > 0.f; }
 
-			bool is_blend_finish(double current_time) const {
+			bool blending_is_finish(double current_time) const {
 				if (node_snapshoots.size() <= 0)
 					return true;
 				if (blend_duration <= 0.f || blend_factor <= 0.f)
@@ -135,6 +134,7 @@ namespace Vulkan {
 
 			float get_factor_at(double current_time) const {
 				float rate = (float)(current_time - start_time_blend) / blend_duration;
+				rate = std::max(0.f, std::min(rate, 1.f));
 				return blend_factor * (1.f - rate);
 			}
 		};
@@ -144,15 +144,11 @@ namespace Vulkan {
 			glm::quat final_rotation{1.f, 0.f, 0.f, 0.f};
 			glm::vec3 final_scale{1.f};
 			glm::mat4 global_transform{1.f};
-
-			uint8_t apply_flags = 0;
 			bool is_use_matrix = false;
-
 			std::array<glm::vec3, Const::MAX_TRACK_MODEL_ANIMATION> track_translations;
 			std::array<glm::quat, Const::MAX_TRACK_MODEL_ANIMATION> track_rotations;
 			std::array<glm::vec3, Const::MAX_TRACK_MODEL_ANIMATION> track_scales;
 			std::array<uint8_t, Const::MAX_TRACK_MODEL_ANIMATION> track_apply_flags;
-
 			/**
 			 * @Note: node will be relative with animation
 			 * if the node don't relative with animation
@@ -164,7 +160,6 @@ namespace Vulkan {
 			std::array<float, Const::MAX_TRACK_MODEL_ANIMATION> scale_factors;
 
 			void clean() {
-				apply_flags = 0;
 				global_transform = {1.f};
 				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
 					track_apply_flags[i] = 0;
@@ -192,8 +187,12 @@ namespace Vulkan {
 			) {
 				for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
 					const auto& animation = animations[i];
-					if (!animation.is_active)
+					if (!animation.is_active) {
+						translation_factors[i] = 0.f;
+						rotation_factors[i] = 0.f;
+						scale_factors[i] = 0.f;
 						continue;
+					}
 					const auto& model_animation = model_animations[animation.animation_index];
 					const auto& model_node_animation_factors = model_animation.nodes_animation_factors[node_index];
 					translation_factors[i] = animation.factor * model_node_animation_factors[0];
@@ -216,7 +215,6 @@ namespace Vulkan {
 					Math::normalize_factors(translation_factors.data(), translation_factors.size());
 				float sum_factor_rotation = Math::normalize_factors(rotation_factors.data(), rotation_factors.size());
 				float sum_factor_scale = Math::normalize_factors(scale_factors.data(), scale_factors.size());
-				float current_factor = 0.f;
 				glm::vec3 translation, scale;
 				glm::quat rotation;
 				float current_translation_factor = 0.f, current_rotation_factor = 0.f, current_scale_factor = 0.f;
@@ -228,7 +226,7 @@ namespace Vulkan {
 					 * Handle translation.
 					 */
 					if (sum_factor_translation <= 0) {
-						final_translation = translation;
+						final_translation = animations[i].is_active ? translation : final_translation;
 					} else {
 						if (i <= 0 || current_translation_factor + translation_factors[i] <= 0) {
 							final_translation = translation;
@@ -242,7 +240,7 @@ namespace Vulkan {
 					 * Handle scale.
 					 */
 					if (sum_factor_scale <= 0) {
-						final_scale = scale;
+						final_scale = animations[i].is_active ? scale : final_scale;
 					} else {
 						if (i <= 0 || current_scale_factor + scale_factors[i] <= 0) {
 							final_scale = scale;
@@ -255,7 +253,7 @@ namespace Vulkan {
 					 * Handle rotation.
 					 */
 					if (sum_factor_rotation <= 0) {
-						final_rotation = rotation;
+						final_rotation = animations[i].is_active ? rotation : final_rotation;
 					} else {
 						if (i <= 0 || current_rotation_factor + rotation_factors[i] <= 0) {
 							final_rotation = rotation;
@@ -269,7 +267,7 @@ namespace Vulkan {
 					current_rotation_factor += rotation_factors[i];
 					current_scale_factor += scale_factors[i];
 				}
-				if (!snapshoot.is_blend_finish(current_time)) {
+				if (!snapshoot.blending_is_finish(current_time)) {
 					const auto& snapshoot_transform = snapshoot.node_snapshoots[node_index];
 					float blend_factor = snapshoot.get_factor_at(current_time);
 					final_translation = glm::mix(final_translation, snapshoot_transform.translation, blend_factor);
@@ -311,7 +309,7 @@ namespace Vulkan {
 				ssbo.remove_data(storage_id);
 			}
 
-			void clear(SSBO_Buffer& ssbo, std::vector<Draw_Instance_Information>& draw_instances) {
+			void clear(SSBO_Buffer& ssbo) {
 				clean(ssbo);
 				skins_indices_to_skins_storage_ids.clear();
 				texture_ids_to_texture_storage_ids.clear();
@@ -329,17 +327,16 @@ namespace Vulkan {
 
 				model_id = ::Const::MAX_UINT32;
 				scene_index = -1;
-				draw_instances.clear();
 			};
 
-			void take_snaphoot_animation() {
+			void take_snaphoot_animation(double current_time) {
 				snapshoot.clean_snapshoot();
 				snapshoot.node_snapshoots.resize(nodes.size());
 				for (int i = 0; i < nodes.size(); i++) {
 					const auto& node = nodes[i];
 					snapshoot.node_snapshoots[i] = {node.final_translation, node.final_rotation, node.final_scale};
 				}
-				snapshoot.start_time_blend = ::Utils::now();
+				snapshoot.start_time_blend = current_time;
 			}
 
 			void update_animation_tracks(double current_time) {
@@ -352,13 +349,13 @@ namespace Vulkan {
 					float animation_speed = animation_data.speed;
 					const auto& animation = model.animations[animation_data.animation_index];
 					float t = (float)(current_time - animation_data.start_time) * animation_speed;
-					if (t >= animation.get_animation_duration() && !animation_data.is_loop) {
+					if (t > animation.get_animation_duration() && !animation_data.is_loop) {
 						animation_data.is_active = false;
 						need_take_snapshoot = true;
 					}
 				}
 				if (need_take_snapshoot && snapshoot.is_enabled()) {
-					take_snaphoot_animation();
+					take_snaphoot_animation(current_time);
 				}
 				for (int j = 0; j < Const::MAX_TRACK_MODEL_ANIMATION; j++) {
 					auto& animation_data = animations[j];
@@ -372,8 +369,11 @@ namespace Vulkan {
 						const auto& sampler = animation.samplers[channel.sampler_index];
 						const float max_duration = sampler.max_duration();
 						auto& sampler_animation_indices = animation_data.sampler_animation_indices;
-						int stride = std::floor(t / max_duration);
-						float duration = t - max_duration * stride;
+						float duration = 0.f;
+						if (max_duration > 0) {
+							int stride = std::floor(t / max_duration);
+							duration = t - max_duration * stride;
+						}
 						int node_index = channel.node_index;
 						switch (channel.sampler_type) {
 							case Model_Sampler_Type::TRANSLATION: {
@@ -445,7 +445,7 @@ namespace Vulkan {
 						}
 					}
 				}
-				if (snapshoot.is_blend_finish(current_time)) {
+				if (snapshoot.blending_is_finish(current_time)) {
 					snapshoot.clean();
 				}
 			}
@@ -459,13 +459,14 @@ namespace Vulkan {
 			}
 
 			void clean_animation_when_finish_all(SSBO_Buffer& ssbo, double current_time) {
-				if (!is_playing_some_animation() && snapshoot.is_blend_finish(current_time)) {
+				if (!is_playing_some_animation() && snapshoot.blending_is_finish(current_time)) {
 					update_using_skin_storage(false, ssbo);
 				}
 			};
 
 			void update_animation_data(const Model_3D& attributes) {
-				uint32_t model_id = load_model(attributes.get_model_path());
+				uint32_t model_id =
+					load_model(attributes.get_model_path(), attributes.get_animations_component_paths());
 				const auto& model = view_model(model_id);
 				const auto& animation_attributes = attributes.get_animations();
 				const auto& animation_factors = attributes.get_animation_factors();
@@ -474,9 +475,6 @@ namespace Vulkan {
 					auto& animation = animations[i];
 					const auto& animation_attribute = animation_attributes[i];
 					if (attributes.is_track_changing(i)) {
-						if (animation.is_active) {
-							need_take_snapshoot = true;
-						}
 						animation.clean();
 						const std::string& animation_name = animation_attribute.animation_name;
 						animation.update_animation_index(model.find_animation_index_by(animation_name), model);
@@ -487,10 +485,11 @@ namespace Vulkan {
 							animation.factor = animation_factors[i];
 							animation.speed = animation_attribute.speed;
 						}
+						need_take_snapshoot = true;
 					}
 				}
 				if (need_take_snapshoot) {
-					take_snaphoot_animation();
+					take_snaphoot_animation(::Utils::now());
 				}
 			};
 
@@ -527,7 +526,8 @@ namespace Vulkan {
 			void update_model_data(
 				std::vector<Draw_Instance_Information>& draw_instances, const Model_3D& attributes, SSBO_Buffer& ssbo
 			) {
-				uint32_t i_model_id = load_model(attributes.get_model_path());
+				uint32_t i_model_id =
+					load_model(attributes.get_model_path(), attributes.get_animations_component_paths());
 				const auto& model = view_model(i_model_id);
 				/**
 				 * @Note: if model or scene change we need
@@ -535,14 +535,14 @@ namespace Vulkan {
 				 */
 				int i_scene_index = model.find_scene_index_by(attributes.get_scene_name());
 				if (model_id != i_model_id || scene_index != i_scene_index) {
-					clear(ssbo, draw_instances);
+					clear(ssbo);
 					make(attributes, draw_instances, ssbo);
 					return;
 				}
 				snapshoot.update_blend_info(attributes);
 				update_animation_data(attributes);
 				update_using_skin_storage(
-					is_playing_some_animation() || !snapshoot.is_blend_finish(::Utils::now()), ssbo
+					is_playing_some_animation() || !snapshoot.blending_is_finish(::Utils::now()), ssbo
 				);
 				glm::mat4 instance_transform = attributes.get_transform();
 				ssbo.update_data(storage_id, &instance_transform);
@@ -551,7 +551,7 @@ namespace Vulkan {
 			void make(
 				const Model_3D& attributes, std::vector<Draw_Instance_Information>& draw_instances, SSBO_Buffer& ssbo
 			) {
-				model_id = load_model(attributes.get_model_path());
+				model_id = load_model(attributes.get_model_path(), attributes.get_animations_component_paths());
 				const auto& model = view_model(model_id);
 				scene_index = model.find_scene_index_by(attributes.get_scene_name());
 				for (auto& animation : animations) {
@@ -604,6 +604,7 @@ namespace Vulkan {
 					int skin_index = draw_mesh_info.skin_index;
 					if (skin_index >= 0) {
 						if (skins_indices_to_skins_storage_ids.has((uint32_t)skin_index)) {
+							mesh_transform_storages.push_back(draw_mesh_info.mesh_transform);
 							continue;
 						}
 						const auto& skin = model.skins[skin_index];
@@ -950,18 +951,22 @@ namespace Vulkan {
 			}
 		}
 
-		const Model_Helper& get_model_helper(const std::string& model_path) {
+		const Model_Helper& get_model_helper(
+			const std::string& model_path, const std::vector<std::string> animations_component_paths
+		) {
 			if (model_helpers.find(model_path) == model_helpers.end()) {
-				make_model_helper(model_path);
+				make_model_helper(model_path, animations_component_paths);
 			}
 			return model_helpers[model_path];
 		}
 
-		void make_model_helper(const std::string& model_path) {
+		void make_model_helper(
+			const std::string& model_path, const std::vector<std::string> animations_component_paths
+		) {
 			if (model_helpers.find(model_path) != model_helpers.end()) {
 				return;
 			}
-			uint32_t model_id = load_model(model_path);
+			uint32_t model_id = load_model(model_path, animations_component_paths);
 			const Model& model = view_model(model_id);
 			Model_Helper helper{};
 			for (const auto& scene : model.scenes) {

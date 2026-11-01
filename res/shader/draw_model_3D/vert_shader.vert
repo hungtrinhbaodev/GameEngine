@@ -44,10 +44,8 @@ layout(std430, set = 0, binding = 2) readonly buffer Mesh_Descriptor_Buffer {
 layout (location = 0) out vec3 out_color;
 layout (location = 1) out vec2 out_tex_coord;
 layout (location = 2) out vec3 frag_normal;
-layout (location = 3) out vec3 frag_world_pos;
-layout (location = 4) out int bucket_index;
-layout (location = 5) out int slot_index;
-layout (location = 6) out uint out_use_skins;
+layout (location = 3) out int bucket_index;
+layout (location = 4) out int slot_index;
 
 void main() {
     mat4 model = mat4_buffer.data[in_storage_offset];
@@ -65,15 +63,14 @@ void main() {
     else {
         local = mat4_buffer.data[mesh_transform_offset];
     }
-    vec4 world_pos = ubo.projection * ubo.view * model * local * vec4(in_position, 1.f);
+    mat4 global_transform =  model * local;
+    vec4 world_pos = ubo.projection * ubo.view * global_transform * vec4(in_position, 1.f);
     gl_Position = world_pos;
-    frag_world_pos = world_pos.xyz;
-    mat3 normal_matrix = transpose(inverse(mat3(model * local)));
+    mat3 normal_matrix = transpose(inverse(mat3(global_transform)));
     frag_normal = normal_matrix * in_normal;
-    out_color = in_color; 
+    out_color = in_color;
     out_tex_coord = in_tex_coord * texture.tex_scale;
     bucket_index = texture.bucket_index;
     slot_index = texture.slot_index;
-    out_use_skins = mesh_descriptor.using_skins;
 }
 

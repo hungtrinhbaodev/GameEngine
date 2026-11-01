@@ -11,16 +11,14 @@ layout (set = 2, binding = 6) uniform sampler2DArray bucket_tex_sampler_6;
 layout (location = 0) in vec3 in_color;
 layout (location = 1) in vec2 in_tex_coord;
 layout (location = 2) in vec3 frag_normal;
-layout (location = 3) in vec3 frag_world_pos;
-layout (location = 4) in flat int bucket_index;
-layout (location = 5) in flat int slot_index;
-layout (location = 6) in flat uint in_use_skins;
+layout (location = 3) in flat int bucket_index;
+layout (location = 4) in flat int slot_index;
 
 layout (location = 0) out vec4 out_color;
 
-const vec3 LIGHT_DIR = normalize(vec3(0.5f, 1.f, 0.3f));
+const vec3 LIGHT_DIR = normalize(vec3(0.f, 1.f, 0.0f));
 const vec3 LIGHT_COLOR = vec3(1.0);
-const vec3 AMBIENT = vec3(0.1f);
+const vec3 AMBIENT = vec3(0.3f);
 
 vec4 get_bucket_sampler(int bucket_index, int slot_index, vec2 in_tex_coord) {
     switch(bucket_index) {

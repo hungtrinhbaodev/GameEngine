@@ -63,6 +63,7 @@ namespace Vulkan {
 		scene_name = description.scene_name;
 		blend_animation_duration = description.blend_animation_duration;
 		blend_animation_factor = std::min(std::max(description.blend_animation_factor, 0.f), 1.f);
+		animations_component_paths = description.animations_component_paths;
 	}
 
 	Model_3D::~Model_3D() {}
@@ -90,6 +91,21 @@ namespace Vulkan {
 			animations[i] = {};
 			animation_factors[i] = 0.f;
 			animation_start_times[i] = Utils::now();
+		}
+	}
+
+	void Model_3D::update_data_before_modify() {
+		const auto& model_helper = Draw_Model_3D::get_model_helper(path, animations_component_paths);
+		for (int i = 0; i < Const::MAX_TRACK_MODEL_ANIMATION; i++) {
+			auto& animation = animations[i];
+			if (animation.is_active && model_helper.has_animation(animation.animation_name)) {
+				const auto& animation_helper = model_helper.get_animation_heler(animation.animation_name);
+				double start_time = animation_start_times[i];
+				if ((::Utils::now() - start_time) * animation.speed >= animation_helper.duration &&
+					!animation.is_loop) {
+					animation.is_active = false;
+				}
+			}
 		}
 	}
 
@@ -127,12 +143,6 @@ namespace Vulkan {
 		scene_name = i_scene_name;
 	}
 
-	void Model_3D::set_animation_name(const std::string& i_animation_name) {
-		assert_handle();
-		set_dirty(animation_name != i_animation_name);
-		animation_name = i_animation_name;
-	}
-
 	void Model_3D::set_blend_animation_duration(float blend_duration) {
 		assert_handle();
 		set_dirty(blend_animation_duration != blend_duration);
@@ -151,7 +161,7 @@ namespace Vulkan {
 	) {
 		if (track_index < 0 || track_index >= Const::MAX_TRACK_MODEL_ANIMATION)
 			return;
-		const auto& model_helper = Draw_Model_3D::get_model_helper(path);
+		const auto& model_helper = Draw_Model_3D::get_model_helper(path, animations_component_paths);
 		auto& animation = animations[track_index];
 		if (!model_helper.has_animation(animation_name)) {
 			animation = {};
@@ -214,11 +224,6 @@ namespace Vulkan {
 		return scene_name;
 	}
 
-	std::string Model_3D::get_animation_name() const {
-		assert_handle();
-		return animation_name;
-	}
-
 	glm::mat4 Model_3D::get_transform() const {
 		assert_handle();
 		return Math::make_translation(position) * glm::mat4_cast(quat_rotation) * Math::make_scale(scale);
@@ -231,14 +236,39 @@ namespace Vulkan {
 	}
 
 	Model_3D_Description Model_3D::get_description() const {
-		return Model_3D_Description{Draw_Atributes::get_description(), path, scene_name, position, scale, rotation};
+		return Model_3D_Description{
+			Draw_Atributes::get_description(),
+			path,
+			scene_name,
+			position,
+			scale,
+			rotation,
+			blend_animation_duration,
+			blend_animation_factor,
+			animations_component_paths
+		};
 	}
 
-	std::string Model_3D::get_animation_name_at_track(int track_index) const {
+	Model_3D_Animation_Description Model_3D::view_animation_at(int track_index) const {
 		assert_handle();
 		if (track_index < 0 || track_index >= Const::MAX_TRACK_MODEL_ANIMATION)
-			return "";
-		return animations[track_index].is_active ? animations[track_index].animation_name : "";
+			return {};
+		return animations[track_index];
+	}
+
+	const std::vector<std::string>& Model_3D::get_animations_component_paths() const {
+		assert_handle();
+		return animations_component_paths;
+	}
+
+	std::vector<std::string> Model_3D::view_all_animation_name() const {
+		assert_handle();
+		const auto& model_helper = Draw_Model_3D::get_model_helper(path, animations_component_paths);
+		std::vector<std::string> animation_names;
+		for (const auto& animation : model_helper.animations) {
+			animation_names.push_back(animation.animation_name);
+		}
+		return animation_names;
 	}
 
 	float Model_3D::get_blend_animation_duration() const {

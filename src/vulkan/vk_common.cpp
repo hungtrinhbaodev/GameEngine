@@ -15,6 +15,7 @@ namespace Vulkan {
 		mesh_index = node.mesh_index;
 		skin_index = node.skin_index;
 		is_use_matrix = node.is_use_matrix;
+		name = node.name;
 	}
 
 	void Model_Scene::parse_from(Parser::Gltf_Scene& scene) {
@@ -140,6 +141,19 @@ namespace Vulkan {
 			samplers[i].parse_from(animation.samplers[i]);
 		}
 		nodes_animation_factors = std::move(animation.nodes_animation_factors);
+	}
+
+	void Model_Animation_Component::parse_from(Parser::Gltf_Model_Animation_Component& animation_component) {
+		nodes.resize(animation_component.nodes.size());
+		for (int i = 0; i < nodes.size(); i++) {
+			auto& node = nodes[i];
+			node.parse_from(animation_component.nodes[i]);
+		}
+		animations.resize(animation_component.animations.size());
+		for (int i = 0; i < animations.size(); i++) {
+			auto& animation = animations[i];
+			animation.parse_from(animation_component.animations[i]);
+		}
 	}
 
 	void Resource_Synchronize_Information::release_frame(uint32_t frame_index) {

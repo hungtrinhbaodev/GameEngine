@@ -608,8 +608,12 @@ namespace Vulkan {
 		return font_system.texture_system.view_texture(font.texture_id);
 	}
 
-	uint32_t load_model(std::string path) {
+	uint32_t load_model(const std::string& path, const std::vector<std::string>& animations_component_paths) {
 		uint32_t model_id = model_3D_system.load_model(path);
+		for (const auto& animations_component_path : animations_component_paths) {
+			uint32_t animations_id = model_3D_system.load_animation(animations_component_path);
+			model_3D_system.attach_component(animations_id, model_id);
+		}
 		const auto& model = view_model(model_id);
 		for (const auto& primitive : model.primitives) {
 			Texture_View texture_view = view_texture(primitive.texture_id);
@@ -908,7 +912,9 @@ namespace Vulkan {
 
 	Handle create_model(
 		const std::string& path, const std::string& scene_name, const std::string& animation_name,
-		const glm::vec3& position, const glm::vec3& scale, const glm::vec3& rotation
+		const glm::vec3& position, const glm::vec3& scale, const glm::vec3& rotation,
+		const std::vector<std::string>& animations_component_paths, float blend_animation_duration,
+		float blend_animation_factor
 	) {
 		Model_3D_Description description{};
 		description.draw_index = 0;
@@ -918,6 +924,9 @@ namespace Vulkan {
 		description.scale = scale;
 		description.path = path;
 		description.scene_name = scene_name;
+		description.blend_animation_duration = blend_animation_duration;
+		description.blend_animation_factor = blend_animation_factor;
+		description.animations_component_paths = animations_component_paths;
 		return create_model(description);
 	}
 
@@ -928,7 +937,9 @@ namespace Vulkan {
 
 	Model_3D& modify_model(const Handle& handle) {
 		assert_draw_handle(handle);
-		return draw_id_to_models.modify(handle.id());
+		auto& model = draw_id_to_models.modify(handle.id());
+		model.update_data_before_modify();
+		return model;
 	}
 
 	Handle create_label(const Label_2D_Description& label_info) {

@@ -10,12 +10,26 @@ namespace Vulkan {
 		this->ssbo = ssbo;
 	}
 
-	uint32_t Model_3D_System::load_model(std::string path) {
+	uint32_t Model_3D_System::load_animation(const std::string& path) {
+		if (animation_files_to_ids.find(path) != animation_files_to_ids.end()) {
+			return animation_files_to_ids[path];
+		}
+		uint32_t animations_id = animation_id_generator.gen_id();
+		Parser::Gltf_Model_Animation_Component animations_config = Parser::parse_gltf_animations_component_by(path);
+		Model_Animation_Component animations_info{};
+		animations_info.parse_from(animations_config);
+		animations.insert(animations_id, std::move(animations_info));
+		animation_files_to_ids[path] = animations_id;
+		ids_to_animation_files[animations_id] = path;
+		return animations_id;
+	}
+
+	uint32_t Model_3D_System::load_model(const std::string& path) {
 		if (files_to_ids.find(path) != files_to_ids.end()) {
 			return files_to_ids[path];
 		}
-		uint32_t model_id = id_generator.gen_id();
-		Parser::Gltf_Model model = Parser::parse_gltf_model(path);
+		uint32_t model_id = model_id_generator.gen_id();
+		Parser::Gltf_Model model = Parser::parse_gltf_model_by(path);
 		Model model_info{};
 		uint32_t primitive_count = 0;
 		model_info.meshes.resize(model.meshes.size());
@@ -42,13 +56,17 @@ namespace Vulkan {
 					texture_id = texture_system->load_texture(
 						texture.path, texture.data, texture.width, texture.height, 4, Const::ENABLED_TEXTURE_BUCKETS
 					);
-					delete (texture.data);
 				}
 				model_info.primitives.push_back({vertex_id, indices_id, texture_id});
 				primitive_indices.push_back(primitive_count);
 				primitive_count++;
 			}
 			model_info.meshes[i] = {std::move(primitive_indices), mesh.min_bounding_box, mesh.max_bounding_box};
+		}
+		for (const auto& texture : model.textures) {
+			if (texture.is_using_bin_texture) {
+				delete (texture.data);
+			}
 		}
 		model_info.default_scene_index = model.default_scene_index;
 		model_info.default_skin_index = model.default_skin_index;
@@ -83,10 +101,77 @@ namespace Vulkan {
 				}
 			});
 		}
-		models.insert(model_id, model_info);
+		models.insert(model_id, std::move(model_info));
 		ids_to_files[model_id] = path;
 		files_to_ids[path] = model_id;
 		return model_id;
+	}
+
+	void Model_3D_System::attach_component(uint32_t animations_id, uint32_t to_model_id) {
+		/**
+		 * @Notes: map from node animations index -> node model index.
+		 */
+		if (!models.has(to_model_id) || !animations.has(animations_id)) {
+			throw std::runtime_error("Fail to attach animation component, model id or animations id not found!");
+		}
+		auto& model = models.modify(to_model_id);
+		if (model.attached_animation_components.find(animations_id) != model.attached_animation_components.end()) {
+			return;
+		}
+		const auto& animations_component = animations.get(animations_id);
+		std::vector<int> map_node_indices;
+		std::map<std::string, int> model_nodes_name_to_indices;
+		for (int i = 0; i < model.nodes.size(); i++) {
+			const auto& node = model.nodes[i];
+			model_nodes_name_to_indices[node.name] = i;
+		}
+		/**
+		 * Clone all animation from animations component to model.
+		 */
+		for (const auto& animation : animations_component.animations) {
+			Model_Animation model_animation{};
+			model_animation.name = animation.name;
+			model_animation.samplers = animation.samplers;
+			model_animation.channels.resize(animation.channels.size());
+			for (int i = 0; i < animation.channels.size(); i++) {
+				model_animation.channels[i] = animation.channels[i];
+				if (animation.channels[i].node_index >= 0) {
+					const auto& animation_node = animations_component.nodes[animation.channels[i].node_index];
+					if (model_nodes_name_to_indices.find(animation_node.name) == model_nodes_name_to_indices.end()) {
+						throw std::runtime_error(
+							"Fail to attached animations component to model, can't map node by name!"
+						);
+					}
+					model_animation.channels[i].node_index = model_nodes_name_to_indices[animation_node.name];
+				}
+			}
+			model_animation.nodes_animation_factors.resize(model.nodes.size());
+			for (int i = 0; i < animations_component.nodes.size(); i++) {
+				const auto& node_name = animations_component.nodes[i].name;
+				if (model_nodes_name_to_indices.find(node_name) == model_nodes_name_to_indices.end()) {
+					continue;
+				}
+				int model_node_index = model_nodes_name_to_indices[node_name];
+				model_animation.nodes_animation_factors[model_node_index] = animation.nodes_animation_factors[i];
+			}
+			int animation_index = -1;
+			for (int i = 0; i < model.animations.size(); i++) {
+				if (model.animations[i].name == model_animation.name) {
+					Log::info(
+						"Warning duplicate animation: " + model_animation.name +
+						", when attach animations component to model!"
+					);
+					animation_index = i;
+					break;
+				}
+			}
+			if (animation_index >= 0) {
+				model.animations[animation_index] = model_animation;
+			} else {
+				model.animations.push_back(model_animation);
+			}
+		}
+		model.attached_animation_components.insert(animations_id);
 	}
 
 	const Model& Model_3D_System::view_model(uint32_t model_id) {
@@ -96,6 +181,15 @@ namespace Vulkan {
 			);
 		}
 		return models.get(model_id);
+	}
+
+	const Model_Animation_Component& Model_3D_System::view_animation(uint32_t animations_id) {
+		if (!animations.has(animations_id)) {
+			throw std::runtime_error(
+				"Model_Information::view_animation Fail to get animation component " + std::to_string(animations_id)
+			);
+		}
+		return animations.get(animations_id);
 	}
 
 	void Model_3D_System::remove_model(uint32_t model_id) {
@@ -109,6 +203,6 @@ namespace Vulkan {
 		models.erase(model_id);
 		files_to_ids.erase(ids_to_files[model_id]);
 		ids_to_files.erase(model_id);
-		id_generator.release_id(model_id);
+		model_id_generator.release_id(model_id);
 	}
 } // namespace Vulkan

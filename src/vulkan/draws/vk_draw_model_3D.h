@@ -51,9 +51,13 @@ namespace Vulkan {
 
 		void destroy();
 
-		const Model_Helper& get_model_helper(const std::string& model_path);
+		const Model_Helper& get_model_helper(
+			const std::string& model_path, const std::vector<std::string> animations_component_paths = {}
+		);
 
-		void make_model_helper(const std::string& model_path);
+		void make_model_helper(
+			const std::string& model_path, const std::vector<std::string> animations_component_paths = {}
+		);
 
 	} // namespace Draw_Model_3D
 

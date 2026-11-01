@@ -43,7 +43,7 @@ namespace Vulkan {
 
 	const Texture_View& view_font_texture(uint32_t font_id);
 
-	uint32_t load_model(std::string path);
+	uint32_t load_model(const std::string& path, const std::vector<std::string>& animations_component_paths = {});
 
 	const Model& view_model(uint32_t model_id);
 
@@ -73,7 +73,8 @@ namespace Vulkan {
 	Handle create_model(
 		const std::string& path, const std::string& scene_name = "", const std::string& animation_name = "",
 		const glm::vec3& position = {0.f, 0.f, 0.f}, const glm::vec3& scale = {1.f, 1.f, 1.f},
-		const glm::vec3& rotation = {0.f, 0.f, 0.f}
+		const glm::vec3& rotation = {0.f, 0.f, 0.f}, const std::vector<std::string>& animations_component_paths = {},
+		float blend_animation_duration = 0.2f, float blend_animation_factor = 1.f
 	);
 
 	Handle create_model(const Model_3D_Description& model_info);
