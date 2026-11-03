@@ -555,6 +555,24 @@ namespace Vulkan {
 		height = i_height;
 	}
 
+	void Rectangle_2D::set_border_radius(const float& i_border_radius) {
+		assert_handle();
+		set_dirty(border_radius != i_border_radius);
+		border_radius = i_border_radius;
+	}
+
+	void Rectangle_2D::set_border_width(const float& i_border_width) {
+		assert_handle();
+		set_dirty(border_width != i_border_width);
+		border_width = i_border_width;
+	}
+
+	void Rectangle_2D::set_border_color(const glm::vec3& i_color) {
+		assert_handle();
+		set_dirty(border_color != i_color);
+		border_color = i_color;
+	}
+
 	float Rectangle_2D::get_width() const {
 		assert_handle();
 		return width;
@@ -565,8 +583,23 @@ namespace Vulkan {
 		return height;
 	}
 
+	float Rectangle_2D::get_border_radius() const {
+		assert_handle();
+		return border_radius;
+	}
+
+	float Rectangle_2D::get_border_width() const {
+		assert_handle();
+		return border_width;
+	}
+
+	glm::vec3 Rectangle_2D::get_border_color() const {
+		assert_handle();
+		return border_color;
+	}
+
 	Rectangle_2D_Description Rectangle_2D::get_description() const {
-		return {Draw_2D::get_description(), width, height};
+		return {Draw_2D::get_description(), width, height, border_radius, border_width, border_color};
 	}
 
 	Triangle_2D::Triangle_2D() {}

@@ -280,7 +280,7 @@ namespace Vulkan {
 		return -1;
 	}
 
-	void Model::dfs_write(int scene_index, std::function<void(Model&, int, int, int)> execute) {
+	void Model::dfs_write(int scene_index, const std::function<void(Model&, int, int, int)>& execute) {
 		if (scene_index == -1) {
 			scene_index = default_scene_index;
 		}
@@ -309,7 +309,7 @@ namespace Vulkan {
 		}
 	}
 
-	void Model::dfs_read(int scene_index, std::function<void(const Model&, int, int, int)> execute) const {
+	void Model::dfs_read(int scene_index, const std::function<void(const Model&, int, int, int)>& execute) const {
 		if (scene_index == -1) {
 			scene_index = default_scene_index;
 		}

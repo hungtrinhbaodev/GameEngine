@@ -64,7 +64,6 @@ struct Handle_Generator {
 			generations.insert(id, generation);
 		} else {
 			generation = generations.get(id);
-			generations.insert(id, generation++);
 		}
 		return Handle{id, generation};
 	}
@@ -74,12 +73,13 @@ struct Handle_Generator {
 			return;
 		}
 		id_generator.release_id(handle.id());
+		generations.insert(handle.id(), generations.get(handle.id()) + 1);
 	}
 
 	inline bool validate_handle(const Handle& handle) {
-		if (!generations.has(handle.generation())) {
+		if (!generations.has(handle.id())) {
 			return false;
 		}
-		return true;
+		return generations.get(handle.id()) == handle.generation();
 	}
 };

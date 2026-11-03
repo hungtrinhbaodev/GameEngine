@@ -258,12 +258,18 @@ namespace Vulkan {
 	struct Rectangle_2D_Description : Draw_2D_Attributes_Description {
 		float width = 0;
 		float height = 0;
+		float border_radius = 0.f;
+		float border_width = 0.f;
+		glm::vec3 border_color = {0.f, 0.f, 0.f};
 	};
 
 	class Rectangle_2D : public Draw_2D {
 	  private:
 		float width = 0;
 		float height = 0;
+		float border_radius = 0.f;
+		float border_width = 0.f;
+		glm::vec3 border_color = {0.f, 0.f, 0.f};
 
 	  public:
 		Rectangle_2D();
@@ -272,9 +278,15 @@ namespace Vulkan {
 
 		void set_width(const float& width);
 		void set_height(const float& height);
+		void set_border_radius(const float& border_radius);
+		void set_border_width(const float& border_width);
+		void set_border_color(const glm::vec3& color);
 
 		float get_width() const;
 		float get_height() const;
+		float get_border_radius() const;
+		float get_border_width() const;
+		glm::vec3 get_border_color() const;
 		Rectangle_2D_Description get_description() const;
 	};
 

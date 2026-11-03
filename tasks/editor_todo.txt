@@ -1,0 +1,73 @@
+EDITOR MODE - ENGINE TODO (your part: draw layer + UI/ECS layer)
+Mark with [Done] when finished. Editor panels/tools are built on top of these after PLEASE CODE.
+
+===== 0. ECS / NODE CLEANUP (from last review) =====
+[Done]: clean_up releases every removed id back to entity_generator.
+[Done]: Handle_Generator bumps generation on release (stale handle must fail validate right after clean_up).
+[Done]: add_child detaches the child from its old parent first (no node in two children lists).
+[Done]: add_child rejects self-parenting and adding a node under its own descendant (cycle -> travel recurses forever).
+[Done]: remove_child and clean_up validate their handles like add_child does.
+[Done]: ecs.h includes <memory>, <tuple>, <vector>.
+[Done]: Rename the loop variable in clean_up that shadows parameter e.
+
+===== 1. SELECT MODEL + ENTER EDIT MODE =====
+--- UI layer ---
+[]: Input: feed mouse position, buttons, wheel and keys from GLFW each frame (mouse + scroll + framebuffer resize callbacks).
+[]: Pick one UI unit (logical points) and handle Retina scale (framebuffer size vs window size).
+[]: Root UI node = screen size, updated on window resize.
+[]: Layout: anchors (min/max 0..1) + offsets per node, top-down rect pass, only when dirty.
+[]: Transform accessors on a handle: set/get position, size, rotation, scale, opacity.
+[]: World transform pass (parent x local), dirty only.
+[]: Hit test: front-most node under mouse (respect visibility, later clip).
+[]: Events/queries: hover enter/leave, press, release, click, double click.
+[]: Input routing: UI gets the event first, falls through to 3D viewport if no UI node hit.
+[]: update_ui(): layout -> world transforms -> sync into draw handles.
+--- Draw layer ---
+[]: 2D projection follows window resize.
+[]: Camera API: set position / target / fov, get view and projection.
+[]: Screen-to-ray: unproject a mouse point into a world ray.
+[]: Model picking: world-space bounding box per model (or per mesh) + ray test.
+[]: Highlight a model handle (tint first, outline later).
+--- Bridge ---
+[]: 3D models are ECS entities too (model component holding the draw handle).
+
+===== 2. SKELETON VIEW + HIERARCHY PANEL =====
+--- UI layer ---
+[]: Box visual: color with alpha, corner radius, border (owns Rectangle_2D).
+[]: Label visual: set_text stores text + measures immediately, get_content_size (owns Label_2D).
+[]: Row / column containers (gap, padding, wrap) using content sizes.
+[]: Visibility toggle for a whole subtree (fold tree rows, switch panels).
+--- Draw layer ---
+[]: measure_label(description) -> width/height, no handle (wrap gen_text_info_from).
+[]: Alpha on all 2D colors (vec3 -> vec4).
+[]: SDF rounded rectangle + border on Rectangle_2D.
+[]: Draw order across 2D types reliable; UI always drawn above 3D.
+[]: Bone query: node names, parent indices, global transform of each node at current frame.
+[]: Debug lines + spheres in 3D, option to draw on top of depth.
+
+===== 3. ANIMATION PANEL =====
+--- Draw layer ---
+[]: Animation query: clip names + durations of a model, current track / time / weights.
+[]: Animation control: play clip on track, pause, set time (scrub), speed, loop flag.
+--- UI layer ---
+[]: Pointer capture: pressed node keeps receiving moves until release (sliders, scrubber).
+
+===== 4. ASSET PANEL + DRAG WEAPON TO BONE =====
+--- UI layer ---
+[]: Image visual: texture content size + contain fit (owns Texture_2D).
+[]: Scroll container: clip children, mouse wheel scroll.
+[]: Drag and drop: start drag with payload (asset id), ghost follows mouse, drop result.
+--- Draw layer ---
+[]: Clip rect per 2D instance (SSBO), discard in fragment shader.
+[]: 3D attach: child model = parent world x bone global x local offset, plus detach.
+--- Bridge ---
+[]: Attachment component: parent entity, bone index, local offset.
+
+===== 5. POLISH (later) =====
+[]: Move / rotate gizmo for attachment offsets.
+[]: Keyboard focus + text field (rename, numeric input).
+[]: Undo / redo command stack.
+[]: Save / load editor setup to JSON.
+[]: Render-to-texture for 3D asset thumbnails.
+[]: 9-slice image mode (only if frame art is used).
+[]: Fix model shader frag_world_pos (still clip space).

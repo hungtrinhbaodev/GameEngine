@@ -6,6 +6,7 @@
 #endif
 
 #include <core.h>
+#include <engine/engine.h>
 #include <log.h>
 #include <math_custom.h>
 #include <parser/font_parser.h>

@@ -266,8 +266,8 @@ namespace Vulkan {
 		std::set<uint32_t> attached_animation_components;
 		int find_scene_index_by(const std::string& name) const;
 		int find_animation_index_by(const std::string& name) const;
-		void dfs_write(int scene_index, std::function<void(Model&, int, int, int)> execute);
-		void dfs_read(int scene_index, std::function<void(const Model&, int, int, int)> execute) const;
+		void dfs_write(int scene_index, const std::function<void(Model&, int, int, int)>& execute);
+		void dfs_read(int scene_index, const std::function<void(const Model&, int, int, int)>& execute) const;
 	};
 
 	struct Draw_2D_Common_Data {
