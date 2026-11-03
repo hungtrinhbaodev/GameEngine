@@ -9,7 +9,7 @@ struct Instance_Data{
     vec2  first_point;
     vec2  second_point;
     vec3  color;
-    float _pad0;
+    float opacity;
     vec2  third_point;
     vec2  _pad1;
 };
@@ -27,6 +27,7 @@ layout(std430, set = 0, binding = 1) readonly buffer Config_2D_Data_Buffer {
 } config_2D_buffer;
 
 layout (location = 0) out vec3 frag_color;
+layout (location = 1) out float opacity;
 
 vec2 norm_position(vec2 position, vec2 screen_size) {
     return vec2(position.x / screen_size.x, position.y / screen_size.y);
@@ -60,4 +61,5 @@ void main() {
     vec2 point_position = in_position + map_vertex_point(gl_VertexIndex - in_vertex_offset, data);
     gl_Position = vec4(flipped_position(norm_position(point_position, config.screen_size)), 0.f, 1.f);
     frag_color = data.color;
+    opacity = data.opacity;
 }

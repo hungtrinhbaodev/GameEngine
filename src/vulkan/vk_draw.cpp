@@ -919,6 +919,7 @@ namespace Vulkan {
 		Model_3D_Description description{};
 		description.draw_index = 0;
 		description.is_visible = true;
+		description.opacity = 1.f;
 		description.rotation = rotation;
 		description.position = position;
 		description.scale = scale;
@@ -959,6 +960,7 @@ namespace Vulkan {
 		Label_2D_Description description{};
 		description.draw_index = 0;
 		description.is_visible = true;
+		description.opacity = 1.f;
 		description.rotation = rotation;
 		description.position = position;
 		description.anchor = anchor_point;
@@ -997,6 +999,7 @@ namespace Vulkan {
 		Texture_2D_Description description{};
 		description.draw_index = 0;
 		description.is_visible = true;
+		description.opacity = 1.f;
 		description.rotation = rotation;
 		description.position = position;
 		description.anchor = anchor_point;
@@ -1034,6 +1037,7 @@ namespace Vulkan {
 		Rectangle_2D_Description description{};
 		description.draw_index = 0;
 		description.is_visible = true;
+		description.opacity = 1.f;
 		description.rotation = rotation;
 		description.position = position;
 		description.anchor = anchor_point;
@@ -1059,6 +1063,7 @@ namespace Vulkan {
 		Triangle_2D_Description description{};
 		description.draw_index = 0;
 		description.is_visible = true;
+		description.opacity = 1.f;
 		description.first = first_position;
 		description.second = second_position;
 		description.third = third_position;

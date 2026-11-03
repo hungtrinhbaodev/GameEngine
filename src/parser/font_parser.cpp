@@ -277,7 +277,7 @@ namespace Parser {
 		font.max_font_size = MAX_FONT_SIZE;
 		font.center_font_size = MAX_FONT_SIZE / 2;
 		font.min_font_size = MIN_FONT_SIZE;
-		font.max_stroke_size = GLYPH_PADDING * 0.8;
+		font.max_stroke_size = GLYPH_PADDING * 0.4;
 		font.sfd_padding = GLYPH_PADDING;
 		int ascent = 0, descent = 0, line_gap = 0;
 		stbtt_GetFontVMetrics(&font_info, &ascent, &descent, &line_gap);

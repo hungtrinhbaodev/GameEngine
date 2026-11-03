@@ -22,7 +22,7 @@ namespace Vulkan {
 			glm::vec2 first{0.f, 0.f};		// 8/8
 			glm::vec2 second{0.f, 0.f};		// 8/8
 			glm::vec3 color{1.f, 1.f, 1.f}; // 12/16
-			float _pad = 0.f;				// 4
+			float opacity = 0.f;			// 4
 			glm::vec2 third{0.f, 0.f};		// 8/8
 			float _pad2[2];					// 8/8
 			void make(const Triangle_2D& attributes) {
@@ -30,6 +30,7 @@ namespace Vulkan {
 				second = attributes.get_second_point();
 				third = attributes.get_third_point();
 				color = attributes.get_color();
+				opacity = attributes.get_opacity();
 			}
 		};
 

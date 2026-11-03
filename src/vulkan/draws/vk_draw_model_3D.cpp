@@ -41,6 +41,7 @@ namespace Vulkan {
 			uint32_t storage_offset = 0;
 			uint32_t texture_storage_offset = 0;
 			uint32_t mesh_descriptor_offset = 0;
+			uint32_t storage_extra_offset = 0;
 			friend std::ostream& operator<<(std::ostream& os, const Instance_Data& instance) {
 				os << "{Model_3D::Instance_Data: storage_offset: " << instance.storage_offset
 				   << ", mesh_descriptor_offset: " << instance.mesh_descriptor_offset
@@ -55,6 +56,11 @@ namespace Vulkan {
 				os << "{Model_3D::Storage_Data: transform: " << instance.transform << "}";
 				return os;
 			}
+		};
+
+		struct Storage_Extra_Data {
+			glm::vec3 color{};
+			float opacity = 0;
 		};
 
 		struct Texture_Storage_Data {
@@ -289,6 +295,7 @@ namespace Vulkan {
 			uint32_t mesh_transforms_storage_id = ::Const::MAX_UINT32;
 			uint32_t mesh_descriptors_storage_id = ::Const::MAX_UINT32;
 			uint32_t storage_id = ::Const::MAX_UINT32;
+			uint32_t storage_extra_id = ::Const::MAX_UINT32;
 
 			std::array<Model_Track_Animation_Data, Const::MAX_TRACK_MODEL_ANIMATION> animations;
 			Sparse_Set<std::vector<glm::mat4>> skins_indices_to_skins_transforms;
@@ -307,6 +314,7 @@ namespace Vulkan {
 				ssbo.remove_data(mesh_transforms_storage_id);
 				ssbo.remove_data(mesh_descriptors_storage_id);
 				ssbo.remove_data(storage_id);
+				ssbo.remove_data(storage_extra_id);
 			}
 
 			void clear(SSBO_Buffer& ssbo) {
@@ -324,6 +332,7 @@ namespace Vulkan {
 				mesh_transforms_storage_id = ::Const::MAX_UINT32;
 				mesh_descriptors_storage_id = ::Const::MAX_UINT32;
 				storage_id = ::Const::MAX_UINT32;
+				storage_extra_id = ::Const::MAX_UINT32;
 
 				model_id = ::Const::MAX_UINT32;
 				scene_index = -1;
@@ -523,6 +532,11 @@ namespace Vulkan {
 				}
 			}
 
+			void update_extra_storage_data(const Model_3D& attributes, SSBO_Buffer& ssbo) const {
+				Storage_Extra_Data extra_storage_data{attributes.get_color(), attributes.get_opacity()};
+				ssbo.update_data(storage_extra_id, &extra_storage_data);
+			}
+
 			void update_model_data(
 				std::vector<Draw_Instance_Information>& draw_instances, const Model_3D& attributes, SSBO_Buffer& ssbo
 			) {
@@ -544,6 +558,7 @@ namespace Vulkan {
 				update_using_skin_storage(
 					is_playing_some_animation() || !snapshoot.blending_is_finish(::Utils::now()), ssbo
 				);
+				update_extra_storage_data(attributes, ssbo);
 				glm::mat4 instance_transform = attributes.get_transform();
 				ssbo.update_data(storage_id, &instance_transform);
 			}
@@ -662,6 +677,13 @@ namespace Vulkan {
 				}
 				Buffer_Range mesh_descriptors_storage_range = ssbo.view_slot(mesh_descriptors_storage_id);
 				/**
+				 * Setup extra storage data for model.
+				 */
+				Storage_Extra_Data extra_storage_data{attributes.get_color(), attributes.get_opacity()};
+				storage_extra_id =
+					ssbo.upload_data(&extra_storage_data, sizeof(Storage_Extra_Data), sizeof(Storage_Extra_Data));
+				Buffer_Range extra_storage_range = ssbo.view_slot(storage_extra_id);
+				/**
 				 * Setup to each primitive of each mesh to produce instances data.
 				 */
 				Sparse_Set<std::vector<Instance_Data>> primitive_indices_to_instances{};
@@ -676,7 +698,8 @@ namespace Vulkan {
 						Instance_Data instance_data{
 							storage_range.offset_as<glm::mat4>(),
 							texture_storage_range.offset_as<Texture_Storage_Data>(),
-							mesh_descriptors_storage_range.offset_as<Mesh_Descriptor_Storage_Data>() + i
+							mesh_descriptors_storage_range.offset_as<Mesh_Descriptor_Storage_Data>() + i,
+							extra_storage_range.offset_as<Storage_Extra_Data>()
 						};
 						if (!primitive_indices_to_instances.has((uint32_t)primitive_index)) {
 							primitive_indices_to_instances.insert((uint32_t)primitive_index, {});
@@ -758,7 +781,8 @@ namespace Vulkan {
 			vertex_builder.add_binding_description(1, sizeof(Instance_Data), VK_VERTEX_INPUT_RATE_INSTANCE)
 				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_offset))
 				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, texture_storage_offset))
-				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, mesh_descriptor_offset));
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, mesh_descriptor_offset))
+				.add_attribute_description(1, VK_FORMAT_R32_UINT, offsetof(Instance_Data, storage_extra_offset));
 
 			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::STORAGE_BUFFER));
 			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::IMAGE_SAMPLER));

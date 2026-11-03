@@ -11,6 +11,8 @@ namespace Vulkan {
 		handle = i_handle;
 		draw_index = description.draw_index;
 		visible = description.is_visible;
+		opacity = std::max(std::min(description.opacity, 1.f), 0.f);
+		color = description.color;
 	}
 
 	Draw_Atributes::~Draw_Atributes() {}
@@ -37,6 +39,19 @@ namespace Vulkan {
 		draw_index = i_draw_index;
 	}
 
+	void Draw_Atributes::set_opacity(float i_opacity) {
+		assert_handle();
+		i_opacity = std::max(std::min(i_opacity, 1.f), 0.f);
+		set_dirty(opacity != i_opacity);
+		opacity = i_opacity;
+	}
+
+	void Draw_Atributes::set_color(const glm::vec3& i_color) {
+		assert_handle();
+		set_dirty(color != i_color);
+		color = i_color;
+	}
+
 	bool Draw_Atributes::is_visible() const {
 		assert_handle();
 		return visible;
@@ -47,8 +62,18 @@ namespace Vulkan {
 		return draw_index;
 	}
 
+	float Draw_Atributes::get_opacity() const {
+		assert_handle();
+		return opacity;
+	}
+
+	glm::vec3 Draw_Atributes::get_color() const {
+		assert_handle();
+		return color;
+	}
+
 	Draw_Attributes_Description Draw_Atributes::get_description() const {
-		return {draw_index, visible};
+		return {draw_index, visible, opacity, color};
 	}
 
 	Model_3D::Model_3D() {}
@@ -288,7 +313,6 @@ namespace Vulkan {
 		position = description.position;
 		rotation = description.rotation;
 		anchor = description.anchor;
-		color = description.color;
 	}
 
 	Draw_2D::~Draw_2D() {}
@@ -311,12 +335,6 @@ namespace Vulkan {
 		anchor = i_anchor;
 	}
 
-	void Draw_2D::set_color(const glm::vec3& i_color) {
-		assert_handle();
-		set_dirty(color != i_color);
-		color = i_color;
-	}
-
 	glm::vec2 Draw_2D::get_position() const {
 		assert_handle();
 		return position;
@@ -332,18 +350,12 @@ namespace Vulkan {
 		return anchor;
 	}
 
-	glm::vec3 Draw_2D::get_color() const {
-		assert_handle();
-		return color;
-	}
-
 	Draw_2D_Attributes_Description Draw_2D::get_description() const {
 		Draw_2D_Attributes_Description description{};
 		static_cast<Draw_Attributes_Description&>(description) = Draw_Atributes::get_description();
 		description.position = position;
 		description.rotation = rotation;
 		description.anchor = anchor;
-		description.color = color;
 		return description;
 	}
 
@@ -539,6 +551,9 @@ namespace Vulkan {
 		: Draw_2D(handle, description) {
 		width = description.width;
 		height = description.height;
+		border_width = description.border_width;
+		border_radius = description.border_radius;
+		border_color = description.border_color;
 	}
 
 	Rectangle_2D::~Rectangle_2D() {}
@@ -609,7 +624,6 @@ namespace Vulkan {
 		first = description.first;
 		second = description.second;
 		third = description.third;
-		color = description.color;
 	}
 
 	Triangle_2D::~Triangle_2D() {}
@@ -632,12 +646,6 @@ namespace Vulkan {
 		third = i_third;
 	}
 
-	void Triangle_2D::set_color(const glm::vec3& i_color) {
-		assert_handle();
-		set_dirty(color != i_color);
-		color = i_color;
-	}
-
 	glm::vec2 Triangle_2D::get_first_point() const {
 		assert_handle();
 		return first;
@@ -653,13 +661,8 @@ namespace Vulkan {
 		return third;
 	}
 
-	glm::vec3 Triangle_2D::get_color() const {
-		assert_handle();
-		return color;
-	}
-
 	Triangle_2D_Description Triangle_2D::get_description() const {
-		return {Draw_Atributes::get_description(), first, second, third, color};
+		return {Draw_Atributes::get_description(), first, second, third};
 	}
 
 } // namespace Vulkan

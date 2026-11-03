@@ -200,14 +200,18 @@ bool random_visible() {
 void gen_label() {
 	Vulkan::Label_2D_Description label_info{};
 	label_info.text = random_item(label_texts);
-	label_info.font_size = Math::random_int(12, 32);
 	label_info.stroke_color = {0.98f, 0.2f, 0.1f};
+	label_info.font_size = Math::random_int(12, 32);
 	label_info.stroke_size = Math::random_float(0.f, 4.f);
 	label_info.position = random_position_2D();
 	label_info.color = random_color();
 	label_info.align = Math::random_int(0, 2);
+	label_info.opacity = Math::random_float(0.5f, 1.f);
 	labels.push_back(Vulkan::create_label(label_info));
-	Log::info("[Label test] create, number labels:", labels.size(), label_info.text);
+	Log::info(
+		"[Label test] create, number labels:", labels.size(), label_info.text, label_info.stroke_size,
+		label_info.font_size
+	);
 }
 
 void remove_label() {
@@ -241,6 +245,7 @@ void gen_texture() {
 	texture_info.path = random_item(texture_paths);
 	texture_info.position = random_position_2D();
 	texture_info.color = {1.f, 1.f, 1.f};
+	texture_info.opacity = Math::random_float(0.5f, 1.f);
 	textures.push_back(Vulkan::create_texture(texture_info));
 	Log::info("[Texture test] create, number textures:", textures.size(), texture_info.path);
 }
@@ -277,6 +282,10 @@ void gen_rectangle() {
 	rectangle_info.anchor = {0.5f, 0.5f};
 	rectangle_info.position = random_position_2D();
 	rectangle_info.color = random_color();
+	rectangle_info.border_radius = 10.f;
+	rectangle_info.border_color = {0.6f, 0.5f, 0.7f};
+	rectangle_info.border_width = 4.f;
+	rectangle_info.opacity = Math::random_float(0.5f, 1.f);
 	rectangles.push_back(Vulkan::create_rectangle(rectangle_info));
 	Log::info("[Rectangle test] create, number rectangles:", rectangles.size());
 }

@@ -8,6 +8,7 @@ layout (location = 2) in flat int bucket_index;
 layout (location = 3) in flat int slot_index;
 layout (location = 4) in flat vec3 stroke_color;
 layout (location = 5) in flat float stroke_size;
+layout (location = 6) in flat float opacity;
 
 layout (location = 0) out vec4 out_color;
 
@@ -17,10 +18,10 @@ void main() {
     clamp(smooth_width, 0.01, 0.05); 
     float alpha = smoothstep(0.5 - smooth_width, 0.5 + smooth_width, distance);
     if (stroke_size <= 0) {
-        out_color = vec4(in_color, alpha);
+        out_color = vec4(in_color, alpha * opacity);
     }
     else {
         float stroke_alpha = smoothstep((0.5 - stroke_size) - smooth_width, (0.5 - stroke_size) + smooth_width, distance);
-        out_color = mix(vec4(stroke_color, stroke_alpha) , vec4(in_color, 1.f), alpha);
+        out_color = mix(vec4(stroke_color, stroke_alpha) , vec4(in_color, 1.f), alpha * opacity);
     }
 }

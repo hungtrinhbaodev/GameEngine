@@ -51,6 +51,8 @@ namespace Vulkan {
 			int32_t slot_index = 0;				   // 4/4
 			glm::vec3 stroke_color{1.f, 1.f, 1.f}; // 12/16
 			float stroke_size = 0.f;			   // 4/4
+			float _pad[3];						   // 12/16
+			float opacity = 0.f;				   // 4/4
 			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& instance) {
 				os << "{Rectangle::Storage_Data_2: translation: " << instance.translation
 				   << ",  tex_size: " << instance.tex_size << ",  scale: " << instance.scale
@@ -106,6 +108,7 @@ namespace Vulkan {
 				storage.color = attributes.get_color();
 				storage.stroke_color = attributes.get_stroke_color();
 				storage.stroke_size = font.claim_stroke(attributes.get_font_size(), attributes.get_stroke_size());
+				storage.opacity = attributes.get_opacity();
 				return storage;
 			}
 

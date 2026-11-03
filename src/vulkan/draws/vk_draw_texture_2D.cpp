@@ -29,6 +29,8 @@ namespace Vulkan {
 			float rotation = 0.f;				// 4
 			int32_t bucket_index = 0;			// 4
 			int32_t slot_index = 0;				// 4
+			float opacity = 1.f;				// 4
+			glm::vec3 color = {1.f, 1.f, 1.f};	// 12/16
 			float _pad = 0.f;					// 4
 			void make(const Texture_2D& attributes, Texture_View texture_view) {
 				Geometry::Texture_Rect_2D texture_rect = attributes.get_texture_rect();
@@ -42,6 +44,8 @@ namespace Vulkan {
 				rect = texture_rect.to_vec4();
 				bucket_index = texture_view.bucket_index;
 				slot_index = texture_view.slot_index;
+				color = attributes.get_color();
+				opacity = attributes.get_opacity();
 			}
 			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& instance) {
 				os << "{Rectangle::Instance_Data: translation: " << instance.translation

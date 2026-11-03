@@ -14,6 +14,9 @@ struct Instance_Data{
     float rotation;
     int   bucket_index;
     int   slot_index;
+    float opacity;
+    vec3  color;
+    float pad;
 };
 
 layout(std430, set = 0, binding = 0) readonly buffer Instance_Buffer {
@@ -31,6 +34,8 @@ layout(std430, set = 0, binding = 1) readonly buffer Config_2D_Data_Buffer {
 layout (location = 0) out vec2 frag_tex_coord;
 layout (location = 1) out int bucket_index;
 layout (location = 2) out int slot_index;
+layout (location = 3) out vec3 frag_color;
+layout (location = 4) out float opacity;
 
 vec2 norm_position(vec2 position, vec2 screen_size) {
     return vec2(position.x / screen_size.x, position.y / screen_size.y);
@@ -76,4 +81,6 @@ void main() {
     frag_tex_coord = vec2(mapped_tex_coord.x, 1.f - mapped_tex_coord.y);
     bucket_index = data.bucket_index;
     slot_index = data.slot_index;
+    opacity = data.opacity;
+    frag_color = data.color;
 }

@@ -6,6 +6,8 @@ layout (location = 1) in vec2 in_tex_coord;
 layout (location = 2) in vec3 frag_normal;
 layout (location = 3) in flat int bucket_index;
 layout (location = 4) in flat int slot_index;
+layout (location = 5) in flat vec3 frag_color;
+layout (location = 6) in flat float opacity;
 
 layout (location = 0) out vec4 out_color;
 
@@ -17,5 +19,5 @@ void main() {
     vec3 normal = normalize(frag_normal);
     float brightness = max(dot(normal, LIGHT_DIR), 0.f);
     vec3 color = AMBIENT + LIGHT_COLOR * brightness;
-    out_color = vec4(color, 1.f) * texture(tex_sampler, in_tex_coord);
+    out_color = vec4(color * frag_color, opacity) * texture(tex_sampler, in_tex_coord);
 }

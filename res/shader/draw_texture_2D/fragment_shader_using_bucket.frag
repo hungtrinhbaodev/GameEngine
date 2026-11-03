@@ -12,6 +12,8 @@ layout (set = 2, binding = 6) uniform sampler2DArray bucket_tex_sampler_6;
 layout (location = 0) in vec2 in_tex_coord;
 layout (location = 1) in flat int bucket_index;
 layout (location = 2) in flat int slot_index;
+layout (location = 3) in flat vec3 frag_color;
+layout (location = 4) in flat float opacity;
 
 layout (location = 0) out vec4 out_color;
 
@@ -43,9 +45,9 @@ vec4 get_bucket_sampler(int bucket_index, int slot_index, vec2 in_tex_coord) {
 
 void main() {
     if (bucket_index < 0) {
-        out_color = texture(tex_sampler, in_tex_coord);
+        out_color = texture(tex_sampler, in_tex_coord) * vec4(frag_color, opacity);
     }
     else {
-        out_color = get_bucket_sampler(bucket_index, slot_index, in_tex_coord);
+        out_color = get_bucket_sampler(bucket_index, slot_index, in_tex_coord) * vec4(frag_color, opacity);
     }
 }

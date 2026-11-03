@@ -13,7 +13,7 @@ struct Instance_Data {
     float border_radius;
     float border_width;
     vec3  border_color;
-    float pad;
+    float opacity;
 };
 
 layout(std430, set = 0, binding = 0) readonly buffer Instance_Buffer {
@@ -34,6 +34,7 @@ layout (location = 2) out vec2 half_size;
 layout (location = 3) out float border_width;
 layout (location = 4) out float border_radius;
 layout (location = 5) out vec3 border_color;
+layout (location = 6) out float opacity;
 
 vec2 norm_position(vec2 position, vec2 screen_size) {
     return vec2(position.x / screen_size.x, position.y / screen_size.y);
@@ -56,9 +57,10 @@ void main() {
     vec2 rectangle_position = data.translation + rotate(data.rotation, translate_anchor);
     gl_Position = vec4(flipped_position(norm_position(rectangle_position, config.screen_size)), 0.f, 1.f);
     frag_color = data.instance_color;
-    local_pos = ((in_position - data.anchor) - 0.5) * data.size;
+    local_pos = (in_position - 0.5f) * data.size;
     half_size = data.size * 0.5;
     border_radius = data.border_radius;
+    border_width = data.border_width;
     border_color = data.border_color;
-    border_width = data.border_radius;
+    opacity = data.opacity;
 }

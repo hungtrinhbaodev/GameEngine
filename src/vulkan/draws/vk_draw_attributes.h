@@ -13,6 +13,8 @@ namespace Vulkan {
 	struct Draw_Attributes_Description {
 		uint32_t draw_index = 0;
 		bool is_visible = true;
+		float opacity = 1.f;
+		glm::vec3 color{1.f, 1.f, 1.f};
 	};
 
 	class Draw_Atributes {
@@ -20,6 +22,8 @@ namespace Vulkan {
 		Handle handle;
 		uint32_t draw_index = 0;
 		bool visible = true;
+		float opacity = 1.f;
+		glm::vec3 color{1.f, 1.f, 1.f};
 
 	  protected:
 		void assert_handle() const;
@@ -31,9 +35,13 @@ namespace Vulkan {
 		~Draw_Atributes();
 		void set_visible(bool visible);
 		void set_draw_index(uint32_t draw_index);
+		void set_opacity(float opacity);
+		void set_color(const glm::vec3& color);
 
 		bool is_visible() const;
 		uint32_t get_draw_index() const;
+		float get_opacity() const;
+		glm::vec3 get_color() const;
 		Draw_Attributes_Description get_description() const;
 	};
 
@@ -130,7 +138,6 @@ namespace Vulkan {
 		 */
 		float rotation = 0.f;
 		glm::vec2 anchor{0.f};
-		glm::vec3 color{1.f};
 	};
 
 	class Draw_2D : public Draw_Atributes {
@@ -138,7 +145,6 @@ namespace Vulkan {
 		glm::vec2 position{0.f};
 		float rotation = 0.f;
 		glm::vec2 anchor{0.f};
-		glm::vec3 color{1.f};
 
 	  public:
 		Draw_2D();
@@ -151,12 +157,10 @@ namespace Vulkan {
 		 */
 		void set_rotation(float rotation);
 		void set_anchor(const glm::vec2& anchor);
-		void set_color(const glm::vec3& color);
 
 		glm::vec2 get_position() const;
 		float get_rotation() const;
 		glm::vec2 get_anchor() const;
-		glm::vec3 get_color() const;
 		Draw_2D_Attributes_Description get_description() const;
 	};
 
@@ -294,7 +298,6 @@ namespace Vulkan {
 		glm::vec2 first{0.f, 0.f};
 		glm::vec2 second{0.f, 0.f};
 		glm::vec2 third{0.f, 0.f};
-		glm::vec3 color{1.f, 1.f, 1.f};
 	};
 
 	class Triangle_2D : public Draw_Atributes {
@@ -302,7 +305,6 @@ namespace Vulkan {
 		glm::vec2 first{0.f, 0.f};
 		glm::vec2 second{0.f, 0.f};
 		glm::vec2 third{0.f, 0.f};
-		glm::vec3 color{1.f, 1.f, 1.f};
 
 	  public:
 		Triangle_2D();
@@ -312,12 +314,10 @@ namespace Vulkan {
 		void set_first_point(const glm::vec2& first);
 		void set_second_point(const glm::vec2& second);
 		void set_third_point(const glm::vec2& third);
-		void set_color(const glm::vec3& color);
 
 		glm::vec2 get_first_point() const;
 		glm::vec2 get_second_point() const;
 		glm::vec2 get_third_point() const;
-		glm::vec3 get_color() const;
 		Triangle_2D_Description get_description() const;
 	};
 

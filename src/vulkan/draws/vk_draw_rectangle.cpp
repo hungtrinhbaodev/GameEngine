@@ -31,7 +31,7 @@ namespace Vulkan {
 			float border_radius = 0.f;			   // 4
 			float border_width = 0.f;			   // 4
 			glm::vec3 border_color{1.f, 1.f, 1.f}; // 12
-			float _pad = 0.f;					   // 4
+			float opacity = 0.f;				   // 4
 			void make(const Rectangle_2D& attributes) {
 				translation = attributes.get_position();
 				size = glm::vec2(attributes.get_width(), attributes.get_height());
@@ -41,11 +41,14 @@ namespace Vulkan {
 				border_radius = attributes.get_border_radius();
 				border_width = attributes.get_border_width();
 				border_color = attributes.get_border_color();
+				opacity = attributes.get_opacity();
 			}
 			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& storage) {
 				os << "{Rectangle::Storage_Data: translation: " << storage.translation << ",  size: " << storage.size
 				   << ", anchor: " << storage.anchor << ", color: " << storage.color
-				   << ", rotation: " << storage.rotation << "}";
+				   << ", rotation: " << storage.rotation << ", border_radius: " << storage.border_radius
+				   << ", border_width: " << storage.border_width << ", border_color: " << storage.border_color
+				   << ", opacity: " << storage.opacity << "}";
 				return os;
 			}
 		};

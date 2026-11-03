@@ -16,6 +16,7 @@ layout (location = 6) in vec4 in_weights;
 layout (location = 7) in uint in_storage_offset;
 layout (location = 8) in uint in_texture_offset;
 layout (location = 9) in uint in_mesh_descriptor_offset;
+layout (location = 10) in uint in_extra_storage_offset;
 
 layout(std430, set = 0, binding = 0) readonly buffer Mat4_Buffer {
     mat4 data[];
@@ -41,16 +42,28 @@ layout(std430, set = 0, binding = 2) readonly buffer Mesh_Descriptor_Buffer {
     Mesh_Descriptor_Data data[];
 } mesh_descriptor_buffer;
 
+struct Extra_Storage_Data {
+    vec3 color;
+    float opacity;
+};
+
+layout(std430, set = 0, binding = 3) readonly buffer Extra_Storage_Buffer {
+    Extra_Storage_Data data[];
+} extra_storage_buffer;
+
 layout (location = 0) out vec3 out_color;
 layout (location = 1) out vec2 out_tex_coord;
 layout (location = 2) out vec3 frag_normal;
 layout (location = 3) out int bucket_index;
 layout (location = 4) out int slot_index;
+layout (location = 5) out vec3 frag_color;
+layout (location = 6) out float opacity;
 
 void main() {
     mat4 model = mat4_buffer.data[in_storage_offset];
     Mesh_Descriptor_Data mesh_descriptor = mesh_descriptor_buffer.data[in_mesh_descriptor_offset];
     Texture_Data texture = texture_buffer.data[in_texture_offset];
+    Extra_Storage_Data extra_data =  extra_storage_buffer.data[in_extra_storage_offset];
     uint skins_offset = mesh_descriptor.skins_offset;
     uint mesh_transform_offset = mesh_descriptor.mesh_transform_offset;
     mat4 local;
@@ -72,5 +85,6 @@ void main() {
     out_tex_coord = in_tex_coord * texture.tex_scale;
     bucket_index = texture.bucket_index;
     slot_index = texture.slot_index;
+    frag_color = extra_data.color;
+    opacity = extra_data.opacity;
 }
-
