@@ -2,13 +2,33 @@
 #include <vulkan/draws/vk_draw_attributes.h>
 #include <vulkan/draws/vk_draw_font_2D.h>
 #include <vulkan/draws/vk_draw_model_3D.h>
+#include <vulkan/draws/vk_draw_texture_2D.h>
 #include <vulkan/vk_draw.h>
 
 namespace Vulkan {
+
+	Base_Attributes::Base_Attributes() {}
+
+	Base_Attributes::Base_Attributes(const Handle& i_handle) {
+		handle = i_handle;
+	}
+
+	Base_Attributes::~Base_Attributes() {}
+
+	void Base_Attributes::assert_handle() const {
+		assert_draw_handle(handle);
+	}
+
+	void Base_Attributes::set_dirty(bool dirty) const {
+		if (dirty) {
+			set_draw_dirty(handle);
+		}
+	}
+
 	Draw_Atributes::Draw_Atributes() {}
 
-	Draw_Atributes::Draw_Atributes(const Handle& i_handle, const Draw_Attributes_Description& description) {
-		handle = i_handle;
+	Draw_Atributes::Draw_Atributes(const Handle& handle, const Draw_Attributes_Description& description)
+		: Base_Attributes(handle) {
 		draw_index = description.draw_index;
 		visible = description.is_visible;
 		opacity = std::max(std::min(description.opacity, 1.f), 0.f);
@@ -16,16 +36,6 @@ namespace Vulkan {
 	}
 
 	Draw_Atributes::~Draw_Atributes() {}
-
-	void Draw_Atributes::assert_handle() const {
-		assert_draw_handle(handle);
-	}
-
-	void Draw_Atributes::set_dirty(bool dirty) const {
-		if (dirty) {
-			set_draw_dirty(handle);
-		}
-	}
 
 	void Draw_Atributes::set_visible(bool i_visible) {
 		assert_handle();
@@ -52,6 +62,27 @@ namespace Vulkan {
 		color = i_color;
 	}
 
+	void Draw_Atributes::set_number_clipping(uint32_t i_number_clipping) {
+		assert_handle();
+		set_dirty(number_clipping != i_number_clipping);
+		number_clipping = i_number_clipping;
+	}
+
+	void Draw_Atributes::set_clipping_ancestors(
+		const std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>& i_clipping_ancestors
+	) {
+		assert_handle();
+		bool is_dirty = false;
+		for (int i = 0; i < ::Const::MAX_DEPTH_CLIPPING; i++) {
+			if (clipping_ancestors[i].id() != i_clipping_ancestors[i].id()) {
+				is_dirty = true;
+				break;
+			}
+		}
+		set_dirty(is_dirty);
+		clipping_ancestors = i_clipping_ancestors;
+	}
+
 	bool Draw_Atributes::is_visible() const {
 		assert_handle();
 		return visible;
@@ -70,6 +101,16 @@ namespace Vulkan {
 	glm::vec3 Draw_Atributes::get_color() const {
 		assert_handle();
 		return color;
+	}
+
+	uint32_t Draw_Atributes::get_number_clipping() const {
+		assert_handle();
+		return number_clipping;
+	}
+
+	const std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>& Draw_Atributes::get_clipping_ancestors() const {
+		assert_handle();
+		return clipping_ancestors;
 	}
 
 	Draw_Attributes_Description Draw_Atributes::get_description() const {
@@ -383,11 +424,11 @@ namespace Vulkan {
 		return {Draw_2D::get_description(), scale};
 	}
 
-	Label_2D::Label_2D() {
-		update_text_size();
+	Font_2D::Font_2D() {
+		reload_text_size();
 	}
 
-	Label_2D::Label_2D(const Handle& handle, const Label_2D_Description& description)
+	Font_2D::Font_2D(const Handle& handle, const Label_2D_Description& description)
 		: Draw_2D_Scale_Aable(handle, description) {
 		path = description.path;
 		text = description.text;
@@ -397,109 +438,107 @@ namespace Vulkan {
 		stroke_size = description.stroke_size;
 	}
 
-	Label_2D::~Label_2D() {}
+	Font_2D::~Font_2D() {}
 
-	void Label_2D::update_text_size() {
-		auto text_helper = Draw_Font_2D::gen_text_info_from(path, text, align, font_size, stroke_size);
-		width = text_helper.width;
-		height = text_helper.height;
-		text_dirty = false;
+	void Font_2D::reload_text_size() {
+		if (text_dirty) {
+			auto text_helper = Draw_Font_2D::gen_text_info_from(path, text, align, font_size, stroke_size);
+			width = text_helper.width;
+			height = text_helper.height;
+			text_dirty = false;
+		}
 	}
 
-	void Label_2D::set_font_path(const std::string& i_path) {
+	void Font_2D::set_font_path(const std::string& i_path) {
 		assert_handle();
 		set_dirty(path != i_path);
-		text_dirty = path != i_path;
+		text_dirty |= (path != i_path);
 		path = i_path;
 	}
 
-	void Label_2D::set_text(const std::string& i_text) {
+	void Font_2D::set_text(const std::string& i_text) {
 		assert_handle();
 		set_dirty(text != i_text);
-		text_dirty = text != i_text;
+		text_dirty |= (text != i_text);
 		text = i_text;
 	}
 
-	void Label_2D::set_font_size(int i_font_size) {
+	void Font_2D::set_font_size(int i_font_size) {
 		assert_handle();
 		set_dirty(font_size != i_font_size);
-		text_dirty = font_size != i_font_size;
+		text_dirty |= (font_size != i_font_size);
 		font_size = i_font_size;
 	}
 
-	void Label_2D::set_align(int i_align) {
+	void Font_2D::set_align(int i_align) {
 		assert_handle();
 		set_dirty(align != i_align);
 		align = i_align;
 	}
 
-	void Label_2D::set_width(float i_width) {
+	void Font_2D::set_width(float i_width) {
 		width = i_width;
 	}
 
-	void Label_2D::set_height(float i_height) {
+	void Font_2D::set_height(float i_height) {
 		height = i_height;
 	}
 
-	void Label_2D::set_stroke_size(float i_size) {
+	void Font_2D::set_stroke_size(float i_size) {
 		assert_handle();
 		set_dirty(stroke_size != i_size);
 		stroke_size = i_size;
 	}
 
-	void Label_2D::set_stroke_color(const glm::vec3& i_color) {
+	void Font_2D::set_stroke_color(const glm::vec3& i_color) {
 		assert_handle();
 		set_dirty(stroke_color != i_color);
 		stroke_color = i_color;
 	}
 
-	std::string Label_2D::get_font_path() const {
+	std::string Font_2D::get_font_path() const {
 		assert_handle();
 		return path;
 	}
 
-	std::string Label_2D::get_text() const {
+	std::string Font_2D::get_text() const {
 		assert_handle();
 		return text;
 	}
 
-	int Label_2D::get_font_size() const {
+	int Font_2D::get_font_size() const {
 		assert_handle();
 		return font_size;
 	}
 
-	int Label_2D::get_align() const {
+	int Font_2D::get_align() const {
 		assert_handle();
 		return align;
 	}
 
-	float Label_2D::get_stroke_size() const {
+	float Font_2D::get_stroke_size() const {
 		assert_handle();
 		return stroke_size;
 	}
 
-	glm::vec3 Label_2D::get_stroke_color() const {
+	glm::vec3 Font_2D::get_stroke_color() const {
 		assert_handle();
 		return stroke_color;
 	}
 
-	float Label_2D::get_width() {
+	float Font_2D::get_width() {
 		assert_handle();
-		if (text_dirty) {
-			update_text_size();
-		}
+		reload_text_size();
 		return width;
 	}
 
-	float Label_2D::get_height() {
+	float Font_2D::get_height() {
 		assert_handle();
-		if (text_dirty) {
-			update_text_size();
-		}
+		reload_text_size();
 		return height;
 	};
 
-	Label_2D_Description Label_2D::get_description() const {
+	Label_2D_Description Font_2D::get_description() const {
 		Label_2D_Description description{};
 		static_cast<Draw_2D_Attributes_Description&>(description) = Draw_2D::get_description();
 		description.path = path;
@@ -519,16 +558,39 @@ namespace Vulkan {
 
 	Texture_2D::~Texture_2D() {}
 
+	void Texture_2D::update_texture_size() {
+		if (texture_dirty) {
+			auto texture_helper = Draw_Texture_2D::gen_texture_info_from(path);
+			width = texture_helper.width * tex_rect.ratio_width;
+			height = texture_helper.height * tex_rect.ratio_height;
+			texture_dirty = true;
+		}
+	}
+
 	void Texture_2D::set_texture_path(const std::string& i_path) {
 		assert_handle();
 		set_dirty(path != i_path);
+		texture_dirty |= (path != i_path);
 		path = i_path;
 	}
 
 	void Texture_2D::set_texture_rect(const Geometry::Texture_Rect_2D& i_tex_rect) {
 		assert_handle();
 		set_dirty(tex_rect != i_tex_rect);
+		texture_dirty |= (tex_rect != i_tex_rect);
 		tex_rect = i_tex_rect;
+	}
+
+	float Texture_2D::get_width() {
+		assert_handle();
+		update_texture_size();
+		return width;
+	}
+
+	float Texture_2D::get_height() {
+		assert_handle();
+		update_texture_size();
+		return height;
 	}
 
 	std::string Texture_2D::get_texture_path() const {
@@ -663,6 +725,100 @@ namespace Vulkan {
 
 	Triangle_2D_Description Triangle_2D::get_description() const {
 		return {Draw_Atributes::get_description(), first, second, third};
+	}
+
+	Clipping_2D::Clipping_2D() {}
+
+	Clipping_2D::Clipping_2D(const Handle& handle, const Clipping_Description& description)
+		: Base_Attributes(handle) {
+		size = description.size;
+		border_size = description.border_size;
+		world_position = description.world_position;
+		world_scale = description.world_scale;
+		world_rotation = description.world_rotation;
+	}
+
+	Clipping_2D::~Clipping_2D() {}
+
+	void Clipping_2D::set_content_size(const glm::vec2& i_size) {
+		assert_handle();
+		set_dirty(size != i_size);
+		size = i_size;
+	}
+
+	void Clipping_2D::set_border_radius(float border_radius) {
+		assert_handle();
+		set_dirty(border_size != border_radius);
+		border_size = border_radius;
+	}
+
+	void Clipping_2D::set_world_position(const glm::vec2& i_world_position) {
+		assert_handle();
+		set_dirty(world_position != i_world_position);
+		world_position = i_world_position;
+	}
+
+	void Clipping_2D::set_world_scale(const glm::vec2& i_world_scale) {
+		assert_handle();
+		set_dirty(world_scale != i_world_scale);
+		world_scale = i_world_scale;
+	}
+
+	void Clipping_2D::set_world_rotation(float i_rotation) {
+		assert_handle();
+		set_dirty(world_rotation != i_rotation);
+		world_rotation = i_rotation;
+	}
+
+	void Clipping_2D::set_anchor(const glm::vec2& i_anchor) {
+		assert_handle();
+		set_dirty(anchor != i_anchor);
+		anchor = i_anchor;
+	}
+
+	void Clipping_2D::set_border_width(float i_border_width) {
+		assert_handle();
+		set_dirty(border_width != i_border_width);
+		border_width = i_border_width;
+	}
+
+	glm::vec2 Clipping_2D::get_content_size() const {
+		assert_handle();
+		return size;
+	}
+
+	float Clipping_2D::get_border_radius() const {
+		assert_handle();
+		return border_size;
+	}
+
+	glm::vec2 Clipping_2D::get_world_position() const {
+		assert_handle();
+		return world_position;
+	}
+
+	glm::vec2 Clipping_2D::get_world_scale() const {
+		assert_handle();
+		return world_scale;
+	}
+
+	float Clipping_2D::get_world_rotation() const {
+		assert_handle();
+		return world_rotation;
+	}
+
+	glm::vec2 Clipping_2D::get_anchor() const {
+		assert_handle();
+		return anchor;
+	}
+
+	float Clipping_2D::get_border_width() const {
+		assert_handle();
+		return border_width;
+	}
+
+	Clipping_Description Clipping_2D::get_description() const {
+		return {size, border_size, border_width, world_position, world_scale, anchor, world_rotation};
 	}
 
 } // namespace Vulkan

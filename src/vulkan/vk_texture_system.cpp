@@ -11,7 +11,7 @@
 
 namespace Vulkan {
 
-	const std::string Texture_System::TEXTURE_DEFAULT_PATH = "Texture_System::TEXTURE_DEFAULT_PATH/**.png";
+	const std::string Texture_System::TEXTURE_DEFAULT_PATH = "Texture_System::TEXTURE_DEFAULT_PATH/**";
 
 	void Texture_System::init(
 		std::vector<uint32_t> bucket_sizes, std::vector<uint32_t> number_texture_per_buckets, VkDevice device,
@@ -135,6 +135,7 @@ namespace Vulkan {
 	uint32_t Texture_System::load_texture(
 		std::string file, void* pixels, int width, int height, int channels, bool use_bucket
 	) {
+
 		// this texture was loaded success!
 		if (files_to_ids.find(file) != files_to_ids.end()) {
 			return files_to_ids[file];
@@ -235,7 +236,7 @@ namespace Vulkan {
 		// load texture from disk
 		int width = 0, height = 0;
 		stbi_uc* pixels = nullptr;
-		pixels = stbi_load(file.data(), &width, &height, nullptr, STBI_rgb_alpha);
+		pixels = stbi_load((::Utils::get_root_path() + file).data(), &width, &height, nullptr, STBI_rgb_alpha);
 		if (!pixels) {
 			throw std::runtime_error("Vulkan fail to load texture from file: " + file + "!");
 		}
@@ -255,6 +256,10 @@ namespace Vulkan {
 
 	uint32_t Texture_System::get_default_texture_id() {
 		return default_texture_id;
+	}
+
+	const std::string& Texture_System::get_default_texture_path() {
+		return TEXTURE_DEFAULT_PATH;
 	}
 
 	void Texture_System::remove_texture(uint32_t id) {

@@ -73,6 +73,7 @@ namespace Vulkan {
 			DRAW_TRIANGLE_2D,
 			DRAW_TEXTURE_2D,
 			DRAW_FONT_2D,
+			DRAW_CLIPPING_2D,
 			UNDEFINED
 		};
 

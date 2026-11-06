@@ -17,6 +17,8 @@ struct Instance_Data{
     float opacity;
     vec3  color;
     float pad;
+    uvec3 clipping_offsets;
+    uint  number_clipping;
 };
 
 layout(std430, set = 0, binding = 0) readonly buffer Instance_Buffer {
@@ -36,6 +38,13 @@ layout (location = 1) out int bucket_index;
 layout (location = 2) out int slot_index;
 layout (location = 3) out vec3 frag_color;
 layout (location = 4) out float opacity;
+layout (location = 5) out uint number_clipping;
+layout (location = 6) out uvec3 clipping_offsets;
+layout (location = 7) out vec2 position;
+layout (location = 8) out vec2 scale;
+layout (location = 9) out float rotation;
+layout (location = 10) out vec2 local_pos;
+layout (location = 11) out vec2 half_size;
 
 vec2 norm_position(vec2 position, vec2 screen_size) {
     return vec2(position.x / screen_size.x, position.y / screen_size.y);
@@ -83,4 +92,12 @@ void main() {
     slot_index = data.slot_index;
     opacity = data.opacity;
     frag_color = data.color;
+
+    number_clipping = data.number_clipping;
+    clipping_offsets = data.clipping_offsets;
+    position = data.translation + rotate(data.rotation, (0.5f - data.anchor) * data.tex_size);
+    scale = data.scale;
+    rotation = data.rotation;
+    local_pos = (in_position - 0.5f) * data.tex_size;
+    half_size = data.tex_size * 0.5;
 }

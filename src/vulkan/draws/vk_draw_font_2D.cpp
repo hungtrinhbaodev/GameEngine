@@ -42,17 +42,18 @@ namespace Vulkan {
 		};
 
 		struct Storage_Data {
-			glm::vec2 tex_size{0.f, 0.f};		   // 8/8
-			glm::vec2 translation{0.f, 0.f};	   // 8/8
-			glm::vec3 color{1.f, 1.f, 1.f};		   // 12/16
-			float rotation = 0.f;				   // 4/4
-			glm::vec2 scale{1.f, 1.f};			   // 8/8
-			int32_t bucket_index = 0;			   // 4/4
-			int32_t slot_index = 0;				   // 4/4
-			glm::vec3 stroke_color{1.f, 1.f, 1.f}; // 12/16
-			float stroke_size = 0.f;			   // 4/4
-			float _pad[3];						   // 12/16
-			float opacity = 0.f;				   // 4/4
+			glm::vec2 tex_size{0.f, 0.f};				// 8/8
+			glm::vec2 translation{0.f, 0.f};			// 8/8
+			glm::vec3 color{1.f, 1.f, 1.f};				// 12/16
+			float rotation = 0.f;						// 4/4
+			glm::vec2 scale{1.f, 1.f};					// 8/8
+			int32_t bucket_index = 0;					// 4/4
+			int32_t slot_index = 0;						// 4/4
+			glm::vec3 stroke_color{1.f, 1.f, 1.f};		// 12/16
+			float stroke_size = 0.f;					// 4/4
+			Clipping_Ancestor_Storage clipping_storage; // 16/16
+			float _pad[3];								// 12/12
+			float opacity = 0.f;						// 4/4
 			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& instance) {
 				os << "{Rectangle::Storage_Data_2: translation: " << instance.translation
 				   << ",  tex_size: " << instance.tex_size << ",  scale: " << instance.scale
@@ -73,7 +74,7 @@ namespace Vulkan {
 			uint32_t font_id = ::Const::MAX_UINT32;
 			glm::vec2 text_anchor{0.f};
 
-			std::vector<Storage_Char_Data> make_char_storages_data(const Font& font, const Label_2D& attributes) {
+			std::vector<Storage_Char_Data> make_char_storages_data(const Font& font, const Font_2D& attributes) {
 				std::vector<Storage_Char_Data> char_storages;
 				glm::vec2 origin = -glm::vec2(width, height) * attributes.get_anchor();
 				for (int i = 0; i < lines.size(); i++) {
@@ -95,7 +96,7 @@ namespace Vulkan {
 			};
 
 			Storage_Data make_storage_data(
-				const Font& font, const Texture_View& texture_view, const Label_2D& attributes
+				const Font& font, const Texture_View& texture_view, const Font_2D& attributes
 			) {
 				Storage_Data storage{};
 				float char_scale = font.get_char_scale(attributes.get_font_size());
@@ -109,6 +110,8 @@ namespace Vulkan {
 				storage.stroke_color = attributes.get_stroke_color();
 				storage.stroke_size = font.claim_stroke(attributes.get_font_size(), attributes.get_stroke_size());
 				storage.opacity = attributes.get_opacity();
+				storage.clipping_storage =
+					make_clipping_storage_data(attributes.get_number_clipping(), attributes.get_clipping_ancestors());
 				return storage;
 			}
 
@@ -122,7 +125,7 @@ namespace Vulkan {
 			}
 
 			void update_text_data(
-				const Label_2D& attributes, SSBO_Buffer& ssbo, Static_Buffer& static_buffer,
+				const Font_2D& attributes, SSBO_Buffer& ssbo, Static_Buffer& static_buffer,
 				std::vector<Draw_Instance_Information>& draw_instances, uint32_t vertex_id
 			) {
 				uint32_t i_font_id = load_font(attributes.get_font_path());
@@ -150,7 +153,7 @@ namespace Vulkan {
 			}
 
 			void make(
-				const Label_2D& attributes, SSBO_Buffer& ssbo, Static_Buffer& static_buffer,
+				const Font_2D& attributes, SSBO_Buffer& ssbo, Static_Buffer& static_buffer,
 				std::vector<Draw_Instance_Information>& draw_instances, uint32_t vertex_id
 			) {
 				if (attributes.get_text() == "") {
@@ -340,10 +343,10 @@ namespace Vulkan {
 			height = total_height * char_scale;
 		}
 
-		Label_Helper gen_text_info_from(
+		Font_Helper gen_text_info_from(
 			std::string font_path, std::string text, int align, int font_size, float stroke_size
 		) {
-			Label_Helper text_helper{};
+			Font_Helper text_helper{};
 			uint32_t font_id = load_font(font_path);
 			const Font& font = view_font(font_id);
 			break_lines(text, text_helper.lines);
@@ -388,7 +391,7 @@ namespace Vulkan {
 
 		void init_font(
 			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
-			const Label_2D& attributes
+			const Font_2D& attributes
 		) {
 			uint32_t unique_id = unique_id_generator.gen_id();
 			Text_Data text{};
@@ -400,7 +403,7 @@ namespace Vulkan {
 
 		void update_font(
 			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
-			const Label_2D& attributes
+			const Font_2D& attributes
 		) {
 			if (!texts.has(draw_info.sub_unique_id)) {
 				return;

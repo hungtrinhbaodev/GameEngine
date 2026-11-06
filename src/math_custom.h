@@ -32,4 +32,8 @@ namespace Math {
 
 	float to_degree(float raidan);
 
+	float to_radians(float angle);
+
+	glm::vec2 rotate(float angle, glm::vec2 position);
+
 } // namespace Math

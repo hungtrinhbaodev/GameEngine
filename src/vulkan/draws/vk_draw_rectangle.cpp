@@ -23,15 +23,16 @@ namespace Vulkan {
 		};
 
 		struct Storage_Data {
-			glm::vec2 translation{0.f, 0.f};	   // 8
-			glm::vec2 size{0.f, 0.f};			   // 8
-			glm::vec3 color{1.f, 1.f, 1.f};		   // 12
-			float rotation = 0.f;				   // 4
-			glm::vec2 anchor{0.f, 0.f};			   // 8
-			float border_radius = 0.f;			   // 4
-			float border_width = 0.f;			   // 4
-			glm::vec3 border_color{1.f, 1.f, 1.f}; // 12
-			float opacity = 0.f;				   // 4
+			glm::vec2 translation{0.f, 0.f};			  // 8
+			glm::vec2 size{0.f, 0.f};					  // 8
+			glm::vec3 color{1.f, 1.f, 1.f};				  // 12
+			float rotation = 0.f;						  // 4
+			glm::vec2 anchor{0.f, 0.f};					  // 8
+			float border_radius = 0.f;					  // 4
+			float border_width = 0.f;					  // 4
+			glm::vec3 border_color{1.f, 1.f, 1.f};		  // 12
+			float opacity = 0.f;						  // 4
+			Clipping_Ancestor_Storage clipping_storage{}; // 16
 			void make(const Rectangle_2D& attributes) {
 				translation = attributes.get_position();
 				size = glm::vec2(attributes.get_width(), attributes.get_height());
@@ -42,6 +43,8 @@ namespace Vulkan {
 				border_width = attributes.get_border_width();
 				border_color = attributes.get_border_color();
 				opacity = attributes.get_opacity();
+				clipping_storage =
+					make_clipping_storage_data(attributes.get_number_clipping(), attributes.get_clipping_ancestors());
 			}
 			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& storage) {
 				os << "{Rectangle::Storage_Data: translation: " << storage.translation << ",  size: " << storage.size

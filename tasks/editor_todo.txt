@@ -70,4 +70,4 @@ Mark with [Done] when finished. Editor panels/tools are built on top of these af
 []: Save / load editor setup to JSON.
 []: Render-to-texture for 3D asset thumbnails.
 []: 9-slice image mode (only if frame art is used).
-[]: Fix model shader frag_world_pos (still clip space).
+[Done]: Fix model shader frag_world_pos (still clip space).

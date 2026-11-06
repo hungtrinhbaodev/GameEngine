@@ -6,7 +6,6 @@
 #endif
 
 #include <core.h>
-#include <engine/engine.h>
 #include <log.h>
 #include <math_custom.h>
 #include <parser/font_parser.h>
@@ -16,6 +15,7 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <engine/engine.h>
 #include <profiler.h>
 #include <vulkan/vk_draw.h>
 
@@ -36,7 +36,9 @@ std::vector<Handle> characters{};
 void gen_fox_3D() {
 	int animation_index = Math::random_int(0, 100) % fox_animations.size();
 	std::string animation_name = fox_animations[animation_index];
-	glm::vec3 position{0.f};
+	glm::vec3 position{
+		Math::random_float(-2.5f, 2.5f), Math::random_float(-2.5f, 2.5f), Math::random_float(-1.5f, 1.5f)
+	};
 	Handle fox = Vulkan::create_model("res/Fox_embedded.gltf", "", animation_name, position, {0.01f, 0.01f, 0.01f});
 	auto& fox_model = Vulkan::modify_model(fox);
 	fox_model.play_animation(0, "Run", true, 0.5f, 1.5f);
@@ -147,9 +149,13 @@ std::vector<glm::vec2> anchors_2D = {
 	{0.f, 0.f}, {0.5f, 0.5f}, {1.f, 1.f}, {0.f, 1.f}, {1.f, 0.f},
 };
 
+// std::vector<std::string> texture_paths = {
+// 	"res/texture/texture1.png", "res/texture/texture2.png", "res/texture/texture3.png",
+// 	"res/texture/texture4.png", "res/AddonIcon5.png",		"res/AddonIcon7.png",
+// };
+
 std::vector<std::string> texture_paths = {
-	"res/texture/texture1.png", "res/texture/texture2.png", "res/texture/texture3.png",
-	"res/texture/texture4.png", "res/AddonIcon5.png",		"res/AddonIcon7.png",
+	"res/AddonIcon5.png",
 };
 
 std::vector<Geometry::Texture_Rect_2D> texture_rects = {
@@ -223,7 +229,7 @@ void update_label_everything() {
 	int index = pick_index(labels);
 	if (index < 0)
 		return;
-	Vulkan::Label_2D& label = Vulkan::modify_label(labels[index]);
+	Vulkan::Font_2D& label = Vulkan::modify_label(labels[index]);
 	label.set_text(random_item(label_texts));
 	label.set_font_size(Math::random_int(10, 40));
 	label.set_align(Math::random_int(0, 2));
@@ -498,6 +504,131 @@ void build_debug_scene() {
 	);
 }
 
+std::vector<Handle> layouts;
+std::vector<Handle> nodes;
+std::vector<Handle> images;
+Handle label;
+
+void create_layout() {
+	auto node = Engine::create_node();
+	Engine::set_position(node, {200.f, 300.f});
+	nodes.push_back(node);
+
+	auto layout = Engine::create_layout();
+	Engine::set_opacity(layout, 1.f);
+	Engine::set_position(layout, {500.f, 200.f});
+	Engine::set_content_size(layout, {264.f, 157.f});
+	Engine::set_anchor(layout, {0.5f, 0.5f});
+	Engine::set_scale(layout, {1.5f, 1.5f});
+	Engine::set_layout_background_enabled(layout, true);
+	Engine::set_layout_background_color(layout, random_color());
+	Engine::set_layout_border_radius(layout, 8.f);
+	Engine::set_rotation(layout, 5.f);
+	Engine::set_layout_clipping_enabled(layout, true);
+	layouts.push_back(layout);
+
+	// auto node2 = Engine::create_node();
+	// Engine::set_position(node2, {30.f, 50.f});
+	// Engine::add_child(layout, node2);
+	// nodes.push_back(node2);
+
+	auto layout2 = Engine::create_layout();
+	Engine::set_size_percent(layout2, {0.5f, 0.5f});
+	// Engine::set_content_size(layout2, {132.f, 86.f});
+	Engine::set_anchor(layout2, {0.5f, 0.5f});
+	Engine::set_position(layout2, {0.f, 86.f});
+	Engine::set_scale(layout2, {1.5f, 1.5f});
+	Engine::set_opacity(layout, 0.55f);
+	Engine::set_rotation(layout2, 10.f);
+	Engine::set_layout_border_radius(layout2, 8.f);
+	Engine::set_layout_background_enabled(layout2, true);
+	Engine::set_layout_background_color(layout2, random_color());
+	Engine::set_opacity(layout2, 1.f);
+	Engine::set_layout_clipping_enabled(layout2, true);
+	layouts.push_back(layout2);
+
+	auto layout3 = Engine::create_layout();
+	Engine::set_content_size(layout3, {121.f, 126.f});
+	Engine::set_position(layout3, {50.f, 0.f});
+	Engine::set_anchor(layout3, {0.5f, 0.5f});
+	Engine::set_scale(layout3, {0.85f, 0.85f});
+	Engine::set_layout_background_enabled(layout3, true);
+	Engine::set_layout_background_color(layout3, random_color());
+	layouts.push_back(layout3);
+
+	auto image = Engine::create_image();
+	Engine::set_position(image, {60.f, 60.f});
+	Engine::set_anchor(image, {0.5f, 0.5f});
+	Engine::set_scale(image, {0.85f, 0.85f});
+	Engine::set_image_path(image, random_item(texture_paths));
+	Engine::add_child(layout3, image);
+
+	label = Engine::create_label();
+	Engine::set_label_font_path(label, "");
+	Engine::set_label_font_size(label, 16);
+	Engine::set_label_string(label, "Game Engine!");
+	Engine::set_color(label, random_color());
+	Engine::set_label_stroke_size(label, 2.f);
+	Engine::set_label_stroke_color(label, random_color());
+	Engine::set_scale(label, {0.65f, 0.65f});
+	Engine::set_position(label, {30.f, 50.f});
+
+	Engine::add_child(layout, layout2);
+	Engine::add_child(Engine::get_root(), node);
+	Engine::add_child(layout2, layout3);
+	Engine::add_child(node, layout);
+	Engine::add_child(layout2, label);
+
+	Engine::set_layout_border_color(layout, {0.f, 0.2f, 0.2f});
+	Engine::set_layout_border_width(layout, 3.f);
+
+	Log::info("What is my image size", Engine::get_content_size(image), Engine::get_content_size(label));
+}
+
+void update_layout(float sign = 1) {
+	if (layouts.size() <= 0)
+		return;
+	auto layout = layouts[1];
+	auto position = Engine::get_position(layout);
+	position += sign * glm::vec2{5.f, 0.f};
+	auto rotation = Engine::get_rotation(layout);
+	rotation -= sign * 2.f;
+	auto scale = Engine::get_scale(layout);
+	if (sign > 0) {
+		scale *= 1.01f;
+	} else {
+		scale /= 1.01f;
+	}
+	auto size = Engine::get_content_size(layouts[0]);
+	size += sign * 5.f;
+	float border_width = Engine::get_layout_border_width(layouts[0]);
+	Engine::set_position(layout, position);
+	Engine::set_rotation(layout, rotation);
+	Engine::set_scale(layout, scale);
+	Engine::set_content_size(layouts[0], size);
+	Engine::set_layout_border_width(layouts[0], border_width > 0 ? 0.f : 3.f);
+	if (label.is_invalid())
+		return;
+	scale = Engine::get_scale(label);
+	if (sign > 0) {
+		scale *= 1.01f;
+	} else {
+		scale /= 1.01f;
+	}
+	rotation = Engine::get_rotation(label);
+	rotation -= sign * 2.f;
+	Engine::set_scale(label, scale);
+	Engine::set_rotation(label, rotation);
+}
+
+void remove_layout() {
+	Engine::remove_child(layouts[1]);
+}
+
+void add_child_again_layout() {
+	Engine::add_child(layouts[0], layouts[1]);
+}
+
 void on_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	switch (action) {
 		case GLFW_PRESS: {
@@ -512,11 +643,28 @@ void on_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
 				}
 				case GLFW_KEY_F: {
 					// update_fox_animation();
-					update_character_animation();
+					// update_character_animation();
+					create_layout();
+					break;
+				}
+				case GLFW_KEY_D: {
+					// change_fox_to_cesiumman();
+					update_layout(-1.f);
 					break;
 				}
 				case GLFW_KEY_G: {
-					change_fox_to_cesiumman();
+					// change_fox_to_cesiumman();
+					update_layout(1.f);
+					break;
+				}
+				case GLFW_KEY_V: {
+					// change_fox_to_cesiumman();
+					remove_layout();
+					break;
+				}
+				case GLFW_KEY_C: {
+					// change_fox_to_cesiumman();
+					add_child_again_layout();
 					break;
 				}
 				case GLFW_KEY_L: {
@@ -596,12 +744,12 @@ int main() {
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	GLFWwindow* window = glfwCreateWindow(1200, 720, "game", nullptr, nullptr);
 
-	Vulkan::init_vulkan_core(window);
+	Engine::init(window);
 	glfwSetKeyCallback(window, on_key);
 
 	for (int i = 0; i < 1; i++) {
 		// gen_fox_3D();
-		gen_character_3D();
+		// gen_character_3D();
 	}
 
 	double start = Utils::now();
@@ -611,11 +759,10 @@ int main() {
 		float dt = (float)(current - start);
 		dt = std::min(dt, 0.1f);
 		start = current;
-		Vulkan::start_frame(dt);
-		Vulkan::draw_frame(dt);
+		Engine::process_frame(dt);
 	}
 
-	Vulkan::destroy_vulkan();
+	Engine::destroy();
 
 	glfwDestroyWindow(window);
 

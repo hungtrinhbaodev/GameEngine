@@ -6,4 +6,6 @@ namespace Core {
 
 	std::shared_ptr<Scheduler> global_scheduler = std::make_shared<Scheduler>(global_thread_pool, 10);
 
+	// std::shared_ptr<Registry> global_registry = std::make_shared<Registry>();
+
 } // namespace Core

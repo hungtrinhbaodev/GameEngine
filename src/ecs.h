@@ -42,6 +42,8 @@ class Registry {
   public:
 	template <typename T> bool has(uint32_t e) { return pool<T>().has(e); }
 
+	template <typename... Ts> auto has_all(uint32_t e) { return (pool<Ts>().has(e) && ...); }
+
 	template <typename T> void add(uint32_t e, T value) { pool<T>().insert(e, std::move(value)); }
 
 	template <typename... Ts> auto get(uint32_t e) { return std::tie(pool<Ts>().modify(e)...); }

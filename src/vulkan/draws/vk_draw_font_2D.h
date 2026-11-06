@@ -5,13 +5,6 @@ namespace Vulkan {
 
 	namespace Draw_Font_2D {
 
-		struct Label_Helper {
-			std::vector<std::string> lines{};
-			std::vector<glm::vec2> start_line_positions{};
-			float width = 0;
-			float height = 0;
-		};
-
 		bool is_material_equal(uint32_t a, uint32_t b);
 
 		void init();
@@ -25,12 +18,12 @@ namespace Vulkan {
 
 		void init_font(
 			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
-			const Label_2D& attributes
+			const Font_2D& attributes
 		);
 
 		void update_font(
 			Draw_Information& draw_info, std::vector<Draw_Instance_Information>& draw_instances,
-			const Label_2D& attributes
+			const Font_2D& attributes
 		);
 
 		void remove_font(uint32_t sub_unique_id);
@@ -50,7 +43,7 @@ namespace Vulkan {
 			float& height, const std::vector<std::string>& lines, float stroke_size
 		);
 
-		Label_Helper gen_text_info_from(
+		Font_Helper gen_text_info_from(
 			std::string font_path, std::string text, int align, int font_size, float stroke_size
 		);
 

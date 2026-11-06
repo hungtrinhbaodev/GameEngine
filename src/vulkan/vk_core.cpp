@@ -232,6 +232,8 @@ namespace Vulkan {
 
 	Profiling profiling{};
 
+	std::function<void()> resize_finish_fn;
+
 	void Profiling::init_gpu_timestamps() {
 		VkPhysicalDeviceProperties properties{};
 		vkGetPhysicalDeviceProperties(physical_device, &properties);
@@ -373,9 +375,10 @@ namespace Vulkan {
 		return static_buffer;
 	}
 
-	void init_vulkan_core(GLFWwindow* window) {
+	void init_vulkan(GLFWwindow* window, std::function<void()> i_on_resize_finish) {
 
 		Vulkan::window = window;
+		resize_finish_fn = i_on_resize_finish;
 		glfwSetFramebufferSizeCallback(window, [](GLFWwindow*, int, int) { Vulkan::frame_buffer_resize = true; });
 
 		// Initialize Vulkan Instance
@@ -462,9 +465,10 @@ namespace Vulkan {
 		recreate_frame_buffers(
 			frame_buffers, render_pass, device, swapchain_image_views, depth_image, swapchain_extent
 		);
+		resize_finish_fn();
 	}
 
-	void start_frame(float dt) {
+	void draw_frame(float dt) {
 		profiling.start_cpu_frame();
 		/**
 		 * @Note: static buffer using for all frame
@@ -474,20 +478,8 @@ namespace Vulkan {
 		static_buffer.wait_synchronize_finish(current_frame);
 		ssbo_buffer.setup_frame(current_frame);
 		setup_draw(dt);
-		// if (frame_count % 20 == 0) {
-		// 	Label_2D& label = modify_label(label_fps);
-		// 	double fps = fps_total_duration == 0 ? 0.f : double(fps_frame_count) / fps_total_duration;
-		// 	label.set_text("Frame rate: " + std::to_string(fps));
-		// 	fps_frame_count = 0;
-		// 	fps_total_duration = 0.f;
-		// } else {
-		// 	fps_frame_count++;
-		// 	fps_total_duration += dt;
-		// }
 		profiling.update_label_fps(frame_count, dt);
-	}
 
-	void draw_frame(float dt) {
 		VkFence draw_fence = draw_fences[current_frame];
 		VkSemaphore draw_semaphore = draw_semaphores[current_frame];
 		VkSemaphore finish_render_semaphore = render_finish_semaphores[current_frame];

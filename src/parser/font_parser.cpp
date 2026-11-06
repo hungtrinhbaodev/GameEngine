@@ -17,15 +17,17 @@ namespace Parser {
 	};
 
 	struct Font_SFD_Meta_Data_Cache {
+		int version = 0;
 		int max_font_size = 0;
 		int max_char_height = 0;
 		float sfd_padding = 0;
+		float ratio_max_stroke = 1.f;
 		std::filesystem::file_time_type last_time_save;
 		std::uintmax_t file_size;
 		bool operator==(const Font_SFD_Meta_Data_Cache other) {
 			return max_font_size == other.max_font_size && max_char_height == other.max_char_height &&
 				   sfd_padding == other.sfd_padding && last_time_save == other.last_time_save &&
-				   file_size == other.file_size;
+				   file_size == other.file_size && ratio_max_stroke == other.ratio_max_stroke;
 		}
 		friend std::ostream& operator<<(std::ostream& os, const Font_SFD_Meta_Data_Cache& meta_data) {
 			os << "{max_font_size: " << meta_data.max_font_size << ", max_char_height: " << meta_data.max_char_height
@@ -50,6 +52,8 @@ namespace Parser {
 
 	const int GLYPH_PADDING = 16;
 
+	const float RATIO_MAX_STROKE = 0.45f;
+
 	const uint8_t GLYPH_ONEDGE = 128;
 
 	const int MIN_ATLAS_SIZE = 512;
@@ -60,11 +64,15 @@ namespace Parser {
 
 	const std::string BIN_DATA_EXTENSION_NAME = ".bin_cached";
 
+	const int META_DATA_VERSION = 0;
+
 	Font_SFD_Meta_Data_Cache get_meta_data_from(const std::string& font_path) {
 		Font_SFD_Meta_Data_Cache meta_data{};
+		meta_data.version = META_DATA_VERSION;
 		meta_data.max_char_height = MAX_PIXEL_HEIGHT;
 		meta_data.sfd_padding = GLYPH_PADDING;
 		meta_data.max_font_size = MAX_FONT_SIZE;
+		meta_data.ratio_max_stroke = RATIO_MAX_STROKE;
 		meta_data.last_time_save = std::filesystem::last_write_time(font_path);
 		meta_data.file_size = std::filesystem::file_size(font_path);
 		return meta_data;
@@ -142,8 +150,13 @@ namespace Parser {
 			return false;
 		}
 		Font_SFD_Meta_Data_Cache current_meta_data = get_meta_data_from(font_path);
-		Font_SFD_Meta_Data_Cache last_meta_data{};
 		auto meta_data_bytes = Files::read_file(meta_data_file_name);
+		Font_SFD_Meta_Data_Cache last_meta_data{};
+		int last_version = -1;
+		Utils::read_byte_from<int>(meta_data_bytes, &last_version, 0);
+		if (last_version < current_meta_data.version) {
+			return false;
+		}
 		memcpy(&last_meta_data, meta_data_bytes.data(), sizeof(Font_SFD_Meta_Data_Cache));
 		return current_meta_data == last_meta_data;
 	}
@@ -277,7 +290,7 @@ namespace Parser {
 		font.max_font_size = MAX_FONT_SIZE;
 		font.center_font_size = MAX_FONT_SIZE / 2;
 		font.min_font_size = MIN_FONT_SIZE;
-		font.max_stroke_size = GLYPH_PADDING * 0.4;
+		font.max_stroke_size = GLYPH_PADDING * RATIO_MAX_STROKE;
 		font.sfd_padding = GLYPH_PADDING;
 		int ascent = 0, descent = 0, line_gap = 0;
 		stbtt_GetFontVMetrics(&font_info, &ascent, &descent, &line_gap);

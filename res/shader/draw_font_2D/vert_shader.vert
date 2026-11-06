@@ -16,6 +16,8 @@ struct Instance_Data {
     int   slot_index;
     vec3  stroke_color;
     float stroke_size;
+    uvec3 clipping_offsets;
+    uint  number_clipping;
     vec3  pad;
     float opacity;
 };
@@ -56,6 +58,13 @@ layout (location = 3) out int slot_index;
 layout (location = 4) out vec3 out_stroke_color;
 layout (location = 5) out float out_stroke_size;
 layout (location = 6) out float opacity;
+layout (location = 7) out uint number_clipping;
+layout (location = 8) out uvec3 clipping_offsets;
+layout (location = 9) out vec2 position;
+layout (location = 10) out vec2 scale;
+layout (location = 11) out float rotation;
+layout (location = 12) out vec2 local_pos;
+layout (location = 13) out vec2 half_size;
 
 vec2 norm_position(vec2 position, vec2 screen_size) {
     return vec2(position.x / screen_size.x, position.y / screen_size.y);
@@ -129,4 +138,16 @@ void main() {
     out_stroke_color = data.stroke_color;
     out_stroke_size = data.stroke_size;
     opacity = data.opacity;
+
+    number_clipping = data.number_clipping;
+    clipping_offsets = data.clipping_offsets;
+    /*@Note: because sd_round check need position of center of each char
+     * so we need convert the translation of char into to global as center.
+    */
+    vec2 center_char_local_pos = (char_data.char_translation + rect_size * 0.5f);
+    position = data.translation + rotate(data.rotation, center_char_local_pos * data.scale);
+    scale = data.scale;
+    rotation = data.rotation;
+    local_pos = (in_position - 0.5f) * rect_size;
+    half_size = rect_size * 0.5;
 }

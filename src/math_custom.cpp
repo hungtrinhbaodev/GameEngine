@@ -82,4 +82,13 @@ namespace Math {
 	float to_degree(float raidan) {
 		return raidan * 180.f / glm::pi<float>();
 	}
+
+	float to_radians(float angle) {
+		return angle * glm::pi<float>() / 180.f;
+	}
+
+	glm::vec2 rotate(float angle, glm::vec2 position) {
+		angle = to_radians(angle);
+		return {position.x * cos(angle) - position.y * sin(angle), position.x * sin(angle) + position.y * cos(angle)};
+	}
 } // namespace Math

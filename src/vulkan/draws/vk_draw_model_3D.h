@@ -6,11 +6,6 @@ namespace Vulkan {
 
 	namespace Draw_Model_3D {
 
-		struct Model_Animation_Helper {
-			std::string animation_name = "";
-			float duration = 0.f;
-		};
-
 		struct Model_Helper {
 			std::vector<std::string> scene_names;
 			std::vector<Model_Animation_Helper> animations;

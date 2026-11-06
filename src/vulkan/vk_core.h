@@ -14,6 +14,7 @@
 #include <vulkan/vulkan_beta.h>
 #endif
 
+#include <functional>
 #include <geometry_structs.h>
 #include <vulkan/vk_buffer.h>
 #include <vulkan/vk_consts.h>
@@ -129,9 +130,7 @@ namespace Vulkan {
 
 	Static_Buffer& get_static_buffer();
 
-	void init_vulkan_core(GLFWwindow* window);
-
-	void start_frame(float dt);
+	void init_vulkan(GLFWwindow* window, std::function<void()> on_resize_finish);
 
 	void draw_frame(float dt);
 

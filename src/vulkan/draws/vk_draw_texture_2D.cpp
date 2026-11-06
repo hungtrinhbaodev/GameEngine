@@ -21,17 +21,18 @@ namespace Vulkan {
 		};
 
 		struct Storage_Data {
-			glm::vec2 tex_size{0.f, 0.f};		// 8
-			glm::vec2 translation{0.f, 0.f};	// 8
-			glm::vec2 scale{1.f, 1.f};			// 8
-			glm::vec2 anchor{0.f, 0.f};			// 8
-			glm::vec4 rect{0.f, 0.f, 0.f, 0.f}; // 16
-			float rotation = 0.f;				// 4
-			int32_t bucket_index = 0;			// 4
-			int32_t slot_index = 0;				// 4
-			float opacity = 1.f;				// 4
-			glm::vec3 color = {1.f, 1.f, 1.f};	// 12/16
-			float _pad = 0.f;					// 4
+			glm::vec2 tex_size{0.f, 0.f};				  // 8
+			glm::vec2 translation{0.f, 0.f};			  // 8
+			glm::vec2 scale{1.f, 1.f};					  // 8
+			glm::vec2 anchor{0.f, 0.f};					  // 8
+			glm::vec4 rect{0.f, 0.f, 0.f, 0.f};			  // 16
+			float rotation = 0.f;						  // 4
+			int32_t bucket_index = 0;					  // 4
+			int32_t slot_index = 0;						  // 4
+			float opacity = 1.f;						  // 4
+			glm::vec3 color = {1.f, 1.f, 1.f};			  // 12/16
+			float _pad = 0.f;							  // 4
+			Clipping_Ancestor_Storage clipping_storage{}; // 16/16
 			void make(const Texture_2D& attributes, Texture_View texture_view) {
 				Geometry::Texture_Rect_2D texture_rect = attributes.get_texture_rect();
 				tex_size = glm::vec2(
@@ -46,6 +47,8 @@ namespace Vulkan {
 				slot_index = texture_view.slot_index;
 				color = attributes.get_color();
 				opacity = attributes.get_opacity();
+				clipping_storage =
+					make_clipping_storage_data(attributes.get_number_clipping(), attributes.get_clipping_ancestors());
 			}
 			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& instance) {
 				os << "{Rectangle::Instance_Data: translation: " << instance.translation
@@ -175,6 +178,15 @@ namespace Vulkan {
 			ssbo.remove_data(texture.storage_id);
 			textures.erase(sub_unique_id);
 			unique_id_generator.release_id(sub_unique_id);
+		}
+
+		Texture_Helper gen_texture_info_from(const std::string& image_path) {
+			uint32_t texture_id = load_texture(image_path);
+			const Texture_View& texture_view = view_texture(texture_id);
+			Texture_Helper helper{};
+			helper.width = texture_view.width;
+			helper.height = texture_view.height;
+			return helper;
 		}
 
 		void draw(

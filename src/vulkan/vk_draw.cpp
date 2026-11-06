@@ -5,6 +5,7 @@
 #include <profiler.h>
 #include <sparse_set.h>
 #include <tuple>
+#include <vulkan/draws/vk_clipping.h>
 #include <vulkan/draws/vk_draw_font_2D.h>
 #include <vulkan/draws/vk_draw_model_3D.h>
 #include <vulkan/draws/vk_draw_rectangle.h>
@@ -194,7 +195,7 @@ namespace Vulkan {
 
 	Sparse_Set<Model_3D> draw_id_to_models{};
 
-	Sparse_Set<Label_2D> draw_id_to_labels{};
+	Sparse_Set<Font_2D> draw_id_to_labels{};
 
 	Sparse_Set<Texture_2D> draw_id_to_textures{};
 
@@ -202,9 +203,29 @@ namespace Vulkan {
 
 	Sparse_Set<Triangle_2D> draw_id_to_triangles{};
 
+	Sparse_Set<Clipping_2D> draw_id_to_clippings{};
+
 	Frame_Debug_Batching debug_info{};
 
 	const bool DEBUG_LOG = false;
+
+	std::string get_draw_type_name(uint32_t draw_id) {
+		const auto& draw_info = draw_id_to_info.get(draw_id);
+		switch (draw_info.draw_type) {
+			case Const::DRAW_RECTANGLE_2D: {
+				return "DRAW_RECTANGLE_2D";
+			}
+			case Const::DRAW_FONT_2D: {
+				return "DRAW_FONT_2D";
+			}
+			case Const::DRAW_TEXTURE_2D: {
+				return "DRAW_RECTANGLE_2D";
+			}
+			default: {
+				return "";
+			}
+		}
+	}
 
 	void init_common_descriptor_set_layout() {
 		Descriptor_Set_Layout_Builder layout_builder{};
@@ -212,7 +233,9 @@ namespace Vulkan {
 		 * Init descritpor set layout for storage buffer.
 		 */
 		for (int i = 0; i < Const::MAX_DESCRIPTOR_STORAGE_BUFFER_BINDING; i++) {
-			layout_builder.add_binding(i, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT);
+			layout_builder.add_binding(
+				i, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT
+			);
 		}
 		VkDescriptorSetLayout storage_buffer_layout = layout_builder.build(device);
 		SSBO_Buffer& ssbo = get_ssbo();
@@ -338,7 +361,7 @@ namespace Vulkan {
 			sorted_draws.begin(), sorted_draws.end(),
 			[](const Draw_Sort_Information& a, const Draw_Sort_Information& b) {
 				if (a.draw_index == b.draw_index) {
-					return a.create_index > b.create_index;
+					return a.create_index < b.create_index;
 				}
 				return a.draw_index < b.draw_index;
 			}
@@ -672,6 +695,10 @@ namespace Vulkan {
 		);
 	}
 
+	const std::string& get_default_image_path() {
+		return texture_system.get_default_texture_path();
+	}
+
 	void update_storage_buffer_descriptor_sets(uint32_t frame_index) {
 		SSBO_Buffer& ssbo = get_ssbo();
 		bool is_storage_buffer_update = ssbo.is_storage_buffer_resizing(frame_index);
@@ -777,7 +804,7 @@ namespace Vulkan {
 					break;
 				}
 				case Const::DRAW_FONT_2D: {
-					const Label_2D& label = draw_id_to_labels.get(handle.id());
+					const Font_2D& label = draw_id_to_labels.get(handle.id());
 					Draw_Font_2D::update_font(draw_info, draw_instances, label);
 					update_draw_info(draw_info, label.get_description());
 					break;
@@ -798,6 +825,11 @@ namespace Vulkan {
 					const Triangle_2D& triangle = draw_id_to_triangles.get(handle.id());
 					Draw_Triangle_2D::update_triangle(draw_info, triangle);
 					update_draw_info(draw_info, triangle.get_description());
+					break;
+				}
+				case Const::DRAW_CLIPPING_2D: {
+					const Clipping_2D& clipping = draw_id_to_clippings.get(handle.id());
+					Draw_Clipping_2D::update_clipping(draw_info, clipping);
 					break;
 				}
 				default: {
@@ -856,6 +888,7 @@ namespace Vulkan {
 		frame_count++;
 		set_number_draw_call(draw_instance_batching_groups.size());
 		set_total_instance_draw(total_instance_draws);
+		// Draw_Clipping_2D::debug(current_frame);
 	}
 
 	void destroy_draw() {
@@ -898,6 +931,21 @@ namespace Vulkan {
 	void set_draw_dirty(const Handle& handle) {
 		assert_draw_handle(handle);
 		dirty_handles.insert(handle.id(), handle);
+	}
+
+	Clipping_Ancestor_Storage make_clipping_storage_data(
+		uint32_t number_clipping, const std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>& clipping_acsentors
+	) {
+		Clipping_Ancestor_Storage storage_data{};
+		storage_data.number_clipping = number_clipping;
+		for (int i = 0; i < number_clipping; i++) {
+			const auto& handle = clipping_acsentors[i];
+			assert_draw_handle(handle);
+			const Draw_Information& draw_info = draw_id_to_info.get(handle.id());
+			auto helper = Draw_Clipping_2D::get_clipping_helper(draw_info.sub_unique_id);
+			storage_data.clipping_offsets[i] = helper.storage_offset;
+		}
+		return storage_data;
 	}
 
 	Handle create_model(const Model_3D_Description& model_info) {
@@ -945,7 +993,7 @@ namespace Vulkan {
 
 	Handle create_label(const Label_2D_Description& label_info) {
 		Handle handle = draw_handle_generator.gen_handle();
-		Label_2D label{handle, label_info};
+		Font_2D label{handle, label_info};
 		Draw_Information& draw_info = request_draw_info(handle, Const::DRAW_FONT_2D, label_info);
 		std::vector<Draw_Instance_Information>& draw_instances = request_draw_instances(handle);
 		Draw_Font_2D::init_font(draw_info, draw_instances, label);
@@ -977,7 +1025,7 @@ namespace Vulkan {
 		return draw_id_to_labels.get(handle.id()).get_description();
 	}
 
-	Label_2D& modify_label(const Handle& handle) {
+	Font_2D& modify_label(const Handle& handle) {
 		assert_draw_handle(handle);
 		return draw_id_to_labels.modify(handle.id());
 	}
@@ -1091,6 +1139,66 @@ namespace Vulkan {
 		return draw_id_to_triangles.modify(handle.id());
 	}
 
+	Handle create_clipping(
+		const glm::vec2& size, float border_size, const glm::vec2& world_position, const glm::vec2& world_scale,
+		float world_rotation, const glm::vec2& anchor
+	) {
+		Clipping_Description description{};
+		description.size = size;
+		description.border_size = border_size;
+		description.world_position = world_position;
+		description.world_scale = world_scale;
+		description.world_rotation = world_rotation;
+		description.anchor = anchor;
+		return create_clipping(description);
+	}
+
+	Handle create_clipping(const Clipping_Description& clipping_info) {
+		Handle handle = draw_handle_generator.gen_handle();
+		Clipping_2D clipping{handle, clipping_info};
+		draw_id_to_info.insert(handle.id(), {Const::DRAW_ID::DRAW_CLIPPING_2D});
+		Draw_Information& draw_info = draw_id_to_info.modify(handle.id());
+		request_draw_instances(handle);
+		Draw_Clipping_2D::init_clipping(draw_info, clipping);
+		draw_id_to_clippings.insert(handle.id(), std::move(clipping));
+		return handle;
+	}
+
+	Clipping_Description view_clipping(const Handle& handle) {
+		assert_draw_handle(handle);
+		return draw_id_to_clippings.get(handle.id()).get_description();
+	}
+
+	Clipping_2D& modify_clipping(const Handle& handle) {
+		assert_draw_handle(handle);
+		return draw_id_to_clippings.modify(handle.id());
+	}
+
+	Draw_Atributes& modify_draw_attributes(const Handle& handle) {
+		assert_draw_handle(handle);
+		const Draw_Information& draw_info = draw_id_to_info.get(handle.id());
+		switch (draw_info.draw_type) {
+			case Const::DRAW_MODEL_3D: {
+				return modify_model(handle);
+			}
+			case Const::DRAW_FONT_2D: {
+				return modify_label(handle);
+			}
+			case Const::DRAW_TEXTURE_2D: {
+				return modify_texture(handle);
+			}
+			case Const::DRAW_RECTANGLE_2D: {
+				return modify_rectangle(handle);
+			}
+			case Const::DRAW_TRIANGLE_2D: {
+				return modify_triangle(handle);
+			}
+			default: {
+				throw std::runtime_error("Fail to modify draw attriibutes!");
+			}
+		}
+	}
+
 	void remove_draw(const Handle& handle) {
 		assert_draw_handle(handle);
 		const Draw_Information& draw_info = draw_id_to_info.get(handle.id());
@@ -1118,6 +1226,11 @@ namespace Vulkan {
 			case Const::DRAW_TRIANGLE_2D: {
 				Draw_Triangle_2D::remove_triangle(draw_info.sub_unique_id);
 				draw_id_to_triangles.erase(handle.id());
+				break;
+			}
+			case Const::DRAW_CLIPPING_2D: {
+				Draw_Clipping_2D::remove_clipping(draw_info.sub_unique_id);
+				draw_id_to_clippings.erase(handle.id());
 				break;
 			}
 			default: {

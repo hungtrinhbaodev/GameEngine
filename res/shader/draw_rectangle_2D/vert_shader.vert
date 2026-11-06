@@ -14,6 +14,8 @@ struct Instance_Data {
     float border_width;
     vec3  border_color;
     float opacity;
+    uvec3  clipping_offsets;
+    uint  number_clipping;
 };
 
 layout(std430, set = 0, binding = 0) readonly buffer Instance_Buffer {
@@ -35,6 +37,12 @@ layout (location = 3) out float border_width;
 layout (location = 4) out float border_radius;
 layout (location = 5) out vec3 border_color;
 layout (location = 6) out float opacity;
+layout (location = 7) out uint number_clipping;
+layout (location = 8) out uvec3 clipping_offsets;
+layout (location = 9) out vec2 position;
+layout (location = 10) out vec2 scale;
+layout (location = 11) out float rotation;
+
 
 vec2 norm_position(vec2 position, vec2 screen_size) {
     return vec2(position.x / screen_size.x, position.y / screen_size.y);
@@ -63,4 +71,9 @@ void main() {
     border_width = data.border_width;
     border_color = data.border_color;
     opacity = data.opacity;
+    number_clipping = data.number_clipping;
+    clipping_offsets = data.clipping_offsets;
+    position = data.translation + rotate(data.rotation, (0.5f - data.anchor) * data.size);
+    rotation = data.rotation;
+    scale = vec2(1, 1);
 }

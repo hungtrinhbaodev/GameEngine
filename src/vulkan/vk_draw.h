@@ -1,4 +1,5 @@
 #pragma once
+#include <consts.h>
 #include <handle.h>
 #include <vulkan/draws/vk_draw_attributes.h>
 #include <vulkan/vk_common.h>
@@ -49,6 +50,8 @@ namespace Vulkan {
 
 	VkDescriptorSet get_storage_descriptor_set(uint32_t frame_index);
 
+	const std::string& get_default_image_path();
+
 	/**
 	 * @Note: index 0 for texture individual, index 1 for texture bucket.
 	 */
@@ -69,6 +72,10 @@ namespace Vulkan {
 	void assert_draw_handle(const Handle& handle);
 
 	void set_draw_dirty(const Handle& handle);
+
+	Clipping_Ancestor_Storage make_clipping_storage_data(
+		uint32_t number_clipping, const std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>& clipping_acsentors
+	);
 
 	Handle create_model(
 		const std::string& path, const std::string& scene_name = "", const std::string& animation_name = "",
@@ -93,7 +100,7 @@ namespace Vulkan {
 
 	Label_2D_Description view_label_description(const Handle& handle);
 
-	Label_2D& modify_label(const Handle& handle);
+	Font_2D& modify_label(const Handle& handle);
 
 	Handle create_texture(
 		const std::string& texture_path, const Geometry::Texture_Rect_2D& texture_rect = {0.f, 0.f, 1.f, 1.f},
@@ -127,6 +134,19 @@ namespace Vulkan {
 	Triangle_2D_Description view_triangle_description(const Handle& handle);
 
 	Triangle_2D& modify_triangle(const Handle& handle);
+
+	Handle create_clipping(
+		const glm::vec2& size, float border_size, const glm::vec2& world_position = {0.f, 0.f},
+		const glm::vec2& world_scale = {0.f, 0.f}, float world_rotation = 0.f, const glm::vec2& anchor = {0.f, 0.f}
+	);
+
+	Handle create_clipping(const Clipping_Description& description);
+
+	Clipping_Description view_clipping(const Handle& handle);
+
+	Clipping_2D& modify_clipping(const Handle& handle);
+
+	Draw_Atributes& modify_draw_attributes(const Handle& handle);
 
 	void remove_draw(const Handle& handle);
 

@@ -82,6 +82,8 @@ namespace Vulkan {
 
 		uint32_t get_default_texture_id();
 
+		const std::string& get_default_texture_path();
+
 		void remove_texture(uint32_t id);
 
 		void destroy() const;

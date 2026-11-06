@@ -29,6 +29,8 @@ namespace Vulkan {
 
 		void destroy();
 
+		Texture_Helper gen_texture_info_from(const std::string& image_path);
+
 	} // namespace Draw_Texture_2D
 
 } // namespace Vulkan

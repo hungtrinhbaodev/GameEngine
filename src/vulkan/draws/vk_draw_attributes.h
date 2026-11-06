@@ -1,14 +1,36 @@
 #pragma once
 #include <string>
 
+#include <array>
+#include <consts.h>
 #include <geometry_structs.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <handle.h>
 #include <vulkan/vk_consts.h>
-#include <vulkan/vulkan.h>
 
 namespace Vulkan {
+
+	struct Clipping_Helper {
+		uint32_t storage_offset = ::Const::MAX_UINT32;
+	};
+
+	struct Font_Helper {
+		std::vector<std::string> lines{};
+		std::vector<glm::vec2> start_line_positions{};
+		float width = 0;
+		float height = 0;
+	};
+
+	struct Texture_Helper {
+		float width = 0.f;
+		float height = 0.f;
+	};
+
+	struct Model_Animation_Helper {
+		std::string animation_name = "";
+		float duration = 0.f;
+	};
 
 	struct Draw_Attributes_Description {
 		uint32_t draw_index = 0;
@@ -17,17 +39,33 @@ namespace Vulkan {
 		glm::vec3 color{1.f, 1.f, 1.f};
 	};
 
-	class Draw_Atributes {
+	struct Clipping_Ancestor_Storage {
+		std::array<uint32_t, ::Const::MAX_DEPTH_CLIPPING> clipping_offsets;
+		uint32_t number_clipping = 0;
+	};
+
+	class Base_Attributes {
 	  private:
 		Handle handle;
-		uint32_t draw_index = 0;
-		bool visible = true;
-		float opacity = 1.f;
-		glm::vec3 color{1.f, 1.f, 1.f};
 
 	  protected:
 		void assert_handle() const;
 		void set_dirty(bool dirty) const;
+
+	  public:
+		Base_Attributes();
+		Base_Attributes(const Handle& handle);
+		~Base_Attributes();
+	};
+
+	class Draw_Atributes : public Base_Attributes {
+	  private:
+		uint32_t draw_index = 0;
+		bool visible = true;
+		float opacity = 1.f;
+		glm::vec3 color{1.f, 1.f, 1.f};
+		uint32_t number_clipping = 0;
+		std::array<Handle, ::Const::MAX_DEPTH_CLIPPING> clipping_ancestors{};
 
 	  public:
 		Draw_Atributes();
@@ -37,11 +75,15 @@ namespace Vulkan {
 		void set_draw_index(uint32_t draw_index);
 		void set_opacity(float opacity);
 		void set_color(const glm::vec3& color);
+		void set_number_clipping(uint32_t number_clipping);
+		void set_clipping_ancestors(const std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>& clipping_ancestors);
 
 		bool is_visible() const;
 		uint32_t get_draw_index() const;
 		float get_opacity() const;
 		glm::vec3 get_color() const;
+		uint32_t get_number_clipping() const;
+		const std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>& get_clipping_ancestors() const;
 		Draw_Attributes_Description get_description() const;
 	};
 
@@ -198,7 +240,7 @@ namespace Vulkan {
 		glm::vec3 stroke_color = {0.f, 0.f, 0.f};
 	};
 
-	class Label_2D : public Draw_2D_Scale_Aable {
+	class Font_2D : public Draw_2D_Scale_Aable {
 	  private:
 		std::string path = "";
 		std::string text = "";
@@ -209,12 +251,12 @@ namespace Vulkan {
 		float stroke_size = 0.f;
 		glm::vec3 stroke_color = {0.f, 0.f, 0.f};
 		bool text_dirty = false;
-		void update_text_size();
+		void reload_text_size();
 
 	  public:
-		Label_2D();
-		Label_2D(const Handle& handle, const Label_2D_Description& description);
-		~Label_2D();
+		Font_2D();
+		Font_2D(const Handle& handle, const Label_2D_Description& description);
+		~Font_2D();
 
 		void set_font_path(const std::string& path);
 		void set_text(const std::string& text);
@@ -245,6 +287,10 @@ namespace Vulkan {
 	  private:
 		std::string path = "";
 		Geometry::Texture_Rect_2D tex_rect = {0.f, 0.f, 1.f, 1.f};
+		float width = 0.f;
+		float height = 0.f;
+		bool texture_dirty = false;
+		void update_texture_size();
 
 	  public:
 		Texture_2D();
@@ -254,6 +300,8 @@ namespace Vulkan {
 		void set_texture_path(const std::string& path);
 		void set_texture_rect(const Geometry::Texture_Rect_2D& tex_rect);
 
+		float get_width();
+		float get_height();
 		std::string get_texture_path() const;
 		Geometry::Texture_Rect_2D get_texture_rect() const;
 		Texture_2D_Description get_description() const;
@@ -319,6 +367,50 @@ namespace Vulkan {
 		glm::vec2 get_second_point() const;
 		glm::vec2 get_third_point() const;
 		Triangle_2D_Description get_description() const;
+	};
+
+	struct Clipping_Description {
+		glm::vec2 size{0.f, 0.f};
+		float border_size = 0.f;
+		float border_width = 0.f;
+		glm::vec2 world_position{0.f, 0.f};
+		glm::vec2 world_scale{0.f, 0.f};
+		glm::vec2 anchor{0.f, 0.f};
+		float world_rotation = 0.f;
+	};
+
+	class Clipping_2D : public Base_Attributes {
+	  private:
+		Handle handle;
+		glm::vec2 size{0.f, 0.f};
+		float border_size = 0.f;
+		float border_width = 0.f;
+		glm::vec2 world_position{0.f, 0.f};
+		glm::vec2 world_scale{0.f, 0.f};
+		glm::vec2 anchor{0.f, 0.f};
+		float world_rotation = 0.f;
+
+	  public:
+		Clipping_2D();
+		Clipping_2D(const Handle& handle, const Clipping_Description& description);
+		~Clipping_2D();
+
+		void set_content_size(const glm::vec2& size);
+		void set_border_radius(float border_radius);
+		void set_world_position(const glm::vec2& world_position);
+		void set_world_scale(const glm::vec2& world_scale);
+		void set_world_rotation(float rotation);
+		void set_anchor(const glm::vec2& anchor);
+		void set_border_width(float border_width);
+
+		glm::vec2 get_content_size() const;
+		float get_border_radius() const;
+		glm::vec2 get_world_position() const;
+		glm::vec2 get_world_scale() const;
+		float get_world_rotation() const;
+		glm::vec2 get_anchor() const;
+		float get_border_width() const;
+		Clipping_Description get_description() const;
 	};
 
 }; // namespace Vulkan
