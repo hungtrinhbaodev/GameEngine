@@ -528,7 +528,7 @@ void create_layout() {
 	Engine::set_rotation(layout, 5.f);
 	Engine::set_layout_clipping_enabled(layout, true);
 	Engine::set_touch_enabled(layout, true);
-	Engine::set_touching_caller(layout, [](Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
+	Engine::set_touching_caller(layout, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
 
 	});
 	layouts.push_back(layout);
@@ -585,7 +585,8 @@ void create_layout() {
 	Engine::set_position(label, {30.f, 50.f});
 	Engine::set_touch_enabled(label, true);
 	Engine::set_z_order(label, 1);
-	Engine::set_touching_caller(label, [](Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
+	Engine::set_scale(label, {1.25f, 1.25f});
+	Engine::set_touching_caller(label, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
 		switch (touch_state) {
 			case Engine::TOUCH_STATE::TOUCH_BEGAN: {
 				start_move_position = world_position;
@@ -593,8 +594,8 @@ void create_layout() {
 			}
 			case Engine::TOUCH_STATE::TOUCH_MOVE: {
 				glm::vec2 delta_position = world_position - start_move_position;
-				auto position = Engine::get_position(engine_labels[0]);
-				Engine::set_position(engine_labels[0], position + delta_position);
+				auto position = Engine::get_position(e);
+				Engine::set_position(e, position + delta_position);
 				start_move_position = world_position;
 				break;
 			}
@@ -625,6 +626,8 @@ void create_layout() {
 
 	Engine::set_layout_border_color(layout, {0.f, 0.2f, 0.2f});
 	Engine::set_layout_border_width(layout, 3.f);
+
+	Log::info("What is my image_2 size", image_2.id(), layout.id(), Engine::get_content_size(image_2));
 }
 
 void update_layout(float sign = 1) {

@@ -33,8 +33,6 @@ namespace Vulkan {
 			glm::vec3 color = {1.f, 1.f, 1.f};			  // 12/16
 			float _pad = 0.f;							  // 4
 			Clipping_Ancestor_Storage clipping_storage{}; // 16/16
-			// glm::vec2 rect_scale{1.f};					  // 8/8
-			// float _pad_2[2];							  // 8/8
 			void make(const Texture_2D& attributes, Texture_View texture_view) {
 				Geometry::Texture_Rect_2D texture_rect = attributes.get_texture_rect();
 				tex_size = glm::vec2(
@@ -49,7 +47,6 @@ namespace Vulkan {
 				slot_index = texture_view.slot_index;
 				color = attributes.get_color();
 				opacity = attributes.get_opacity();
-				// rect_scale = attributes.get_scale_rect();
 				clipping_storage =
 					make_clipping_storage_data(attributes.get_number_clipping(), attributes.get_clipping_ancestors());
 			}

@@ -36,6 +36,10 @@ namespace Engine {
 
 	const uint64_t DIRTY_TOUCHING = (1 << 6);
 
+	const uint64_t DIRTY_CONTAINER_TRANSFORM = (1 << 7);
+
+	const uint64_t DIRTY_SCROLLING = (1 << 8);
+
 	// Main caller functions.
 	void init(GLFWwindow* window);
 
@@ -57,7 +61,11 @@ namespace Engine {
 
 	Handle create_label();
 
+	Handle create_scroll_layout();
+
 	void add_child(const Handle& e_parent, const Handle& e_children);
+
+	void add_child_to_container(const Handle& e_parent, const Handle& e_child);
 
 	void remove_child(const Handle& e_child);
 
@@ -117,7 +125,7 @@ namespace Engine {
 
 	bool is_swallow_touches(const Handle& e);
 
-	void set_touching_caller(const Handle& e, const std::function<void(TOUCH_STATE, glm::vec2)> caller);
+	void set_touching_caller(const Handle& e, const std::function<void(Handle, TOUCH_STATE, glm::vec2)> caller);
 
 	void set_nine_scale_enabled(const Handle& e, bool enabled);
 
@@ -200,5 +208,29 @@ namespace Engine {
 	void set_label_stroke_color(const Handle& e, const glm::vec3& color);
 
 	glm::vec3 get_label_stroke_color(const Handle& e);
+
+	void set_scroll_enabled(const Handle& e, bool enabled);
+
+	bool is_scroll_enabled(const Handle& e);
+
+	void set_inner_container_size(const Handle& e, const glm::vec2& size);
+
+	glm::vec2 get_inner_container_size(const Handle& e);
+
+	void set_scroll_direction(const Handle& e, SCROLL_DIRECTION direction);
+
+	SCROLL_DIRECTION get_scroll_direction(const Handle& e);
+
+	void set_scroll_speed(const Handle& e, float speed);
+
+	float get_scroll_speed(const Handle& e);
+
+	void set_touch_layout_scroll_enabled(const Handle& e, bool enabled);
+
+	bool is_touch_layout_scroll_enabled(const Handle& e);
+
+	void set_swallow_scrolling(const Handle& e, bool swallows);
+
+	bool is_swallow_scrolling(const Handle& e);
 
 } // namespace Engine

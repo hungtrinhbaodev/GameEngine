@@ -72,7 +72,7 @@ namespace Engine {
 		}
 	}
 
-	void on_cursor_position(GLFWwindow* window, double x, double y) {
+	void on_cursor_touch_position(GLFWwindow* window, double x, double y) {
 		if (!handling_touches.has(window_unique_touch_id))
 			return;
 		auto& touch_info = handling_touches.modify(window_unique_touch_id);
@@ -98,7 +98,7 @@ namespace Engine {
 
 	void init_touch_handler(GLFWwindow* window) {
 		glfwSetMouseButtonCallback(window, on_mouse_button);
-		glfwSetCursorPosCallback(window, on_cursor_position);
+		glfwSetCursorPosCallback(window, on_cursor_touch_position);
 	}
 
 	void handle_touches_logic() {
@@ -148,7 +148,7 @@ namespace Engine {
 		}
 	}
 
-	void discard_touches_entities(const std::vector<Handle>& discard_entities) {
+	void discard_handling_touches_entities(const std::vector<Handle>& discard_entities) {
 		for (const Handle& e : discard_entities) {
 			if (!handling_entities.has(e.id()))
 				continue;

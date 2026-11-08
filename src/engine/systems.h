@@ -7,6 +7,8 @@ namespace Engine {
 
 	void update_label_renderer(const Handle& e);
 
+	void update_scroll_layout_renderer(const Handle& e);
+
 	void handle_enities_touched(const std::vector<Handle>& dirty_entities);
 
 	void handle_dirty_z_order(const std::vector<Handle>& dirty_entities);

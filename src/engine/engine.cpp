@@ -1,6 +1,7 @@
 #include <core.h>
 #include <engine/components.h>
 #include <engine/engine.h>
+#include <engine/scroll_handler.h>
 #include <engine/systems.h>
 #include <engine/touch_handler.h>
 #include <functional>
@@ -53,6 +54,10 @@ namespace Engine {
 	std::vector<Handle> entities_touch_listener{};
 
 	std::vector<Handle> removed_enitites_touch_listener{};
+
+	std::vector<Handle> enitites_scroll_listener{};
+
+	std::vector<Handle> removed_entites_scroll_listener{};
 
 	std::string get_entity_description_name(const Handle& e) {
 		if (!registry.has<Description>(e.id())) {
@@ -116,10 +121,10 @@ namespace Engine {
 			return;
 		}
 		while (!parent.is_invalid() && registry.has<Tree_Information>(parent.id())) {
+			fn(parent, child);
 			child = parent;
 			const auto& [tree_info] = registry.read<Tree_Information>(child.id());
 			parent = tree_info.parent;
-			fn(parent, child);
 		}
 	}
 
@@ -146,10 +151,20 @@ namespace Engine {
 		registry.erase<Touching_Information>(e.id());
 	}
 
+	void remove_scroll_layout(const Handle& e) {
+		remove_node(e);
+		remove_layout(e);
+		registry.erase<Scroll_Information>(e.id());
+	}
+
 	void remove_image(const Handle& e) {
 		remove_node(e);
 		const auto& [handles] = registry.read<Renderer_Handles>(e.id());
 		for (const auto& handle : handles.value) {
+			Vulkan::remove_draw(handle);
+		}
+		const auto& [nine_scale_handles] = registry.read<Nine_Scale_Renderer_Handles>(e.id());
+		for (const auto& handle : nine_scale_handles.value) {
 			Vulkan::remove_draw(handle);
 		}
 		registry.erase<Size>(e.id());
@@ -334,7 +349,14 @@ namespace Engine {
 		const auto& [tree_info] = registry.read<Tree_Information>(e.id());
 		if (!tree_info.valid_child)
 			return;
-		make_processing_dirty_entities(DIRTY_RELATIVE_SIZE, TRAVEL_NODE_MODE::TRAVEL_UP, PICKED_NODE_MODE::JUST_DIRTY);
+		processing_traveled_entities.clear();
+		travel_up(e, [](const Handle&, const Handle& children) {
+			if (is_dirty(children, DIRTY_RELATIVE_SIZE)) {
+				processing_traveled_entities.push_back(children);
+			}
+			return false;
+		});
+		std::reverse(processing_traveled_entities.begin(), processing_traveled_entities.end());
 		handle_dirty_relative_size(processing_traveled_entities);
 	}
 
@@ -345,9 +367,13 @@ namespace Engine {
 		if (!tree_info.valid_child)
 			return;
 		resovle_relative_size(e);
-		make_processing_dirty_entities(
-			DIRTY_RELATIVE_POSITION, TRAVEL_NODE_MODE::TRAVEL_UP, PICKED_NODE_MODE::JUST_DIRTY
-		);
+		travel_up(e, [](const Handle&, const Handle& children) {
+			if (is_dirty(children, DIRTY_RELATIVE_POSITION)) {
+				processing_traveled_entities.push_back(children);
+			}
+			return false;
+		});
+		std::reverse(processing_traveled_entities.begin(), processing_traveled_entities.end());
 		handle_dirty_relative_position(processing_traveled_entities);
 	}
 
@@ -366,7 +392,6 @@ namespace Engine {
 				touch_info.touched_order = i;
 				set_dirty(e, true, DIRTY_TOUCHING);
 			}
-			Log::info("What is my handle draw index", e.id(), i);
 		}
 	}
 
@@ -380,7 +405,7 @@ namespace Engine {
 					continue;
 				auto [c_touch_info] = registry.get<Touching_Information>(e.id());
 				c_touch_info.touch_state = touch_info.touch_state;
-				c_touch_info.world_position = touch_info.touch_world_position;
+				c_touch_info.touch_world_position = touch_info.touch_world_position;
 				processing_traveled_entities.push_back(e);
 			}
 		}
@@ -394,48 +419,107 @@ namespace Engine {
 		});
 	}
 
-	void clean_touch_listener_entities(const std::vector<Handle>& entities) {
+	void remove_touch_listener_entities(const Handle& e) {
+		for (int i = 0; i < entities_touch_listener.size(); i++) {
+			if (entities_touch_listener[i].id() == e.id()) {
+				entities_touch_listener[i] = entities_touch_listener.back();
+				entities_touch_listener.pop_back();
+				i--;
+			}
+		}
+	}
+
+	void add_touch_listener_entities(const Handle& e) {
+		bool found = false;
+		for (int i = 0; i < entities_touch_listener.size(); i++) {
+			if (entities_touch_listener[i].id() == e.id()) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			entities_touch_listener.push_back(e);
+		}
+	}
+
+	void clean_touch_removed_child_listener_entities(const std::vector<Handle>& entities) {
 		for (const auto& e : entities) {
 			if (!registry.has<Touching_Information>(e.id()))
 				continue;
-			for (int i = 0; i < entities_touch_listener.size(); i++) {
-				if (entities_touch_listener[i].id() == e.id()) {
-					entities_touch_listener[i] = entities_touch_listener.back();
-					entities_touch_listener.pop_back();
-					i--;
-					removed_enitites_touch_listener.push_back(e);
-				}
-			}
+			remove_touch_listener_entities(e);
 		}
 		sort_touch_listener_entities();
-		discard_touches_entities(entities);
+		discard_handling_touches_entities(entities);
 	}
 
 	void handle_update_entities_touch_listener(const std::vector<Handle>& dirty_entities) {
+		removed_enitites_touch_listener.clear();
 		for (const auto& e : dirty_entities) {
 			if (!registry.has<Touching_Information>(e.id()))
 				continue;
 			const auto& [touch_info] = registry.read<Touching_Information>(e.id());
 			if (!touch_info.enabled) {
-				for (int i = 0; i < entities_touch_listener.size(); i++) {
-					if (entities_touch_listener[i].id() == e.id()) {
-						entities_touch_listener[i] = entities_touch_listener.back();
-						entities_touch_listener.pop_back();
-						i--;
-						removed_enitites_touch_listener.push_back(e);
-					}
-				}
+				remove_touch_listener_entities(e);
+				removed_enitites_touch_listener.push_back(e);
 			} else {
-				bool found = false;
-				for (int i = 0; i < entities_touch_listener.size(); i++) {
-					if (entities_touch_listener[i].id() == e.id()) {
-						found = true;
-						break;
-					}
-				}
-				if (!found) {
-					entities_touch_listener.push_back(e);
-				}
+				add_touch_listener_entities(e);
+			}
+		}
+		sort_touch_listener_entities();
+		discard_handling_touches_entities(removed_enitites_touch_listener);
+	}
+
+	void sort_scroll_listener_entities() {
+		std::sort(
+			enitites_scroll_listener.begin(), enitites_scroll_listener.end(), [](const Handle& a, const Handle& b) {
+				const auto& [scroll_info_a] = registry.read<Scroll_Information>(a.id());
+				const auto& [scroll_info_b] = registry.read<Scroll_Information>(b.id());
+				return scroll_info_a.scroll_order > scroll_info_b.scroll_order;
+			}
+		);
+	}
+
+	void add_scroll_listener_entities(const Handle& e) {
+		bool found = false;
+		for (int i = 0; i < enitites_scroll_listener.size(); i++) {
+			if (enitites_scroll_listener[i].id() == e.id()) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			enitites_scroll_listener.push_back(e);
+		}
+	}
+
+	void remove_scroll_listener_entities(const Handle& e) {
+		for (int i = 0; i < enitites_scroll_listener.size(); i++) {
+			if (enitites_scroll_listener[i].id() == e.id()) {
+				enitites_scroll_listener[i] = enitites_scroll_listener.back();
+				enitites_scroll_listener.pop_back();
+				i--;
+			}
+		}
+	}
+
+	void clean_scroll_removed_child_listener_entities(const std::vector<Handle>& entities) {
+		for (const auto& e : entities) {
+			if (!registry.has<Scroll_Information>(e.id()))
+				continue;
+			remove_scroll_listener_entities(e);
+		}
+		sort_scroll_listener_entities();
+	}
+
+	void handle_update_entities_scroll_listener(const std::vector<Handle>& dirty_entities) {
+		for (const auto& e : dirty_entities) {
+			if (!registry.has<Scroll_Information>(e.id()))
+				continue;
+			const auto& [scroll_info] = registry.read<Scroll_Information>(e.id());
+			if (!scroll_info.enabled) {
+				remove_scroll_listener_entities(e);
+			} else {
+				add_scroll_listener_entities(e);
 			}
 		}
 		sort_touch_listener_entities();
@@ -466,6 +550,7 @@ namespace Engine {
 	void init(GLFWwindow* window) {
 		Vulkan::init_vulkan(window, []() { set_content_size(root, get_window_size()); });
 		init_touch_handler(window);
+		init_scroll_handler(window);
 		init_root();
 	}
 
@@ -474,6 +559,9 @@ namespace Engine {
 		handle_touches_logic();
 		make_processing_enitites_touched();
 		handle_enities_touched(processing_traveled_entities);
+
+		if (has_scrolling()) {
+				}
 
 		make_processing_dirty_entities(DIRTY_DRAW_ORDER, TRAVEL_NODE_MODE::TRAVEL_NONE);
 		handle_dirty_z_order(processing_traveled_entities);
@@ -501,9 +589,10 @@ namespace Engine {
 		handle_dirty_clipping(processing_traveled_entities);
 
 		make_processing_dirty_entities(DIRTY_TOUCHING, TRAVEL_NODE_MODE::TRAVEL_NONE);
-		if (processing_traveled_entities.size() > 0) {
-			handle_update_entities_touch_listener(processing_traveled_entities);
-		}
+		handle_update_entities_touch_listener(processing_traveled_entities);
+
+		make_processing_dirty_entities(DIRTY_SCROLLING, TRAVEL_NODE_MODE::TRAVEL_NONE);
+		handle_update_entities_scroll_listener(processing_traveled_entities);
 
 		dirty_entities.clear();
 		Vulkan::draw_frame(dt);
@@ -561,6 +650,64 @@ namespace Engine {
 		return label;
 	}
 
+	Handle create_scroll_layout() {
+		Handle inner_container = create_layout();
+		Scroll_Information container{};
+		container.container_handle = inner_container;
+		Handle scroll_layout = create_layout();
+		registry.add(scroll_layout.id(), container);
+		add_child(scroll_layout, inner_container);
+		set_touch_enabled(inner_container, true);
+		set_touching_caller(
+			inner_container, [](Handle inner_container, TOUCH_STATE touch_state, glm::vec2 world_position) {
+				const auto& [tree_info] = registry.read<Tree_Information>(inner_container.id());
+				auto [scroll_info] = registry.get<Scroll_Information>(tree_info.parent.id());
+				switch (touch_state) {
+					case TOUCH_STATE::TOUCH_BEGAN: {
+						// TODO: handle stop all scroll action here!
+						scroll_info.start_touch = world_position;
+						break;
+					}
+					case TOUCH_STATE::TOUCH_MOVE: {
+						glm::vec2 delta_position = world_position - scroll_info.start_touch;
+						bool is_moving = false;
+						glm::vec2 moving_distance{0.f, 0.f};
+						switch (scroll_info.scroll_direction) {
+							case SCROLL_DIRECTION::SCROLL_HORIZONTAL: {
+								if (abs(delta_position.x) >= 7.5) {
+									is_moving = true;
+									moving_distance.x = delta_position.x;
+								}
+								break;
+							}
+							default: {
+								if (abs(delta_position.y) >= 7.5) {
+									is_moving = true;
+									moving_distance.y = delta_position.y;
+								}
+								break;
+							}
+						}
+						if (is_moving) {
+							auto [transform] = registry.get<Transform_2D>(inner_container.id());
+							transform.position += moving_distance;
+							set_dirty(inner_container, true, DIRTY_TRANSFORM);
+						}
+						scroll_info.start_touch = world_position;
+						break;
+					}
+					case TOUCH_STATE::TOUCH_ENDED: {
+						// TODO: handle bounce here when has action!
+						break;
+					}
+				}
+			}
+		);
+		registry.add(scroll_layout.id(), Description{DESCRIPTION_TYPE::SCROLL_LAYOUT});
+		registry.add(inner_container.id(), Description{DESCRIPTION_TYPE::INNER_CONTAINER});
+		return scroll_layout;
+	}
+
 	void add_child(const Handle& e_parent, const Handle& e_child) {
 		assert_handle(e_parent);
 		assert_handle(e_child);
@@ -606,6 +753,9 @@ namespace Engine {
 				if (registry.has<Touching_Information>(child.id())) {
 					all_dirty |= DIRTY_TOUCHING;
 				}
+				if (registry.has<Scroll_Information>(child.id())) {
+					all_dirty |= DIRTY_SCROLLING;
+				}
 				set_dirty(child, true, dirty_flag.value | all_dirty);
 				child_tree_info.depth = parent_tree_info.depth + 1;
 				return false;
@@ -649,7 +799,15 @@ namespace Engine {
 				removed_enitites_touch_listener.push_back(e);
 			}
 		}
-		clean_touch_listener_entities(removed_enitites_touch_listener);
+		clean_touch_removed_child_listener_entities(removed_enitites_touch_listener);
+
+		removed_entites_scroll_listener.clear();
+		for (const auto& e : removed_children) {
+			if (registry.has<Scroll_Information>(e.id())) {
+				removed_entites_scroll_listener.push_back(e);
+			}
+		}
+		clean_scroll_removed_child_listener_entities(removed_entites_scroll_listener);
 	}
 
 	void clean_up(const Handle& e) {
@@ -892,7 +1050,7 @@ namespace Engine {
 		return touch_info.swallow_touches;
 	}
 
-	void set_touching_caller(const Handle& e, const std::function<void(TOUCH_STATE, glm::vec2)> caller) {
+	void set_touching_caller(const Handle& e, const std::function<void(Handle, TOUCH_STATE, glm::vec2)> caller) {
 		assert_handle(e);
 		if (!registry.has<Touching_Information>(e.id())) {
 			return;
@@ -1325,6 +1483,139 @@ namespace Engine {
 		}
 		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
 		return label_renderer.stroke_color;
+	}
+
+	void set_scroll_enabled(const Handle& e, bool enabled) {
+		assert_handle(e);
+		if (!registry.has<Scroll_Information>(e.id())) {
+			return;
+		}
+		auto [scroll_info] = registry.get<Scroll_Information>(e.id());
+		set_dirty(e, scroll_info.enabled != enabled, DIRTY_SCROLLING);
+		scroll_info.enabled = enabled;
+	}
+
+	bool is_scroll_enabled(const Handle& e) {
+		assert_handle(e);
+		if (!registry.has<Scroll_Information>(e.id())) {
+			return false;
+		}
+		const auto& [scroll_info] = registry.read<Scroll_Information>(e.id());
+		return scroll_info.enabled;
+	}
+
+	void set_inner_container_size(const Handle& e, const glm::vec2& size) {
+		assert_handle(e);
+		if (!registry.has<Scroll_Information>(e.id())) {
+			return;
+		}
+		auto [scroll_info] = registry.get<Scroll_Information>(e.id());
+		set_dirty(e, scroll_info.size != size, DIRTY_RENDERER);
+		set_dirty(scroll_info.container_handle, scroll_info.size != size, DIRTY_TRANSFORM);
+		scroll_info.size = size;
+	}
+
+	glm::vec2 get_inner_container_size(const Handle& e) {
+		assert_handle(e);
+		if (!registry.has_all<Scroll_Information, Description, Tree_Information>(e.id())) {
+			return {0.f, 0.f};
+		}
+		const auto& [scroll_info, description, tree_info] =
+			registry.read<Scroll_Information, Description, Tree_Information>(e.id());
+		if (!tree_info.valid_child) {
+			return scroll_info.size;
+		}
+		if (is_dirty(e, DIRTY_RENDERER)) {
+			switch (description.value) {
+				case DESCRIPTION_TYPE::SCROLL_LAYOUT: {
+					update_scroll_layout_renderer(e);
+					resovle_relative_size(e);
+					break;
+				}
+				default: {
+					break;
+				}
+			}
+		}
+		const auto& [c_size] = registry.read<Size>(e.id());
+		return glm::vec2{std::max(scroll_info.size.x, c_size.value.x), std::max(scroll_info.size.y, c_size.value.y)};
+	}
+
+	void set_scroll_direction(const Handle& e, SCROLL_DIRECTION direction) {
+		assert_handle(e);
+		if (!registry.has<Scroll_Information>(e.id())) {
+			return;
+		}
+		auto [scroll_info] = registry.get<Scroll_Information>(e.id());
+		set_dirty(e, scroll_info.scroll_direction != direction, DIRTY_RENDERER);
+		scroll_info.scroll_direction = direction;
+	}
+
+	SCROLL_DIRECTION get_scroll_direction(const Handle& e) {
+		assert_handle(e);
+		if (!registry.has<Scroll_Information>(e.id())) {
+			return SCROLL_DIRECTION::SCROLL_HORIZONTAL;
+		}
+		const auto& [scroll_info] = registry.read<Scroll_Information>(e.id());
+		return scroll_info.scroll_direction;
+	}
+
+	void set_scroll_speed(const Handle& e, float speed) {
+		assert_handle(e);
+		if (!registry.has<Scroll_Information>(e.id())) {
+			return;
+		}
+		auto [scroll_info] = registry.get<Scroll_Information>(e.id());
+		scroll_info.scroll_speed = speed;
+	}
+
+	float get_scroll_speed(const Handle& e) {
+		assert_handle(e);
+		if (!registry.has<Scroll_Information>(e.id())) {
+			return SCROLL_DIRECTION::SCROLL_HORIZONTAL;
+		}
+		const auto& [scroll_info] = registry.read<Scroll_Information>(e.id());
+		return scroll_info.scroll_speed;
+	}
+
+	void set_touch_layout_scroll_enabled(const Handle& e, bool enabled) {
+		assert_handle(e);
+		if (!registry.has<Scroll_Information>(e.id())) {
+			return;
+		}
+		auto [scroll_info] = registry.get<Scroll_Information>(e.id());
+		auto [touch_info] = registry.get<Touching_Information>(scroll_info.container_handle.id());
+		set_dirty(scroll_info.container_handle, touch_info.enabled != enabled, DIRTY_TOUCHING);
+		touch_info.enabled = enabled;
+	}
+
+	bool is_touch_layout_scroll_enabled(const Handle& e) {
+		assert_handle(e);
+		if (!registry.has<Scroll_Information>(e.id())) {
+			return false;
+		}
+		const auto& [scroll_info] = registry.read<Scroll_Information>(e.id());
+		const auto& [touch_info] = registry.read<Touching_Information>(scroll_info.container_handle.id());
+		return touch_info.enabled;
+	}
+
+	void set_swallow_scrolling(const Handle& e, bool swallows) {
+		assert_handle(e);
+		if (!registry.has<Scroll_Information>(e.id())) {
+			return;
+		}
+		auto [scroll_info] = registry.get<Scroll_Information>(e.id());
+		set_dirty(scroll_info.container_handle, scroll_info.swallow_scroll != swallows, DIRTY_TOUCHING);
+		scroll_info.enabled = swallows;
+	}
+
+	bool is_swallow_scrolling(const Handle& e) {
+		assert_handle(e);
+		if (!registry.has<Scroll_Information>(e.id())) {
+			return false;
+		}
+		const auto& [scroll_info] = registry.read<Scroll_Information>(e.id());
+		return scroll_info.swallow_scroll;
 	}
 
 } // namespace Engine

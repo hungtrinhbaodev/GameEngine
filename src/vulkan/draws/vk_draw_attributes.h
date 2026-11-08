@@ -281,14 +281,12 @@ namespace Vulkan {
 	struct Texture_2D_Description : public Draw_2D_Scale_Able_Description {
 		std::string path = "";
 		Geometry::Texture_Rect_2D tex_rect{0.f, 0.f, 1.f, 1.f};
-		glm::vec2 scale_rect{1.f, 1.f};
 	};
 
 	class Texture_2D : public Draw_2D_Scale_Aable {
 	  private:
 		std::string path = "";
 		Geometry::Texture_Rect_2D tex_rect = {0.f, 0.f, 1.f, 1.f};
-		glm::vec2 scale_rect{1.f, 1.f};
 		float width = 0.f;
 		float height = 0.f;
 		bool texture_dirty = false;
@@ -301,13 +299,11 @@ namespace Vulkan {
 
 		void set_texture_path(const std::string& path);
 		void set_texture_rect(const Geometry::Texture_Rect_2D& tex_rect);
-		void set_scale_rect(const glm::vec2& scale_rect);
 
 		float get_width();
 		float get_height();
 		std::string get_texture_path() const;
 		Geometry::Texture_Rect_2D get_texture_rect() const;
-		glm::vec2 get_scale_rect() const;
 		Texture_2D_Description get_description() const;
 	};
 

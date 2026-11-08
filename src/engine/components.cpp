@@ -222,7 +222,6 @@ namespace Engine {
 				local_transform.rotation = rotation;
 				local_transform.position = glm::vec2(x, y) - local_origin;
 				pieces_transforms[index] = world_transform.transform(local_transform);
-				pieces_scale_rects[index] = scale;
 				switch (j) {
 					case 0: {
 						x += corner_sizes[0].x;

@@ -15,6 +15,8 @@ namespace Engine {
 		LAYOUT_2D,
 		IMAGE_2D,
 		LABEL_2D,
+		SCROLL_LAYOUT,
+		INNER_CONTAINER,
 	};
 
 	struct Tree_Information {
@@ -124,8 +126,8 @@ namespace Engine {
 		bool enabled = false;
 		bool swallow_touches = true;
 		TOUCH_STATE touch_state = TOUCH_STATE::TOUCH_INIT;
-		glm::vec2 world_position{0.f};
-		std::function<void(TOUCH_STATE touch_state, glm::vec2 touch_world_position)> caller = nullptr;
+		glm::vec2 touch_world_position{0.f};
+		std::function<void(Handle e, TOUCH_STATE touch_state, glm::vec2 touch_world_position)> caller = nullptr;
 		std::array<glm::vec2, 4> transformed_rect{};
 		uint32_t touched_order = 0;
 	};
@@ -138,11 +140,22 @@ namespace Engine {
 		glm::vec2 renderer_size{0.f, 0.f};
 		std::array<World_Transform_2D, 9> pieces_transforms;
 		std::array<Geometry::Texture_Rect_2D, 9> pieces_rects;
-		std::array<glm::vec2, 9> pieces_scale_rects;
 		void update_piece_transforms(
 			const glm::vec2& renderer_size, const World_Transform_2D& world_transform, const glm::vec2& size,
 			const Geometry::Texture_Rect_2D& rect
 		);
 	};
 
+	struct Scroll_Information {
+		bool enabled = false;
+		Handle container_handle;
+		glm::vec2 size{0.f, 0.f};
+		SCROLL_DIRECTION scroll_direction = SCROLL_DIRECTION::SCROLL_VERTICAL;
+		float scroll_speed = 1.f;
+		glm::vec2 start_touch{0.f, 0.f};
+		bool swallow_scroll = true;
+		std::function<void(float delta_scroll)> caller = nullptr;
+		std::array<glm::vec2, 4> transformed_rect{};
+		uint32_t scroll_order = 0;
+	};
 } // namespace Engine

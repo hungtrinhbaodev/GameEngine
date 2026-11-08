@@ -16,6 +16,11 @@ namespace Engine {
 		TOUCH_INIT
 	};
 
+	enum SCROLL_DIRECTION {
+		SCROLL_HORIZONTAL,
+		SCROLL_VERTICAL
+	};
+
 	struct Handled_Touches_Information {
 		glm::vec2 touch_world_position{0.f};
 		TOUCH_STATE touch_state = TOUCH_STATE::TOUCH_INIT;
