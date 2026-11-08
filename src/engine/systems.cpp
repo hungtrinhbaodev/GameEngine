@@ -16,12 +16,15 @@ namespace Engine {
 		const auto& [description] = registry.read<Description>(e.id());
 		const auto& [handles] = registry.read<Renderer_Handles>(e.id());
 		switch (description.value) {
-			case DESCRIPTION_TYPE::LAYOUT_2D: {
-				return {handles.value[0]};
-			}
 			case DESCRIPTION_TYPE::IMAGE_2D: {
+				const auto& [nine_scale] = registry.read<Nine_Scale_Information>(e.id());
+				if (nine_scale.enabled) {
+					const auto& [nine_scale_handles] = registry.read<Nine_Scale_Renderer_Handles>(e.id());
+					return nine_scale_handles.value;
+				}
 				return {handles.value[0]};
 			}
+			case DESCRIPTION_TYPE::LAYOUT_2D:
 			case DESCRIPTION_TYPE::LABEL_2D: {
 				return {handles.value[0]};
 			}
@@ -36,7 +39,7 @@ namespace Engine {
 	 * from (0, 0) to easy to handle ui but still
 	 * world with effect need center anchor!
 	 */
-	Transform_2D get_relative_world_transform(const Handle& e) {
+	World_Transform_2D get_relative_world_transform(const Handle& e) {
 		Registry& registry = get_registry();
 		if (registry.has_all<Description, World_Transform_2D>(e.id())) {
 			const auto& [description, world_transform] = registry.read<Description, World_Transform_2D>(e.id());
@@ -62,17 +65,7 @@ namespace Engine {
 		Registry& registry = get_registry();
 		const auto& [child_transform] = registry.read<Transform_2D>(e_child.id());
 		auto relative_world_transform = get_relative_world_transform(e_parent);
-		auto [world_transform] = registry.get<World_Transform_2D>(e_child.id());
-		world_transform.position =
-			relative_world_transform.position +
-			Math::rotate(relative_world_transform.rotation, child_transform.position * relative_world_transform.scale);
-		world_transform.scale = relative_world_transform.scale * child_transform.scale;
-		world_transform.rotation = relative_world_transform.rotation + child_transform.rotation;
-		world_transform.color = child_transform.color;
-		world_transform.opacity = child_transform.opacity;
-		world_transform.anchor = child_transform.anchor;
-		world_transform.is_visible = relative_world_transform.is_visible & child_transform.is_visible;
-		world_transform.draw_index = child_transform.draw_index;
+		registry.add(e_child.id(), std::move(relative_world_transform.transform(child_transform)));
 	}
 
 	Handle get_render_clipping_handle(const Handle& e) {
@@ -136,9 +129,12 @@ namespace Engine {
 
 	void update_image_renderer(const Handle& e) {
 		Registry& registry = get_registry();
-		const auto& [image_renderer] = registry.read<Image_Renderer_Information>(e.id());
-		auto [c_handle, c_size] = registry.get<Renderer_Handles, Size>(e.id());
-		auto& handles = c_handle.value;
+		const auto& [image_renderer, nine_scale] =
+			registry.read<Image_Renderer_Information, Nine_Scale_Information>(e.id());
+		auto [renderer_handles, nine_scale_renderer_handles, inner_size, c_size] =
+			registry.get<Renderer_Handles, Nine_Scale_Renderer_Handles, Inner_Renderer_Size, Size>(e.id());
+		auto& nine_scale_handles = nine_scale_renderer_handles.value;
+		auto& handles = renderer_handles.value;
 		set_dirty(e, true, DIRTY_TRANSFORM);
 		if (handles.size() <= 0) {
 			Vulkan::Texture_2D_Description description{};
@@ -149,12 +145,34 @@ namespace Engine {
 		auto& texture = Vulkan::modify_texture(handles[0]);
 		if (!Files::is_file_exists(::Utils::get_root_path() + image_renderer.image_path)) {
 			texture.set_texture_path(Vulkan::get_default_image_path());
-			c_size.value = {0.f, 0.f};
+			if (nine_scale.enabled) {
+				for (const auto& handle : nine_scale_handles) {
+					auto& texture = Vulkan::modify_texture(handle);
+					texture.set_texture_path(Vulkan::get_default_image_path());
+				}
+			}
+			inner_size.value = {0.f, 0.f};
 			return;
 		}
 		texture.set_texture_path(image_renderer.image_path);
 		texture.set_texture_rect(image_renderer.image_rect);
-		c_size.value = {texture.get_width(), texture.get_height()};
+		if (nine_scale.enabled) {
+			if (nine_scale_handles.size() <= 0) {
+				Vulkan::Texture_2D_Description description{};
+				description.path = Vulkan::get_default_image_path();
+				description.is_visible = false;
+				for (int i = 0; i < 9; i++) {
+					nine_scale_handles.push_back(Vulkan::create_texture(description));
+				}
+			}
+			for (int i = 0; i < nine_scale_handles.size(); i++) {
+				auto& texture = Vulkan::modify_texture(nine_scale_handles[i]);
+				texture.set_texture_path(image_renderer.image_path);
+			}
+		} else {
+			inner_size.value = {texture.get_width(), texture.get_height()};
+			c_size.value = inner_size.value;
+		}
 	}
 
 	void update_label_renderer(const Handle& e) {
@@ -242,17 +260,43 @@ namespace Engine {
 
 	void update_image_render_transform(const Handle& e_child) {
 		Registry& registry = get_registry();
-		const auto& [transform, c_handles] = registry.read<World_Transform_2D, Renderer_Handles>(e_child.id());
-		const auto& handles = c_handles.value;
+		const auto& [transform, renderer_handle, nice_scale_renderer_handles, c_size] =
+			registry.read<World_Transform_2D, Renderer_Handles, Nine_Scale_Renderer_Handles, Size>(e_child.id());
+		auto [nine_scale] = registry.get<Nine_Scale_Information>(e_child.id());
+		const auto& handles = renderer_handle.value;
+		const auto& nice_scale_handles = nice_scale_renderer_handles.value;
 		auto& texture = Vulkan::modify_texture(handles[0]);
-		texture.set_anchor(transform.anchor);
-		texture.set_color(transform.color);
-		texture.set_position(transform.position);
-		texture.set_opacity(transform.opacity);
-		texture.set_rotation(transform.rotation);
-		texture.set_visible(transform.is_visible);
-		texture.set_scale(transform.scale);
-		texture.set_draw_index(transform.draw_index);
+		auto update_texture_attributes = [](Vulkan::Texture_2D& texture, const World_Transform_2D& transform) {
+			texture.set_anchor(transform.anchor);
+			texture.set_color(transform.color);
+			texture.set_position(transform.position);
+			texture.set_opacity(transform.opacity);
+			texture.set_rotation(transform.rotation);
+			texture.set_visible(transform.is_visible);
+			texture.set_scale(transform.scale);
+			texture.set_draw_index(transform.draw_index);
+		};
+		if (nine_scale.enabled) {
+			texture.set_visible(false);
+			nine_scale.update_piece_transforms(
+				c_size.value, transform, {texture.get_width(), texture.get_height()}, texture.get_texture_rect()
+			);
+			for (int i = 0; i < nice_scale_handles.size() && i < nine_scale.pieces_transforms.size(); i++) {
+				auto& piece_texture = Vulkan::modify_texture(nice_scale_handles[i]);
+				const auto& piece_transform = nine_scale.pieces_transforms[i];
+				const auto& piece_rect = nine_scale.pieces_rects[i];
+				const auto& piece_scale_rect = nine_scale.pieces_scale_rects[i];
+				piece_texture.set_texture_rect(piece_rect);
+				piece_texture.set_scale_rect(piece_scale_rect);
+				update_texture_attributes(piece_texture, piece_transform);
+			}
+		} else {
+			for (const auto& handle : nice_scale_handles) {
+				auto& piece_texture = Vulkan::modify_texture(handle);
+				piece_texture.set_visible(false);
+			}
+			update_texture_attributes(texture, transform);
+		}
 	}
 
 	void update_label_render_transform(const Handle& e_child) {
@@ -292,6 +336,49 @@ namespace Engine {
 			default: {
 				break;
 			}
+		}
+	}
+
+	void update_touch_transform_area(const Handle& e) {
+		Registry& registry = get_registry();
+		if (!registry.has_all<Touching_Information, Size>(e.id()))
+			return;
+		auto [touch_info] = registry.get<Touching_Information>(e.id());
+		if (!touch_info.enabled)
+			return;
+		const auto& [c_size, world_transform] = registry.read<Size, World_Transform_2D>(e.id());
+		touch_info.transformed_rect = Math::transform_rect(
+			c_size.value, world_transform.position, world_transform.scale, world_transform.rotation,
+			world_transform.anchor
+		);
+		set_dirty(e, touch_info.touched_order != world_transform.draw_index, DIRTY_TOUCHING);
+		touch_info.touched_order = world_transform.draw_index;
+	}
+
+	void handle_enities_touched(const std::vector<Handle>& dirty_entities) {
+		Registry& registry = get_registry();
+		std::vector<Handle> discard_touch_entities;
+		for (const Handle& e : dirty_entities) {
+			if (!registry.has_all<Touching_Information>(e.id()))
+				continue;
+			const auto& [touch_info] = registry.read<Touching_Information>(e.id());
+			if (touch_info.caller == nullptr)
+				continue;
+			if (!touch_info.enabled) {
+				switch (touch_info.touch_state) {
+					case TOUCH_STATE::TOUCH_BEGAN:
+					case TOUCH_STATE::TOUCH_MOVE: {
+						discard_touch_entities.push_back(e);
+						touch_info.caller(TOUCH_STATE::TOUCH_ENDED, touch_info.world_position);
+						break;
+					}
+					default: {
+						break;
+					}
+				}
+				continue;
+			}
+			touch_info.caller(touch_info.touch_state, touch_info.world_position);
 		}
 	}
 
@@ -392,6 +479,7 @@ namespace Engine {
 			}
 			update_world_transform(parent, e);
 			update_renderer_transform(e);
+			update_touch_transform_area(e);
 		}
 	}
 

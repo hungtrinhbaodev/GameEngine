@@ -2,7 +2,6 @@
 #include <array>
 #include <geometry_structs.h>
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 
 namespace Math {
 
@@ -35,5 +34,14 @@ namespace Math {
 	float to_radians(float angle);
 
 	glm::vec2 rotate(float angle, glm::vec2 position);
+
+	std::array<glm::vec2, 4> transform_rect(
+		const glm::vec2& size, const glm::vec2& world_position, const glm::vec2& world_scale, float world_rotation,
+		const glm::vec2& anchor
+	);
+
+	bool right_side_edge(glm::vec2 start_point, glm::vec2 end_point, glm::vec2 check_point);
+
+	bool point_in_rect(const std::array<glm::vec2, 4>& transformed_rect, const glm::vec2& point);
 
 } // namespace Math

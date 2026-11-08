@@ -581,6 +581,13 @@ namespace Vulkan {
 		tex_rect = i_tex_rect;
 	}
 
+	void Texture_2D::set_scale_rect(const glm::vec2& i_scale_rect) {
+		assert_handle();
+		set_dirty(scale_rect != i_scale_rect);
+		texture_dirty |= (scale_rect != i_scale_rect);
+		scale_rect = i_scale_rect;
+	}
+
 	float Texture_2D::get_width() {
 		assert_handle();
 		update_texture_size();
@@ -603,8 +610,13 @@ namespace Vulkan {
 		return tex_rect;
 	}
 
+	glm::vec2 Texture_2D::get_scale_rect() const {
+		assert_handle();
+		return scale_rect;
+	}
+
 	Texture_2D_Description Texture_2D::get_description() const {
-		return {Draw_2D_Scale_Aable::get_description(), path, tex_rect};
+		return {Draw_2D_Scale_Aable::get_description(), path, tex_rect, scale_rect};
 	}
 
 	Rectangle_2D::Rectangle_2D() {}

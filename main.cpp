@@ -508,6 +508,8 @@ std::vector<Handle> layouts;
 std::vector<Handle> nodes;
 std::vector<Handle> images;
 Handle label;
+std::vector<Handle> engine_labels;
+glm::vec2 start_move_position = {0.f, 0.f};
 
 void create_layout() {
 	auto node = Engine::create_node();
@@ -525,6 +527,10 @@ void create_layout() {
 	Engine::set_layout_border_radius(layout, 8.f);
 	Engine::set_rotation(layout, 5.f);
 	Engine::set_layout_clipping_enabled(layout, true);
+	Engine::set_touch_enabled(layout, true);
+	Engine::set_touching_caller(layout, [](Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
+
+	});
 	layouts.push_back(layout);
 
 	// auto node2 = Engine::create_node();
@@ -545,6 +551,7 @@ void create_layout() {
 	Engine::set_layout_background_color(layout2, random_color());
 	Engine::set_opacity(layout2, 1.f);
 	Engine::set_layout_clipping_enabled(layout2, true);
+	Engine::set_touch_enabled(layout2, true);
 	layouts.push_back(layout2);
 
 	auto layout3 = Engine::create_layout();
@@ -554,13 +561,17 @@ void create_layout() {
 	Engine::set_scale(layout3, {0.85f, 0.85f});
 	Engine::set_layout_background_enabled(layout3, true);
 	Engine::set_layout_background_color(layout3, random_color());
+	Engine::set_touch_enabled(layout3, true);
 	layouts.push_back(layout3);
 
 	auto image = Engine::create_image();
-	Engine::set_position(image, {60.f, 60.f});
+	Engine::set_position(image, {60.f, 50.f});
 	Engine::set_anchor(image, {0.5f, 0.5f});
-	Engine::set_scale(image, {0.85f, 0.85f});
+	Engine::set_scale(image, {1.25f, 1.25f});
+	Engine::set_rotation(image, 30.f);
 	Engine::set_image_path(image, random_item(texture_paths));
+	// Engine::set_image_rect(image, {0.3f, 0.2f, 0.7f, 0.8f});
+	images.push_back(image);
 	Engine::add_child(layout3, image);
 
 	label = Engine::create_label();
@@ -572,17 +583,48 @@ void create_layout() {
 	Engine::set_label_stroke_color(label, random_color());
 	Engine::set_scale(label, {0.65f, 0.65f});
 	Engine::set_position(label, {30.f, 50.f});
+	Engine::set_touch_enabled(label, true);
+	Engine::set_z_order(label, 1);
+	Engine::set_touching_caller(label, [](Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
+		switch (touch_state) {
+			case Engine::TOUCH_STATE::TOUCH_BEGAN: {
+				start_move_position = world_position;
+				break;
+			}
+			case Engine::TOUCH_STATE::TOUCH_MOVE: {
+				glm::vec2 delta_position = world_position - start_move_position;
+				auto position = Engine::get_position(engine_labels[0]);
+				Engine::set_position(engine_labels[0], position + delta_position);
+				start_move_position = world_position;
+				break;
+			}
+			default: {
+				start_move_position = {0.f, 0.f};
+				break;
+			}
+		}
+	});
+	engine_labels.push_back(label);
+
+	Handle image_2 = Engine::create_image();
+	Engine::set_image_path(image_2, "res/GemsBarBg.png");
+	Engine::set_nine_scale_enabled(image_2, true);
+	Engine::set_size_percent(image_2, {0.75f, 0.5f});
+	Engine::set_nine_scale_rect_ratio(image_2, {0.2f, 0.2f, 0.6f, 0.6f});
+	Engine::set_position(image_2, {70.f, 50.f});
+	Engine::set_rotation(image_2, 30.f);
+	Engine::set_touch_enabled(image_2, true);
+	images.push_back(image_2);
 
 	Engine::add_child(layout, layout2);
 	Engine::add_child(Engine::get_root(), node);
-	Engine::add_child(layout2, layout3);
+	Engine::add_child(layout, image_2);
 	Engine::add_child(node, layout);
-	Engine::add_child(layout2, label);
+	Engine::add_child(layout, label);
+	Engine::add_child(layout2, layout3);
 
 	Engine::set_layout_border_color(layout, {0.f, 0.2f, 0.2f});
 	Engine::set_layout_border_width(layout, 3.f);
-
-	Log::info("What is my image size", Engine::get_content_size(image), Engine::get_content_size(label));
 }
 
 void update_layout(float sign = 1) {
@@ -601,12 +643,10 @@ void update_layout(float sign = 1) {
 	}
 	auto size = Engine::get_content_size(layouts[0]);
 	size += sign * 5.f;
-	float border_width = Engine::get_layout_border_width(layouts[0]);
 	Engine::set_position(layout, position);
 	Engine::set_rotation(layout, rotation);
 	Engine::set_scale(layout, scale);
 	Engine::set_content_size(layouts[0], size);
-	Engine::set_layout_border_width(layouts[0], border_width > 0 ? 0.f : 3.f);
 	if (label.is_invalid())
 		return;
 	scale = Engine::get_scale(label);
@@ -619,6 +659,7 @@ void update_layout(float sign = 1) {
 	rotation -= sign * 2.f;
 	Engine::set_scale(label, scale);
 	Engine::set_rotation(label, rotation);
+	// Log::info("What is my image size", Engine::get_content_size(images[1]), Engine::get_content_size(layouts[1]));
 }
 
 void remove_layout() {

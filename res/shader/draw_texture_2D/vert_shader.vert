@@ -80,11 +80,16 @@ vec2 map_tex_coord(uint vertex_index, vec4 rect) {
     }
 }
 
+vec2 get_translate_anchor(Instance_Data data, vec2 origin_anchor) {
+    vec2 translate_anchor = (origin_anchor - data.anchor) * data.tex_size * data.scale;
+    vec2 rectangle_position = data.translation + rotate(data.rotation, translate_anchor);
+    return rectangle_position;
+}
+
 void main() {
     Instance_Data data = instance_buffer.data[in_storage_index];
     Config_2D_Data config = config_2D_buffer.data[in_config_index];
-    vec2 translate_anchor = (in_position - data.anchor) * data.tex_size * data.scale;
-    vec2 rectangle_position = data.translation + rotate(data.rotation, translate_anchor);
+    vec2 rectangle_position = get_translate_anchor(data, in_position);
     gl_Position = vec4(flipped_position(norm_position(rectangle_position, config.screen_size)), 0.f, 1.f);
     vec2 mapped_tex_coord = map_tex_coord(gl_VertexIndex - in_vertex_offset, data.rect);
     frag_tex_coord = vec2(mapped_tex_coord.x, 1.f - mapped_tex_coord.y);
@@ -95,9 +100,9 @@ void main() {
 
     number_clipping = data.number_clipping;
     clipping_offsets = data.clipping_offsets;
-    position = data.translation + rotate(data.rotation, (0.5f - data.anchor) * data.tex_size);
+    position = get_translate_anchor(data, vec2(0.5f, 0.5f));
     scale = data.scale;
     rotation = data.rotation;
     local_pos = (in_position - 0.5f) * data.tex_size;
-    half_size = data.tex_size * 0.5;
+    half_size = data.tex_size * 0.5f;
 }

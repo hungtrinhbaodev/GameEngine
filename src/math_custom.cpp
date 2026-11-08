@@ -91,4 +91,37 @@ namespace Math {
 		angle = to_radians(angle);
 		return {position.x * cos(angle) - position.y * sin(angle), position.x * sin(angle) + position.y * cos(angle)};
 	}
+
+	std::array<glm::vec2, 4> transform_rect(
+		const glm::vec2& i_size, const glm::vec2& world_position, const glm::vec2& world_scale, float world_rotation,
+		const glm::vec2& anchor
+	) {
+		glm::vec2 size = i_size * world_scale;
+		glm::vec2 position = world_position;
+
+		glm::vec2 bottom_left = position + Math::rotate(world_rotation, {-anchor.x * size.x, -anchor.y * size.y});
+		glm::vec2 bottom_right = position + Math::rotate(world_rotation, {(1 - anchor.x) * size.x, -anchor.y * size.y});
+		glm::vec2 top_right =
+			position + Math::rotate(world_rotation, {(1 - anchor.x) * size.x, (1 - anchor.y) * size.y});
+		glm::vec2 top_left = position + Math::rotate(world_rotation, {-anchor.x * size.x, (1 - anchor.y) * size.y});
+
+		return {{bottom_left, bottom_right, top_right, top_left}};
+	}
+
+	bool right_side_edge(glm::vec2 start_point, glm::vec2 end_point, glm::vec2 check_point) {
+		return ((check_point.x - start_point.x) * (end_point.y - start_point.y) -
+				(check_point.y - start_point.y) * (end_point.x - start_point.x)) > 0;
+	}
+
+	bool point_in_rect(const std::array<glm::vec2, 4>& transformed_rect, const glm::vec2& point) {
+		for (int i = 0; i < transformed_rect.size(); i++) {
+			int current = i;
+			int next = (current + 1) % transformed_rect.size();
+			if (right_side_edge(transformed_rect[current], transformed_rect[next], point)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
 } // namespace Math

@@ -2,6 +2,8 @@
 #include <array>
 #include <consts.h>
 #include <engine/structs.h>
+#include <engine/touch_handler.h>
+#include <functional>
 #include <geometry_structs.h>
 #include <glm/glm.hpp>
 #include <handle.h>
@@ -34,17 +36,27 @@ namespace Engine {
 		uint32_t draw_index = 0;
 	};
 
-	struct World_Transform_2D : Transform_2D {};
+	struct World_Transform_2D : Transform_2D {
+		World_Transform_2D transform(const Transform_2D& local_transform) const;
+	};
 
 	struct Description {
 		DESCRIPTION_TYPE value;
 	};
 
+	struct Inner_Renderer_Size {
+		glm::vec2 value{0.f, 0.f};
+	};
+
 	struct Size {
-		glm::vec2 value;
+		glm::vec2 value{0.f, 0.f};
 	};
 
 	struct Renderer_Handles {
+		std::vector<Handle> value;
+	};
+
+	struct Nine_Scale_Renderer_Handles {
 		std::vector<Handle> value;
 	};
 
@@ -106,6 +118,31 @@ namespace Engine {
 
 	struct Clipping_Information {
 		bool enabled = false;
+	};
+
+	struct Touching_Information {
+		bool enabled = false;
+		bool swallow_touches = true;
+		TOUCH_STATE touch_state = TOUCH_STATE::TOUCH_INIT;
+		glm::vec2 world_position{0.f};
+		std::function<void(TOUCH_STATE touch_state, glm::vec2 touch_world_position)> caller = nullptr;
+		std::array<glm::vec2, 4> transformed_rect{};
+		uint32_t touched_order = 0;
+	};
+
+	struct Nine_Scale_Information {
+		bool enabled = false;
+		bool use_rect_ratio = false;
+		Geometry::Texture_Rect_2D capset_rect_ratio{};
+		Geometry::Rect_2D capset_rect{};
+		glm::vec2 renderer_size{0.f, 0.f};
+		std::array<World_Transform_2D, 9> pieces_transforms;
+		std::array<Geometry::Texture_Rect_2D, 9> pieces_rects;
+		std::array<glm::vec2, 9> pieces_scale_rects;
+		void update_piece_transforms(
+			const glm::vec2& renderer_size, const World_Transform_2D& world_transform, const glm::vec2& size,
+			const Geometry::Texture_Rect_2D& rect
+		);
 	};
 
 } // namespace Engine

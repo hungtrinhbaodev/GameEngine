@@ -9,6 +9,10 @@ namespace Geometry {
 		float y = 0.f;
 		float width = 0.f;
 		float height = 0.f;
+		inline bool operator==(const Rect_2D& other) const {
+			return x == other.x && y == other.y && width == other.width && height == other.height;
+		}
+		inline bool operator!=(const Rect_2D& other) const { return !(*this == other); }
 	};
 
 	struct Texture_Rect_2D {

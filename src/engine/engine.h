@@ -34,6 +34,8 @@ namespace Engine {
 	 */
 	const uint64_t DIRTY_DRAW_ORDER = (1 << 5);
 
+	const uint64_t DIRTY_TOUCHING = (1 << 6);
+
 	// Main caller functions.
 	void init(GLFWwindow* window);
 
@@ -63,34 +65,6 @@ namespace Engine {
 
 	// Helper functions.
 
-	/**
-	 * @Note: if wanna recalculate all
-	 * percent size or pin size into raw
-	 * size call this to node it will
-	 * parse all size relate with parent
-	 * into raw size to use.
-	 *
-	 * @Condition: node need to have
-	 * parent before. if node doesn't
-	 * have parent resolve will be fail.
-	 *
-	 * @Apply: this node and all child.
-	 */
-	void resovle_relative_size(const Handle& e);
-
-	/**
-	 * @Note: if wanna recalculate all
-	 * position percent to raw position
-	 * call this to entity.
-	 *
-	 * @Condition: node need to have
-	 * parent before. if node doesn't
-	 * have parent resolve will be fail.
-	 *
-	 * @Apply: this node and all child.
-	 */
-	void resovle_relative_position(const Handle& e);
-
 	void set_dirty(const Handle& e, bool dirty, uint64_t flag);
 
 	void clean_dirty(const Handle& e, uint64_t flag);
@@ -98,6 +72,8 @@ namespace Engine {
 	bool is_dirty(const Handle& e, uint64_t flag);
 
 	// Query/Update objects.
+
+	std::vector<Handle> find_entites_listen_touch_at_(glm::vec2 world_touch_position);
 
 	const Handle& get_root();
 
@@ -133,9 +109,33 @@ namespace Engine {
 
 	uint32_t get_z_order(const Handle& e);
 
+	void set_touch_enabled(const Handle& e, bool touch_enabled);
+
+	bool is_touch_enabled(const Handle& e);
+
+	void set_swallow_touches(const Handle& e, bool swallows);
+
+	bool is_swallow_touches(const Handle& e);
+
+	void set_touching_caller(const Handle& e, const std::function<void(TOUCH_STATE, glm::vec2)> caller);
+
+	void set_nine_scale_enabled(const Handle& e, bool enabled);
+
+	bool is_nine_scale_enabled(const Handle& e);
+
+	void set_nine_scale_rect(const Handle& e, const Geometry::Rect_2D& capset);
+
+	Geometry::Rect_2D get_nine_scale_rect(const Handle& e);
+
+	void set_nine_scale_rect_ratio(const Handle& e, const Geometry::Texture_Rect_2D& capset_ratio);
+
+	Geometry::Texture_Rect_2D get_nine_scale_rect_ratio(const Handle& e);
+
 	void set_content_size(const Handle& e, const glm::vec2& size);
 
 	glm::vec2 get_content_size(const Handle& e);
+
+	glm::vec2 get_inner_renderer_size(const Handle& e);
 
 	void set_position_percent(const Handle& e, const glm::vec2& ratio_position);
 
