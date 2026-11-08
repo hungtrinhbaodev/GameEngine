@@ -581,7 +581,6 @@ void create_layout() {
 	Engine::set_color(label, random_color());
 	Engine::set_label_stroke_size(label, 2.f);
 	Engine::set_label_stroke_color(label, random_color());
-	Engine::set_scale(label, {0.65f, 0.65f});
 	Engine::set_position(label, {30.f, 50.f});
 	Engine::set_touch_enabled(label, true);
 	Engine::set_z_order(label, 1);
@@ -627,7 +626,7 @@ void create_layout() {
 	Engine::set_layout_border_color(layout, {0.f, 0.2f, 0.2f});
 	Engine::set_layout_border_width(layout, 3.f);
 
-	Log::info("What is my image_2 size", image_2.id(), layout.id(), Engine::get_content_size(image_2));
+	Log::info("What is my image_2 size", label.id(), image_2.id(), layout.id(), Engine::get_content_size(image_2));
 }
 
 void update_layout(float sign = 1) {

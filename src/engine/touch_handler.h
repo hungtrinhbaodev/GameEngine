@@ -5,6 +5,8 @@
 
 namespace Engine {
 
+	void on_cursor_touch_position(GLFWwindow* window, double x, double y);
+
 	void init_touch_handler(GLFWwindow* window);
 
 	void handle_touches_logic();

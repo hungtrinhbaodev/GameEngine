@@ -392,6 +392,11 @@ namespace Engine {
 				touch_info.touched_order = i;
 				set_dirty(e, true, DIRTY_TOUCHING);
 			}
+			if (registry.has<Scroll_Information>(e.id())) {
+				auto [scroll_info] = registry.get<Scroll_Information>(e.id());
+				scroll_info.scroll_order = i;
+				set_dirty(e, true, DIRTY_SCROLLING);
+			}
 		}
 	}
 
@@ -444,8 +449,6 @@ namespace Engine {
 
 	void clean_touch_removed_child_listener_entities(const std::vector<Handle>& entities) {
 		for (const auto& e : entities) {
-			if (!registry.has<Touching_Information>(e.id()))
-				continue;
 			remove_touch_listener_entities(e);
 		}
 		sort_touch_listener_entities();
@@ -549,6 +552,10 @@ namespace Engine {
 
 	void init(GLFWwindow* window) {
 		Vulkan::init_vulkan(window, []() { set_content_size(root, get_window_size()); });
+		glfwSetCursorPosCallback(window, [](GLFWwindow* window, double x, double y) {
+			on_cursor_touch_position(window, x, y);
+			on_cursor_scroll_position(window, x, y);
+		});
 		init_touch_handler(window);
 		init_scroll_handler(window);
 		init_root();
@@ -561,7 +568,7 @@ namespace Engine {
 		handle_enities_touched(processing_traveled_entities);
 
 		if (has_scrolling()) {
-				}
+		}
 
 		make_processing_dirty_entities(DIRTY_DRAW_ORDER, TRAVEL_NODE_MODE::TRAVEL_NONE);
 		handle_dirty_z_order(processing_traveled_entities);

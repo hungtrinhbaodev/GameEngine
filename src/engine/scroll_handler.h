@@ -5,6 +5,8 @@
 
 namespace Engine {
 
+	void on_cursor_scroll_position(GLFWwindow* window, double x, double y);
+
 	void init_scroll_handler(GLFWwindow* window);
 
 	bool has_scrolling();

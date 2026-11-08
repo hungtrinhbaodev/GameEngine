@@ -21,7 +21,6 @@ namespace Engine {
 
 	void init_scroll_handler(GLFWwindow* window) {
 		glfwSetScrollCallback(window, on_scroll_fire);
-		glfwSetCursorPosCallback(window, on_cursor_scroll_position);
 	}
 
 	bool has_scrolling() {
