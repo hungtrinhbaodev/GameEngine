@@ -515,7 +515,7 @@ namespace Test {
 				auto expected = expected_clipping_ancestors(e);
 				std::string issue = "";
 				for (int i = 0; i < clipping.number_clipping && issue.empty(); i++) {
-					const Handle& ancestor = clipping.clipping_ancesors[i];
+					const Handle& ancestor = clipping.clipping_ancestors[i];
 					if (!entity_generator.validate_handle(ancestor)) {
 						issue = "holds dead clip ancestor " + std::to_string(ancestor.id()) + " at slot " +
 								std::to_string(i);
@@ -529,7 +529,7 @@ namespace Test {
 				if (issue.empty()) {
 					bool same_list = clipping.number_clipping == expected.size();
 					for (int i = 0; same_list && i < clipping.number_clipping; i++) {
-						same_list = same(clipping.clipping_ancesors[i], expected[i]);
+						same_list = same(clipping.clipping_ancestors[i], expected[i]);
 					}
 					if (!same_list) {
 						issue = "has " + std::to_string(clipping.number_clipping) + " clip ancestors, expected " +

@@ -1,5 +1,7 @@
 #include <chrono>
 #include <typeinfo>
+#include <engine/components.h>
+#include <vulkan/draws/vk_draw_font_2D.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -92,6 +94,30 @@ namespace Test {
 			Log::info("[repro] API checks for ui_api_need.txt items 1, 3, 4, 7 (item 2: repro-reentry)");
 			api_failed = 0;
 			Handle root = Engine::get_root();
+
+			// ---- label defaults (#34 g): a new custom-size label is CENTER / CENTER / CLIP and draws centered.
+			try {
+				Handle label = Engine::create_label();
+				Engine::set_label_string(label, "Hi");
+				Engine::add_child(root, label);
+				Engine::set_content_size(label, {300.f, 120.f});
+				Engine::process_frame(0.f);
+				auto h = Engine::get_label_horizontal_align(label);
+				auto v = Engine::get_label_vertical_align(label);
+				auto fit = Engine::get_label_render_fit_mode(label);
+				api_expect("label-default", h == Engine::LABEL_HORIZONTAL_ALIGN_CENTER, "horizontal align " + std::to_string((int)h) + " (want CENTER 0)");
+				api_expect("label-default", v == Engine::LABEL_VERTICAL_ALIGN_CENTER, "vertical align " + std::to_string((int)v) + " (want CENTER 1)");
+				api_expect("label-default", fit == Engine::CLIP, "fit mode " + std::to_string((int)fit) + " (want CLIP 0)");
+				const auto& [info] = Engine::get_registry().read<Engine::Label_Renderer_Information>(label.id());
+				glm::vec2 inner = info.inner_label_transform.position;
+				glm::vec2 text = Vulkan::Draw_Font_2D::get_renderer_text_size("Hi", info.font_path, info.font_size, info.stroke_size);
+				glm::vec2 want = (glm::vec2{300.f, 120.f} - text) * 0.5f;
+				api_expect("label-default", near(inner, want, 1.f), "inner position " + vec_text(inner) + " want " + vec_text(want));
+				Engine::clean_up(label);
+				Engine::process_frame(0.f);
+			} catch (const std::exception& ex) {
+				api_expect("label-default", false, std::string("exception ") + ex.what());
+			}
 
 			// ---- 7. find by name / tag
 			try {

@@ -32,7 +32,7 @@ Mark with [Done] when added; the tests will be switched over to the public API a
     API: get_world_position(e), get_world_rect(e) (4 corners or AABB), is_world_visible(e),
          convert_to_node_space(e, world_point) / convert_to_world_space(e, local_point).
 
-[]: 5. Label alignment, max width and wrapping.
+[Handled/Claude support logic]: 5. Label alignment, max width and wrapping.
     Why: Font_2D already has align, but Engine:: has no setter. Multi-line body text in the dialog is
     centred line by line with no way to left-align; long labels overflow buttons instead of wrapping.
     API: set_label_align(e, LEFT | CENTER | RIGHT), set_label_max_width(e, w) -> word wrap,

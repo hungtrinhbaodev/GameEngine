@@ -412,9 +412,10 @@ Test: ./ui_test repro-api (key K), also in tests/run_all.sh. Run 2026-11-10: 10 
        `text`, over-wide words are cut by binary search on the longest prefix that fits, lines use a running
        width, ellipsis trims chars until "..." fits; result goes to new field render_text (text untouched, c).
        label-wrap: no crash, 3 wrapped lines in both boxes; label-view: align / padding correct (#33).
-       Still open: g) horizontal_align / vertical_align / fit_mode have no default (fuzz labels get garbage).
+       g) Verified 2026-11-11: defaults CENTER / CENTER / CLIP; repro-api "label-default" checks the getters and
+       that a new 300x120 label draws centered.
 
-[]: 35. A custom-size label that clips itself loses its own clip when only the clipping pass runs.
+[Done]: 35. A custom-size label that clips itself loses its own clip when only the clipping pass runs.
     handle_dirty_clipping (systems.cpp ~775) uploads ancestors only for every draw; the label's own clip
     (Renderer_Handles[1]) is appended only in update_label_renderer_transform. Clipping-dirty without
     transform-dirty -> label overflows unclipped. Same pass also left a dead ancestor clip in the upload:
@@ -424,6 +425,9 @@ Test: ./ui_test repro-api (key K), also in tests/run_all.sh. Run 2026-11-10: 10 
     use_custom_size && clipping_enabled.
     Also fixed (label scope): update_label_renderer_transform only uploaded clips when clipping_enabled, so
     turning it off kept the stale self-clip. Now always uploads.
+    Verified 2026-11-11: Clipping_Ancestor_Information now keeps self_clipping; validate_clipping_ancestors
+       uses get_clipping_ancestors_info() (ancestors + own clip), so both passes upload the same list.
+       fuzz 7 3 4 PASS, full suite 19 of 19.
 
 ===== PERF (./ui_test perf, screenshots in build/ui_test_logs/perf, GPU label = avg of 20 frames) =====
 2026-11-11, M2, 2400x1440 framebuffer, vsync 60 fps in every case:
@@ -475,7 +479,6 @@ Reading:
     sorted by z order. Runs after every fuzz frame and before every drive step; hidden draws (unused
     nine-scale pieces) are skipped.
 
-===== LAST RUN (2026-11-11, string_view label rewrite) =====
-label-wrap and label-view OK (screens /tmp/01_label_overflow_wrap.png, /tmp/02_label_overflow_no_spaces.png).
-Full suite: 18 of 19 PASS, fuzz-s7-sc3-o4 FAIL (#35). Checker now expects a label's own clip.
-Open: 34 g, 35.
+===== LAST RUN (2026-11-11, label self-clip fix) =====
+Full suite: 19 of 19 PASS (fuzz 7 3 4 fixed, #35). label-wrap / label-view OK.
+Open: none. repro-api now also checks label defaults (label-default).
