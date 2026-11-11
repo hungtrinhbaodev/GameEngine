@@ -119,6 +119,11 @@ namespace Test {
 
 	void build_lab_scene();
 
+	/**
+	 * @Note: label align / padding / fit mode / custom size grid (key 4).
+	 */
+	void build_label_scene();
+
 	// Checks.
 
 	std::vector<Pool_Count> count_pools();
@@ -174,6 +179,14 @@ namespace Test {
 	// Scripted run (test_drive.cpp): injects clicks / drags / wheel through the engine input handlers.
 
 	void start_drive(GLFWwindow* window);
+
+	/**
+	 * @Note: GPU cost cases (empty, scenes, clipping on / off, full-window layers) with screenshots.
+	 */
+	void start_perf(GLFWwindow* window);
+
+	void start_label_view(GLFWwindow* window);
+	void start_label_wrap(GLFWwindow* window);
 
 	/**
 	 * @Note: call once per frame; returns false when the script is finished.

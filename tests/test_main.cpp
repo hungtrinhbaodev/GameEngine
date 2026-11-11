@@ -60,9 +60,18 @@ int main(int argc, char** argv) {
 		Test::handle_key(GLFW_KEY_J, 0);
 		auto_quit = true;
 	}
-	bool driving = auto_job == "drive";
-	if (driving) {
+	bool driving = auto_job == "drive" || auto_job == "perf" || auto_job == "label-view" || auto_job == "label-wrap";
+	if (auto_job == "drive") {
 		Test::start_drive(window);
+		auto_quit = true;
+	} else if (auto_job == "label-view") {
+		Test::start_label_view(window);
+		auto_quit = true;
+	} else if (auto_job == "label-wrap") {
+		Test::start_label_wrap(window);
+		auto_quit = true;
+	} else if (auto_job == "perf") {
+		Test::start_perf(window);
 		auto_quit = true;
 	}
 	// render the first scene once so jobs do not start on never-rendered nodes.

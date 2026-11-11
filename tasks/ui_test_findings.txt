@@ -375,6 +375,82 @@ Test: ./ui_test repro-api (key K), also in tests/run_all.sh. Run 2026-11-10: 10 
     has_node_ancestor_dirty(e, DIRTY_RELATIVE_SIZE). Only remaining failure of the suite.
     Verified 2026-11-11: e) fixed. All same-frame checks pass: child / grandchild world position,
     to_my_position_space, percent child size right after the parent resized.
+[Done]: 33. New label setters do nothing (confirmed with the label lab, key 4 / ./ui_test label-view).
+    set_label_use_custom_size_enabled, set_label_horizontal_align, set_label_vertical_align,
+    set_label_padding_horizontal, set_label_padding_vertial and set_label_render_fit_mode (and the matching
+    getters) start with `if (registry.has<Label_Renderer_Information>(e.id())) return;` - inverted (same as
+    #28 a), so on a label they return at once. Runtime: 0 labels have use_custom_size after the scene sets
+    it on 15; every label is drawn at its box's bottom-left whatever align / padding is set.
+[Done]: 34. Label fit / wrap code (components.cpp Label_Renderer_Information::update_inner_text_by), by reading,
+    to check with the label lab once #33 is fixed:
+    a) HANG: the token loop runs `while (text.find(" ") != npos)` but splits on "\n". A text with a space and
+       no newline gives npos, erase(0, npos + 1) erases nothing -> infinite loop. Any label whose text has a
+       space and does not fit its box freezes the app ("Overflow: wrap" button in the lab triggers it).
+    b) final_text.replace(begin, end, "\n", " ") picks the iterator-range overload: it replaces the whole
+       string with the bytes between the two string literals (undefined). Replace newlines one by one.
+    c) the loop erases from and finally overwrites the member `text`: the user's string is lost, the next
+       update re-wraps already wrapped text, and set_label_string's "changed?" check compares against it.
+       Work on a copy; keep the wrapped result in a separate field for the renderer.
+    d) ellipsis: last_line.substr(0, std::min(size - 3, 0)) is always 0 or negative (-> npos, whole line).
+       Should be max(size - 3, 0); also the "..." must fit the width, not just the line count.
+    e) vertical CENTER uses text_size.x (should be .y); BOTTOM uses padding.x (should be .y).
+    f) the final size is measured from final_text (unwrapped), not the wrapped lines.
+    g) horizontal_align, vertical_align, fit_mode have no default value in Label_Renderer_Information.
+    h) the wrapped text only reaches the GPU when the renderer pass runs (set_text in update_label_renderer),
+       but wrapping happens in the transform pass.
+    Run 2026-11-11 (./ui_test label-wrap, new job: clicks "Overflow: wrap"): crashes before the hang, at b).
+       libc++abi: terminating due to uncaught exception of type std::length_error: basic_string
+       #7 std::string::replace<const char*>(__i1='T', __i2=end, __j1="\n", __j2=" ")   <- iterator-range overload
+       #8 Label_Renderer_Information::update_inner_text_by   components.cpp:137
+       #9 update_label_renderer_transform                    systems.cpp:428
+       #10 update_renderer_transform                         systems.cpp:489
+       #11 handle_dirty_transform                            systems.cpp:742
+       #12 process_frame                                     engine.cpp:676
+       The two literals are taken as a [first, last) range; size = " " - "\n" = 18446744073709551397.
+       After b) is fixed, a) (infinite loop at components.cpp:139) is next on the same path.
+    Verified 2026-11-11: update_inner_text_by rewritten with string_view (PLEASE CODE): words are views into
+       `text`, over-wide words are cut by binary search on the longest prefix that fits, lines use a running
+       width, ellipsis trims chars until "..." fits; result goes to new field render_text (text untouched, c).
+       label-wrap: no crash, 3 wrapped lines in both boxes; label-view: align / padding correct (#33).
+       Still open: g) horizontal_align / vertical_align / fit_mode have no default (fuzz labels get garbage).
+
+[]: 35. A custom-size label that clips itself loses its own clip when only the clipping pass runs.
+    handle_dirty_clipping (systems.cpp ~775) uploads ancestors only for every draw; the label's own clip
+    (Renderer_Handles[1]) is appended only in update_label_renderer_transform. Clipping-dirty without
+    transform-dirty -> label overflows unclipped. Same pass also left a dead ancestor clip in the upload:
+       fuzz 7 3 4: node 113 (label) uploaded [141 11 225] expected [11 225 227]; 141 dead after
+       set_layout_clipping_enabled on 39 in frame 169.
+    Fix idea: one helper "upload clips for e" used by both passes, appending the label's own clip when
+    use_custom_size && clipping_enabled.
+    Also fixed (label scope): update_label_renderer_transform only uploaded clips when clipping_enabled, so
+    turning it off kept the stale self-clip. Now always uploads.
+
+===== PERF (./ui_test perf, screenshots in build/ui_test_logs/perf, GPU label = avg of 20 frames) =====
+2026-11-11, M2, 2400x1440 framebuffer, vsync 60 fps in every case:
+    empty scene 2.05 ms | picker clip on 3.42 / off 3.44 | lab clip on 4.41 / off 4.39 (55 draw calls)
+    10 full-window layers: no clip 11.96, 3 nested clips each 14.67, opaque 11.94 | 20 layers 14.68
+Reading:
+- Clipping is not the cost in the real scenes (on vs off within 0.02 ms). Worst synthetic case (every
+  pixel of 10 full-window layers tested against 3 clip parents) adds ~2.7 ms.
+- The GPU number does not scale with work: 10 extra full-window layers add ~10 ms over empty, the next
+  10 only ~2.7 ms; blending vs opaque is the same. Apple GPUs lower their clock when a frame is easy and
+  the timestamps measure wall time at that clock, so at 60 fps vsync the label mostly shows how much of
+  the frame budget the GPU chose to use, not the real cost. Compare with Xcode GPU capture / Metal HUD,
+  or measure with vsync off, before optimising for it.
+- Full clock (load until fps drops, 2026-11-11): 40 layers 14.94 ms / 60 fps, 80 layers 26.04 ms / 38 fps,
+  160 layers 51.49 ms / 19 fps -> ~0.32 ms per full-window translucent layer (~11 Gpix/s, fine for M2).
+  80 layers under 3 clip parents: 73.05 ms / 13.7 fps -> ~0.91 ms per layer: 3 clip tests make every pixel
+  ~2.8x more expensive (~0.2 ms per clip test per full window). Clipping is cheap only because the test
+  scenes are small; per pixel it is the most expensive part of the rect shader.
+  Why: per fragment per clip the shader calls rotate() (radians + sin + cos) for the world position and for
+  each clip, divides by scale and reads the clip struct from the SSBO.
+  Ideas: (1) on the CPU, do not upload a clip ancestor when the node's rect is fully inside it (most
+  children are; you already test "fully outside" in is_clipped_by), so number_clipping is 0 for them;
+  (2) upload each clip as a precomputed world->clip-local 2x3 matrix (no sin/cos per pixel);
+  (3) compute the world position in the vertex shader and pass it as a varying.
+- Real lead: lab scene = 55 draw calls (picker 12). Batching breaks when rect / label / image draws
+  interleave in draw order.
+
 ===== TEST HARNESS NOTES =====
 [Done]: Clip check updated for entity-handle clipping_ancesors (test_checks.cpp check_dead_clip_holders):
     entries must be exactly the live ancestors with clipping on (outermost first, nearest MAX kept), and
@@ -385,6 +461,11 @@ Test: ./ui_test repro-api (key K), also in tests/run_all.sh. Run 2026-11-10: 10 
     measures the same width again at the end. The old stale-size bug would fail 3 of these per step.
 [Done]: Suite script moved into the repo as tests/run_all.sh, includes the drive, counts Vulkan
     validation errors (VUID) as FAIL.
+[Done]: label lab (key 4, test_scenes.cpp build_label_scene; ./ui_test label-view screenshots +
+    logs the computed inner position of every custom-size label): align x 3 x 3, padding, multi-line,
+    auto size, stroke, font 40, click a cell to cycle text, buttons for overflow without spaces / wrap.
+[Done]: perf job (test_drive.cpp start_perf, ./ui_test perf): empty, scenes, clipping on / off,
+    full-window layer stacks; one screenshot per case with the profiling labels.
 [Done]: #25 repro (test_app.cpp repro_touch_reentrancy, key J, job repro-reentry): size query in a
     callback, self destroy, destroy node below, destroy + create with id reuse, disable click-only node.
     build-asan/ (Debug, -fsanitize=address) added; run_all.sh rebuilds it and runs the repro under ASan.
@@ -394,7 +475,7 @@ Test: ./ui_test repro-api (key K), also in tests/run_all.sh. Run 2026-11-10: 10 
     sorted by z order. Runs after every fuzz frame and before every drive step; hidden draws (unused
     nine-scale pieces) are skipped.
 
-===== LAST RUN (2026-11-11, all API items) =====
-tests/run_all.sh: 19 of 19 cases PASS (repros 7/7 incl. repro-reentry + repro-api, asan-repro-reentry,
-stress, drive 54/54, fuzz 8/8), 0 Vulkan validation errors, no leaks, no tree issues, no ASan errors.
-Open: none.
+===== LAST RUN (2026-11-11, string_view label rewrite) =====
+label-wrap and label-view OK (screens /tmp/01_label_overflow_wrap.png, /tmp/02_label_overflow_no_spaces.png).
+Full suite: 18 of 19 PASS, fuzz-s7-sc3-o4 FAIL (#35). Checker now expects a label's own clip.
+Open: 34 g, 35.

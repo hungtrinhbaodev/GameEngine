@@ -501,4 +501,126 @@ namespace Test {
 		Log::info("[test] lab scene built, nodes:", get_scene().nodes.size());
 	}
 
+	// ============================== LABEL SCENE (key 4) ==============================
+
+	namespace Label_Lab {
+		const glm::vec2 CELL{260.f, 80.f};
+		const char* const CYCLE_TEXTS[] = {"Hi", "Medium label", "Line one\nLine two"};
+
+		struct Cell_Setup {
+			std::string caption;
+			std::string text;
+			Engine::LABEL_HORIZONTAL_ALIGN horizontal = Engine::LABEL_HORIZONTAL_ALIGN_CENTER;
+			Engine::LABEL_VERTICAL_ALIGN vertical = Engine::LABEL_VERTICAL_ALIGN_CENTER;
+			float padding_horizontal = 0.f;
+			float padding_vertical = 0.f;
+			Engine::LABEL_RENDER_FIT_MODE fit = Engine::CLIP;
+			int font_size = 18;
+			float stroke = 0.f;
+			bool custom_size = true;
+		};
+
+		/**
+		 * @Note: a bordered cell (layout) with one label inside. Custom-size labels get the cell size, so the
+		 * align / padding / fit settings decide where the text sits; the border shows the label's box.
+		 */
+		Handle make_cell(const Handle& page, int column, int row, const Cell_Setup& setup) {
+			glm::vec2 window = Engine::get_window_size();
+			glm::vec2 position{20.f + column * (CELL.x + 30.f), window.y - 90.f - row * (CELL.y + 36.f)};
+			make_label(page, setup.caption, 12, MUTED, position + glm::vec2(0.f, 12.f), {0.f, 0.5f});
+			Handle cell = make_layout(page, position, CELL, {0.93f, 0.95f, 1.f}, 6.f, {0.f, 1.f});
+			Engine::set_layout_border_width(cell, 1.5f);
+			Engine::set_layout_border_color(cell, {0.55f, 0.62f, 0.8f});
+			Handle label = make_label(cell, setup.text, setup.font_size, INK, {0.f, 0.f}, {0.f, 0.f});
+			Engine::set_label_horizontal_align(label, setup.horizontal);
+			Engine::set_label_vertical_align(label, setup.vertical);
+			Engine::set_label_padding_horizontal(label, setup.padding_horizontal);
+			Engine::set_label_padding_vertial(label, setup.padding_vertical);
+			Engine::set_label_render_fit_mode(label, setup.fit);
+			if (setup.stroke > 0.f) {
+				Engine::set_label_stroke_size(label, setup.stroke);
+				Engine::set_label_stroke_color(label, BLUE);
+			}
+			Engine::set_label_use_custom_size_enabled(label, setup.custom_size);
+			if (setup.custom_size) {
+				Engine::set_content_size(label, CELL);
+			}
+			// click the cell to cycle short / medium / two-line text and watch it re-layout.
+			auto step = std::make_shared<int>(0);
+			Engine::set_touch_enabled(cell, true);
+			Engine::set_click_caller(cell, [label, step](Handle, glm::vec2) {
+				if (!Engine::is_valid(label))
+					return;
+				*step = (*step + 1) % 3;
+				Engine::set_label_string(label, CYCLE_TEXTS[*step]);
+				Log::info("[label] text ->", CYCLE_TEXTS[*step], "| size", Engine::get_content_size(label).x,
+						  Engine::get_content_size(label).y);
+			});
+			return label;
+		}
+	} // namespace Label_Lab
+
+	void build_label_scene() {
+		using namespace Label_Lab;
+		using H = Engine::LABEL_HORIZONTAL_ALIGN;
+		using V = Engine::LABEL_VERTICAL_ALIGN;
+		glm::vec2 window = Engine::get_window_size();
+		Handle page = make_page("label lab", {0.9f, 0.91f, 0.93f});
+		make_label(page, "UI test 4: label align / padding / fit (click a cell: change text)", 16, INK,
+				   {20.f, window.y - 30.f}, {0.f, 0.5f});
+
+		// row 0: horizontal align (vertical centre).
+		make_cell(page, 0, 0, {"H LEFT, V CENTER", "Left", H::LABEL_HORIZONTAL_ALIGN_LEFT, V::LABEL_VERTICAL_ALIGN_CENTER});
+		make_cell(page, 1, 0, {"H CENTER, V CENTER", "Center", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_CENTER});
+		make_cell(page, 2, 0, {"H RIGHT, V CENTER", "Right", H::LABEL_HORIZONTAL_ALIGN_RIGHT, V::LABEL_VERTICAL_ALIGN_CENTER});
+		make_cell(page, 3, 0, {"H LEFT, V TOP", "Top left", H::LABEL_HORIZONTAL_ALIGN_LEFT, V::LABEL_VERTICAL_ALIGN_TOP});
+		// row 1: vertical align (horizontal centre).
+		make_cell(page, 0, 1, {"H CENTER, V TOP", "Top", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_TOP});
+		make_cell(page, 1, 1, {"H CENTER, V CENTER", "Middle", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_CENTER});
+		make_cell(page, 2, 1, {"H CENTER, V BOTTOM", "Bottom", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_BOTTOM});
+		make_cell(page, 3, 1, {"H RIGHT, V BOTTOM", "Bottom right", H::LABEL_HORIZONTAL_ALIGN_RIGHT, V::LABEL_VERTICAL_ALIGN_BOTTOM});
+		// row 2: padding (20 px horizontal, 15 px vertical; ignored on a centred axis).
+		make_cell(page, 0, 2, {"LEFT + pad h 20", "Pad left", H::LABEL_HORIZONTAL_ALIGN_LEFT, V::LABEL_VERTICAL_ALIGN_CENTER, 20.f, 0.f});
+		make_cell(page, 1, 2, {"RIGHT + pad h 20", "Pad right", H::LABEL_HORIZONTAL_ALIGN_RIGHT, V::LABEL_VERTICAL_ALIGN_CENTER, 20.f, 0.f});
+		make_cell(page, 2, 2, {"TOP LEFT + pad 20 / 15", "Pad top", H::LABEL_HORIZONTAL_ALIGN_LEFT, V::LABEL_VERTICAL_ALIGN_TOP, 20.f, 15.f});
+		make_cell(page, 3, 2, {"BOTTOM RIGHT + pad 20 / 15", "Pad bottom", H::LABEL_HORIZONTAL_ALIGN_RIGHT, V::LABEL_VERTICAL_ALIGN_BOTTOM, 20.f, 15.f});
+		// row 3: multi-line, auto size (reference), stroke, big font.
+		make_cell(page, 0, 3, {"multi-line (\\n), CENTER", "First line\nSecond line", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_CENTER});
+		Cell_Setup auto_size{"auto size (custom size off)", "Auto size"};
+		auto_size.custom_size = false;
+		make_cell(page, 1, 3, auto_size);
+		Cell_Setup stroke{"stroke 2, font 24, CENTER", "Stroke"};
+		stroke.font_size = 24;
+		stroke.stroke = 2.f;
+		make_cell(page, 2, 3, stroke);
+		Cell_Setup big{"font 40, RIGHT / TOP", "Big", H::LABEL_HORIZONTAL_ALIGN_RIGHT, V::LABEL_VERTICAL_ALIGN_TOP};
+		big.font_size = 40;
+		make_cell(page, 3, 3, big);
+
+		// overflow cases are added on demand: today the wrap path can hang (see ui_test_findings.txt).
+		make_button(page, "Overflow: no spaces", {740.f, window.y - 50.f}, {190.f, 36.f}, BLUE, [page]() {
+			glm::vec2 w = Engine::get_window_size();
+			for (int i = 0; i < 2; i++) {
+				Cell_Setup setup{i == 0 ? "no spaces, CLIP" : "no spaces, ELLIPSIS", "Supercalifragilisticexpialidocious_and_more"};
+				setup.fit = i == 0 ? Engine::CLIP : Engine::ELLIPSIS;
+				setup.horizontal = H::LABEL_HORIZONTAL_ALIGN_LEFT;
+				make_cell(page, i, 4, setup);
+			}
+			(void)w;
+			Log::info("[label] overflow cases without spaces added (row 5)");
+		});
+		make_button(page, "Overflow: wrap", {945.f, window.y - 50.f}, {190.f, 36.f}, RED, [page]() {
+			for (int i = 0; i < 2; i++) {
+				Cell_Setup setup{i == 0 ? "wrap, CLIP" : "wrap, ELLIPSIS",
+								 "This sentence is far too long to fit in one line of this small box at all"};
+				setup.fit = i == 0 ? Engine::CLIP : Engine::ELLIPSIS;
+				setup.horizontal = H::LABEL_HORIZONTAL_ALIGN_LEFT;
+				setup.vertical = V::LABEL_VERTICAL_ALIGN_TOP;
+				make_cell(page, 2 + i, 4, setup);
+			}
+			Log::info("[label] wrap cases added (row 5)");
+		});
+		Log::info("[test] label scene built, nodes:", get_scene().nodes.size());
+	}
+
 } // namespace Test

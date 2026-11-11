@@ -655,7 +655,7 @@ namespace Test {
 
 	void print_help() {
 		Log::info("================ UI TEST KEYS ================");
-		Log::info("1 = modal scene | 2 = colour picker | 3 = component lab");
+		Log::info("1 = modal scene | 2 = colour picker | 3 = component lab | 4 = label lab");
 		Log::info("F = fuzz current scene (new seed) | Shift+F = fuzz again with last seed");
 		Log::info("S = stress: 90 build/clear cycles, then leak check");
 		Log::info("R = clear scene + leak check | P = print pools + verify tree | H = help");
@@ -741,6 +741,10 @@ namespace Test {
 			}
 			case GLFW_KEY_U: {
 				repro_detached_touch_listener();
+				return true;
+			}
+			case GLFW_KEY_4: {
+				build_label_scene();
 				return true;
 			}
 			case GLFW_KEY_K: {

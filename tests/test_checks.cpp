@@ -547,6 +547,17 @@ namespace Test {
 					if (!clip.is_invalid())
 						expected_clips.push_back(clip);
 				}
+				// a custom-size label whose text overflows clips itself with its own clip (renderer handle 1),
+				// appended after its ancestors; at the depth limit the oldest ancestor is dropped.
+				if (registry.has<Label_Renderer_Information>(e)) {
+					const auto& [label] = registry.read<Label_Renderer_Information>(e);
+					const auto& handles = std::get<0>(registry.read<Renderer_Handles>(e)).value;
+					if (label.use_custom_size && label.clipping_enabled && handles.size() > 1) {
+						if ((int)expected_clips.size() >= ::Const::MAX_DEPTH_CLIPPING)
+							expected_clips.erase(expected_clips.begin());
+						expected_clips.push_back(handles[1]);
+					}
+				}
 				for (const auto& renderer_handle : get_renderer_handles(Handle(e, 0))) {
 					if (!is_draw_handle_alive(renderer_handle))
 						continue;
@@ -557,6 +568,15 @@ namespace Test {
 					if (number != expected_clips.size()) {
 						issue = "draw " + std::to_string(renderer_handle.id()) + " uploads " + std::to_string(number) +
 								" clips, expected " + std::to_string(expected_clips.size());
+						if (number > 0)
+							issue += " | uploaded[0] " + std::to_string(uploaded[0].id());
+						if (registry.has<Label_Renderer_Information>(e)) {
+							const auto& [label] = registry.read<Label_Renderer_Information>(e);
+							const auto& handles = std::get<0>(registry.read<Renderer_Handles>(e)).value;
+							issue += " | label custom " + std::to_string(label.use_custom_size) + " clip " +
+									 std::to_string(label.clipping_enabled) + " own clip " +
+									 (handles.size() > 1 ? std::to_string(handles[1].id()) : std::string("-"));
+						}
 					}
 					for (uint32_t i = 0; issue.empty() && i < number; i++) {
 						if (!is_draw_handle_alive(uploaded[i])) {
@@ -567,6 +587,15 @@ namespace Test {
 									std::to_string(uploaded[i].id()) + " at slot " + std::to_string(i) + ", expected " +
 									std::to_string(expected_clips[i].id());
 						}
+					}
+					if (!issue.empty()) {
+						issue += " | uploaded [";
+						for (uint32_t i = 0; i < number; i++)
+							issue += std::to_string(uploaded[i].id()) + " ";
+						issue += "] expected [";
+						for (const auto& c : expected_clips)
+							issue += std::to_string(c.id()) + " ";
+						issue += "]";
 					}
 					if (!issue.empty()) {
 						report(e, tree_info, issue);

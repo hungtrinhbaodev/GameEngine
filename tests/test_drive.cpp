@@ -543,6 +543,171 @@ namespace Test {
 		}
 	} // namespace
 
+	namespace {
+		std::vector<Handle> perf_nodes{};
+
+		void perf_set_all_clipping(bool enabled) {
+			Registry& registry = Engine::get_registry();
+			std::vector<uint32_t> ids;
+			registry.each<Engine::Clipping_Information>([&ids](uint32_t e, Engine::Clipping_Information&) { ids.push_back(e); });
+			int changed = 0;
+			for (uint32_t id : ids) {
+				Handle e = handle_of(id);
+				if (e.is_invalid() || !in_tree(id) || e.id() == Engine::get_root().id())
+					continue;
+				Engine::set_layout_clipping_enabled(e, enabled);
+				changed++;
+			}
+			Log::info("[perf] clipping", enabled ? "on" : "off", "for", changed, "nodes");
+		}
+
+		/**
+		 * @Note: `layers` full-window layouts with a background, each under `clip_depth` nested full-window
+		 * clipping parents, so every pixel of every layer runs the clip test clip_depth times.
+		 */
+		void perf_build_layers(int layers, int clip_depth, float opacity = 0.15f) {
+			clear_scene();
+			for (const auto& e : perf_nodes) {
+				if (Engine::is_valid(e))
+					Engine::clean_up(e);
+			}
+			perf_nodes.clear();
+			glm::vec2 size = Engine::get_window_size();
+			for (int i = 0; i < layers; i++) {
+				Handle parent = Engine::get_root();
+				for (int d = 0; d < clip_depth; d++) {
+					Handle clip = Engine::create_layout();
+					Engine::set_content_size(clip, size);
+					Engine::set_layout_clipping_enabled(clip, true);
+					Engine::add_child(parent, clip);
+					if (d == 0)
+						perf_nodes.push_back(clip);
+					parent = clip;
+				}
+				Handle layer = Engine::create_layout();
+				Engine::set_content_size(layer, size);
+				Engine::set_layout_background_enabled(layer, true);
+				Engine::set_layout_background_color(layer, {0.1f + 0.05f * i, 0.2f, 0.3f});
+				Engine::set_opacity(layer, opacity);
+				Engine::add_child(parent, layer);
+				if (clip_depth == 0)
+					perf_nodes.push_back(layer);
+			}
+			Log::info("[perf] built", layers, "full-window layers, clip depth", clip_depth);
+		}
+	} // namespace
+
+	/**
+	 * @Note: GPU cost comparison read from the on-screen profiling labels (averaged over 20 frames),
+	 * one screenshot per case after the numbers settle.
+	 */
+	void start_perf(GLFWwindow* window) {
+		drive_window = window;
+		steps.clear();
+		step_index = 0;
+		wait_left = 0;
+		passed = failed = shot_index = 0;
+		failures.clear();
+		glfwShowWindow(window);
+		glfwFocusWindow(window);
+		const int settle = 90;
+		auto measure = [settle](const std::string& name, const std::function<void()>& setup) {
+			then(0, [setup, name]() {
+				Log::info("[perf] case", name);
+				setup();
+			});
+			then(settle, []() {
+				// keep the window on top so screencapture gets the app, not another window.
+				glfwShowWindow(drive_window);
+				glfwFocusWindow(drive_window);
+			});
+			screenshot("perf_" + name);
+		};
+		measure("empty", []() { clear_scene(); });
+		measure("modal", []() { build_modal_scene(); });
+		measure("picker_clip_on", []() { build_picker_scene(); });
+		measure("picker_clip_off", []() { perf_set_all_clipping(false); });
+		measure("lab_clip_on", []() { build_lab_scene(); });
+		measure("lab_clip_off", []() { perf_set_all_clipping(false); });
+		measure("layers10_clip0", []() { perf_build_layers(10, 0); });
+		measure("layers10_clip3", []() { perf_build_layers(10, 3); });
+		measure("layers20_clip0", []() { perf_build_layers(20, 0); });
+		measure("layers10_opaque", []() { perf_build_layers(10, 0, 1.f); });
+		// push until the frame rate drops: then the GPU is at full clock and fps shows the real limit.
+		measure("layers40_clip0", []() { perf_build_layers(40, 0); });
+		measure("layers80_clip0", []() { perf_build_layers(80, 0); });
+		measure("layers160_clip0", []() { perf_build_layers(160, 0); });
+		measure("layers80_clip3", []() { perf_build_layers(80, 3); });
+		then(0, []() {
+			for (const auto& e : perf_nodes) {
+				if (Engine::is_valid(e))
+					Engine::clean_up(e);
+			}
+			perf_nodes.clear();
+			clear_scene();
+			Log::info("[drive] summary:", 0, "passed,", 0, "failed");
+		});
+		Log::info("[perf] start,", steps.size(), "steps");
+	}
+
+	/**
+	 * @Note: build the label lab, screenshot it, then add the overflow cases without spaces and screenshot
+	 * again (the wrap cases are left out: they can hang the current wrap code).
+	 */
+	// label-wrap: build the label lab and click the red "Overflow: wrap" button (repro for the wrap hang, #34a).
+	void start_label_wrap(GLFWwindow* window) {
+		drive_window = window;
+		steps.clear();
+		step_index = 0;
+		wait_left = 0;
+		passed = failed = shot_index = 0;
+		failures.clear();
+		glfwShowWindow(window);
+		glfwFocusWindow(window);
+		then(0, []() { build_label_scene(); });
+		then(10, nullptr);
+		click_label("Overflow: wrap");
+		then(10, nullptr);
+		screenshot("label_overflow_wrap");
+		then(0, []() {
+			clear_scene();
+			Log::info("[drive] summary:", passed, "passed,", failed, "failed");
+		});
+	}
+
+	void start_label_view(GLFWwindow* window) {
+		drive_window = window;
+		steps.clear();
+		step_index = 0;
+		wait_left = 0;
+		passed = failed = shot_index = 0;
+		failures.clear();
+		glfwShowWindow(window);
+		glfwFocusWindow(window);
+		then(0, []() { build_label_scene(); });
+		then(10, []() {
+			// what the engine computed for every custom-size label (align / padding / fit result).
+			Registry& registry = Engine::get_registry();
+			registry.each<Engine::Label_Renderer_Information>([&registry](uint32_t e, Engine::Label_Renderer_Information& info) {
+				if (!info.use_custom_size || !in_tree(e))
+					return;
+				glm::vec2 size = std::get<0>(registry.read<Engine::Size>(e)).value;
+				Log::info("[label] node", e, "text", info.text, "| h", (int)info.horizontal_align, "v", (int)info.vertical_align,
+						  "fit", (int)info.fit_mode, "pad", info.horizontal_padding, info.vertical_padding, "| size", size,
+						  "| inner pos", info.inner_label_transform.position, "anchor", info.inner_label_transform.anchor,
+						  "| clip", info.clipping_enabled);
+			});
+		});
+		screenshot("label_scene");
+		click_label("Overflow: no spaces");
+		then(10, nullptr);
+		screenshot("label_overflow_no_spaces");
+		then(0, []() {
+			clear_scene();
+			Log::info("[drive] summary:", passed, "passed,", failed, "failed");
+		});
+	}
+
 	void start_drive(GLFWwindow* window) {
 		drive_window = window;
 		steps.clear();
