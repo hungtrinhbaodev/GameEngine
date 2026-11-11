@@ -51,6 +51,12 @@ namespace Engine {
 		ELLIPSIS
 	};
 
+	enum CLIPPING_STATE {
+		CLIPPING_FULL_OUT,
+		CLIPPING_FULL_IN,
+		CLIPPING_INTERECT
+	};
+
 	struct Handled_Touches_Information {
 		glm::vec2 touch_world_position{0.f};
 		TOUCH_STATE touch_state = TOUCH_STATE::TOUCH_INIT;

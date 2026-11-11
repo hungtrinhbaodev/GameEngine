@@ -11,4 +11,10 @@ namespace Const {
 	const inline float MAX_FLOAT = std::numeric_limits<float>::max();
 
 	const inline float EPSILON = 0.0000001f;
+
+	enum COLLISION_STATE {
+		COLLISION_STATE_FULL_OUT,
+		COLLISION_STATE_FULL_IN,
+		COLLISION_STATE_INTERSECT
+	};
 } // namespace Const

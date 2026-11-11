@@ -120,6 +120,33 @@ namespace Engine {
 		return false;
 	}
 
+	CLIPPING_STATE get_clipping_state_by_ancestors(const Handle& e) {
+		Registry& registry = get_registry();
+		if (!registry.has_all<Clipping_Ancestor_Information, Rect>(e.id())) {
+			return CLIPPING_STATE::CLIPPING_FULL_OUT;
+		}
+		const auto& [clipping_ancestor, rect] = registry.read<Clipping_Ancestor_Information, Rect>(e.id());
+		for (int i = 0; i < clipping_ancestor.number_clipping; i++) {
+			const auto& clipping_parent = clipping_ancestor.clipping_ancestors[i];
+			if (!registry.has<Rect>(clipping_parent.id()))
+				continue;
+			const auto& [parent_rect] = registry.read<Rect>(clipping_parent.id());
+			CLIPPING_STATE clipping_state = rect.get_cliping_state_with(parent_rect);
+			switch (clipping_state) {
+				case CLIPPING_STATE::CLIPPING_FULL_OUT: {
+					return CLIPPING_STATE::CLIPPING_FULL_OUT;
+				}
+				case CLIPPING_STATE::CLIPPING_FULL_IN: {
+					break;
+				}
+				default: {
+					return CLIPPING_STATE::CLIPPING_INTERECT;
+				}
+			}
+		}
+		return CLIPPING_STATE::CLIPPING_FULL_IN;
+	}
+
 	std::tuple<uint32_t, std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>> validate_clipping_ancestors(
 		const Clipping_Ancestor_Information& clipping_ancestor
 	) {
@@ -170,12 +197,31 @@ namespace Engine {
 		if (!registry.has_all<Clipping_Ancestor_Information, Rect>(e.id())) {
 			return;
 		}
-		bool is_clipped = is_clipping_by_ancestor(e);
-		if (is_clipped) {
-			auto renderers = get_renderer_handles(e);
-			for (const auto& handle : renderers) {
-				auto& draw_attributes = Vulkan::modify_draw_attributes(handle);
-				draw_attributes.set_visible(false);
+		const auto& [clipping_ancestors] = registry.read<Clipping_Ancestor_Information>(e.id());
+		CLIPPING_STATE clipping_state = get_clipping_state_by_ancestors(e);
+		auto renderers = get_renderer_handles(e);
+		switch (clipping_state) {
+			case CLIPPING_STATE::CLIPPING_FULL_IN: {
+				for (const auto& handle : renderers) {
+					auto& draw_attributes = Vulkan::modify_draw_attributes(handle);
+					draw_attributes.set_number_clipping(0);
+				}
+				break;
+			}
+			case CLIPPING_STATE::CLIPPING_FULL_OUT: {
+				for (const auto& handle : renderers) {
+					auto& draw_attributes = Vulkan::modify_draw_attributes(handle);
+					draw_attributes.set_visible(false);
+				}
+				break;
+			}
+			default: {
+				auto [number_valid_clipping, _] = clipping_ancestors.get_clipping_ancestors_info();
+				for (const auto& handle : renderers) {
+					auto& draw_attributes = Vulkan::modify_draw_attributes(handle);
+					draw_attributes.set_number_clipping(number_valid_clipping);
+				}
+				break;
 			}
 		}
 	}

@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <consts.h>
 #include <geometry_structs.h>
 #include <glm/glm.hpp>
 
@@ -43,5 +44,9 @@ namespace Math {
 	bool right_side_edge(glm::vec2 start_point, glm::vec2 end_point, glm::vec2 check_point);
 
 	bool point_in_rect(const std::array<glm::vec2, 4>& transformed_rect, const glm::vec2& point);
+
+	Const::COLLISION_STATE get_collision_state(
+		const std::array<glm::vec2, 4>& child_rect, const std::array<glm::vec2, 4>& parent_rect
+	);
 
 } // namespace Math

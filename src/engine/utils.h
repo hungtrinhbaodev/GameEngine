@@ -33,11 +33,6 @@ namespace Engine {
 			const glm::vec2& parent_size, const glm::vec2& container_size, const glm::vec2& position
 		);
 
-		void add_self_clipping_to_clipping_ancestors(
-			uint32_t& number_valid_handle, std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>& clipping_handle_ancestors,
-			const Handle& self_clipping
-		);
-
 	} // namespace Utils
 
 } // namespace Engine

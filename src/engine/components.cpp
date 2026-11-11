@@ -439,4 +439,18 @@ namespace Engine {
 		return true;
 	}
 
+	CLIPPING_STATE Rect::get_cliping_state_with(const Rect& parent_rect) const {
+		switch (Math::get_collision_state(transformed_rect, parent_rect.transformed_rect)) {
+			case ::Const::COLLISION_STATE_FULL_IN: {
+				return CLIPPING_FULL_IN;
+			}
+			case ::Const::COLLISION_STATE_FULL_OUT: {
+				return CLIPPING_FULL_OUT;
+			}
+			default: {
+				return CLIPPING_INTERECT;
+			}
+		}
+	}
+
 } // namespace Engine

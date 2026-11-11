@@ -1,14 +1,17 @@
 #include <chrono>
-#include <typeinfo>
 #include <engine/components.h>
+#include <typeinfo>
 #include <vulkan/draws/vk_draw_font_2D.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <cmath>
 #include <engine/engine.h>
+#include <glfw/glfw3.h>
+#include <glm/glm.hpp>
 #include <log.h>
 #include <math_custom.h>
+#include <string>
 #include <test_ui.h>
 
 namespace Engine {
@@ -86,7 +89,7 @@ namespace Test {
 			return "(" + std::to_string(v.x) + ", " + std::to_string(v.y) + ")";
 		}
 
-		bool near(const glm::vec2& a, const glm::vec2& b, float eps = 0.01f) {
+		bool nearly_equal(const glm::vec2& a, const glm::vec2& b, float eps = 0.01f) {
 			return std::abs(a.x - b.x) <= eps && std::abs(a.y - b.y) <= eps;
 		}
 
@@ -105,14 +108,27 @@ namespace Test {
 				auto h = Engine::get_label_horizontal_align(label);
 				auto v = Engine::get_label_vertical_align(label);
 				auto fit = Engine::get_label_render_fit_mode(label);
-				api_expect("label-default", h == Engine::LABEL_HORIZONTAL_ALIGN_CENTER, "horizontal align " + std::to_string((int)h) + " (want CENTER 0)");
-				api_expect("label-default", v == Engine::LABEL_VERTICAL_ALIGN_CENTER, "vertical align " + std::to_string((int)v) + " (want CENTER 1)");
-				api_expect("label-default", fit == Engine::CLIP, "fit mode " + std::to_string((int)fit) + " (want CLIP 0)");
+				api_expect(
+					"label-default", h == Engine::LABEL_HORIZONTAL_ALIGN_CENTER,
+					"horizontal align " + std::to_string((int)h) + " (want CENTER 0)"
+				);
+				api_expect(
+					"label-default", v == Engine::LABEL_VERTICAL_ALIGN_CENTER,
+					"vertical align " + std::to_string((int)v) + " (want CENTER 1)"
+				);
+				api_expect(
+					"label-default", fit == Engine::CLIP, "fit mode " + std::to_string((int)fit) + " (want CLIP 0)"
+				);
 				const auto& [info] = Engine::get_registry().read<Engine::Label_Renderer_Information>(label.id());
 				glm::vec2 inner = info.inner_label_transform.position;
-				glm::vec2 text = Vulkan::Draw_Font_2D::get_renderer_text_size("Hi", info.font_path, info.font_size, info.stroke_size);
+				glm::vec2 text = Vulkan::Draw_Font_2D::get_renderer_text_size(
+					"Hi", info.font_path, info.font_size, info.stroke_size
+				);
 				glm::vec2 want = (glm::vec2{300.f, 120.f} - text) * 0.5f;
-				api_expect("label-default", near(inner, want, 1.f), "inner position " + vec_text(inner) + " want " + vec_text(want));
+				api_expect(
+					"label-default", nearly_equal(inner, want, 1.f),
+					"inner position " + vec_text(inner) + " want " + vec_text(want)
+				);
 				Engine::clean_up(label);
 				Engine::process_frame(0.f);
 			} catch (const std::exception& ex) {
@@ -188,13 +204,13 @@ namespace Test {
 				glm::vec2 scroll_position = Engine::get_position(scroll);
 				glm::vec2 offset = Engine::get_scroll_layout_container_position(scroll);
 				api_expect(
-					"3", near(Engine::get_position(scroll), scroll_position),
+					"3", nearly_equal(Engine::get_position(scroll), scroll_position),
 					"get_scroll_layout_container_position does not move the scroll layout itself (" +
 						vec_text(scroll_position) + " -> " + vec_text(Engine::get_position(scroll)) + ")"
 				);
 				Engine::process_frame(0.f);
 				api_expect(
-					"3", near(Engine::get_position(scroll), scroll_position),
+					"3", nearly_equal(Engine::get_position(scroll), scroll_position),
 					"scroll layout still at its position one frame after the getter (" +
 						vec_text(Engine::get_position(scroll)) + ")"
 				);
@@ -202,21 +218,21 @@ namespace Test {
 				Engine::process_frame(0.f);
 				glm::vec2 got = Engine::get_scroll_layout_container_position(scroll);
 				api_expect(
-					"3", near(got, {0.f, -300.f}),
+					"3", nearly_equal(got, {0.f, -300.f}),
 					"set {0, -300} then get returns it (start " + vec_text(offset) + ", got " + vec_text(got) + ")"
 				);
 				Engine::set_scroll_layout_container_position(scroll, {0.f, -5000.f});
 				Engine::process_frame(0.f);
 				got = Engine::get_scroll_layout_container_position(scroll);
 				api_expect(
-					"3", near(got, {0.f, -800.f}),
+					"3", nearly_equal(got, {0.f, -800.f}),
 					"set past the end is clamped to {0, -800} (got " + vec_text(got) + ")"
 				);
 				Engine::set_scroll_layout_container_position(scroll, {0.f, 50.f});
 				Engine::process_frame(0.f);
 				got = Engine::get_scroll_layout_container_position(scroll);
 				api_expect(
-					"3", near(got, {0.f, 0.f}), "set before the start is clamped to {0, 0} (got " + vec_text(got) + ")"
+					"3", nearly_equal(got, {0.f, 0.f}), "set before the start is clamped to {0, 0} (got " + vec_text(got) + ")"
 				);
 				Engine::clean_up(scroll);
 				Engine::process_frame(0.f);
@@ -240,20 +256,20 @@ namespace Test {
 				glm::vec2 expected = parent_world + Math::rotate(0.5f, glm::vec2(10.f, 20.f) * 2.f);
 				glm::vec2 child_world = Engine::get_world_position(child);
 				api_expect(
-					"4", near(child_world, expected, 0.05f),
+					"4", nearly_equal(child_world, expected, 0.05f),
 					"child world position = parent + rotate(scale * local) (" + vec_text(child_world) + " vs " +
 						vec_text(expected) + ")"
 				);
 				glm::vec2 back = Engine::to_my_position_space(parent, child_world);
 				api_expect(
-					"4", near(back, {10.f, 20.f}, 0.05f),
+					"4", nearly_equal(back, {10.f, 20.f}, 0.05f),
 					"to_my_position_space(parent, child world) = child local (" + vec_text(back) + ")"
 				);
 				Engine::set_scale(parent, {0.f, 0.f});
 				Engine::process_frame(0.f);
 				glm::vec2 fallback = Engine::to_my_position_space(parent, {1.f, 1.f}, {-7.f, -7.f});
 				api_expect(
-					"4", near(fallback, {-7.f, -7.f}),
+					"4", nearly_equal(fallback, {-7.f, -7.f}),
 					"scale 0 returns the fallback, no inf / NaN (" + vec_text(fallback) + ")"
 				);
 				// a mirrored node (negative scale) is still invertible.
@@ -264,7 +280,7 @@ namespace Test {
 					parent, Engine::get_world_position(parent) + glm::vec2(-10.f, 20.f), {-7.f, -7.f}
 				);
 				api_expect(
-					"4", near(mirrored, {10.f, 20.f}, 0.05f),
+					"4", nearly_equal(mirrored, {10.f, 20.f}, 0.05f),
 					"negative scale (mirror) converts instead of returning the fallback (" + vec_text(mirrored) + ")"
 				);
 				// queried in the same frame as the change (an app moves a node, then places a tooltip):
@@ -277,21 +293,30 @@ namespace Test {
 				Engine::process_frame(0.f);
 				Engine::set_position(parent, {500.f, 300.f});
 				glm::vec2 same_frame = Engine::get_world_position(child);
-				api_expect("4", near(same_frame, {510.f, 320.f}, 0.05f),
-						   "child world position is up to date right after the parent moved, before process_frame (" +
-							   vec_text(same_frame) + ", expected (510, 320))");
+				api_expect(
+					"4", nearly_equal(same_frame, {510.f, 320.f}, 0.05f),
+					"child world position is up to date right after the parent moved, before process_frame (" +
+						vec_text(same_frame) + ", expected (510, 320))"
+				);
 				Engine::set_position(parent, {600.f, 100.f});
 				glm::vec2 deep = Engine::get_world_position(grandchild);
-				api_expect("4", near(deep, {611.f, 122.f}, 0.05f),
-						   "grandchild world position is up to date right after the grandparent moved (" + vec_text(deep) +
-							   ", expected (611, 122))");
+				api_expect(
+					"4", nearly_equal(deep, {611.f, 122.f}, 0.05f),
+					"grandchild world position is up to date right after the grandparent moved (" + vec_text(deep) +
+						", expected (611, 122))"
+				);
 				glm::vec2 local = Engine::to_my_position_space(child, {620.f, 130.f});
-				api_expect("4", near(local, {10.f, 10.f}, 0.05f),
-						   "to_my_position_space uses the new transform in the same frame (" + vec_text(local) + ", expected (10, 10))");
+				api_expect(
+					"4", nearly_equal(local, {10.f, 10.f}, 0.05f),
+					"to_my_position_space uses the new transform in the same frame (" + vec_text(local) +
+						", expected (10, 10))"
+				);
 				Engine::process_frame(0.f);
 				glm::vec2 after_frame = Engine::get_world_position(child);
-				api_expect("4", near(after_frame, {610.f, 120.f}, 0.05f),
-						   "after the frame the child is still right (" + vec_text(after_frame) + ")");
+				api_expect(
+					"4", nearly_equal(after_frame, {610.f, 120.f}, 0.05f),
+					"after the frame the child is still right (" + vec_text(after_frame) + ")"
+				);
 				// percent size read right after the parent's size changed.
 				Handle percent = Engine::create_layout();
 				Engine::set_size_percent(percent, {0.5f, 0.25f});
@@ -299,9 +324,11 @@ namespace Test {
 				Engine::process_frame(0.f);
 				Engine::set_content_size(parent, {400.f, 200.f});
 				glm::vec2 percent_size = Engine::get_content_size(percent);
-				api_expect("4", near(percent_size, {200.f, 50.f}),
-						   "percent child size is up to date right after the parent resized (" + vec_text(percent_size) +
-							   ", expected (200, 50))");
+				api_expect(
+					"4", nearly_equal(percent_size, {200.f, 50.f}),
+					"percent child size is up to date right after the parent resized (" + vec_text(percent_size) +
+						", expected (200, 50))"
+				);
 				Engine::clean_up(parent);
 				Engine::process_frame(0.f);
 			} catch (const std::exception& exception) {

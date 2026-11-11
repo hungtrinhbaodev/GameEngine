@@ -124,4 +124,36 @@ namespace Math {
 		return true;
 	}
 
+	Const::COLLISION_STATE get_collision_state(
+		const std::array<glm::vec2, 4>& child_rect, const std::array<glm::vec2, 4>& parent_rect
+	) {
+		glm::vec2 first_axis_x = child_rect[1] - child_rect[0];
+		glm::vec2 first_axis_y = child_rect[3] - child_rect[0];
+		glm::vec2 second_axis_x = parent_rect[1] - parent_rect[0];
+		glm::vec2 second_axis_y = parent_rect[3] - parent_rect[0];
+		std::array<glm::vec2, 4> axies = {first_axis_x, first_axis_y, second_axis_x, second_axis_y};
+		auto find_min_max_with_axis = [](const std::array<glm::vec2, 4> rect, glm::vec2 axis) {
+			float min = ::Const::MAX_FLOAT;
+			float max = -::Const::MAX_FLOAT;
+			for (int i = 0; i < rect.size(); i++) {
+				float value = glm::dot(rect[i], axis);
+				min = std::min(min, value);
+				max = std::max(max, value);
+			}
+			return std::make_tuple(min, max);
+		};
+		bool full_in = true;
+		for (const auto& axis : axies) {
+			auto [min, max] = find_min_max_with_axis(child_rect, axis);
+			auto [min_parent, max_parent] = find_min_max_with_axis(parent_rect, axis);
+			if (max < min_parent || min > max_parent) {
+				return Const::COLLISION_STATE::COLLISION_STATE_FULL_OUT;
+			}
+			full_in &= (min >= min_parent && max <= max_parent);
+		}
+		if (full_in)
+			return Const::COLLISION_STATE::COLLISION_STATE_FULL_IN;
+		return Const::COLLISION_STATE::COLLISION_STATE_INTERSECT;
+	}
+
 } // namespace Math

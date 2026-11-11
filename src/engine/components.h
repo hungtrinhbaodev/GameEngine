@@ -199,6 +199,7 @@ namespace Engine {
 	struct Rect {
 		std::array<glm::vec2, 4> transformed_rect;
 		bool is_clipped_by(const Rect& parent_rect) const;
+		CLIPPING_STATE get_cliping_state_with(const Rect& parent_rect) const;
 		inline friend std::ostream& operator<<(std::ostream& os, const Rect& rect) {
 			os << "{";
 			for (int i = 0; i < rect.transformed_rect.size(); i++) {
