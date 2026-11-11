@@ -523,7 +523,7 @@ namespace Engine {
 		}
 		const auto& [clipping_ancestor, rect] = registry.read<Clipping_Ancestor_Information, Rect>(e.id());
 		for (int i = 0; i < clipping_ancestor.number_clipping; i++) {
-			const auto& clipping_parent = clipping_ancestor.clipping_ancesors[i];
+			const auto& clipping_parent = clipping_ancestor.clipping_ancestors[i];
 			if (!registry.has<Rect>(clipping_parent.id()))
 				continue;
 			const auto& [parent_rect] = registry.read<Rect>(clipping_parent.id());

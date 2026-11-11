@@ -1,7 +1,7 @@
 #include <algorithm>
-#include <string_view>
 #include <engine/components.h>
 #include <math_custom.h>
+#include <string_view>
 #include <vulkan/draws/vk_draw_font_2D.h>
 
 namespace Engine {
@@ -38,12 +38,27 @@ namespace Engine {
 		return value & flag;
 	}
 
+	void Clipping_Ancestor_Information::update_self_clipping(const Handle& e) {
+		self_clipping = e;
+	}
+
+	void Clipping_Ancestor_Information::merge_with(
+		const Clipping_Ancestor_Information& parent_clipping_ancestor, bool is_parent_clipping,
+		const Handle& parent_handle
+	) {
+		clipping_ancestors = parent_clipping_ancestor.clipping_ancestors;
+		number_clipping = parent_clipping_ancestor.number_clipping;
+		if (is_parent_clipping) {
+			add_clipping_ancestor(parent_handle);
+		}
+	}
+
 	void Clipping_Ancestor_Information::add_clipping_ancestor(const Handle& ancestor) {
 		if (::Const::MAX_DEPTH_CLIPPING <= 0)
 			return;
 		bool need_remove = false;
 		for (int i = 0; i < number_clipping; i++) {
-			if (clipping_ancesors[i].id() == ancestor.id()) {
+			if (clipping_ancestors[i].id() == ancestor.id()) {
 				need_remove = true;
 				break;
 			}
@@ -52,9 +67,9 @@ namespace Engine {
 			remove_clipping_ancestor(ancestor);
 		}
 		if (number_clipping >= ::Const::MAX_DEPTH_CLIPPING) {
-			remove_clipping_ancestor(clipping_ancesors[0]);
+			remove_clipping_ancestor(clipping_ancestors[0]);
 		}
-		clipping_ancesors[number_clipping++] = ancestor;
+		clipping_ancestors[number_clipping++] = ancestor;
 	}
 
 	void Clipping_Ancestor_Information::remove_clipping_ancestor(const Handle& ancestor) {
@@ -62,7 +77,7 @@ namespace Engine {
 			return;
 		int remove_index = -1;
 		for (int i = 0; i < ::Const::MAX_DEPTH_CLIPPING; i++) {
-			if (clipping_ancesors[i].id() == ancestor.id()) {
+			if (clipping_ancestors[i].id() == ancestor.id()) {
 				remove_index = i;
 				break;
 			}
@@ -70,9 +85,27 @@ namespace Engine {
 		if (remove_index < 0)
 			return;
 		for (int i = remove_index + 1; i < ::Const::MAX_DEPTH_CLIPPING; i++) {
-			clipping_ancesors[i - 1] = clipping_ancesors[i];
+			clipping_ancestors[i - 1] = clipping_ancestors[i];
 		}
 		number_clipping--;
+	}
+
+	std::tuple<int, std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>> Clipping_Ancestor_Information::
+		get_clipping_ancestors_info() const {
+		if (self_clipping.is_invalid()) {
+			return std::make_tuple(number_clipping, clipping_ancestors);
+		}
+		int total_number_clipping = number_clipping;
+		auto final_clipping_ancestors = clipping_ancestors;
+		if (total_number_clipping >= ::Const::MAX_DEPTH_CLIPPING) {
+			for (int i = 0; i < final_clipping_ancestors.size() - 1; i++) {
+				final_clipping_ancestors[i] = final_clipping_ancestors[i + 1];
+			}
+			final_clipping_ancestors[total_number_clipping - 1] = self_clipping;
+		} else {
+			final_clipping_ancestors[total_number_clipping++] = self_clipping;
+		}
+		return std::make_tuple(total_number_clipping, final_clipping_ancestors);
 	}
 
 	World_Transform_2D World_Transform_2D::transform(const Transform_2D& local_transform) const {

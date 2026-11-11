@@ -86,8 +86,8 @@ namespace Engine {
 		}
 		const auto& [description] = registry.read<Description>(e.id());
 		switch (description.value) {
-			case DESCRIPTION_TYPE::INNER_CONTAINER:
 			case DESCRIPTION_TYPE::SCROLL_LAYOUT:
+			case DESCRIPTION_TYPE::LABEL_2D:
 			case DESCRIPTION_TYPE::LAYOUT_2D: {
 				const auto& [handles] = registry.read<Renderer_Handles>(e.id());
 				if (handles.value.size() <= 1) {
@@ -108,7 +108,7 @@ namespace Engine {
 		}
 		const auto& [clipping_ancestor, rect] = registry.read<Clipping_Ancestor_Information, Rect>(e.id());
 		for (int i = 0; i < clipping_ancestor.number_clipping; i++) {
-			const auto& clipping_parent = clipping_ancestor.clipping_ancesors[i];
+			const auto& clipping_parent = clipping_ancestor.clipping_ancestors[i];
 			if (!registry.has<Rect>(clipping_parent.id()))
 				continue;
 			const auto& [parent_rect] = registry.read<Rect>(clipping_parent.id());
@@ -125,8 +125,9 @@ namespace Engine {
 	) {
 		std::array<Handle, ::Const::MAX_DEPTH_CLIPPING> clipping_handle_ancestor{};
 		uint32_t number_valid_handle = 0;
-		for (int i = 0; i < clipping_ancestor.number_clipping; i++) {
-			auto clipping_handle = get_render_clipping_handle(clipping_ancestor.clipping_ancesors[i]);
+		auto [number_clipping, clipping_ancestors] = clipping_ancestor.get_clipping_ancestors_info();
+		for (int i = 0; i < number_clipping; i++) {
+			auto clipping_handle = get_render_clipping_handle(clipping_ancestors[i]);
 			if (!clipping_handle.is_invalid()) {
 				clipping_handle_ancestor[number_valid_handle] = clipping_handle;
 				number_valid_handle++;
@@ -170,10 +171,6 @@ namespace Engine {
 			return;
 		}
 		bool is_clipped = is_clipping_by_ancestor(e);
-		if (e.id() == 23 && is_clipped) {
-			const auto& [tree_info, rect] = registry.read<Tree_Information, Rect>(e.id());
-			const auto& [parent_rect] = registry.read<Rect>(tree_info.parent.id());
-		}
 		if (is_clipped) {
 			auto renderers = get_renderer_handles(e);
 			for (const auto& handle : renderers) {
@@ -413,7 +410,8 @@ namespace Engine {
 		Registry& registry = get_registry();
 		const auto& [transform, c_handles, c_size] =
 			registry.read<World_Transform_2D, Renderer_Handles, Size>(e_child.id());
-		auto [label_renderer] = registry.get<Label_Renderer_Information>(e_child.id());
+		auto [label_renderer, clipping_ancestor] =
+			registry.get<Label_Renderer_Information, Clipping_Ancestor_Information>(e_child.id());
 		auto update_label_transform = [](Vulkan::Font_2D& label, const World_Transform_2D& transform) {
 			label.set_anchor(transform.anchor);
 			label.set_color(transform.color);
@@ -440,20 +438,18 @@ namespace Engine {
 				clipping.set_world_position(transform.position);
 				clipping.set_world_scale(transform.scale);
 			}
-			const auto& [clipping_ancestor] = registry.read<Clipping_Ancestor_Information>(e_child.id());
-			auto [number_valid_handle, clipping_handle_ancestors] = validate_clipping_ancestors(clipping_ancestor);
+			clipping_ancestor.update_self_clipping(Handle::make_invalid_handle());
 			if (label_renderer.clipping_enabled) {
-				Utils::add_self_clipping_to_clipping_ancestors(
-					number_valid_handle, clipping_handle_ancestors, handles[1]
-				);
+				clipping_ancestor.update_self_clipping(e_child);
 			}
-			// always upload: when clipping turns off, the label must drop its own clip and keep only ancestors.
-			label.set_number_clipping(number_valid_handle);
-			label.set_clipping_ancestors(clipping_handle_ancestors);
 		} else {
-			// label.set_number_clipping(0);
+			clipping_ancestor.update_self_clipping(Handle::make_invalid_handle());
 			update_label_transform(label, transform);
 		}
+		auto [number_valid_handle, clipping_handle_ancestors] = validate_clipping_ancestors(clipping_ancestor);
+		// always upload: when clipping turns off, the label must drop its own clip and keep only ancestors.
+		label.set_number_clipping(number_valid_handle);
+		label.set_clipping_ancestors(clipping_handle_ancestors);
 		c_rect.transformed_rect = Math::transform_rect(
 			c_size.value, transform.position, transform.scale, transform.rotation, transform.anchor
 		);
@@ -756,11 +752,7 @@ namespace Engine {
 			}
 			const auto& [parent_clipping_ancestor] = registry.read<Clipping_Ancestor_Information>(parent.id());
 			auto [child_clipping_ancestor] = registry.get<Clipping_Ancestor_Information>(e.id());
-			child_clipping_ancestor.number_clipping = parent_clipping_ancestor.number_clipping;
-			child_clipping_ancestor.clipping_ancesors = parent_clipping_ancestor.clipping_ancesors;
-			if (is_parent_clipping) {
-				child_clipping_ancestor.add_clipping_ancestor(parent);
-			}
+			child_clipping_ancestor.merge_with(parent_clipping_ancestor, is_parent_clipping, parent);
 			auto [number_valid_handle, clipping_handle_ancestors] =
 				validate_clipping_ancestors(child_clipping_ancestor);
 			auto renderer_handles = get_renderer_handles(e);

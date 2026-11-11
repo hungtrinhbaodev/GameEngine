@@ -131,16 +131,21 @@ namespace Engine {
 		float vertical_padding = 0.f;
 
 		Transform_2D inner_label_transform;
-
 		void update_inner_text_by(const glm::vec2& text_size);
 	};
 
 	struct Clipping_Ancestor_Information {
 		int number_clipping = 0;
-		std::array<Handle, ::Const::MAX_DEPTH_CLIPPING> clipping_ancesors;
-
+		std::array<Handle, ::Const::MAX_DEPTH_CLIPPING> clipping_ancestors;
+		Handle self_clipping = Handle::make_invalid_handle();
+		void update_self_clipping(const Handle& e);
+		void merge_with(
+			const Clipping_Ancestor_Information& parent_clipping_ancestor, bool is_parent_clipping,
+			const Handle& parent_handle
+		);
 		void add_clipping_ancestor(const Handle& ancestor);
 		void remove_clipping_ancestor(const Handle& ancestor);
+		std::tuple<int, std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>> get_clipping_ancestors_info() const;
 	};
 
 	struct Clipping_Information {
