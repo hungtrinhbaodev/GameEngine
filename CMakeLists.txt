@@ -19,18 +19,36 @@ else()
 endif()
 
 
-file(GLOB_RECURSE SOURCES "main.cpp" "src/*.cpp")
+file(GLOB_RECURSE SOURCES "main.cpp" "src/*.cpp" "tests/*.cpp")
+# main.cpp runs the UI tests too, so only the test harness entry point is left out.
+list(REMOVE_ITEM SOURCES "${CMAKE_SOURCE_DIR}/tests/test_main.cpp")
 add_executable(main ${SOURCES})
 
 target_compile_definitions(main PRIVATE $<$<CONFIG:Debug>:_DEBUG>)
 target_compile_definitions(main PRIVATE $<$<CONFIG:Debug>:_GLIBCXX_ASSERTIONS>)
-target_include_directories(main PRIVATE src vendor)
+target_include_directories(main PRIVATE src vendor tests)
 
 if(APPLE)
     target_link_libraries(main PRIVATE glm::glm Vulkan::Vulkan glfw)
 else()
     target_include_directories(main PRIVATE "${GLFW_DIR}/include/")
     target_link_libraries(main PRIVATE glm::glm Vulkan::Vulkan "${GLFW_DIR}/lib-mingw-w64/libglfw3.a")
+endif()
+
+# UI test harness: tests/*.cpp + engine sources, without the root main.cpp.
+# Build only on demand: cmake --build <dir> --target ui_test
+file(GLOB_RECURSE ENGINE_SOURCES "src/*.cpp")
+file(GLOB_RECURSE UI_TEST_SOURCES "tests/*.cpp")
+add_executable(ui_test EXCLUDE_FROM_ALL ${UI_TEST_SOURCES} ${ENGINE_SOURCES})
+target_compile_definitions(ui_test PRIVATE $<$<CONFIG:Debug>:_DEBUG>)
+target_compile_definitions(ui_test PRIVATE $<$<CONFIG:Debug>:_GLIBCXX_ASSERTIONS>)
+target_include_directories(ui_test PRIVATE src vendor tests)
+
+if(APPLE)
+    target_link_libraries(ui_test PRIVATE glm::glm Vulkan::Vulkan glfw)
+else()
+    target_include_directories(ui_test PRIVATE "${GLFW_DIR}/include/")
+    target_link_libraries(ui_test PRIVATE glm::glm Vulkan::Vulkan "${GLFW_DIR}/lib-mingw-w64/libglfw3.a")
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)

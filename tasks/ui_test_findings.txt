@@ -1,0 +1,400 @@
+UI TEST FINDINGS (from tests/ ui_test harness)
+Everything at once: tests/run_all.sh  (builds ui_test, runs repros + stress + drive + 8 fuzz seeds,
+     one line per case, logs + screenshots in build/ui_test_logs; UI_TEST_SKIP_BUILD=1 skips the build).
+     A case FAILs on crash/timeout, leak/tree issues, [clip]/[listener] invariants, any [drive] FAIL,
+     or Vulkan validation errors (messages with a VUID; loader info lines are ignored).
+Build: cmake --build build --target ui_test      Run from build/: ./ui_test
+Unattended: ./ui_test stress | ./ui_test fuzz <seed> <scene 1-3> [ops per frame]
+            ./ui_test repro | repro-clip | repro-image | repro-scroll | repro-touch
+Env: UI_TEST_VERBOSE=1 logs every fuzz op (with target id) and the touch list each frame,
+     UI_TEST_AVOID_KNOWN=1 skips triggers of known bugs.
+Fuzz also logs "[clip] dead clip handle ..." and "[listener] stale entry ..." with the ops that caused it.
+Mark with [Done] when fixed, then rerun the listed repro / fuzz to confirm.
+
+===== CRASHES =====
+[Done]: 1. Removing a node that never rendered crashed (empty Renderer_Handles in get_renderer_handles).
+    Verified: ./ui_test repro passes.
+[Done]: 2. Stale clip handle after moving a node out of a clipping parent.
+    Verified: ./ui_test repro-clip passes (layout + label + image), fuzz seeds 3, 6, 7 pass.
+[Done]: 3. set_image_path(e, "") threw in load_texture(""). Verified: ./ui_test repro-image passes.
+[Done]: 13. update_label_render_transform read handles[0] with empty Renderer_Handles.
+    Verified: no more segfault in fuzz.
+[Done]: 14. Deleted entity left in the touch listener list -> "Fail to get value with id" in the sort
+    of handle_update_entities_touch_listener (engine.cpp ~453).
+    Same frame: a node becomes touch-dirty, then its parent is detached. remove_child takes it out of
+    the list, but the DIRTY_TOUCHING flag stays, so process_frame inserts the now detached node again.
+    A later clean_up of the detached parent skips the listener cleanup (remove_child returns early
+    when there is no parent), so the deleted entity stays in the list.
+    Fix ideas: skip nodes with valid_child = false when building the listener lists (touch and scroll),
+    and remove every collected node from both lists inside clean_up itself.
+    Repro: ./ui_test repro-touch (key U). Fuzz: ./ui_test fuzz 2 2 12.
+
+===== LEAKS =====
+[Done]: 4. clean_up of a scroll layout leaked Scroll_Information. Verified: repro-scroll and stress match baseline.
+[Done]: 5. remove_layout now erases Size and Clipping_Information.
+[Done]: 6. remove_label now erases Label_Renderer_Information.
+[Done]: 7. remove_scroll_layout no longer calls remove_node twice.
+
+===== FOUND BY READING THE CODE (check in the lab scene, key 3) =====
+[Done]: 8. handle_dirty_relative_position now reads Position_Percent, but the filter above it still checks
+    has_all<Tree_Information, Size_Percent> (systems.cpp ~544). Labels and plain nodes have Position_Percent
+    but no Size_Percent, so set_position_percent is still ignored for them. Check Position_Percent instead.
+    Lab box 1: the blue square should be half size and centred.
+[Done]: 9. set_swallow_scrolling writes swallow_scroll.
+[Done]: 10. get_scroll_speed returns 0.f when the component is missing.
+[Done]: 11. update_scroll_layout_renderer_transform still logs "What is this position 2" (systems.cpp:297).
+[Done]: 12. find_entites_listen_touch_at now checks is_visible. Still to confirm by hand in scene 1:
+    open dialog (visible mode), close it, click where it was; "[modal] overlay touched, visible = 0" must not appear.
+[Done]: 15. Layout background lost after set_visible(false) -> set_visible(true) (and after detach/reattach):
+    update_layout_renderer_transform skipped the update while the rect was hidden. Fixed by
+    rect.set_visible(transform.is_visible && layout_renderer.enabled).
+[Done]: 16. remove_child only removes nodes from the touch / scroll listener lists when touch_info.enabled
+    (or scroll_info.enabled) is true (engine.cpp ~857 and ~866). A node whose touch was disabled earlier
+    in the same frame is still in the list, gets skipped, and stays there after clean_up (its dirty flag
+    is also dropped by remove_entity_from_dirty_list). Remove every removed child from both lists,
+    without the enabled check. Seen in fuzz 2 2 12 and 6 3 1 as "[listener] stale entry"; crashes
+    only sometimes ("Invalid handle in drawing"), so the stale-entry log is the reliable signal.
+
+===== FOUND BY DRIVING THE APP (./ui_test drive: scripted clicks / drags / wheel + screenshots) =====
+Run: cd build && UI_TEST_SHOTS=<folder> ./ui_test drive   -> "[drive] PASS/FAIL ..." lines, summary, screenshots.
+Each click logs "[drive]    hits entity ..." = what the touch hit test returned at that point.
+[Done]: 12b. Hidden *children* still take clicks. find_entites_listen_touch_at checks the node's own
+    Transform_2D.is_visible, but a child of a hidden parent keeps is_visible = true. Use the world
+    (inherited) visibility, e.g. World_Transform_2D.is_visible.
+    Drive: after closing the dialog (visible mode) the hidden Cancel still reacts, and "Build dialog"
+    hits the hidden dialog panel (entity type 1, 460x260) instead of the button.
+    Verified: the hit test reads World_Transform_2D now; drive passes "hidden Cancel button does not react",
+    "click passes through the hidden overlay" and "destroy mode opens a new dialog".
+[Done]: 17. set_size_pinning({0,0,0,0}) never takes effect. is_dirty = !enabled && is_changing(pinning),
+    and all-zero insets equal the default, so DIRTY_RELATIVE_SIZE is never set and the size stays 0x0
+    (engine.cpp ~1310). Enabling pinning must always mark it dirty. Check set_size_percent /
+    set_position_percent for the same pattern (ratio equal to the default).
+    Drive: pinned page is 0x0, header 0x0, so page background, header bar and modal overlay are not drawn
+    (only the grey root shows) and the header title sits at the bottom.
+    Verified: drive passes "pinned page fills the window", "pinned header is a 64 px bar" and
+    "pinned header sits at the top"; screenshots show the page background and header bar.
+[Done]: 19. Drag-to-scroll does nothing when the drag starts on touchable content.
+    The row under the finger takes the touch and swallows it, so the scroll layout never sees the drag,
+    and the row still gets TOUCH_ENDED on release ("[lab] row clicked: 27" after an 80 px drag).
+    (One drive run passed this by accident: earlier stray clicks on the inner container, entity 50,
+    had left the list in a scroll state. With #20 fixed those clicks are gone and it fails again.)
+    Usual scroll-view behaviour: children get BEGAN as normal, but the scroll layout also watches the
+    touch even when a child swallows it. Once the finger moves past a threshold (~10 px) the scroll
+    layout claims the touch, sends the child TOUCH_CANCEL and scrolls from then on.
+    Drive: "dragging scrolls the vertical list" stays at -4 -> -4 (mouse wheel works).
+    Verified: the touch container (SCROLL_LISTENER_CONTAINER) claims the touch after 7.5 px and cancels the
+    rows; drive passes "dragging scrolls the vertical list" with no "row clicked" after the drag.
+    Leak from the type change (touch container skipped in clean_up) fixed too; tree + leak checks pass.
+    Left as-is (not blocking): the 7.5 px check runs again after the claim (start_touch resets each step),
+    so very slow drags can stutter; the cancel loop runs over all touches' entities (multi-touch).
+[Done]: 20. Clipped content stayed clickable. The hit tests (touch and scroll) now check the touch point
+    against every clipping ancestor rect (is_touch_position_clipped / is_scroll_position_clipped).
+    Note: the first try reused is_clipping_by_ancestor (whole rect fully outside), which still let the
+    1200 px inner container (entity 50) take clicks outside the 250 px window. A point check is needed.
+    Verified: drive passes "Toggle nine-scale turns it off" (hits its own button, not Row 22 / entity 50).
+[Done]: 21. Check: label size vs font size. A 16 pt label measures 36 units tall and ~21 units per character
+    ("A much longer label string" = 537 x 36), so button labels overflow their 110-160 px buttons in the
+    screenshots ("Open di", "Cance", "Confi rm"). The "Short" label is also drawn a little right of its
+    measured box. Could be expected font metrics or a Retina scale applied twice; worth a look.
+    Checked (2026-11-10, lab screenshot vs "[lab] measured label size"): the measured WIDTH matches the drawn
+    text ("Short" @20: measured 129 x 45, drawn ~126 wide). Two real issues instead:
+    a) Text is drawn shifted from its node box when anchor != 0 (Short @20: ~23 units to the right).
+       make_char_storages_data (vk_draw_font_2D.cpp ~78): origin = -(width, height) * anchor uses the
+       already-scaled width/height (max_width_line * char_scale), but char_translation is in unscaled font
+       units and the shader multiplies by scale * char_scale, so the origin is scaled twice.
+       Shift = W*anchor*(1 - char_scale): 129*0.5*(1-0.625) = 24 -> matches. Fix: build the origin from the
+       unscaled size (width / char_scale, height / char_scale). Labels bigger than size 32 shift the other way.
+    b) font_size N draws text about 2.25x N tall. The atlas is rasterized at MAX_PIXEL_HEIGHT = 72
+       (font_parser.cpp:41, line_height = 72 at char_scale 1) but get_char_scale = font_size / center_font_size
+       with center_font_size = MAX_FONT_SIZE / 2 = 32. So size 32 -> 72 px line, size 20 -> 45, size 16 -> 36.
+       That is why button labels overflow. If font_size should mean pixel height, scale by
+       font_size / MAX_PIXEL_HEIGHT (keep min/max clamping); check claim_stroke uses the same scale.
+    Smaller: set_stroke_size does not set text_dirty, but the measured size depends on stroke, so the size
+    is stale after a stroke change. update_label_renderer calls set_font_path twice (absolute or "" then the
+    relative path), so every label update flips the path and re-measures the text.
+    c) Stroke in get_char_bounding_box / get_char_local_offset was "* sfd_padding * scale" (screen units)
+       added to atlas-unit metrics, then scaled again -> stroke counted as stroke * char_scale.
+    Recheck (2026-11-10, after the user's fix):
+    [ok] a) anchor origin now uses width / char_scale: "Short" sits centred in its measure box.
+    [ok] c) stroke in glyph box / offset is in atlas units (no extra * scale).
+    [ok] set_font_path is called once per update now.
+    [ok] button labels fit their buttons in the screenshots.
+    [!] b) get_char_scale = font_size / max_font_size (64), but the atlas is baked at 72 px
+        (max_char_height). Size 20 measures 22.5 tall (72 * 20 / 64), i.e. 1.125x. Use max_char_height
+        so size N = N units tall.
+    [ok] text_dirty fixed (|=). Recheck: measured sizes now follow the text: Short@20 71.4x22.5,
+        long@16 307.5x18, "Two\nlines"@26 89.8x58.5, "" 0x0. All heights = 72/64 * size * lines.
+    [ok] b) MAX_FONT_SIZE = MAX_PIXEL_HEIGHT (72), so scale = font_size / 72 and size N = N units tall.
+    [ok] get_line_size takes the height from the glyph box, so the stroke is included in the height.
+    Verified: with stroke 1, Short@20 = 64.6 x 22, long@16 = 279.1 x 18, "Two\nlines"@26 = 81.0 x 56,
+        "" = 0 x 0 -> every line is font size + 2 * stroke tall.
+    (was) set_stroke_size did "text_dirty = stroke_size != i_size" (= instead of |=).
+        update_label_renderer calls it last, so when the stroke did not change it clears the dirty flag
+        that set_text / set_font_size just set, and the text is never re-measured.
+        Drive log: "[lab] measured label size" stays 71.4 x 22.5 for all four texts ("Short",
+        "A much longer label string", "Two\nlines", "") -> get_content_size is stale after set_label_string.
+        Fix: text_dirty |= (stroke_size != i_size).
+        (Drive still passes "measure box follows label text" because it compares the box with the
+        stale measured size; see harness note below.)
+[Done]: 22. Turning nine-scale off and on loses the content size the user set (320x90 -> 340x122).
+    update_image_renderer (systems.cpp), branch for nine_scale.enabled == false: it sets
+    inner_size = texture size and then also c_size.value = inner_size.value, overwriting the node's Size
+    with the texture size (res/BtnGreen.png is 340x122). Enabling nine-scale again keeps the texture size.
+    Fix idea: with nine-scale off, use the texture size only as the inner (raw) size and keep Size
+    as set, so the plain image is stretched to the rect. Only take the texture size as the default
+    when the user never set a content size.
+    Drive: "nine-scale keeps its 320x90 size after off/on" -> 340x122.
+    Verified: images now have use_custom_size (set by set_content_size); the texture size is copied into
+    Size only in auto mode. Drive passes "nine-scale keeps its 320x90 size after off/on".
+    Small edge cases left: inner_size is only updated when nine-scale is off (stale get_inner_renderer_size
+    after a new path with nine-scale on); a missing file in auto mode keeps the old Size.
+[Done]: 23. Nine-scale pieces lose their clipping. Turning nine-scale on creates the 9 piece draws in
+    update_image_renderer (systems.cpp ~200) but only marks DIRTY_TRANSFORM, so the clipping pass never
+    uploads the clip ancestors to the new draws and the image draws outside its clipping parent.
+    Same risk whenever a node creates new Vulkan draws after its first frame.
+    Fix idea: when a node creates new draws, also set DIRTY_CLIPPING on it.
+    Repro: ./ui_test fuzz 3 3 12 -> "[clip] node 27 type 2 ... draw 77 uploads 0 clips, expected 1".
+    Verified: fuzz 3 3 12 passes the clip check; all 8 seeds pass.
+[Done]: 24. Vulkan validation errors during fuzz (right after a scene is built), every seed:
+    "vkCmdCopyBuffer(): pRegions[N].size is zero" and
+    "vkCmdCopyBuffer(): pRegions[3].dstOffset (4294967296) is greater than size of dstBuffer (3145728)".
+    4294967296 = 2^32, looks like an offset computed from an invalid index (MAX_UINT32 / -1 widened)
+    in the buffer upload path. Not seen in drive or repros. Repro: ./ui_test fuzz 4 1 1 (grep "validation").
+    Run 2026-11-10 (all 8 seeds, VUID messages grouped):
+      69x "pRegions[N].size is zero"
+      52x "pRegions[N].dstOffset (4294967296) is greater than size of dstBuffer (3145728)"
+      ~70x "pRegions[A] destination buffer range [x, y) overlaps with pRegions[B] destination buffer range [..)"
+           -> one vkCmdCopyBuffer writes the same destination bytes twice (e.g. an 8-byte update inside a
+              whole-block copy [0, 336)), so the result depends on region order. Probably the same batch
+              holds both a full re-upload of a block and small per-field updates of that block.
+    TRACED (2026-11-10, lldb on the validation callback + conditional breakpoint, ./ui_test fuzz 1 1 12):
+    One root cause for all three messages: a draw instance with 0 sub-instances and a 0-byte SSBO range
+    (seen: instance_storage_id 42, number_sub_instance 0, range {offset 400, size 0, stride 16}),
+    most likely a label whose text is "" (0 chars -> 0 char instances).
+    In batching_draw_groups (vk_draw.cpp ~535-545):
+      instance_size = inner_size / number_sub_instance      -> 0 / 0 (UB; ARM gives 0)
+      remain_size = calculate_range_remain_size(offset, 0)  -> x % 0 (UB; ARM gives x) = 2^32 - offset
+      dstOffset = (VkDeviceSize)current_offset + remain_size = 2^32             -> "dstOffset 4294967296"
+      size = inner_size = 0                                                     -> "size is zero"
+      current_offset += remain_size + 0 wraps (uint32) back to 0, so every later region is written
+      again from offset 0                                                       -> "ranges overlap"
+    The same 0-byte range is also flushed by SSBO_Buffer::flush_data_to_storage_buffer (vk_ssbo_buffer.cpp
+    ~124) -> one more "size is zero".
+    The added throws cannot fire: Buffer_Range::inner_offset() is uint32_t, so ">= MAX_UINT32" only
+    matches 0xFFFFFFFF; the bad value is made in 64-bit (VkDeviceSize) from current_offset + remain_size.
+    Fix ideas: skip instances with number_sub_instance == 0 (or inner_size == 0) when building the copy
+    regions and the batching groups; skip 0-size ranges in the SSBO flush; make
+    calculate_range_remain_size return 0 when element_stride == 0 (and assert in debug).
+    Recheck (2026-11-10, after the batching fix: 0-instance draws skipped in all_draw_instances / groups):
+    [ok] "dstOffset 4294967296" and "ranges overlap" are gone (0 on all 8 seeds).
+    [!] left: 63x "vkCmdCopyBuffer(): pRegions[N].size is zero" (6-10 per seed), all from
+        SSBO_Buffer::flush_data_to_storage_buffer (vk_ssbo_buffer.cpp:121). The loop that builds copy_ranges
+        (vk_ssbo_buffer.cpp ~89-95) pushes every dirty slot, including 0-byte ones (the empty label's slot).
+        Fix: skip ranges with inner_size() == 0 there (no memcpy, no copy region).
+    Verified (2026-11-10): SSBO flush and static buffer skip 0-size ranges; tests/run_all.sh 16/16 PASS,
+    0 VUID messages in any log. Guard added too: calculate_range_remain_size clamps stride to >= 1.
+
+[Done]: 25. Touch dispatch is not safe against engine calls made inside a touch callback (re-entrancy).
+    handle_enities_touched(processing_traveled_entities) loops by index over the shared global vector
+    and calls each node's caller. Inside a caller:
+    a) get_position / get_content_size / get_inner_container_size on a percent / pinned node call
+       resovle_relative_size / _position, which CLEAR and refill processing_traveled_entities
+       (engine.cpp ~364-395). The dispatch loop then continues over a different list: later nodes of this
+       touch are skipped, or unrelated nodes get their caller run with a stale touch_state.
+       The lab's "Change text" button does exactly this (fit_measure_box -> get_content_size).
+    b) clean_up / create inside a caller ("Destroy self", rebuild a dialog): the loop only checks
+       registry.has(e.id()), not the handle generation. A destroyed node is skipped, but if the same
+       frame creates a node that reuses the id, the NEW node's caller runs with the old touch state
+       (e.g. ENDED -> instant click on a button that was never pressed).
+    Fix ideas: dispatch over a local copy of the list; check is_valid(handle) (generation) before every
+    caller; make the size / position resolvers use their own scratch vector; optionally queue clean_up
+    calls made during dispatch and run them after the loop.
+    Test plan (Claude): repro key + fuzz op "query sizes inside a touch callback" and "destroy + rebuild
+    inside a callback"; drive check that no other node's caller runs during one click.
+
+    Recheck after [Handled] (2026-11-10): partly fixed. Dispatch loops over its own
+    executing_entities_listener (size queries in a callback no longer clear it) and checks is_valid(e)
+    with the generation (a node created in a callback that reuses an id gets no stale touch).
+    Repro: ./ui_test repro-reentry (key J), 5 cases; cases 1-4 pass. Still open:
+    a) Dangling Touching_Information reference. handle_enities_touched (systems.cpp ~500) keeps
+       `touch_info` (a reference into the component pool) across touch_info.caller(...). If the caller
+       runs clean_up on ANY node, the pool swap-removes / shrinks and touch_info points at another node's
+       data or past the end; line ~520 then reads click_caller from it. ASan (build-asan, case 3: the top
+       node destroys the node below during BEGAN): container-overflow at systems.cpp:519 in
+       std::function::operator bool. When the caller destroys ITSELF, the std::function being executed is
+       destroyed while it runs (case 2 passes only by luck).
+       Fix idea: copy what you need before calling (caller, click_caller, state, position), call the
+       copies, and after each call re-check is_valid(e) / has<Touching_Information> before touching the
+       component again. Or defer clean_up calls made during the dispatch until the loop ends.
+    b) The disabled branch calls touch_info.caller without a null check (systems.cpp ~508). A node with
+       only a click caller that is disabled while touched (case 5: the node above disables it during
+       BEGAN) throws std::bad_function_call. Fix: check touch_info.caller before calling it.
+    c) No repro yet: the scroll cancel loop (~546) calls registry.get<Touching_Information> on later
+       entities without is_valid; if a callback destroyed one of them it throws.
+    Check: tests/run_all.sh runs repro-reentry and, when build-asan exists, asan-repro-reentry.
+
+    Recheck after the clean_up queue (2026-11-10): clean_up now detaches and queues, and
+    process_clean_up_entities runs after the touch / scroll dispatch. Good direction (fixes a), but:
+    d) NEW, breaks everything: process_clean_up_entities (engine.cpp ~558-602) ends each pass with
+       clean_up_entities.push_back(e) while looping over clean_up_entities with a range-for. The vector
+       grows / reallocates under the loop: ASan heap-use-after-free at engine.cpp:561 (travel_down on a
+       freed Handle); normal build: "Fail to get value with id" in 16 of 18 cases. It should be
+       clean_up_entities.clear() AFTER the loop.
+       Also: swap the queue into a local vector first (a remove_* that calls clean_up would push into it
+       while iterating), and skip entries whose handle is no longer valid (entity_generator.validate_handle):
+       clean_up(e) twice in one frame queues e twice and the second pass walks a released handle.
+       Engine::destroy() does not flush the queue (nodes cleaned in the last frame are never removed).
+    b) still open (no null check on touch_info.caller in the disabled branch).
+    Harness: pool / tree checks that follow clear_scene() now run one process_frame first, because
+    clean_up is deferred (drive end, stress end, fuzz end, key R, re-entrancy repro).
+
+    Recheck after clear() fix (2026-11-10): d) fixed (queue cleared after the loop, no crash).
+    a) fixed: with clean_up deferred, ASan run of all re-entrancy cases is clean (no dangling
+       touch_info, no self-destroy of a running caller). Case 6 (new): clean_up twice in one frame
+       releases the id once (two new nodes get different ids).
+    b) STILL OPEN: case 5 throws std::bad_function_call (systems.cpp ~508, no null check on
+       touch_info.caller in the disabled branch). Only remaining failure of the suite.
+    Small notes (no failure): Engine::destroy() does not flush the queue; a queued node re-added with
+    add_child before the next frame would still be destroyed.
+    Harness: verify_tree treats subtrees waiting in Engine::clean_up_entities as detached (the fuzz
+    checks the tree right after its ops, before the queue runs).
+
+    Verified (2026-11-10): b) fixed, the disabled branch only runs when touch_info.caller is set.
+    ./ui_test repro-reentry: all 6 cases pass, in the normal build and under ASan (no memory errors).
+    Case 5 now also checks that a disabled node (click-only, and touch + click) gets no click: 0 clicks.
+
+[Done]: 26. Draw order goes stale after the tree order changes (add_child, reparent, remove, set_z_order).
+    Seen by hand: press F (fuzz) / click a test button that adds a dialog -> things draw in the wrong order.
+    update_tree_changing_z_order (engine.cpp ~444) gives every node its new DFS index in
+    Transform_2D.draw_index, but only marks DIRTY_TOUCHING / DIRTY_SCROLLING. The draw index reaches the
+    GPU only through World_Transform_2D.draw_index -> update_*_renderer_transform, which runs in the
+    DIRTY_TRANSFORM pass. Nodes whose index shifted but that were not transform-dirty keep the old index:
+    two nodes end up with the same index, or an older node draws over a newer one.
+    Smallest repro (fuzz seed 4, frame 2): one op "add_child (reparent) on 9" -> nodes 10..14 keep
+    world draw_index 10..14 while the tree says 9..13. Drive: picker scene build leaves node 92 stale.
+    Same for set_z_order: only the node itself is transform-dirty, its siblings' subtrees shift too.
+    Fix idea: in update_tree_changing_z_order mark DIRTY_TRANSFORM on a node when its draw_index actually
+    changes (set_dirty(e, old != i, DIRTY_TRANSFORM)), or push the index straight into World_Transform_2D
+    and the node's draws there (cheaper: no full transform recompute).
+    Check: tests/test_checks.cpp check_draw_order (every fuzz frame + every drive step), FAILs as
+    "[draw-order] ..." in tests/run_all.sh.
+    Verified: fix = set_dirty(root, DIRTY_TRANSFORM) at the end of update_tree_changing_z_order; drive
+    55/55 and all 8 fuzz seeds pass check_draw_order. Note: every order change now recomputes the whole
+    tree's transforms (correct, but O(all nodes) per add_child / set_z_order frame).
+    REOPENED (light-way rewrite with Draw_Order + handle_update_tree_draw_order): engine.cpp
+    update_tree_changing_z_order fills processing_traveled_entities with the whole tree but passes
+    processing_dirty_entities (only the parents marked DIRTY_DRAW_ORDER) to the handler. So only those
+    parents get indices 0..k, every other node keeps 0 (labels draw under their buttons), and
+    touched_order / scroll_order are wrong too -> drive "dragging scrolls the vertical list" fails
+    (the scroll touch container no longer comes first). Fix: pass processing_traveled_entities.
+    Verified (light way): Draw_Order written straight to the draws, no full-tree DIRTY_TRANSFORM any more;
+    drive 54/54 (scroll drag back), all 8 fuzz seeds pass check_draw_order every frame.
+
+===== API REVIEW (tasks/ui_api_need.txt items marked Handled) =====
+Test: ./ui_test repro-api (key K), also in tests/run_all.sh. Run 2026-11-10: 10 of 21 checks fail.
+[Done]: 27. find_node_by_name / find_node_by_tag find nothing below the start node (item 7).
+    travel_down now treats a `true` return as "stop the walk" (break) and loops while stack OR queue
+    has items. The find callbacks still return !found, which is true on the very first node (the start
+    node does not match), so the walk stops at once: grandchild, under-parent, duplicate-name and tag
+    lookups all return invalid. Fix: return found (stop only after the match).
+    c) NEW, from the same change: each mode only clears its own container at the start, and the loop now
+       runs while EITHER has items. A find that stops early leaves nodes in travel_queue; the next DFS walk
+       empties its stack and then calls travel_stack.top() on an empty stack (undefined behaviour), and an
+       early-stopped DFS (add_child cycle check) leaves the stack for the next BFS -> front() on an empty
+       queue. Fix: loop on the container of the current mode, or clear both at the start, or (best) use
+       local containers so a travel_down inside a callback cannot break the outer one.
+    Note: "true = stop" also changes add_child's second walk (`return true` on a node without
+    Tree_Information / Dirty_Flag now stops instead of skipping that branch). Harmless today.
+    Verified 2026-11-11: travel_down uses one container per mode, callbacks return found; all 8 find checks
+    pass (grandchild, under parent, outside subtree, missing, duplicate -> shallower wins, tag, after clean_up).
+[Done]: 28. Scroll offset get / set (item 3). Confirmed by repro-api:
+    a) set_scroll_layout_container_position (engine.cpp ~1902): `if (registry.has<Scroll_Information>)
+       return;` is inverted, set does nothing (offset stays 0 after set {0,-300} and {0,-5000}).
+    b) get_scroll_layout_container_position (~1924) reads Size of e twice and clamps Transform_2D of e:
+       the getter moved the scroll layout from (100,100) to (0,0). Use scroll_info.container_handle.
+    Missing from the request: clamp in the setter, scroll_to_child, get_scroll_max_offset, scroll caller.
+    Recheck 2026-11-11: a) fixed, set + clamp both ends pass ({0,-300}, -5000 -> -800, 50 -> 0).
+    b) STILL OPEN: the getter still does registry.get<Transform_2D>(e.id()) and moves the scroll layout
+       from (100,100) to (0,0). Use scroll_info.container_handle there.
+    Verified 2026-11-11: getter no longer moves the scroll layout; all 5 scroll offset checks pass.
+[Done]: 29. World-space queries (item 4): parent/child world position, to_my_space_position round trip and
+    scale 0 fallback PASS. FAIL: negative scale (mirror) returns the fallback (compares scale <= EPSILON;
+    use abs). NOTE: positions are stale between a setter and the next process_frame. Still missing:
+    world rect, is_world_visible, local -> world conversion.
+    Verified 2026-11-11: mirror (negative scale) converts correctly. Stale-position part moved to #32.
+[Done]: 30. Click caller (item 1): tap inside -> 1 click PASS, press outside + release inside -> 0 PASS.
+    FAIL: press inside, release far outside still fires a click (handle_enities_touched fires click_caller
+    on every ENDED). Fix idea: on ENDED, fire only if the release point is inside the node
+    (point_in_rect on touch_info.transformed_rect + not clipped, like the hit test); optional click slop.
+    Recheck 2026-11-11: STILL FAILS (press inside, release at (5,5) -> 1 click). The new check
+    `!is_touch_position_clipped(e, pos)` only tests clipping ANCESTORS; with no clipping parent it is
+    always false. Also test that the release point is inside the node itself:
+    Math::point_in_rect(touch_info.transformed_rect, pos).
+    Verified 2026-11-11: press inside + release outside -> 0 clicks; tap inside -> 1; outside -> inside -> 0.
+[Done]: 31. Labels measure 0 x 0 (regression from the label custom-size work). update_label_renderer
+    (systems.cpp ~270) copies the text size into Size only `if (label_renderer.use_custom_size)`: inverted.
+    Default is false, so every auto-sized label keeps size 0: drive fails 5 measure-box checks (label width
+    0). Images do it the right way round (`if (!image_renderer.use_custom_size)`, ~241).
+    Verified 2026-11-11: drive 54/54, measure-box label checks pass again.
+[Done]: 32. On-demand resolve (get_world_position / to_my_position_space / get_content_size) does nothing.
+    a) travel_up (engine.cpp, after travel_down): `bool stop = false; while (stop && ...)` never runs.
+       Every caller is dead: has_node_ancestor_dirty always false, resolve_relative_size / _position /
+       resolve_transform collect nothing, make_processing_dirty_entities TRAVEL_UP + default modes collect
+       nothing. Fix: `while (!stop && ...)`.
+    b) after a): resolve_transform only recomputes the nodes on the path that carry DIRTY_TRANSFORM. Moving
+       the parent marks only the parent, so the queried child (not flagged) keeps its old world transform.
+       Recompute every node from the topmost dirty ancestor down to e, flagged or not.
+    c) resolve_relative_position does not clear processing_traveled_entities before its travel_up (it
+       appends to the list resolve_relative_size left behind). And the resolvers still use the shared
+       global list: handle_dirty_relative_position calls get_content_size(parent) while looping over
+       processing_traveled_entities; if that resolve runs it clears the list under the loop (same bug class
+       as #25). Use a local vector in the resolvers.
+    repro-api (2026-11-11): child world pos right after parent moved = (310,220), expected (510,320);
+    grandchild (311,222) vs (611,122); to_my_position_space (310,-90) vs (10,10); percent child size
+    (50,25) vs (200,50). After process_frame everything is right.
+    Recheck 2026-11-11: a) fixed (travel_up loops while !stop). The resolvers now run
+    make_processing_dirty_entities(..., TRAVEL_ALL), but still all 4 checks fail (same values as before):
+    d) copy-paste flag: resolve_relative_position and resolve_transform both call
+       make_processing_dirty_entities(DIRTY_RELATIVE_SIZE, ...) (engine.cpp ~464 and ~475). They should use
+       DIRTY_RELATIVE_POSITION and DIRTY_TRANSFORM; as written the transform is never recomputed, so
+       get_world_position / to_my_position_space return last frame's values.
+    e) get_content_size resolves only `if (is_dirty(e, DIRTY_RELATIVE_SIZE))`, the node's own flag.
+       set_content_size(parent) flags the parent, not the percent child, so the child returns its old
+       size. Use has_node_ancestor_dirty(e, DIRTY_RELATIVE_SIZE) like the world getters.
+    f) design note: make_processing_dirty_entities clears processing_traveled_entities and
+       processing_dirty_entities. A getter that resolves while a frame pass is looping over that list
+       (handle_dirty_relative_position calls get_content_size(parent)) empties it under the loop. Today the
+       flags are already cleared at that point so it does not trigger; keep the getters out of the passes
+       or give the resolvers their own vectors. The travel_up collection in resolve_relative_size is now
+       dead (make_processing clears the list right after).
+    Recheck 2026-11-11 (2): d) fixed (resolvers use DIRTY_RELATIVE_POSITION / DIRTY_TRANSFORM) and f) fixed
+    (make_processing_dirty_entities now returns its own vector, no shared list). Same-frame child and
+    grandchild world position and to_my_position_space PASS.
+    e) STILL OPEN: get_content_size resolves only `if (is_dirty(e, DIRTY_RELATIVE_SIZE))`; percent child
+    returns (50,25) right after the parent became 400x200, expected (200,50). Use
+    has_node_ancestor_dirty(e, DIRTY_RELATIVE_SIZE). Only remaining failure of the suite.
+    Verified 2026-11-11: e) fixed. All same-frame checks pass: child / grandchild world position,
+    to_my_position_space, percent child size right after the parent resized.
+===== TEST HARNESS NOTES =====
+[Done]: Clip check updated for entity-handle clipping_ancesors (test_checks.cpp check_dead_clip_holders):
+    entries must be exactly the live ancestors with clipping on (outermost first, nearest MAX kept), and
+    every draw must upload those ancestors' clip handles. Old check treated entries as Vulkan handles
+    and reported false "dead clip handle" on every seed.
+[Done]: Drive gap: the measure-box steps now also check the label string and font size changed, height =
+    lines x (font size + 2 x stroke), "" measures 0 wide, the long text is wider than "Short", and "Short"
+    measures the same width again at the end. The old stale-size bug would fail 3 of these per step.
+[Done]: Suite script moved into the repo as tests/run_all.sh, includes the drive, counts Vulkan
+    validation errors (VUID) as FAIL.
+[Done]: #25 repro (test_app.cpp repro_touch_reentrancy, key J, job repro-reentry): size query in a
+    callback, self destroy, destroy node below, destroy + create with id reuse, disable click-only node.
+    build-asan/ (Debug, -fsanitize=address) added; run_all.sh rebuilds it and runs the repro under ASan.
+    "[repro] FAIL" lines now fail a case. Case 6 added: double clean_up in one frame.
+[Done]: New invariant check_draw_order: DFS index from root (children sorted by z order) must equal the
+    node's local + world draw_index and the draw_index of every visible draw it uploads; children must be
+    sorted by z order. Runs after every fuzz frame and before every drive step; hidden draws (unused
+    nine-scale pieces) are skipped.
+
+===== LAST RUN (2026-11-11, all API items) =====
+tests/run_all.sh: 19 of 19 cases PASS (repros 7/7 incl. repro-reentry + repro-api, asan-repro-reentry,
+stress, drive 54/54, fuzz 8/8), 0 Vulkan validation errors, no leaks, no tree issues, no ASan errors.
+Open: none.

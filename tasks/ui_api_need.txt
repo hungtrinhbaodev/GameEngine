@@ -1,0 +1,93 @@
+UI API NEEDS (Engine:: layer)
+Collected while building the UI test scenes (modal, colour picker, component lab) and the drive / fuzz
+harness. Every item is something the tests or the scenes had to work around by reading components,
+using engine globals, or doing by hand what an app will need again and again.
+Format: why it is needed -> what the API could look like (names are suggestions, your call).
+Mark with [Done] when added; the tests will be switched over to the public API after that.
+
+===== P1: NEEDED FOR SMOOTH APP CODE =====
+[Handled]: 1. Click / tap event instead of raw touch states.
+    Why: every button in the kit re-implements "BEGAN -> darken, ENDED -> restore, fire only if the finger
+    moved less than 12 px, ignore CANCEL". Rows, swatches, recent items all repeat it.
+    API: set_click_caller(e, std::function<void(Handle)>) - fires on ENDED inside the node when the touch
+         was not claimed by a scroll layout and moved less than a click slop (engine constant, settable).
+         Optional: set_pressed_caller(e, fn(Handle, bool pressed)) for the pressed look.
+
+[Hanled]: 2. Safe callbacks when a node is destroyed inside its own callback.
+    Why: "Destroy self" cleans up the dialog from inside its button's touch callback; the kit wraps every
+    caller in try/catch so a stale handle logs instead of crashing.
+    API: clean_up called during touch dispatch is deferred to the end of the dispatch (or the engine
+         checks is_valid(e) before each remaining caller in that frame). Then no try/catch is needed.
+
+[Handled]: 3. Scroll offset get / set.
+    Why: tests read Scroll_Information.container_handle and call get_position on the inner container to
+    know how far a list is scrolled; an app needs "scroll to top", "scroll to item", "keep position".
+    API: get_scroll_offset(e) / set_scroll_offset(e, vec2) (clamped to the content),
+         scroll_to_child(e, child), get_scroll_max_offset(e).
+         Optional: set_scroll_caller(e, fn(Handle, vec2 offset)) to react to scrolling (e.g. load more).
+
+[Handled]: 4. World-space queries.
+    Why: the drive computes world centres by hand (position + rotate((0.5 - anchor) * size * scale)) from
+    World_Transform_2D + Size to click a node; tooltips, popups and drag & drop need the same.
+    API: get_world_position(e), get_world_rect(e) (4 corners or AABB), is_world_visible(e),
+         convert_to_node_space(e, world_point) / convert_to_world_space(e, local_point).
+
+[]: 5. Label alignment, max width and wrapping.
+    Why: Font_2D already has align, but Engine:: has no setter. Multi-line body text in the dialog is
+    centred line by line with no way to left-align; long labels overflow buttons instead of wrapping.
+    API: set_label_align(e, LEFT | CENTER | RIGHT), set_label_max_width(e, w) -> word wrap,
+         optional set_label_overflow(e, CLIP | ELLIPSIS).
+
+[]: 6. Simple layout containers (row / column / grid).
+    Why: the picker places 72 swatches, 3 sliders and the recent row by hand (x = 8 + step * i) and
+    recomputes the inner container size every time an item is added; the lab boxes do the same.
+    API: set_layout_kind(e, NONE | ROW | COLUMN | GRID) + set_layout_spacing(e, gap),
+         set_layout_padding(e, insets), set_layout_columns(e, n). Children are positioned in the
+         relative-size pass; a scroll layout's inner container grows to fit (auto content size).
+
+[Handled]: 7. Find nodes by name / tag.
+    Why: the drive finds buttons by scanning every Label_Renderer_Information for a text prefix and the
+    measure label by walking box_5's grandchildren; apps need the same to wire UI loaded from data.
+    API: set_name(e, string) / get_name(e), find_child_by_name(parent, name, recursive = true).
+
+===== P2: QUALITY OF LIFE =====
+[]: 8. Input injection for tests / tools.
+    Why: the drive declares engine internals as extern (spawn_touch, release_touch, window_unique_touch_id,
+    on_scroll_fire, on_cursor_*) to fake clicks, drags and the wheel.
+    API: Engine::Input::touch_down(world), touch_move(world), touch_up(world), scroll(world, delta)
+         - same path as GLFW callbacks, usable by tests, replays and automation.
+
+[]: 9. Handle from id / tree validity.
+    Why: tests rebuild a Handle from an id through entity_generator.generations and read
+    Tree_Information.valid_child to know if a node is attached to the root.
+    API: is_in_tree(e) (attached to the root), and keep registry ids internal so ids never leak out.
+
+[]: 10. Hover and touch cancel info.
+    Why: desktop buttons usually react to hover; on cancel (scroll claimed the touch) the kit only knows
+    the state name.
+    API: set_hover_caller(e, fn(Handle, bool inside)) using the cursor position the engine already tracks.
+
+[]: 11. Scroll layout options.
+    Why: the drag threshold (7.5 px) is hard-coded; bounce / fling are TODOs in the touch container.
+    API: set_scroll_drag_threshold(e, px), set_scroll_bounce_enabled(e, bool),
+         set_scroll_inertia_enabled(e, bool).
+
+[]: 12. Image fill mode.
+    Why: with use_custom_size an image stretches to its rect; avatars / thumbnails need aspect kept.
+    API: set_image_fill_mode(e, STRETCH | FIT | FILL) (FILL crops via image_rect).
+
+[]: 13. Font size limits made visible.
+    Why: font sizes are clamped to [6, 72] silently and the stroke is capped by the SDF padding.
+    API: get_label_min_font_size / get_label_max_font_size (or a log once when clamped).
+
+===== P3: LATER (planned features, listed so the API fits them) =====
+[]: 14. Actions / tweens (cocos-like: move_to, fade_to, scale_to, sequence, delay, callback).
+    The test scenes would use them for dialog open / close and the scroll bounce.
+[]: 15. Keyboard focus + text input node (editable label) for forms.
+[]: 16. Modal helper: an overlay that swallows touches under a dialog and closes on outside tap
+    (the modal scene builds this by hand: full-screen layout, swallow, z order 100).
+
+===== NOTES =====
+- When an item lands, tell me and I will switch the tests / scenes to it and add checks for it
+  (drive scenario + fuzz op), so the harness stops reading components for that case.
+- Items 1, 2, 3 and 6 remove the most repeated code from the scenes.

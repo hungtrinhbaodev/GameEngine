@@ -17,6 +17,7 @@
 #include <GLFW/glfw3.h>
 #include <engine/engine.h>
 #include <profiler.h>
+#include <test_ui.h>
 #include <vulkan/vk_draw.h>
 
 #define VK_A 0x41
@@ -512,6 +513,7 @@ std::vector<Handle> engine_labels;
 glm::vec2 start_move_position = {0.f, 0.f};
 
 void create_layout() {
+	auto screen_size = Engine::get_window_size();
 	auto node = Engine::create_node();
 	Engine::set_position(node, {200.f, 300.f});
 	nodes.push_back(node);
@@ -528,7 +530,7 @@ void create_layout() {
 	Engine::set_rotation(layout, 5.f);
 	Engine::set_layout_clipping_enabled(layout, true);
 	Engine::set_touch_enabled(layout, true);
-	Engine::set_touching_caller(layout, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
+	Engine::set_touch_caller(layout, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
 
 	});
 	layouts.push_back(layout);
@@ -577,7 +579,7 @@ void create_layout() {
 	label = Engine::create_label();
 	Engine::set_label_font_path(label, "");
 	Engine::set_label_font_size(label, 16);
-	Engine::set_label_string(label, "Game Engine!");
+	Engine::set_label_string(label, "Game\n Engine!");
 	Engine::set_color(label, random_color());
 	Engine::set_label_stroke_size(label, 2.f);
 	Engine::set_label_stroke_color(label, random_color());
@@ -585,7 +587,7 @@ void create_layout() {
 	Engine::set_touch_enabled(label, true);
 	Engine::set_z_order(label, 1);
 	Engine::set_scale(label, {1.25f, 1.25f});
-	Engine::set_touching_caller(label, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
+	Engine::set_touch_caller(label, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
 		switch (touch_state) {
 			case Engine::TOUCH_STATE::TOUCH_BEGAN: {
 				start_move_position = world_position;
@@ -609,16 +611,19 @@ void create_layout() {
 	Handle image_2 = Engine::create_image();
 	Engine::set_image_path(image_2, "res/GemsBarBg.png");
 	Engine::set_nine_scale_enabled(image_2, true);
-	Engine::set_size_percent(image_2, {0.75f, 0.5f});
+	Engine::set_content_size(image_2, {150.f, 200.f});
 	Engine::set_nine_scale_rect_ratio(image_2, {0.2f, 0.2f, 0.6f, 0.6f});
-	Engine::set_position(image_2, {70.f, 50.f});
-	Engine::set_rotation(image_2, 30.f);
-	Engine::set_touch_enabled(image_2, true);
+	Engine::set_position(image_2, {300.f, 50.f});
+	// Engine::set_rotation(image_2, 30.f);
+	Engine::set_anchor(image_2, {0.5f, 0.5f});
+	// Engine::set_touch_enabled(image_2, true);
+	Engine::set_click_caller(image_2, [](Handle e, glm::vec2 world_position) {
+		Log::info("What is here do we click it!", world_position);
+	});
 	images.push_back(image_2);
 
 	Engine::add_child(layout, layout2);
 	Engine::add_child(Engine::get_root(), node);
-	Engine::add_child(layout, image_2);
 	Engine::add_child(node, layout);
 	Engine::add_child(layout, label);
 	Engine::add_child(layout2, layout3);
@@ -626,7 +631,21 @@ void create_layout() {
 	Engine::set_layout_border_color(layout, {0.f, 0.2f, 0.2f});
 	Engine::set_layout_border_width(layout, 3.f);
 
-	Log::info("What is my image_2 size", label.id(), image_2.id(), layout.id(), Engine::get_content_size(image_2));
+	Handle scroll_layout = Engine::create_scroll_layout();
+	Engine::set_position(scroll_layout, screen_size * 0.3f);
+	Engine::set_content_size(scroll_layout, {600.f, 370.f});
+	Engine::set_anchor(scroll_layout, {0.5f, 0.5f});
+	Engine::set_layout_background_enabled(scroll_layout, true);
+	Engine::set_layout_background_color(scroll_layout, random_color());
+	Engine::set_layout_border_radius(scroll_layout, 10.f);
+	Engine::set_inner_container_size(scroll_layout, {600.f, 1200.f});
+	Engine::set_scroll_direction(scroll_layout, Engine::SCROLL_DIRECTION::SCROLL_VERTICAL);
+	Engine::set_layout_clipping_enabled(scroll_layout, true);
+	Engine::add_child(Engine::get_root(), scroll_layout);
+	Engine::add_child_to_container(scroll_layout, image_2);
+	// Engine::add_child(Engine::get_root(), image_2);
+
+	Log::info("What is my container size", layout2.id(), layout3.id());
 }
 
 void update_layout(float sign = 1) {
@@ -672,7 +691,21 @@ void add_child_again_layout() {
 	Engine::add_child(layouts[0], layouts[1]);
 }
 
+/**
+ * @Note: UI test mode (tests/ folder). T toggles between the test keys
+ * and the original keys below; H prints the test keys.
+ */
+bool ui_test_mode = false;
+
 void on_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
+	if (action == GLFW_PRESS && key == GLFW_KEY_T) {
+		ui_test_mode = !ui_test_mode;
+		Log::info("[test] UI test keys", ui_test_mode ? "ON (H for help)" : "OFF (original keys)");
+		return;
+	}
+	if (ui_test_mode && action == GLFW_PRESS && Test::handle_key(key, mods)) {
+		return;
+	}
 	switch (action) {
 		case GLFW_PRESS: {
 			switch (key) {
@@ -789,6 +822,7 @@ int main() {
 
 	Engine::init(window);
 	glfwSetKeyCallback(window, on_key);
+	Test::start();
 
 	for (int i = 0; i < 1; i++) {
 		// gen_fox_3D();
@@ -802,9 +836,11 @@ int main() {
 		float dt = (float)(current - start);
 		dt = std::min(dt, 0.1f);
 		start = current;
+		Test::tick();
 		Engine::process_frame(dt);
 	}
 
+	Test::clear_scene();
 	Engine::destroy();
 
 	glfwDestroyWindow(window);
