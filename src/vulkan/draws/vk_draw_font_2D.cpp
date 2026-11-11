@@ -76,7 +76,8 @@ namespace Vulkan {
 
 			std::vector<Storage_Char_Data> make_char_storages_data(const Font& font, const Font_2D& attributes) {
 				std::vector<Storage_Char_Data> char_storages;
-				glm::vec2 origin = -glm::vec2(width, height) * attributes.get_anchor();
+				float char_scale = font.get_char_scale(attributes.get_font_size());
+				glm::vec2 origin = -glm::vec2(width / char_scale, height / char_scale) * attributes.get_anchor();
 				for (int i = 0; i < lines.size(); i++) {
 					const std::string& line = lines[i];
 					const glm::vec2& start_line_position = start_line_positions[i];
@@ -121,6 +122,9 @@ namespace Vulkan {
 				storage_id = ::Const::MAX_UINT32;
 				text = "";
 				text_anchor = {0.f, 0.f};
+				for (const auto& draw_instance : draw_instances) {
+					ssbo.remove_data(draw_instance.instance_storage_id);
+				}
 				draw_instances.clear();
 			}
 
@@ -158,6 +162,9 @@ namespace Vulkan {
 			) {
 				if (attributes.get_text() == "") {
 					text = "";
+					for (const auto& draw_instance : draw_instances) {
+						ssbo.remove_data(draw_instance.instance_storage_id);
+					}
 					draw_instances.clear();
 					return;
 				}
@@ -281,11 +288,20 @@ namespace Vulkan {
 			}
 		}
 
-		glm::vec2 get_line_size(const std::string& line, const Font& font, int font_size, float stroke_size) {
-			glm::vec2 line_size{0.f, font.line_height};
-			for (int i = 0; i < line.size(); i++) {
-				glm::vec2 char_bound_box = font.get_char_bounding_box(line[i], font_size, stroke_size);
+		glm::vec2 get_text_size(
+			const std::string& text, const std::string& font_path, int font_size, float stroke_size
+		) {
+			uint32_t font_id = load_font(font_path);
+			const auto& font = view_font(font_id);
+			return get_text_size(text, font, font_size, stroke_size);
+		}
+
+		glm::vec2 get_text_size(const std::string& text, const Font& font, int font_size, float stroke_size) {
+			glm::vec2 line_size{0.f, 0.f};
+			for (int i = 0; i < text.size(); i++) {
+				glm::vec2 char_bound_box = font.get_char_bounding_box(text[i], font_size, stroke_size);
 				line_size.x += char_bound_box.x;
+				line_size.y = std::max(line_size.y, char_bound_box.y);
 			}
 			return line_size;
 		}
@@ -313,13 +329,13 @@ namespace Vulkan {
 			start_line_positions.resize(lines.size());
 			float max_width_line = 0;
 			for (const std::string& line : lines) {
-				auto size = get_line_size(line, font, font_size, stroke_size);
+				auto size = get_text_size(line, font, font_size, stroke_size);
 				max_width_line = std::max(size.x, max_width_line);
 			}
 			float total_height = 0;
 			for (int i = lines.size() - 1; i > -1; i--) {
 				const std::string& line = lines[i];
-				glm::vec2 line_size = get_line_size(line, font, font_size, stroke_size);
+				glm::vec2 line_size = get_text_size(line, font, font_size, stroke_size);
 				float line_x = 0;
 				switch (align) {
 					case 0: {

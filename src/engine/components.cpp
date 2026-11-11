@@ -1,5 +1,6 @@
 #include <engine/components.h>
 #include <math_custom.h>
+#include <vulkan/draws/vk_draw_font_2D.h>
 
 namespace Engine {
 
@@ -81,8 +82,124 @@ namespace Engine {
 		world_transform.opacity = local_transform.opacity;
 		world_transform.anchor = local_transform.anchor;
 		world_transform.is_visible = is_visible & local_transform.is_visible;
-		world_transform.draw_index = local_transform.draw_index;
 		return world_transform;
+	}
+
+	void Label_Renderer_Information::update_inner_text_by(const glm::vec2& text_size) {
+		if (!use_custom_size)
+			return;
+		auto fit_transform = [this](const glm::vec2& text_size, const glm::vec2& inner_size, const glm::vec2& padding) {
+			glm::vec2 label_position = {0.f, 0.f};
+			switch (horizontal_align) {
+				case LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_CENTER: {
+					label_position.x = (text_size.x - inner_size.x) / 2;
+					break;
+				}
+				case LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_LEFT: {
+					label_position.x = padding.x;
+					break;
+				}
+				default: {
+					label_position.x = text_size.x - padding.x - inner_size.x;
+					break;
+				}
+			}
+			switch (vertical_align) {
+				case LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER: {
+					label_position.y = (text_size.x - inner_size.y) / 2;
+					break;
+				}
+				case LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_BOTTOM: {
+					label_position.y = padding.x;
+					break;
+				}
+				default: {
+					label_position.y = text_size.y - padding.y - inner_size.y;
+					break;
+				}
+			}
+			inner_label_transform.position = label_position;
+		};
+		std::string final_text = text;
+		auto text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
+			font_path, final_text, (int)horizontal_align, font_size, stroke_size
+		);
+		float final_horizontal_padding =
+			horizontal_align == LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_CENTER ? 0.f : horizontal_padding;
+		float final_vertical_padding =
+			vertical_align == LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER ? 0.f : vertical_padding;
+		glm::vec2 padding = {final_horizontal_padding, final_vertical_padding};
+		glm::vec2 inner_size = text_helper.get_size();
+		if ((inner_size.x + padding.x) <= text_size.x && (inner_size.y + padding.y) <= text_size.y) {
+			fit_transform(text_size, inner_size, padding);
+			return;
+		}
+		final_text = final_text.replace(final_text.begin(), final_text.end(), "\n", " ");
+		std::vector<std::string> tokens;
+		while (text.find(" ") != std::string::npos) {
+			auto enter_char_index = text.find("\n");
+			tokens.push_back(text.substr(0, enter_char_index));
+			text.erase(0, enter_char_index + 1);
+		}
+		if (text != "") {
+			tokens.push_back(text);
+		}
+		int current_line = 0;
+		float total_height = 0.f;
+		float max_height = 0.f;
+		glm::vec2 remain_size = text_size - padding;
+		std::vector<std::string> lines;
+		for (int i = 0; i < tokens.size(); i++) {
+			const auto& token = tokens[i];
+			glm::vec2 size_token = Vulkan::Draw_Font_2D::get_text_size(token, font_path, font_size, stroke_size);
+			if (total_height >= remain_size.y && fit_mode == LABEL_RENDER_FIT_MODE::ELLIPSIS) {
+				auto& last_line = lines.back();
+				last_line = last_line.substr(0, std::min((int)last_line.size() - 3, 0)) + "...";
+				break;
+			}
+			if (lines.size() <= current_line) {
+				lines.push_back("");
+			}
+			auto& line = lines[current_line];
+			if (line.size() < 1) {
+				line += token;
+
+				max_height = std::max(max_height, size_token.y);
+				total_height += max_height;
+			} else {
+				glm::vec2 size_line =
+					Vulkan::Draw_Font_2D::get_text_size(line + " " + token, font_path, font_size, stroke_size);
+				if (size_line.x <= remain_size.x) {
+					line += " " + token;
+					max_height = std::max(max_height, size_line.y);
+				} else {
+					max_height = 0.f;
+					current_line++;
+					i--;
+				}
+			}
+		}
+		text = "";
+		for (int i = 0; i < lines.size(); i++) {
+			text += lines[i];
+			if (i < lines.size() - 1) {
+				text += "\n";
+			}
+		}
+		text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
+			font_path, final_text, (int)horizontal_align, font_size, stroke_size
+		);
+		fit_transform(text_size, text_helper.get_size(), padding);
+		switch (fit_mode) {
+			case LABEL_RENDER_FIT_MODE::CLIP: {
+				clipping_enabled = true;
+				break;
+			}
+			default: {
+				clipping_enabled = false;
+				break;
+			}
+		}
 	}
 
 	void Nine_Scale_Information::update_piece_transforms(
@@ -244,6 +361,20 @@ namespace Engine {
 				}
 			}
 		}
+	}
+
+	bool Rect::is_clipped_by(const Rect& parent_rect) const {
+		for (int i = 0; i < parent_rect.transformed_rect.size(); i++) {
+			if (Math::point_in_rect(transformed_rect, parent_rect.transformed_rect[i])) {
+				return false;
+			}
+		}
+		for (int i = 0; i < transformed_rect.size(); i++) {
+			if (Math::point_in_rect(parent_rect.transformed_rect, transformed_rect[i])) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 } // namespace Engine

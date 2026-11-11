@@ -10,8 +10,8 @@ namespace Engine {
 	float scroll_distance = 0.f;
 
 	void on_scroll_fire(GLFWwindow* window, double xoffset, double yoffset) {
-		is_scrolling = yoffset > 0;
-		scroll_distance = yoffset;
+		is_scrolling = std::abs(yoffset) >= 0.35f;
+		scroll_distance = -yoffset;
 	}
 
 	void on_cursor_scroll_position(GLFWwindow* window, double x, double y) {
@@ -33,6 +33,10 @@ namespace Engine {
 
 	float get_scroll_distance() {
 		return scroll_distance;
+	}
+
+	void reset_scrolling() {
+		is_scrolling = false;
 	}
 
 } // namespace Engine

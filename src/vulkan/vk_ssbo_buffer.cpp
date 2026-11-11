@@ -88,6 +88,8 @@ namespace Vulkan {
 		uint8_t* bytes_mapped = (uint8_t*)bytes_data.data();
 		for (const uint32_t& id : dirty_ids.keys()) {
 			const Buffer_Range& range = view_slot(id);
+			if (range.inner_size() <= 0)
+				continue;
 			uint8_t* src = bytes_mapped + range.inner_offset();
 			uint8_t* dst = staging_mapped + range.inner_offset();
 			memcpy(dst, src, range.inner_size());

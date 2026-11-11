@@ -17,7 +17,7 @@ namespace Files {
 	}
 
 	inline bool is_file_exists(const std::string& file_path) {
-		return fs::exists(file_path);
+		return fs::is_regular_file(file_path);
 	}
 
 	inline std::vector<char> read_file(std::string file_path, int read_mode = std::ios::ate | std::ios::binary) {

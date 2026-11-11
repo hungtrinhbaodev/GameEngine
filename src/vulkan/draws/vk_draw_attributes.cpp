@@ -7,6 +7,10 @@
 
 namespace Vulkan {
 
+	glm::vec2 Font_Helper::get_size() {
+		return {width, height};
+	}
+
 	Base_Attributes::Base_Attributes() {}
 
 	Base_Attributes::Base_Attributes(const Handle& i_handle) {
@@ -487,6 +491,7 @@ namespace Vulkan {
 	void Font_2D::set_stroke_size(float i_size) {
 		assert_handle();
 		set_dirty(stroke_size != i_size);
+		text_dirty |= (stroke_size != i_size);
 		stroke_size = i_size;
 	}
 

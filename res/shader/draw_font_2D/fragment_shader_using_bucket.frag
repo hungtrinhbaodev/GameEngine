@@ -57,6 +57,7 @@ bool is_clipping() {
     vec2 world_pos = position + rotate(rotation, local_pos * scale);
     for (int i = 0; i < number_clipping;i++) {
         Clipping_Data clipping_data = clipping_data_buffer.data[clipping_offsets[i]];
+        if (clipping_data.scale.x <= 0 || clipping_data.scale.y <= 0) return true;
         vec2 clipping_pos =  rotate(-clipping_data.rotation, world_pos - clipping_data.position) / clipping_data.scale;
         if (sd_round_rect(clipping_pos, clipping_data.half_size, clipping_data.border_radius) >= 0.f) return true;
     }

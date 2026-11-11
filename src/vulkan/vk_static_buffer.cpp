@@ -129,10 +129,10 @@ namespace Vulkan {
 			{
 				copied_data.clear();
 				for (const uint32_t id : id_to_staging_ranges.keys()) {
-					Buffer_Range staging_range = id_to_staging_ranges.get(id);
-					if (!id_to_ranges.has(id))
+					const Buffer_Range& staging_range = id_to_staging_ranges.get(id);
+					if (!id_to_ranges.has(id) || staging_range.inner_size() <= 0)
 						continue;
-					Buffer_Range static_range = id_to_ranges.get(id);
+					const Buffer_Range& static_range = id_to_ranges.get(id);
 					copied_data.push_back(
 						{(VkDeviceSize)staging_range.inner_offset(), (VkDeviceSize)static_range.inner_offset(),
 						 (VkDeviceSize)staging_range.inner_size()}

@@ -1,8 +1,11 @@
 #include <engine/components.h>
 #include <engine/engine.h>
+#include <engine/scroll_handler.h>
 #include <engine/systems.h>
+#include <engine/utils.h>
 #include <files.h>
 #include <math_custom.h>
+#include <tuple>
 #include <vulkan/draws/vk_draw_font_2D.h>
 #include <vulkan/vk_draw.h>
 
@@ -22,10 +25,16 @@ namespace Engine {
 					const auto& [nine_scale_handles] = registry.read<Nine_Scale_Renderer_Handles>(e.id());
 					return nine_scale_handles.value;
 				}
+				if (handles.value.size() <= 0)
+					return {};
 				return {handles.value[0]};
 			}
+			case DESCRIPTION_TYPE::INNER_CONTAINER:
+			case DESCRIPTION_TYPE::SCROLL_LAYOUT:
 			case DESCRIPTION_TYPE::LAYOUT_2D:
 			case DESCRIPTION_TYPE::LABEL_2D: {
+				if (handles.value.size() <= 0)
+					return {};
 				return {handles.value[0]};
 			}
 			default: {
@@ -44,6 +53,8 @@ namespace Engine {
 		if (registry.has_all<Description, World_Transform_2D>(e.id())) {
 			const auto& [description, world_transform] = registry.read<Description, World_Transform_2D>(e.id());
 			switch (description.value) {
+				case DESCRIPTION_TYPE::INNER_CONTAINER:
+				case DESCRIPTION_TYPE::SCROLL_LAYOUT:
 				case DESCRIPTION_TYPE::LAYOUT_2D: {
 					auto layout_world_transform = world_transform;
 					const auto& [c_size] = registry.read<Size>(e.id());
@@ -75,8 +86,13 @@ namespace Engine {
 		}
 		const auto& [description] = registry.read<Description>(e.id());
 		switch (description.value) {
+			case DESCRIPTION_TYPE::INNER_CONTAINER:
+			case DESCRIPTION_TYPE::SCROLL_LAYOUT:
 			case DESCRIPTION_TYPE::LAYOUT_2D: {
 				const auto& [handles] = registry.read<Renderer_Handles>(e.id());
+				if (handles.value.size() <= 1) {
+					return Handle::make_invalid_handle();
+				}
 				return handles.value[1];
 			}
 			default: {
@@ -85,18 +101,38 @@ namespace Engine {
 		}
 	}
 
-	void add_clipping_ancestor_to_renderer(const Handle& e) {
+	bool is_clipping_by_ancestor(const Handle& e) {
 		Registry& registry = get_registry();
-		if (!registry.has<Description>(e.id())) {
-			return;
+		if (!registry.has_all<Clipping_Ancestor_Information, Rect>(e.id())) {
+			return false;
 		}
-		const auto& [clipping_ancestor] = registry.read<Clipping_Ancestor_Information>(e.id());
-		auto renderer_handles = get_renderer_handles(e);
-		for (const auto& renderer_handle : renderer_handles) {
-			auto& draw_attributes = Vulkan::modify_draw_attributes(renderer_handle);
-			draw_attributes.set_number_clipping(clipping_ancestor.number_clipping);
-			draw_attributes.set_clipping_ancestors(clipping_ancestor.clipping_ancesors);
+		const auto& [clipping_ancestor, rect] = registry.read<Clipping_Ancestor_Information, Rect>(e.id());
+		for (int i = 0; i < clipping_ancestor.number_clipping; i++) {
+			const auto& clipping_parent = clipping_ancestor.clipping_ancesors[i];
+			if (!registry.has<Rect>(clipping_parent.id()))
+				continue;
+			const auto& [parent_rect] = registry.read<Rect>(clipping_parent.id());
+			bool is_clipping = rect.is_clipped_by(parent_rect);
+			if (is_clipping) {
+				return true;
+			}
 		}
+		return false;
+	}
+
+	std::tuple<uint32_t, std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>> validate_clipping_ancestors(
+		const Clipping_Ancestor_Information& clipping_ancestor
+	) {
+		std::array<Handle, ::Const::MAX_DEPTH_CLIPPING> clipping_handle_ancestor{};
+		uint32_t number_valid_handle = 0;
+		for (int i = 0; i < clipping_ancestor.number_clipping; i++) {
+			auto clipping_handle = get_render_clipping_handle(clipping_ancestor.clipping_ancesors[i]);
+			if (!clipping_handle.is_invalid()) {
+				clipping_handle_ancestor[number_valid_handle] = clipping_handle;
+				number_valid_handle++;
+			}
+		}
+		return std::make_tuple(number_valid_handle, clipping_handle_ancestor);
 	}
 
 	void update_layout_renderer(const Handle& e) {
@@ -112,6 +148,7 @@ namespace Engine {
 			handles[1] = Vulkan::create_clipping({});
 		}
 		auto& rect = Vulkan::modify_rectangle(handles[0]);
+		set_dirty(e, rect.is_visible() != layout_renderer.enabled, DIRTY_TRANSFORM);
 		rect.set_visible(layout_renderer.enabled);
 		if (layout_renderer.enabled) {
 			rect.set_border_color(layout_renderer.border_color);
@@ -127,6 +164,25 @@ namespace Engine {
 		}
 	}
 
+	void update_clipped_state(const Handle& e) {
+		Registry& registry = get_registry();
+		if (!registry.has_all<Clipping_Ancestor_Information, Rect>(e.id())) {
+			return;
+		}
+		bool is_clipped = is_clipping_by_ancestor(e);
+		if (e.id() == 23 && is_clipped) {
+			const auto& [tree_info, rect] = registry.read<Tree_Information, Rect>(e.id());
+			const auto& [parent_rect] = registry.read<Rect>(tree_info.parent.id());
+		}
+		if (is_clipped) {
+			auto renderers = get_renderer_handles(e);
+			for (const auto& handle : renderers) {
+				auto& draw_attributes = Vulkan::modify_draw_attributes(handle);
+				draw_attributes.set_visible(false);
+			}
+		}
+	}
+
 	void update_image_renderer(const Handle& e) {
 		Registry& registry = get_registry();
 		const auto& [image_renderer, nine_scale] =
@@ -135,7 +191,13 @@ namespace Engine {
 			registry.get<Renderer_Handles, Nine_Scale_Renderer_Handles, Inner_Renderer_Size, Size>(e.id());
 		auto& nine_scale_handles = nine_scale_renderer_handles.value;
 		auto& handles = renderer_handles.value;
-		set_dirty(e, true, DIRTY_TRANSFORM);
+		/**
+		 * @Note: incase use multi renderer hanle component
+		 * and switch by mode remember to update the dirty
+		 * clipping to the handle render can have the ancestor
+		 * clipping information!
+		 */
+		set_dirty(e, true, DIRTY_TRANSFORM | DIRTY_CLIPPING);
 		if (handles.size() <= 0) {
 			Vulkan::Texture_2D_Description description{};
 			description.path = Vulkan::get_default_image_path();
@@ -152,10 +214,15 @@ namespace Engine {
 				}
 			}
 			inner_size.value = {0.f, 0.f};
+			if (image_renderer.use_custom_size) {
+				c_size.value = {0.f, 0.f};
+			}
+			set_dirty(e, true, DIRTY_RELATIVE_SIZE);
 			return;
 		}
 		texture.set_texture_path(image_renderer.image_path);
 		texture.set_texture_rect(image_renderer.image_rect);
+		inner_size.value = {texture.get_width(), texture.get_height()};
 		if (nine_scale.enabled) {
 			if (nine_scale_handles.size() <= 0) {
 				Vulkan::Texture_2D_Description description{};
@@ -170,8 +237,10 @@ namespace Engine {
 				texture.set_texture_path(image_renderer.image_path);
 			}
 		} else {
-			inner_size.value = {texture.get_width(), texture.get_height()};
-			c_size.value = inner_size.value;
+			if (!image_renderer.use_custom_size) {
+				set_dirty(e, c_size.value != inner_size.value, DIRTY_RELATIVE_SIZE);
+				c_size.value = inner_size.value;
+			}
 		}
 	}
 
@@ -185,6 +254,7 @@ namespace Engine {
 			Vulkan::Label_2D_Description description;
 			description.is_visible = false;
 			handles.push_back(Vulkan::create_label(description));
+			handles.push_back(Vulkan::create_clipping({}));
 		}
 		auto& label = Vulkan::modify_label(handles[0]);
 		std::string font_path = "";
@@ -193,18 +263,21 @@ namespace Engine {
 		}
 		label.set_font_path(font_path);
 		label.set_text(label_renderer.text);
-		label.set_font_path(label_renderer.font_path);
 		label.set_font_size(label_renderer.font_size);
 		label.set_stroke_color(label_renderer.stroke_color);
 		label.set_stroke_size(label_renderer.stroke_size);
-		c_size.value = {label.get_width(), label.get_height()};
+		if (!label_renderer.use_custom_size) {
+			glm::vec2 size = {label.get_width(), label.get_height()};
+			set_dirty(e, c_size.value != size, DIRTY_RELATIVE_SIZE | DIRTY_TRANSFORM);
+			c_size.value = size;
+		}
 	}
 
 	void update_scroll_layout_renderer(const Handle& e) {
 		Registry& registry = get_registry();
-		auto [scroll_container_info] = registry.get<Scroll_Information>(e.id());
+		auto [scroll_info] = registry.get<Scroll_Information>(e.id());
 		update_layout_renderer(e);
-		update_layout_renderer(scroll_container_info.container_handle);
+		update_layout_renderer(scroll_info.container_handle);
 	}
 
 	void update_renderer(const Handle& e) {
@@ -233,32 +306,37 @@ namespace Engine {
 				break;
 			}
 		}
+		auto renderer_handles = get_renderer_handles(e);
+		const auto& [draw_order] = registry.read<Draw_Order>(e.id());
+		for (const auto& handle : renderer_handles) {
+			auto& draw_attributes = Vulkan::modify_draw_attributes(handle);
+			draw_attributes.set_draw_index(draw_order.value);
+		}
 	}
 
 	void update_layout_renderer_transform(const Handle& e_child) {
 		Registry& registry = get_registry();
 		const auto& [c_handles] = registry.read<Renderer_Handles>(e_child.id());
 		const auto& handles = c_handles.value;
-		if (handles.size() <= 0)
-			return;
-		const auto& [c_size, layout_renderer, clipping_renderer, transform] =
-			registry.read<Size, Layout_Renderer_Information, Clipping_Information, World_Transform_2D>(e_child.id());
+		const auto& [c_size, layout_renderer, clipping_renderer, transform, draw_order] =
+			registry.read<Size, Layout_Renderer_Information, Clipping_Information, World_Transform_2D, Draw_Order>(
+				e_child.id()
+			);
+		auto [c_rect] = registry.get<Rect>(e_child.id());
 		glm::vec2 size = c_size.value;
 		glm::vec2 rect_size = size * transform.scale;
 		auto& rect = Vulkan::modify_rectangle(handles[0]);
-		if (rect.is_visible()) {
-			rect.set_position(transform.position);
-			rect.set_anchor(transform.anchor);
-			rect.set_width(rect_size.x);
-			rect.set_height(rect_size.y);
-			rect.set_opacity(transform.opacity);
-			rect.set_rotation(transform.rotation);
-			rect.set_opacity(transform.opacity);
-			rect.set_visible(transform.is_visible);
-			float norm_scale = std::max(transform.scale.x, transform.scale.y);
-			rect.set_border_radius(layout_renderer.border_radius * norm_scale);
-			rect.set_draw_index(transform.draw_index);
-		}
+		rect.set_position(transform.position);
+		rect.set_anchor(transform.anchor);
+		rect.set_width(rect_size.x);
+		rect.set_height(rect_size.y);
+		rect.set_opacity(transform.opacity);
+		rect.set_rotation(transform.rotation);
+		rect.set_opacity(transform.opacity);
+		rect.set_visible(transform.is_visible && layout_renderer.enabled);
+		float norm_scale = std::max(transform.scale.x, transform.scale.y);
+		rect.set_border_radius(layout_renderer.border_radius * norm_scale);
+		rect.set_draw_index(draw_order.value);
 		if (clipping_renderer.enabled) {
 			auto& clipping = Vulkan::modify_clipping(handles[1]);
 			clipping.set_content_size(size);
@@ -267,33 +345,32 @@ namespace Engine {
 			clipping.set_world_rotation(transform.rotation);
 			clipping.set_world_scale(transform.scale);
 		}
+		c_rect.transformed_rect =
+			Math::transform_rect(size, transform.position, transform.scale, transform.rotation, transform.anchor);
 	}
 
-	void update_layout_container_renderer_transform(const Handle& child) {
-		Registry& registry = get_registry();
-		const auto& [tree_info, scroll_container_info] =
-			registry.read<Tree_Information, Scroll_Information>(child.id());
-		const auto& [c_parent_size] = registry.read<Size>(tree_info.parent.id());
-		const auto& parent_size = c_parent_size.value;
-		const auto& container_size = scroll_container_info.size;
-		auto [c_size, transform] = registry.get<Size, Transform_2D>(child.id());
-		c_size.value = glm::vec2(std::max(parent_size.x, container_size.x), std::max(parent_size.y, container_size.y));
-		transform.scale = glm::vec2(
-			std::max(transform.scale.x, container_size.x / parent_size.x),
-			std::max(transform.scale.y, container_size.y / parent_size.y)
-		);
-		transform.position = glm::vec2(
-			std::max(parent_size.x - container_size.x, transform.position.x),
-			std::max(parent_size.y - container_size.y, transform.position.y)
-		);
+	void update_scroll_layout_renderer_transform(const Handle& child) {
 		update_layout_renderer_transform(child);
+		Registry& registry = get_registry();
+		const auto& [c_size, scroll_info] = registry.read<Size, Scroll_Information>(child.id());
+		const auto& parent_size = c_size.value;
+		const auto& container_size = scroll_info.size;
+		auto [c_container_size, transform] = registry.get<Size, Transform_2D>(scroll_info.container_handle.id());
+		glm::vec2 claim_size =
+			glm::vec2(std::max(parent_size.x, container_size.x), std::max(parent_size.y, container_size.y));
+		transform.position = Utils::fit_container_position_with(parent_size, claim_size, transform.position);
+		c_container_size.value = claim_size;
+		auto [touch_container_size] = registry.get<Size>(scroll_info.container_touch_handle.id());
+		touch_container_size.value = parent_size;
 	}
 
-	void update_image_render_transform(const Handle& e_child) {
+	void update_image_renderer_transform(const Handle& e_child) {
 		Registry& registry = get_registry();
-		const auto& [transform, renderer_handle, nice_scale_renderer_handles, c_size] =
-			registry.read<World_Transform_2D, Renderer_Handles, Nine_Scale_Renderer_Handles, Size>(e_child.id());
-		auto [nine_scale] = registry.get<Nine_Scale_Information>(e_child.id());
+		const auto& [transform, renderer_handle, nice_scale_renderer_handles, c_size, draw_order] =
+			registry.read<World_Transform_2D, Renderer_Handles, Nine_Scale_Renderer_Handles, Size, Draw_Order>(
+				e_child.id()
+			);
+		auto [nine_scale, c_rect] = registry.get<Nine_Scale_Information, Rect>(e_child.id());
 		const auto& handles = renderer_handle.value;
 		const auto& nice_scale_handles = nice_scale_renderer_handles.value;
 		auto& texture = Vulkan::modify_texture(handles[0]);
@@ -305,7 +382,6 @@ namespace Engine {
 			texture.set_rotation(transform.rotation);
 			texture.set_visible(transform.is_visible);
 			texture.set_scale(transform.scale);
-			texture.set_draw_index(transform.draw_index);
 		};
 		if (nine_scale.enabled) {
 			texture.set_visible(false);
@@ -326,21 +402,58 @@ namespace Engine {
 			}
 			update_texture_attributes(texture, transform);
 		}
+		c_rect.transformed_rect = Math::transform_rect(
+			c_size.value, transform.position, transform.scale, transform.rotation, transform.anchor
+		);
 	}
 
-	void update_label_render_transform(const Handle& e_child) {
+	void update_label_renderer_transform(const Handle& e_child) {
 		Registry& registry = get_registry();
-		const auto& [transform, c_handles] = registry.read<World_Transform_2D, Renderer_Handles>(e_child.id());
+		const auto& [transform, c_handles, c_size] =
+			registry.read<World_Transform_2D, Renderer_Handles, Size>(e_child.id());
+		auto [label_renderer] = registry.get<Label_Renderer_Information>(e_child.id());
+		auto update_label_transform = [](Vulkan::Font_2D& label, const World_Transform_2D& transform) {
+			label.set_anchor(transform.anchor);
+			label.set_color(transform.color);
+			label.set_position(transform.position);
+			label.set_opacity(transform.opacity);
+			label.set_rotation(transform.rotation);
+			label.set_visible(transform.is_visible);
+			label.set_scale(transform.scale);
+		};
 		const auto& handles = c_handles.value;
 		auto& label = Vulkan::modify_label(handles[0]);
-		label.set_anchor(transform.anchor);
-		label.set_color(transform.color);
-		label.set_position(transform.position);
-		label.set_opacity(transform.opacity);
-		label.set_rotation(transform.rotation);
-		label.set_visible(transform.is_visible);
-		label.set_scale(transform.scale);
-		label.set_draw_index(transform.draw_index);
+		auto [c_rect] = registry.get<Rect>(e_child.id());
+		if (label_renderer.use_custom_size) {
+			label_renderer.update_inner_text_by(c_size.value);
+			auto inner_transform = transform.transform(label_renderer.inner_label_transform);
+			update_label_transform(label, inner_transform);
+			if (label_renderer.clipping_enabled) {
+				auto& clipping = Vulkan::modify_clipping(handles[1]);
+				clipping.set_anchor(transform.anchor);
+				clipping.set_content_size(c_size.value);
+				clipping.set_world_rotation(transform.rotation);
+				clipping.set_world_position(transform.position);
+				clipping.set_world_scale(transform.scale);
+			}
+			const auto& [clipping_ancestor] = registry.read<Clipping_Ancestor_Information>(e_child.id());
+			auto [number_valid_handle, clipping_handle_ancestors] = validate_clipping_ancestors(clipping_ancestor);
+			if (number_valid_handle >= ::Const::MAX_DEPTH_CLIPPING) {
+				for (int i = 0; i < clipping_handle_ancestors.size() - 1; i++) {
+					clipping_handle_ancestors[i] = clipping_handle_ancestors[i + 1];
+				}
+				clipping_handle_ancestors[number_valid_handle - 1] = handles[1];
+			} else {
+				clipping_handle_ancestors[++number_valid_handle] = handles[1];
+			}
+			label.set_number_clipping(number_valid_handle);
+			label.set_clipping_ancestors(clipping_handle_ancestors);
+		} else {
+			update_label_transform(label, transform);
+		}
+		c_rect.transformed_rect = Math::transform_rect(
+			c_size.value, transform.position, transform.scale, transform.rotation, transform.anchor
+		);
 	}
 
 	void update_renderer_transform(const Handle& e_child) {
@@ -349,25 +462,26 @@ namespace Engine {
 			return;
 		}
 		const auto& [description] = registry.read<Description>(e_child.id());
+		auto renderer_handles = get_renderer_handles(e_child);
+		if (renderer_handles.size() <= 0)
+			return;
 		switch (description.value) {
-			case DESCRIPTION_TYPE::LAYOUT_2D: {
+			case DESCRIPTION_TYPE::LAYOUT_2D:
+			case DESCRIPTION_TYPE::INNER_CONTAINER:
+			case DESCRIPTION_TYPE::SCROLL_LISTENER_CONTAINER: {
 				update_layout_renderer_transform(e_child);
 				break;
 			}
 			case DESCRIPTION_TYPE::IMAGE_2D: {
-				update_image_render_transform(e_child);
+				update_image_renderer_transform(e_child);
 				break;
 			}
 			case DESCRIPTION_TYPE::LABEL_2D: {
-				update_label_render_transform(e_child);
+				update_label_renderer_transform(e_child);
 				break;
 			}
 			case DESCRIPTION_TYPE::SCROLL_LAYOUT: {
-				update_layout_renderer_transform(e_child);
-				break;
-			}
-			case DESCRIPTION_TYPE::INNER_CONTAINER: {
-				update_layout_container_renderer_transform(e_child);
+				update_scroll_layout_renderer_transform(e_child);
 				break;
 			}
 			default: {
@@ -378,7 +492,7 @@ namespace Engine {
 
 	void update_touch_transform_area(const Handle& e) {
 		Registry& registry = get_registry();
-		if (!registry.has_all<Touching_Information, Size>(e.id()))
+		if (!registry.has_all<Touching_Information, Size, World_Transform_2D>(e.id()))
 			return;
 		auto [touch_info] = registry.get<Touching_Information>(e.id());
 		if (!touch_info.enabled)
@@ -388,42 +502,111 @@ namespace Engine {
 			c_size.value, world_transform.position, world_transform.scale, world_transform.rotation,
 			world_transform.anchor
 		);
-		set_dirty(e, touch_info.touched_order != world_transform.draw_index, DIRTY_TOUCHING);
-		touch_info.touched_order = world_transform.draw_index;
 	}
 
 	void update_scroll_transform_area(const Handle& e) {
 		Registry& registry = get_registry();
-		if (!registry.has_all<Scroll_Information, Size>(e.id())) {
+		if (!registry.has_all<Scroll_Information, Size, World_Transform_2D>(e.id()))
 			return;
-		}
+		auto [scroll_info] = registry.get<Scroll_Information>(e.id());
+		if (!scroll_info.enabled)
+			return;
+		const auto& [c_size, world_transform] = registry.read<Size, World_Transform_2D>(e.id());
+		scroll_info.transformed_rect = Math::transform_rect(
+			c_size.value, world_transform.position, world_transform.scale, world_transform.rotation,
+			world_transform.anchor
+		);
 	}
 
 	void handle_enities_touched(const std::vector<Handle>& dirty_entities) {
 		Registry& registry = get_registry();
 		std::vector<Handle> discard_touch_entities;
-		for (const Handle& e : dirty_entities) {
-			if (!registry.has_all<Touching_Information>(e.id()))
+		for (int i = 0; i < dirty_entities.size(); i++) {
+			const auto& e = dirty_entities[i];
+			if (!is_valid(e) || !registry.has_all<Touching_Information>(e.id())) {
+				discard_touch_entities.push_back(e);
 				continue;
+			}
 			const auto& [touch_info] = registry.read<Touching_Information>(e.id());
-			if (touch_info.caller == nullptr)
+			if (touch_info.caller == nullptr && touch_info.click_caller == nullptr)
 				continue;
-			if (!touch_info.enabled) {
+			if (touch_info.caller != nullptr) {
+				if (!touch_info.enabled) {
+					switch (touch_info.touch_state) {
+						case TOUCH_STATE::TOUCH_BEGAN:
+						case TOUCH_STATE::TOUCH_MOVE: {
+							discard_touch_entities.push_back(e);
+							touch_info.caller(e, TOUCH_STATE::TOUCH_ENDED, touch_info.touch_world_position);
+							break;
+						}
+						default: {
+							break;
+						}
+					}
+				} else {
+					touch_info.caller(e, touch_info.touch_state, touch_info.touch_world_position);
+				}
+			}
+			if (touch_info.click_caller != nullptr &&
+				is_touch_position_valid_with(e, touch_info.touch_world_position)) {
 				switch (touch_info.touch_state) {
-					case TOUCH_STATE::TOUCH_BEGAN:
-					case TOUCH_STATE::TOUCH_MOVE: {
-						discard_touch_entities.push_back(e);
-						touch_info.caller(e, TOUCH_STATE::TOUCH_ENDED, touch_info.touch_world_position);
+					case TOUCH_STATE::TOUCH_ENDED: {
+						touch_info.click_caller(e, touch_info.touch_world_position);
 						break;
 					}
 					default: {
 						break;
 					}
 				}
-				continue;
 			}
-			touch_info.caller(e, touch_info.touch_state, touch_info.touch_world_position);
+			/**
+			 * @Note: if the touch belong to the container
+			 * and after fire if the container scroll take
+			 * control ,it will cancel all child bellow
+			 * touch!
+			 */
+			if (registry.has<Description>(e.id())) {
+				const auto& [description] = registry.read<Description>(e.id());
+				switch (description.value) {
+					case DESCRIPTION_TYPE::SCROLL_LISTENER_CONTAINER: {
+						const auto& [tree_info] = registry.read<Tree_Information>(e.id());
+						const auto& [scroll_info] = registry.read<Scroll_Information>(tree_info.parent.id());
+						switch (scroll_info.touch_state) {
+							case TOUCH_SCROLL_STATE::SCROLLING: {
+								for (int j = i + 1; j < dirty_entities.size(); j++) {
+									const auto& cancel_entity = dirty_entities[j];
+									auto [cancel_touch_info] = registry.get<Touching_Information>(cancel_entity.id());
+									cancel_touch_info.touch_state = TOUCH_STATE::TOUCH_CANCEL;
+									discard_touch_entities.push_back(cancel_entity);
+								}
+								break;
+							}
+							default: {
+								break;
+							}
+						}
+						break;
+					}
+					default: {
+						break;
+					}
+				}
+			}
 		}
+		discard_handling_touches_entities(discard_touch_entities);
+	}
+
+	void handle_entites_scrolling(const std::vector<Handle>& scrolling_entities) {
+		Registry& registry = get_registry();
+		for (const Handle& e : scrolling_entities) {
+			if (!is_valid(e) || !registry.has<Scroll_Information>(e.id()))
+				continue;
+			const auto& [scroll_info] = registry.read<Scroll_Information>(e.id());
+			if (scroll_info.caller == nullptr)
+				continue;
+			scroll_info.caller(e, get_scroll_distance());
+		}
+		reset_scrolling();
 	}
 
 	void handle_dirty_z_order(const std::vector<Handle>& dirty_entities) {
@@ -439,6 +622,30 @@ namespace Engine {
 					return transform_a.z_order < transform_b.z_order;
 				}
 			);
+		}
+	}
+
+	void handle_update_tree_draw_order(const std::vector<Handle>& dirty_entities) {
+		Registry& registry = get_registry();
+		for (uint32_t i = 0; i < dirty_entities.size(); i++) {
+			const auto& e = dirty_entities[i];
+			auto [draw_order] = registry.get<Draw_Order>(e.id());
+			draw_order.value = i;
+			if (registry.has<Touching_Information>(e.id())) {
+				auto [touch_info] = registry.get<Touching_Information>(e.id());
+				touch_info.touched_order = i;
+				set_dirty(e, true, DIRTY_TOUCHING);
+			}
+			if (registry.has<Scroll_Information>(e.id())) {
+				auto [scroll_info] = registry.get<Scroll_Information>(e.id());
+				scroll_info.scroll_order = i;
+				set_dirty(e, true, DIRTY_SCROLLING);
+			}
+			auto renderer_handles = get_renderer_handles(e);
+			for (auto& handle : renderer_handles) {
+				auto& draw_attributes = Vulkan::modify_draw_attributes(handle);
+				draw_attributes.set_draw_index(draw_order.value);
+			}
 		}
 	}
 
@@ -477,6 +684,7 @@ namespace Engine {
 					);
 					position = glm::min(glm::vec2(size_pinning.left, size_pinning.bottom), parent_size - size);
 					position += anchor * size;
+					set_dirty(e, transform.position != position || c_size.value != size, DIRTY_TRANSFORM);
 				}
 			}
 			if (registry.has<Size_Percent>(e.id())) {
@@ -494,16 +702,16 @@ namespace Engine {
 	void handle_dirty_relative_position(const std::vector<Handle>& dirty_entities) {
 		Registry& registry = get_registry();
 		for (const Handle& e : dirty_entities) {
-			if (!registry.has_all<Tree_Information, Size_Percent>(e.id()))
+			if (!registry.has_all<Tree_Information, Position_Percent>(e.id()))
 				continue;
-			const auto& [tree_info, size_percent] = registry.read<Tree_Information, Size_Percent>(e.id());
+			const auto& [tree_info, position_percent] = registry.read<Tree_Information, Position_Percent>(e.id());
 			auto [transform] = registry.get<Transform_2D>(e.id());
 			const auto& parent = tree_info.parent;
 			if (parent.is_invalid())
 				continue;
 			glm::vec2 parent_size = get_content_size(parent);
-			if (size_percent.enabled) {
-				glm::vec2 position = size_percent.ratio_size * parent_size;
+			if (position_percent.enabled) {
+				glm::vec2 position = position_percent.ratio_position * parent_size;
 				set_dirty(e, transform.position != position, DIRTY_TRANSFORM);
 				transform.position = position;
 			}
@@ -523,7 +731,9 @@ namespace Engine {
 			}
 			update_world_transform(parent, e);
 			update_renderer_transform(e);
+			update_clipped_state(e);
 			update_touch_transform_area(e);
+			update_scroll_transform_area(e);
 		}
 	}
 
@@ -535,26 +745,26 @@ namespace Engine {
 			const auto& [tree_info] = registry.read<Tree_Information>(e.id());
 			auto parent = tree_info.parent;
 			bool is_parent_clipping = false;
-			Handle clipping_handle = Handle::make_invalid_handle();
 			if (!registry.has<Clipping_Ancestor_Information>(parent.id()))
 				continue;
 			if (registry.has<Clipping_Information>(parent.id())) {
 				const auto& [parent_clipping] = registry.read<Clipping_Information>(parent.id());
 				is_parent_clipping = parent_clipping.enabled;
-				clipping_handle = get_render_clipping_handle(parent);
 			}
 			const auto& [parent_clipping_ancestor] = registry.read<Clipping_Ancestor_Information>(parent.id());
 			auto [child_clipping_ancestor] = registry.get<Clipping_Ancestor_Information>(e.id());
 			child_clipping_ancestor.number_clipping = parent_clipping_ancestor.number_clipping;
 			child_clipping_ancestor.clipping_ancesors = parent_clipping_ancestor.clipping_ancesors;
-			if (is_parent_clipping && !clipping_handle.is_invalid()) {
-				child_clipping_ancestor.add_clipping_ancestor(clipping_handle);
+			if (is_parent_clipping) {
+				child_clipping_ancestor.add_clipping_ancestor(parent);
 			}
+			auto [number_valid_handle, clipping_handle_ancestors] =
+				validate_clipping_ancestors(child_clipping_ancestor);
 			auto renderer_handles = get_renderer_handles(e);
 			for (const auto& renderer_handle : renderer_handles) {
 				auto& draw_attributes = Vulkan::modify_draw_attributes(renderer_handle);
-				draw_attributes.set_number_clipping(child_clipping_ancestor.number_clipping);
-				draw_attributes.set_clipping_ancestors(child_clipping_ancestor.clipping_ancesors);
+				draw_attributes.set_number_clipping(number_valid_handle);
+				draw_attributes.set_clipping_ancestors(clipping_handle_ancestors);
 			}
 		}
 	}

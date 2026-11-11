@@ -15,4 +15,6 @@ namespace Engine {
 
 	float get_scroll_distance();
 
+	void reset_scrolling();
+
 } // namespace Engine

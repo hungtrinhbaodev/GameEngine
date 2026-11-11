@@ -20,6 +20,7 @@ namespace Vulkan {
 		std::vector<glm::vec2> start_line_positions{};
 		float width = 0;
 		float height = 0;
+		glm::vec2 get_size();
 	};
 
 	struct Texture_Helper {

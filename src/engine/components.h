@@ -7,6 +7,7 @@
 #include <geometry_structs.h>
 #include <glm/glm.hpp>
 #include <handle.h>
+#include <iostream>
 
 namespace Engine {
 
@@ -17,6 +18,7 @@ namespace Engine {
 		LABEL_2D,
 		SCROLL_LAYOUT,
 		INNER_CONTAINER,
+		SCROLL_LISTENER_CONTAINER,
 	};
 
 	struct Tree_Information {
@@ -24,6 +26,8 @@ namespace Engine {
 		uint32_t depth = ::Const::MAX_UINT32;
 		Handle parent{};
 		std::vector<Handle> children{};
+		std::string name = "";
+		int tag = -1;
 	};
 
 	struct Transform_2D {
@@ -35,7 +39,6 @@ namespace Engine {
 		glm::vec2 anchor{0.f, 0.f};
 		bool is_visible = true;
 		uint32_t z_order = 0;
-		uint32_t draw_index = 0;
 	};
 
 	struct World_Transform_2D : Transform_2D {
@@ -72,7 +75,8 @@ namespace Engine {
 
 	struct Size_Pinning {
 		bool enabled = false;
-		float left = 0.f, right = 0.f, top = 0.f, bottom = 0.f;
+		float left = -::Const::MAX_FLOAT, right = -::Const::MAX_FLOAT, top = -::Const::MAX_FLOAT,
+			  bottom = -::Const::MAX_FLOAT;
 
 		bool is_changing(const Size_Pinning_Data& pinning) const;
 		void update(const Size_Pinning_Data& pinning);
@@ -100,6 +104,13 @@ namespace Engine {
 	struct Image_Renderer_Information {
 		std::string image_path = "";
 		Geometry::Texture_Rect_2D image_rect{0.f, 0.f, 1.f, 1.f};
+		/**
+		 * @Note: if user call set_cotent_size
+		 * the image will switch on mode
+		 * use custom size and they will
+		 * retain untill end.
+		 */
+		bool use_custom_size = false;
 	};
 
 	struct Label_Renderer_Information {
@@ -108,6 +119,18 @@ namespace Engine {
 		int font_size = 8;
 		glm::vec3 stroke_color = {1.f, 1.f, 1.f};
 		float stroke_size = 0.f;
+
+		bool use_custom_size = false;
+		bool clipping_enabled = false;
+		LABEL_HORIZONTAL_ALIGN horizontal_align;
+		LABEL_VERTICAL_ALIGN vertical_align;
+		LABEL_RENDER_FIT_MODE fit_mode;
+		float horizontal_padding = 0.f;
+		float vertical_padding = 0.f;
+
+		Transform_2D inner_label_transform;
+
+		void update_inner_text_by(const glm::vec2& text_size);
 	};
 
 	struct Clipping_Ancestor_Information {
@@ -128,6 +151,7 @@ namespace Engine {
 		TOUCH_STATE touch_state = TOUCH_STATE::TOUCH_INIT;
 		glm::vec2 touch_world_position{0.f};
 		std::function<void(Handle e, TOUCH_STATE touch_state, glm::vec2 touch_world_position)> caller = nullptr;
+		std::function<void(Handle e, glm::vec2 touch_world_position)> click_caller = nullptr;
 		std::array<glm::vec2, 4> transformed_rect{};
 		uint32_t touched_order = 0;
 	};
@@ -149,13 +173,35 @@ namespace Engine {
 	struct Scroll_Information {
 		bool enabled = false;
 		Handle container_handle;
+		Handle container_touch_handle;
 		glm::vec2 size{0.f, 0.f};
 		SCROLL_DIRECTION scroll_direction = SCROLL_DIRECTION::SCROLL_VERTICAL;
 		float scroll_speed = 1.f;
 		glm::vec2 start_touch{0.f, 0.f};
 		bool swallow_scroll = true;
-		std::function<void(float delta_scroll)> caller = nullptr;
+		std::function<void(Handle e, float delta_scroll)> caller = nullptr;
 		std::array<glm::vec2, 4> transformed_rect{};
 		uint32_t scroll_order = 0;
+		TOUCH_SCROLL_STATE touch_state = TOUCH_SCROLL_STATE::IDLE;
+	};
+
+	struct Draw_Order {
+		uint32_t value = 0;
+	};
+
+	struct Rect {
+		std::array<glm::vec2, 4> transformed_rect;
+		bool is_clipped_by(const Rect& parent_rect) const;
+		inline friend std::ostream& operator<<(std::ostream& os, const Rect& rect) {
+			os << "{";
+			for (int i = 0; i < rect.transformed_rect.size(); i++) {
+				os << rect.transformed_rect[i];
+				if (i < rect.transformed_rect.size() - 1) {
+					os << ",";
+				}
+			}
+			os << "}";
+			return os;
+		}
 	};
 } // namespace Engine

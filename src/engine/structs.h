@@ -9,11 +9,19 @@ namespace Engine {
 	};
 
 	enum TOUCH_STATE {
+		/**
+		 * @Note: user using state.
+		 */
 		TOUCH_BEGAN,
 		TOUCH_MOVE,
 		TOUCH_ENDED,
 		TOUCH_CANCEL,
-		TOUCH_INIT
+		/**
+		 * @Note: logic fill user do
+		 * not use this flags.
+		 */
+		TOUCH_INIT,
+		TOUCH_PENDING_RELEASE,
 	};
 
 	enum SCROLL_DIRECTION {
@@ -21,9 +29,32 @@ namespace Engine {
 		SCROLL_VERTICAL
 	};
 
+	enum TOUCH_SCROLL_STATE {
+		IDLE,
+		SCROLLING
+	};
+
+	enum LABEL_VERTICAL_ALIGN {
+		LABEL_VERTICAL_ALIGN_TOP,
+		LABEL_VERTICAL_ALIGN_CENTER,
+		LABEL_VERTICAL_ALIGN_BOTTOM
+	};
+
+	enum LABEL_HORIZONTAL_ALIGN {
+		LABEL_HORIZONTAL_ALIGN_LEFT,
+		LABEL_HORIZONTAL_ALIGN_CENTER,
+		LABEL_HORIZONTAL_ALIGN_RIGHT
+	};
+
+	enum LABEL_RENDER_FIT_MODE {
+		CLIP,
+		ELLIPSIS
+	};
+
 	struct Handled_Touches_Information {
 		glm::vec2 touch_world_position{0.f};
 		TOUCH_STATE touch_state = TOUCH_STATE::TOUCH_INIT;
+		bool remove_next_frame = false;
 		std::vector<Handle> entities;
 	};
 

@@ -66,7 +66,7 @@ namespace Vulkan {
 		void init() {
 			Label_2D_Description description{};
 			description.path = "";
-			description.font_size = 9;
+			description.font_size = 16;
 			description.color = {0.f, 0.f, 0.f};
 			description.stroke_color = {0.92f, 0.92f, 0.92f};
 			description.stroke_size = 1.2f;

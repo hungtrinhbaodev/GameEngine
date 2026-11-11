@@ -44,7 +44,7 @@ namespace Parser {
 
 	const int NUM_CHAR = 95;
 
-	const int MAX_FONT_SIZE = 64;
+	const int MAX_FONT_SIZE = MAX_PIXEL_HEIGHT;
 
 	const int MIN_FONT_SIZE = 6;
 
@@ -64,7 +64,7 @@ namespace Parser {
 
 	const std::string BIN_DATA_EXTENSION_NAME = ".bin_cached";
 
-	const int META_DATA_VERSION = 0;
+	const int META_DATA_VERSION = 1;
 
 	Font_SFD_Meta_Data_Cache get_meta_data_from(const std::string& font_path) {
 		Font_SFD_Meta_Data_Cache meta_data{};
@@ -92,7 +92,6 @@ namespace Parser {
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, max_char_height), sizeof(int));
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, size_atlas), sizeof(int));
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, min_font_size), sizeof(int));
-		Utils::put_byte_from(&font, to_bytes, offsetof(Font, center_font_size), sizeof(int));
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, max_font_size), sizeof(int));
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, line_height), sizeof(float));
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, max_stroke_size), sizeof(float));
@@ -118,7 +117,6 @@ namespace Parser {
 		offset += Utils::read_byte_from<int>(bytes, &font.max_char_height, offset);
 		offset += Utils::read_byte_from<int>(bytes, &font.size_atlas, offset);
 		offset += Utils::read_byte_from<int>(bytes, &font.min_font_size, offset);
-		offset += Utils::read_byte_from<int>(bytes, &font.center_font_size, offset);
 		offset += Utils::read_byte_from<int>(bytes, &font.max_font_size, offset);
 		offset += Utils::read_byte_from<float>(bytes, &font.line_height, offset);
 		offset += Utils::read_byte_from<float>(bytes, &font.max_stroke_size, offset);
@@ -288,7 +286,6 @@ namespace Parser {
 		font.size_atlas = base_atlas_size;
 		font.max_char_height = MAX_PIXEL_HEIGHT;
 		font.max_font_size = MAX_FONT_SIZE;
-		font.center_font_size = MAX_FONT_SIZE / 2;
 		font.min_font_size = MIN_FONT_SIZE;
 		font.max_stroke_size = GLYPH_PADDING * RATIO_MAX_STROKE;
 		font.sfd_padding = GLYPH_PADDING;

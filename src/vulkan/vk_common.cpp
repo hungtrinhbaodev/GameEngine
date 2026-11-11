@@ -224,22 +224,20 @@ namespace Vulkan {
 	glm::vec2 Font::get_char_bounding_box(char value, int font_size, float stroke_size) const {
 		uint32_t char_index = to_char_index(value);
 		const auto& rect = rects[char_index];
-		float scale = get_char_scale(font_size);
-		float stroke = claim_stroke(font_size, stroke_size) * sfd_padding * scale;
+		float stroke = claim_stroke(font_size, stroke_size) * sfd_padding;
 		return {rect.bounding_width + 2 * stroke, line_height + 2 * stroke};
 	}
 
 	glm::vec2 Font::get_char_local_offset(char value, int font_size, float stroke_size) const {
 		uint32_t char_index = to_char_index(value);
 		const auto& rect = rects[char_index];
-		float scale = get_char_scale(font_size);
-		float stroke = claim_stroke(font_size, stroke_size) * sfd_padding * scale;
+		float stroke = claim_stroke(font_size, stroke_size) * sfd_padding;
 		return {rect.offset_x + stroke, rect.offset_y + stroke};
 	}
 
 	float Font::get_char_scale(int font_size) const {
 		font_size = std::max(std::min(font_size, max_font_size), min_font_size);
-		return (float)font_size / center_font_size;
+		return (float)font_size / max_font_size;
 	}
 
 	uint32_t Font::get_char_rect_offset(char value) const {

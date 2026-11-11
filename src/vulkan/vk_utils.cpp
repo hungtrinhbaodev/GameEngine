@@ -167,6 +167,7 @@ namespace Vulkan {
 		}
 
 		uint32_t calculate_range_remain_size(uint32_t offset, uint32_t element_stride) {
+			element_stride = std::max(element_stride, (uint32_t)1);
 			return (element_stride - (offset % element_stride)) % element_stride;
 		}
 

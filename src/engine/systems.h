@@ -3,6 +3,8 @@
 
 namespace Engine {
 
+	std::vector<Handle> get_renderer_handles(const Handle& e);
+
 	void update_image_renderer(const Handle& e);
 
 	void update_label_renderer(const Handle& e);
@@ -11,7 +13,11 @@ namespace Engine {
 
 	void handle_enities_touched(const std::vector<Handle>& dirty_entities);
 
+	void handle_entites_scrolling(const std::vector<Handle>& scrolling_entities);
+
 	void handle_dirty_z_order(const std::vector<Handle>& dirty_entities);
+
+	void handle_update_tree_draw_order(const std::vector<Handle>& dirty_entities);
 
 	void handle_dirty_renderer(const std::vector<Handle>& dirty_entities);
 

@@ -37,7 +37,6 @@ namespace Parser {
 		int max_char_height = 0;
 		int size_atlas = 0;
 		int min_font_size = 0;
-		int center_font_size = 0;
 		int max_font_size = 0;
 		float line_height = 0.f;
 		float max_stroke_size = 0.f;
@@ -45,10 +44,10 @@ namespace Parser {
 		inline friend std::ostream& operator<<(std::ostream& os, const Font& font) {
 			os << "{Font: start_char: " << (int)font.start_char << ", max_char_height: " << font.max_char_height
 			   << ", size_atlas: " << font.size_atlas << ", min_font_size: " << font.min_font_size
-			   << ", center_font_size: " << font.center_font_size << ", max_font_size: " << font.max_font_size
-			   << ", line_height: " << font.line_height << ", max_stroke_size: " << font.max_stroke_size
-			   << ", sfd_padding: " << font.sfd_padding << ", rects size: " << font.rects.size()
-			   << ", rects last: " << font.rects.back() << ", atlas: " << font.atlas.size() << "}";
+			   << ", max_font_size: " << font.max_font_size << ", line_height: " << font.line_height
+			   << ", max_stroke_size: " << font.max_stroke_size << ", sfd_padding: " << font.sfd_padding
+			   << ", rects size: " << font.rects.size() << ", rects last: " << font.rects.back()
+			   << ", atlas: " << font.atlas.size() << "}";
 			return os;
 		}
 	};

@@ -32,7 +32,11 @@ namespace Vulkan {
 
 		void break_lines(std::string text, std::vector<std::string>& lines);
 
-		glm::vec2 get_line_size(const std::string& line, const Font& font, int font_size, float stroke_size);
+		glm::vec2 get_text_size(
+			const std::string& text, const std::string& font_path, int font_size, float stroke_size
+		);
+
+		glm::vec2 get_text_size(const std::string& text, const Font& font, int font_size, float stroke_size);
 
 		std::vector<glm::vec2> get_char_position_at(
 			std::string line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size

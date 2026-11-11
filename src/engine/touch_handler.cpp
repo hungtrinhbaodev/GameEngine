@@ -1,7 +1,9 @@
 #include <consts.h>
+#include <engine/components.h>
 #include <engine/engine.h>
 #include <engine/structs.h>
 #include <engine/touch_handler.h>
+#include <engine/utils.h>
 #include <glm/glm.hpp>
 #include <id_generator.h>
 #include <log.h>
@@ -44,6 +46,15 @@ namespace Engine {
 		touch_info.touch_world_position = touch_world_position;
 	}
 
+	void sort_touched(std::vector<Handle>& enitites) {
+		Registry& registry = get_registry();
+		Utils::sort_entities(enitites, [&registry](const auto& a, const auto& b) {
+			const auto& [touch_info_a] = registry.read<Touching_Information>(a.id());
+			const auto& [touch_info_b] = registry.read<Touching_Information>(b.id());
+			return touch_info_a.touched_order > touch_info_b.touched_order;
+		});
+	}
+
 	void on_mouse_button(GLFWwindow* window, int button, int action, int mods) {
 		switch (button) {
 			case GLFW_MOUSE_BUTTON_LEFT: {
@@ -62,7 +73,17 @@ namespace Engine {
 					if (window_unique_touch_id == ::Const::MAX_UINT32) {
 						break;
 					}
-					release_touch(window_unique_touch_id, world_pos);
+					auto& touch_info = handling_touches.modify(window_unique_touch_id);
+					switch (touch_info.touch_state) {
+						case TOUCH_STATE::TOUCH_INIT: {
+							touch_info.touch_state = TOUCH_STATE::TOUCH_PENDING_RELEASE;
+							break;
+						}
+						default: {
+							release_touch(window_unique_touch_id, world_pos);
+							break;
+						}
+					}
 				}
 				break;
 			}
@@ -93,12 +114,14 @@ namespace Engine {
 				touch_info.touch_world_position = cur_touch;
 				break;
 			}
+			default: {
+				break;
+			}
 		}
 	}
 
 	void init_touch_handler(GLFWwindow* window) {
 		glfwSetMouseButtonCallback(window, on_mouse_button);
-		glfwSetCursorPosCallback(window, on_cursor_touch_position);
 	}
 
 	void handle_touches_logic() {
@@ -109,7 +132,8 @@ namespace Engine {
 			switch (touch_info.touch_state) {
 				case TOUCH_STATE::TOUCH_INIT: {
 					touch_info.entities.clear();
-					auto enitites = Engine::find_entites_listen_touch_at_(touch_info.touch_world_position);
+					auto enitites = Engine::find_entites_listen_touch_at(touch_info.touch_world_position);
+					sort_touched(enitites);
 					for (const auto& e : enitites) {
 						if (handling_entities.has(e.id()))
 							continue;
@@ -119,8 +143,18 @@ namespace Engine {
 					touch_info.touch_state = TOUCH_STATE::TOUCH_BEGAN;
 					break;
 				}
+				case TOUCH_STATE::TOUCH_PENDING_RELEASE: {
+					touch_info.touch_state = TOUCH_STATE::TOUCH_BEGAN;
+					touch_info.remove_next_frame = false;
+					break;
+				}
 				case TOUCH_STATE::TOUCH_BEGAN: {
-					touch_info.touch_state = TOUCH_MOVE;
+					if (touch_info.remove_next_frame) {
+						touch_info.touch_state = TOUCH_STATE::TOUCH_ENDED;
+					} else {
+						touch_info.touch_state = TOUCH_MOVE;
+					}
+					touch_info.remove_next_frame = false;
 					break;
 				}
 				case TOUCH_STATE::TOUCH_CANCEL:
@@ -160,8 +194,10 @@ namespace Engine {
 						i--;
 					}
 				}
+				sort_touched(touch_info.entities);
 			}
 			handling_entities.erase(e.id());
+			id_generator.release_id(e.id());
 		}
 	}
 

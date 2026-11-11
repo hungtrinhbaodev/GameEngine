@@ -53,6 +53,8 @@ namespace Engine {
 
 	// Create/Remove/Handle objects.
 
+	bool is_valid(const Handle& e);
+
 	Handle create_node();
 
 	Handle create_layout();
@@ -62,6 +64,12 @@ namespace Engine {
 	Handle create_label();
 
 	Handle create_scroll_layout();
+
+	Handle get_parent(const Handle& e);
+
+	std::vector<Handle> get_children(const Handle& e);
+
+	std::vector<Handle> get_scroll_layout_children(const Handle& e);
 
 	void add_child(const Handle& e_parent, const Handle& e_children);
 
@@ -81,7 +89,13 @@ namespace Engine {
 
 	// Query/Update objects.
 
-	std::vector<Handle> find_entites_listen_touch_at_(glm::vec2 world_touch_position);
+	bool is_touch_position_valid_with(const Handle& e, const glm::vec2& touch_position);
+
+	bool is_scroll_position_valid_with(const Handle& e, const glm::vec2& scroll_position);
+
+	std::vector<Handle> find_entites_listen_touch_at(const glm::vec2& world_touch_position);
+
+	std::vector<Handle> find_entities_listen_scroll_at(const glm::vec2& world_touch_position);
 
 	const Handle& get_root();
 
@@ -117,6 +131,14 @@ namespace Engine {
 
 	uint32_t get_z_order(const Handle& e);
 
+	void set_name(const Handle& e, const std::string& name);
+
+	std::string get_name(const Handle& e);
+
+	void set_tag(const Handle& e, int tag);
+
+	int get_tag(const Handle& e);
+
 	void set_touch_enabled(const Handle& e, bool touch_enabled);
 
 	bool is_touch_enabled(const Handle& e);
@@ -125,7 +147,9 @@ namespace Engine {
 
 	bool is_swallow_touches(const Handle& e);
 
-	void set_touching_caller(const Handle& e, const std::function<void(Handle, TOUCH_STATE, glm::vec2)> caller);
+	void set_touch_caller(const Handle& e, const std::function<void(Handle, TOUCH_STATE, glm::vec2)> caller);
+
+	void set_click_caller(const Handle& e, const std::function<void(Handle, glm::vec2)> caller);
 
 	void set_nine_scale_enabled(const Handle& e, bool enabled);
 
@@ -139,6 +163,12 @@ namespace Engine {
 
 	Geometry::Texture_Rect_2D get_nine_scale_rect_ratio(const Handle& e);
 
+	/**
+	 * @Note:
+	 * - Image: when set content size image will auto switch into mode
+	 * use custom size when wanna back into inner size please
+	 * call set_use_custom_size_enabled(false).
+	 */
 	void set_content_size(const Handle& e, const glm::vec2& size);
 
 	glm::vec2 get_content_size(const Handle& e);
@@ -156,6 +186,16 @@ namespace Engine {
 	void set_size_pinning(const Handle& e, const Size_Pinning_Data& pinning);
 
 	Size_Pinning_Data get_size_pinning(const Handle& e);
+
+	glm::vec2 get_world_position(const Handle& e);
+
+	glm::vec2 to_my_position_space(
+		const Handle& e, const glm::vec2& world_position, const glm::vec2& fallback_position = {0.f, 0.f}
+	);
+
+	std::array<glm::vec2, 4> get_world_rect(const Handle& e);
+
+	bool is_world_visible(const Handle& e);
 
 	void set_layout_background_enabled(const Handle& e, bool enabled);
 
@@ -186,6 +226,10 @@ namespace Engine {
 	std::string get_image_path(const Handle& e);
 
 	void set_image_rect(const Handle& e, const Geometry::Texture_Rect_2D& image_rect);
+
+	void set_image_use_custom_size_enabled(const Handle& e, bool enabled);
+
+	bool is_image_use_custom_size_enabled(const Handle& e);
 
 	Geometry::Texture_Rect_2D get_image_rect(const Handle& e);
 
@@ -232,5 +276,37 @@ namespace Engine {
 	void set_swallow_scrolling(const Handle& e, bool swallows);
 
 	bool is_swallow_scrolling(const Handle& e);
+
+	void set_scroll_layout_container_position(const Handle& e, const glm::vec2& inner_container_position);
+
+	glm::vec2 get_scroll_layout_container_position(const Handle& e);
+
+	Handle find_node_by_name(const std::string& name, Handle parent = Handle::make_invalid_handle());
+
+	Handle find_node_by_tag(int tag, Handle parent = Handle::make_invalid_handle());
+
+	void set_label_use_custom_size_enabled(const Handle& e, bool enabled);
+
+	bool is_label_use_custom_size_enabled(const Handle& e);
+
+	void set_label_horizontal_align(const Handle& e, LABEL_HORIZONTAL_ALIGN horizontal_align);
+
+	LABEL_HORIZONTAL_ALIGN get_label_horizontal_align(const Handle& e);
+
+	void set_label_vertical_align(const Handle& e, LABEL_VERTICAL_ALIGN vertical_align);
+
+	LABEL_VERTICAL_ALIGN get_label_vertical_align(const Handle& e);
+
+	void set_label_padding_horizontal(const Handle& e, float padding_horizontal);
+
+	float get_label_padding_horizontal(const Handle& e);
+
+	void set_label_padding_vertial(const Handle& e, float padding_vertical);
+
+	float get_label_padding_vertical(const Handle& e);
+
+	void set_label_render_fit_mode(const Handle& e, LABEL_RENDER_FIT_MODE fit_mode);
+
+	LABEL_RENDER_FIT_MODE get_label_render_fit_mode(const Handle& e);
 
 } // namespace Engine

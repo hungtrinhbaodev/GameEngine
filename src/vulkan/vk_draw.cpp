@@ -509,18 +509,22 @@ namespace Vulkan {
 					uint32_t draw_id = sorted_draws[i].draw_id;
 					const auto& draw_instances = draw_id_to_instances.get(draw_id);
 					for (const auto& draw_instance : draw_instances) {
-						all_draw_instances.push_back(draw_instance);
-						number_instance += draw_instance.number_sub_instance;
+						if (draw_instance.number_sub_instance > 0) {
+							all_draw_instances.push_back(draw_instance);
+							number_instance += draw_instance.number_sub_instance;
+						}
 					}
 				}
-				uint32_t start_group_draw_id = sorted_draws[start].draw_id;
-				const auto& instances = draw_id_to_instances.get(start_group_draw_id);
-				draw_instance_batching_groups.push_back(
-					Draw_Group_Instance_Batching{
-						draw_group.draw_type, draw_group.draw_material_id, instances[0].instance_material_id,
-						current_offset, number_instance
-					}
-				);
+				if (number_instance > 0) {
+					uint32_t start_group_draw_id = sorted_draws[start].draw_id;
+					const auto& instances = draw_id_to_instances.get(start_group_draw_id);
+					draw_instance_batching_groups.push_back(
+						Draw_Group_Instance_Batching{
+							draw_group.draw_type, draw_group.draw_material_id, instances[0].instance_material_id,
+							current_offset, number_instance
+						}
+					);
+				}
 				if (DEBUG_LOG) {
 					debug_info.group_offsets.push_back({current_offset, instance_size, number_instance, start});
 				}
