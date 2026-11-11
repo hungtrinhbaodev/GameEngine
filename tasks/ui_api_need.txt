@@ -131,6 +131,18 @@ editor/editor_api.cpp; when an item lands, the stand-in becomes a one-line forwa
     API: an extra touch info: button (LEFT / RIGHT / MIDDLE) and mods, e.g.
          get_touch_button(touch) / get_touch_mods() or a richer caller signature.
 
+[]: 24. BUG set_touch_layout_scroll_enabled(e, false) does not stop drag scrolling.
+    engine.cpp ~1903 switches Touching_Information on scroll_info.container_handle (the INNER container); the
+    listener that scrolls is container_touch_handle (SCROLL_LISTENER_CONTAINER). So the layout still takes the
+    touch after 7.5 px and cancels the child's drag. Fix: use container_touch_handle (setter and getter).
+    Editor stand-in: Editor_Api::set_scroll_drag_enabled switches the listener child off directly.
+
+[]: 25. BUG to_my_position_space(e, world) is measured from e's anchor point, not from e's bottom-left.
+    Children are positioned from the parent's bottom-left, so converting a world point to "where a child must be
+    placed" is off by anchor * size: with anchor (0.5, 0.5) the parent's centre maps to (0, 0) = its corner.
+    (repro-api item 4 only checked anchor (0, 0) nodes, so it passed.) Fix: + anchor * content_size at the end
+    (same for any inverse helper). Editor stand-in: Editor_Api::to_child_space.
+
 []: 23. Later for the editor: save / load a scene file (node tree + properties), get_children order /
     reparent keeping world position, text field for rename (= item 15), hover cursor (deferred with select
     mode).

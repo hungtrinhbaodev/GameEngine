@@ -449,6 +449,17 @@ Test: ./ui_test repro-api (key K), also in tests/run_all.sh. Run 2026-11-10: 10 
        array from validate_clipping_ancestors, clipping pass calls update_clipped_state. Suite 19 of 19,
        label-wrap OK, perf layers80_clip3 26.04 ms / 38 fps (= no clip).
 
+[]: 37. set_touch_layout_scroll_enabled(false) has no effect (found by the editor, details ui_api_need.txt 24):
+    switches the inner container's touch, not the scroll listener container's. A child dragged inside a scroll
+    layout gets TOUCH_CANCEL after 7.5 px even with touch scrolling "off".
+       ./editor --self-test, before the stand-in: "Drag cancelled" on every cell drag.
+
+[]: 38. to_my_position_space ignores the node's anchor (details ui_api_need.txt 25): result is relative to the
+    anchor point, children are placed from the bottom-left. Canvas with anchor 0.5: drop at its centre -> node
+    at (0, 0) = bottom-left corner.
+       ./editor --self-test, before the stand-in: "node centred where it was dropped (off by 542 px)".
+    TODO(test): repro-api item 4 should also check a parent with anchor (0.5, 0.5).
+
 ===== PERF (./ui_test perf, screenshots in build/ui_test_logs/perf, GPU label = avg of 20 frames) =====
 2026-11-11, M2, 2400x1440 framebuffer, vsync 60 fps in every case:
     empty scene 2.05 ms | picker clip on 3.42 / off 3.44 | lab clip on 4.41 / off 4.39 (55 draw calls)
@@ -501,9 +512,10 @@ Reading:
     sorted by z order. Runs after every fuzz frame and before every drive step; hidden draws (unused
     nine-scale pieces) are skipped.
 
-===== LAST RUN (2026-11-11, #36 fixed) =====
-Full suite 19 of 19 PASS. label-wrap OK. Perf: layers80_clip3 26.04 ms / 38 fps, same as no clips (was 73.05).
-Open: none.
+===== LAST RUN (2026-11-11, scene editor) =====
+New app: editor/ (target `editor`). ./editor --self-test: 13 of 13 PASS (drag cell -> canvas, drop outside,
+move by drag, nudge, duplicate, delete, Finder-drop import), screenshots /tmp/editor_*.png. UI suite unchanged
+(19 of 19 at last run). Open: 37, 38 (engine bugs found by the editor, worked around in editor/editor_api.cpp).
 
 =====
 Full suite: 19 of 19 PASS (fuzz 7 3 4 fixed, #35). label-wrap / label-view OK.
