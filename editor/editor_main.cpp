@@ -1,4 +1,5 @@
 #include <chrono>
+#include <filesystem>
 #include <stdexcept>
 #include <thread>
 
@@ -22,6 +23,10 @@ namespace {
 
 int main(int argc, char** argv) {
 	bool self_test = argc > 1 && std::string(argv[1]) == "--self-test";
+	// the engine loads shaders relative to the working directory: run from the executable's folder so
+	// opening build-editor/editor from Finder (cwd = home) or another folder still finds res/.
+	std::error_code cwd_error;
+	std::filesystem::current_path(Utils::get_root_path(), cwd_error);
 	if (!glfwInit()) {
 		throw std::runtime_error("fail to init glfw!");
 	}

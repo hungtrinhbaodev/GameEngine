@@ -143,6 +143,12 @@ editor/editor_api.cpp; when an item lands, the stand-in becomes a one-line forwa
     (repro-api item 4 only checked anchor (0, 0) nodes, so it passed.) Fix: + anchor * content_size at the end
     (same for any inverse helper). Editor stand-in: Editor_Api::to_child_space.
 
+[]: 26. Shaders (res/shader/...) are loaded relative to the working directory, images/fonts relative to
+    Utils::get_root_path(). Started from another folder (Finder double-click: cwd = home) the app aborts:
+    "fail to load file: res/shader/draw_texture_2D/vert_shader.vert.spv does not exist!".
+    Fix: prefix shader paths with Utils::get_root_path() like images. Editor stand-in: editor_main.cpp sets
+    the working directory to the executable's folder at startup.
+
 []: 23. Later for the editor: save / load a scene file (node tree + properties), get_children order /
     reparent keeping world position, text field for rename (= item 15), hover cursor (deferred with select
     mode).

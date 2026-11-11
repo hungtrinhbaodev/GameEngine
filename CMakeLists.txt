@@ -51,6 +51,14 @@ else()
     target_link_libraries(ui_test PRIVATE glm::glm Vulkan::Vulkan "${GLFW_DIR}/lib-mingw-w64/libglfw3.a")
 endif()
 
+find_program(PYTHON_EXEC
+    NAMES python python3
+)
+
+if(NOT PYTHON_EXEC)
+    message(FATAL_ERROR "Python not found — required to compile shaders and copy res/ to build output.")
+endif()
+
 # Scene editor: editor/*.cpp + engine sources. Build: cmake --build <dir> --target editor
 file(GLOB_RECURSE EDITOR_SOURCES "editor/*.cpp")
 add_executable(editor EXCLUDE_FROM_ALL ${EDITOR_SOURCES} ${ENGINE_SOURCES})
@@ -64,6 +72,12 @@ else()
     target_include_directories(editor PRIVATE "${GLFW_DIR}/include/")
     target_link_libraries(editor PRIVATE glm::glm Vulkan::Vulkan "${GLFW_DIR}/lib-mingw-w64/libglfw3.a")
 endif()
+
+# the editor is built on its own (scripts/build_editor.sh), so it syncs res/ next to itself.
+add_custom_command(TARGET editor POST_BUILD
+    COMMAND ${PYTHON_EXEC} "${CMAKE_SOURCE_DIR}/scripts/copy_res.py" "${CMAKE_SOURCE_DIR}/res" "$<TARGET_FILE_DIR:editor>/res"
+    COMMENT "Syncing res/ next to the editor..."
+)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)
 
@@ -82,13 +96,6 @@ endif()
 
 
 
-find_program(PYTHON_EXEC
-    NAMES python python3
-)
-
-if(NOT PYTHON_EXEC)
-    message(FATAL_ERROR "Python not found — required to compile shaders and copy res/ to build output.")
-endif()
 
 add_custom_target(sync_resource ALL
     COMMAND ${PYTHON_EXEC}
