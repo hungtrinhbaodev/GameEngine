@@ -87,6 +87,54 @@ Mark with [Done] when added; the tests will be switched over to the public API a
 []: 16. Modal helper: an overlay that swallows touches under a dialog and closes on outside tap
     (the modal scene builds this by hand: full-screen layout, swallow, z order 100).
 
+===== EDITOR (scene editor app in editor/, target `editor`, added 2026-11-11) =====
+Order = how much the editor needs it. The editor builds and runs today with stand-ins in
+editor/editor_api.cpp; when an item lands, the stand-in becomes a one-line forward.
+
+[]: 17. Image size before the frame runs.
+    Why: thumbnails must fit their cell keeping aspect, and a dropped image is created at its pixel size
+    (scaled down only if bigger than the canvas). get_content_size / get_inner_renderer_size are 0 until the
+    renderer pass has run for that node.
+    API: glm::vec2 get_texture_size(const std::string& image_path) - loads the texture if needed,
+         {0, 0} when the file is missing.
+    Stand-in: Vulkan::load_texture + Vulkan::view_texture (reaches into the Vulkan layer).
+
+[]: 18. Claim a touch (drag out of a scroll layout).
+    Why: dragging a resource cell out of the resource grid: after 7.5 px the scroll layout starts scrolling
+    too, so the drag and the scroll fight.
+    API: void claim_touch(const Handle& e) - called from e's touch callback: e keeps this touch, every other
+         listener of the same touch (the scroll layout) gets TOUCH_CANCEL once and nothing more.
+    Stand-in: the resource panel has touch scrolling off (mouse wheel only).
+
+[]: 19. Topmost node at a point (no touch listener needed).
+    Why: picking what is under the cursor: selecting nodes on the canvas, choosing a drop target (drop onto
+    a layout = make it the parent), later hover. find_entites_listen_touch_at only returns listeners.
+    API: Handle find_topmost_node_at(const glm::vec2& world, const Handle& under = root) - same rules as touch
+         (visible, not clipped, topmost by draw order), invalid handle when nothing.
+         Optional filter: std::function<bool(Handle)> to skip e.g. the selection frame.
+    Stand-in: every canvas node gets its own touch listener; drop target = canvas only (point in world rect).
+
+[]: 20. Cursor world position at any time.
+    Why: GLFW's file-drop callback has no position; files dropped from Finder are placed under the cursor.
+    The engine already tracks it in its cursor callback (engine.cpp ~629).
+    API: glm::vec2 get_cursor_world_position().
+    Stand-in: glfwGetCursorPos + y flip with get_window_size.
+
+[]: 21. Fast-move touch cancel off for mouse input.
+    Why: touch_handler.cpp:104 cancels the touch when the mouse moves more than half the window in one frame
+    or leaves the window: a quick drag across a big window is cancelled halfway.
+    API: set_touch_cancel_on_fast_move(bool) (global), or skip that rule for the mouse.
+
+[]: 22. Mouse button + modifier keys in touch events.
+    Why: right-click menu, Shift+click multi-select, Alt+drag duplicate. Only the left button is handled and
+    mods are dropped.
+    API: an extra touch info: button (LEFT / RIGHT / MIDDLE) and mods, e.g.
+         get_touch_button(touch) / get_touch_mods() or a richer caller signature.
+
+[]: 23. Later for the editor: save / load a scene file (node tree + properties), get_children order /
+    reparent keeping world position, text field for rename (= item 15), hover cursor (deferred with select
+    mode).
+
 ===== NOTES =====
 - When an item lands, tell me and I will switch the tests / scenes to it and add checks for it
   (drive scenario + fuzz op), so the harness stops reading components for that case.
