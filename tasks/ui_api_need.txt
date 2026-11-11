@@ -83,7 +83,7 @@ Mark with [Done] when added; the tests will be switched over to the public API a
 ===== P3: LATER (planned features, listed so the API fits them) =====
 []: 14. Actions / tweens (cocos-like: move_to, fade_to, scale_to, sequence, delay, callback).
     The test scenes would use them for dialog open / close and the scroll bounce.
-[]: 15. Keyboard focus + text input node (editable label) for forms.
+[]: 15. Keyboard focus + text input node (editable label) for forms. -> full spec: item 29.
 []: 16. Modal helper: an overlay that swallows touches under a dialog and closes on outside tap
     (the modal scene builds this by hand: full-screen layout, swallow, z order 100).
 
@@ -165,6 +165,79 @@ editor/editor_api.cpp; when an item lands, the stand-in becomes a one-line forwa
 []: 23. Later for the editor: save / load a scene file (node tree + properties), get_children order /
     reparent keeping world position, text field for rename (= item 15), hover cursor (deferred with select
     mode).
+
+===== EDIT BOX + PROGRESS BAR (spec 2026-11-11) =====
+Order inside 29 = build order; 29a-29d are the core (a usable single-line edit box), 29e-29h come after.
+Names are suggestions. Coordinates as everywhere: world y up, label-local x from the label's left edge.
+
+[]: 29. Edit box (single-line first).
+
+  29a. Engine owns keyboard input.
+    Why: today the app sets glfwSetKeyCallback itself (main.cpp, tests, editor), so the engine cannot route
+    keys to a focused node. GLFW allows one callback per window.
+    API: in Engine::init register glfwSetKeyCallback + glfwSetCharCallback, and forward everything not
+         consumed by a focused edit box to the app:
+         void set_key_caller(std::function<void(int key, int action, int mods)>)   // app shortcuts
+         Char input: UTF-32 code points from the char callback (GLFW already composes dead keys / Telex on
+         macOS); store text as UTF-8.
+    Note: the font atlas covers START_CHAR..NUM_CHAR (ASCII). Non-ASCII code points draw '*' today
+         (Font::to_char_index). Fine for v1; Vietnamese needs a bigger atlas later (29h).
+
+  29b. Keyboard focus.
+    API: void set_focus(const Handle& e)         // invalid handle = no focus
+         Handle get_focus()
+         bool is_focusable(e) / set_focusable(e, bool)   (edit boxes are focusable by default)
+         set_focus_caller(e, fn(Handle, bool focused))   // e.g. border colour on focus
+    Rules: TOUCH_BEGAN on a focusable node focuses it; BEGAN anywhere else clears focus (before dispatch,
+         so a button click still blurs the edit box). clean_up / set_visible(false) of the focused node or an
+         ancestor clears focus. Tab / Shift+Tab: next / previous focusable in draw order (later).
+
+  29c. Edit box node.
+    API: Handle create_edit_box()            // layout (background, border, clip on) + inner label + caret
+         void set_edit_box_text(e, const std::string& utf8) / std::string get_edit_box_text(e)
+         void set_edit_box_placeholder(e, text, color)      // shown when empty and not focused
+         void set_edit_box_max_length(e, int code_points)   // 0 = unlimited
+         void set_edit_box_font(e, path, size), set_edit_box_text_color(e, color), set_edit_box_padding(e, px)
+         set_edit_box_changed_caller(e, fn(Handle, const std::string&))   // every edit
+         set_edit_box_submit_caller(e, fn(Handle, const std::string&))    // Enter
+         (Esc: blur without submit.)
+    Keys while focused: printable chars insert at the caret; Backspace / Delete; Left / Right;
+         Home / End (and Cmd+Left / Cmd+Right on macOS); Enter = submit; Esc = blur.
+    Key repeat: handle GLFW_REPEAT like PRESS for Backspace / Delete / arrows.
+
+  29d. Caret placement and drawing.
+    Why: clicking inside the text must put the caret between the right characters; the caret must be drawn
+         at that x. Per-char x already exists in Draw_Font_2D::get_char_position_at.
+    API (also useful for labels in general):
+         float get_label_char_x(const Handle& label, int index)       // x of the gap before char `index`,
+                                                                      // index == length -> end of text
+         int   get_label_char_index_at(const Handle& label, float local_x)  // nearest gap
+    Caret: a 2 px layout child, height = line height, blinking 0.5 s on / 0.5 s off, solid while typing
+         (reset the blink on every edit). Needs a per-frame tick inside process_frame (dt is there).
+    Scrolling: when the text is wider than the box, offset the inner label so the caret stays inside the
+         padding (clip is already on the box).
+
+  29e. Selection: Shift+arrows, drag to select, double-click = word, Cmd/Ctrl+A = all; selection drawn as a
+       rect behind the text; typing replaces the selection.
+  29f. Clipboard: Cmd/Ctrl+C / X / V via glfwGetClipboardString / glfwSetClipboardString (strip newlines in
+       single-line mode).
+  29g. Modes: password (draw '*' per code point, copy disabled), numeric only, read-only, multi-line (Enter =
+       newline, Up / Down move by line; reuses the label wrap code).
+  29h. Unicode: atlas beyond ASCII (Vietnamese at least: Latin Extended + combining marks), UTF-8 aware
+       label layout (today one char = one byte). IME candidate window (CJK) is a separate, larger task.
+
+  Tests I will add when 29a-d land (editor self-test + ui_test repro): focus by click / blur by click outside,
+  type "hello" via the char path, Backspace, Left x2 + insert, Home / End, Enter fires submit once, Esc blurs,
+  max length, caret x == get_label_char_x(index) after each step, clean_up while focused clears focus.
+  First use in the editor: rename the selected node in the inspector.
+
+[]: 30. Progress bar (optional engine widget; can be built today).
+    Today: track = layout (background, radius, clip on), fill = child layout with set_size_percent({value, 1})
+           and the same radius; set_progress = one setter, resizing the track keeps the fill correct.
+    If it becomes an engine widget: create_progress_bar(), set_progress(e, 0..1), get_progress(e),
+         set_progress_direction(e, LEFT_TO_RIGHT | RIGHT_TO_LEFT | BOTTOM_TO_TOP), set_progress_colors(e,
+         track, fill). Optional later: animate to value (needs actions, item 14), 9-slice images for track/fill.
+    I will add it to the editor UI kit (helper on top of layouts) unless you prefer the engine widget.
 
 ===== NOTES =====
 - When an item lands, tell me and I will switch the tests / scenes to it and add checks for it
