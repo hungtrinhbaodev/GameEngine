@@ -91,6 +91,17 @@ namespace Engine {
 	}
 
 	std::tuple<int, std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>> Clipping_Ancestor_Information::
+		get_self_clipping_info() const {
+		std::array<Handle, ::Const::MAX_DEPTH_CLIPPING> handles;
+		if (self_clipping.is_invalid()) {
+			return std::make_tuple(0, handles);
+		} else {
+			handles[0] = self_clipping;
+			return std::make_tuple(1, handles);
+		}
+	}
+
+	std::tuple<int, std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>> Clipping_Ancestor_Information::
 		get_clipping_ancestors_info() const {
 		if (self_clipping.is_invalid()) {
 			return std::make_tuple(number_clipping, clipping_ancestors);

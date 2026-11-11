@@ -145,6 +145,7 @@ namespace Engine {
 		);
 		void add_clipping_ancestor(const Handle& ancestor);
 		void remove_clipping_ancestor(const Handle& ancestor);
+		std::tuple<int, std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>> get_self_clipping_info() const;
 		std::tuple<int, std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>> get_clipping_ancestors_info() const;
 	};
 

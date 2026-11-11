@@ -101,25 +101,6 @@ namespace Engine {
 		}
 	}
 
-	bool is_clipping_by_ancestor(const Handle& e) {
-		Registry& registry = get_registry();
-		if (!registry.has_all<Clipping_Ancestor_Information, Rect>(e.id())) {
-			return false;
-		}
-		const auto& [clipping_ancestor, rect] = registry.read<Clipping_Ancestor_Information, Rect>(e.id());
-		for (int i = 0; i < clipping_ancestor.number_clipping; i++) {
-			const auto& clipping_parent = clipping_ancestor.clipping_ancestors[i];
-			if (!registry.has<Rect>(clipping_parent.id()))
-				continue;
-			const auto& [parent_rect] = registry.read<Rect>(clipping_parent.id());
-			bool is_clipping = rect.is_clipped_by(parent_rect);
-			if (is_clipping) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	CLIPPING_STATE get_clipping_state_by_ancestors(const Handle& e) {
 		Registry& registry = get_registry();
 		if (!registry.has_all<Clipping_Ancestor_Information, Rect>(e.id())) {
@@ -147,12 +128,31 @@ namespace Engine {
 		return CLIPPING_STATE::CLIPPING_FULL_IN;
 	}
 
+	bool is_clipping_by_ancestor(const Handle& e) {
+		Registry& registry = get_registry();
+		if (!registry.has_all<Clipping_Ancestor_Information, Rect>(e.id())) {
+			return false;
+		}
+		const auto& [clipping_ancestor, rect] = registry.read<Clipping_Ancestor_Information, Rect>(e.id());
+		for (int i = 0; i < clipping_ancestor.number_clipping; i++) {
+			const auto& clipping_parent = clipping_ancestor.clipping_ancestors[i];
+			if (!registry.has<Rect>(clipping_parent.id()))
+				continue;
+			const auto& [parent_rect] = registry.read<Rect>(clipping_parent.id());
+			bool is_clipping = rect.is_clipped_by(parent_rect);
+			if (is_clipping) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 	std::tuple<uint32_t, std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>> validate_clipping_ancestors(
-		const Clipping_Ancestor_Information& clipping_ancestor
+		std::tuple<int, std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>> clipping_ancestor
 	) {
 		std::array<Handle, ::Const::MAX_DEPTH_CLIPPING> clipping_handle_ancestor{};
 		uint32_t number_valid_handle = 0;
-		auto [number_clipping, clipping_ancestors] = clipping_ancestor.get_clipping_ancestors_info();
+		auto [number_clipping, clipping_ancestors] = clipping_ancestor;
 		for (int i = 0; i < number_clipping; i++) {
 			auto clipping_handle = get_render_clipping_handle(clipping_ancestors[i]);
 			if (!clipping_handle.is_invalid()) {
@@ -202,9 +202,12 @@ namespace Engine {
 		auto renderers = get_renderer_handles(e);
 		switch (clipping_state) {
 			case CLIPPING_STATE::CLIPPING_FULL_IN: {
+				auto [number_valid_handle, clipping_handle_ancestors] =
+					validate_clipping_ancestors(clipping_ancestors.get_self_clipping_info());
 				for (const auto& handle : renderers) {
 					auto& draw_attributes = Vulkan::modify_draw_attributes(handle);
-					draw_attributes.set_number_clipping(0);
+					draw_attributes.set_number_clipping(number_valid_handle);
+					draw_attributes.set_clipping_ancestors(clipping_handle_ancestors);
 				}
 				break;
 			}
@@ -216,10 +219,12 @@ namespace Engine {
 				break;
 			}
 			default: {
-				auto [number_valid_clipping, _] = clipping_ancestors.get_clipping_ancestors_info();
+				auto [number_valid_handle, clipping_handle_ancestors] =
+					validate_clipping_ancestors(clipping_ancestors.get_clipping_ancestors_info());
 				for (const auto& handle : renderers) {
 					auto& draw_attributes = Vulkan::modify_draw_attributes(handle);
-					draw_attributes.set_number_clipping(number_valid_clipping);
+					draw_attributes.set_number_clipping(number_valid_handle);
+					draw_attributes.set_clipping_ancestors(clipping_handle_ancestors);
 				}
 				break;
 			}
@@ -492,7 +497,8 @@ namespace Engine {
 			clipping_ancestor.update_self_clipping(Handle::make_invalid_handle());
 			update_label_transform(label, transform);
 		}
-		auto [number_valid_handle, clipping_handle_ancestors] = validate_clipping_ancestors(clipping_ancestor);
+		auto [number_valid_handle, clipping_handle_ancestors] =
+			validate_clipping_ancestors(clipping_ancestor.get_clipping_ancestors_info());
 		// always upload: when clipping turns off, the label must drop its own clip and keep only ancestors.
 		label.set_number_clipping(number_valid_handle);
 		label.set_clipping_ancestors(clipping_handle_ancestors);
@@ -799,14 +805,7 @@ namespace Engine {
 			const auto& [parent_clipping_ancestor] = registry.read<Clipping_Ancestor_Information>(parent.id());
 			auto [child_clipping_ancestor] = registry.get<Clipping_Ancestor_Information>(e.id());
 			child_clipping_ancestor.merge_with(parent_clipping_ancestor, is_parent_clipping, parent);
-			auto [number_valid_handle, clipping_handle_ancestors] =
-				validate_clipping_ancestors(child_clipping_ancestor);
-			auto renderer_handles = get_renderer_handles(e);
-			for (const auto& renderer_handle : renderer_handles) {
-				auto& draw_attributes = Vulkan::modify_draw_attributes(renderer_handle);
-				draw_attributes.set_number_clipping(number_valid_handle);
-				draw_attributes.set_clipping_ancestors(clipping_handle_ancestors);
-			}
+			update_clipped_state(e);
 		}
 	}
 
