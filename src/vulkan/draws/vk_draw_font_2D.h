@@ -1,4 +1,5 @@
 #pragma once
+#include <string_view>
 #include <vulkan/vk_draw.h>
 
 namespace Vulkan {
@@ -30,16 +31,16 @@ namespace Vulkan {
 
 		void destroy();
 
-		void break_lines(std::string text, std::vector<std::string>& lines);
+		void break_lines(std::string_view text, std::vector<std::string>& lines);
 
-		glm::vec2 get_text_size(
-			const std::string& text, const std::string& font_path, int font_size, float stroke_size
+		glm::vec2 get_renderer_text_size(
+			std::string_view text, const std::string& font_path, int font_size, float stroke_size
 		);
 
-		glm::vec2 get_text_size(const std::string& text, const Font& font, int font_size, float stroke_size);
+		glm::vec2 get_text_size(std::string_view text, const Font& font, int font_size, float stroke_size);
 
 		std::vector<glm::vec2> get_char_position_at(
-			std::string line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size
+			std::string_view line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size
 		);
 
 		void make_lines_render_info(
@@ -48,7 +49,7 @@ namespace Vulkan {
 		);
 
 		Font_Helper gen_text_info_from(
-			std::string font_path, std::string text, int align, int font_size, float stroke_size
+			const std::string& font_path, std::string_view text, int align, int font_size, float stroke_size
 		);
 
 	} // namespace Draw_Font_2D

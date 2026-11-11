@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <string_view>
 #include <engine/components.h>
 #include <math_custom.h>
 #include <vulkan/draws/vk_draw_font_2D.h>
@@ -106,11 +108,11 @@ namespace Engine {
 			}
 			switch (vertical_align) {
 				case LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER: {
-					label_position.y = (text_size.x - inner_size.y) / 2;
+					label_position.y = (text_size.y - inner_size.y) / 2;
 					break;
 				}
 				case LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_BOTTOM: {
-					label_position.y = padding.x;
+					label_position.y = padding.y;
 					break;
 				}
 				default: {
@@ -120,74 +122,101 @@ namespace Engine {
 			}
 			inner_label_transform.position = label_position;
 		};
-		std::string final_text = text;
-		auto text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
-			font_path, final_text, (int)horizontal_align, font_size, stroke_size
-		);
 		float final_horizontal_padding =
 			horizontal_align == LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_CENTER ? 0.f : horizontal_padding;
 		float final_vertical_padding =
 			vertical_align == LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER ? 0.f : vertical_padding;
 		glm::vec2 padding = {final_horizontal_padding, final_vertical_padding};
+		glm::vec2 remain_size = text_size - padding;
+		auto text_helper =
+			Vulkan::Draw_Font_2D::gen_text_info_from(font_path, text, (int)horizontal_align, font_size, stroke_size);
 		glm::vec2 inner_size = text_helper.get_size();
-		if ((inner_size.x + padding.x) <= text_size.x && (inner_size.y + padding.y) <= text_size.y) {
+		if (inner_size.x <= remain_size.x && inner_size.y <= remain_size.y) {
+			render_text = text;
+			clipping_enabled = false;
 			fit_transform(text_size, inner_size, padding);
 			return;
 		}
-		final_text = final_text.replace(final_text.begin(), final_text.end(), "\n", " ");
-		std::vector<std::string> tokens;
-		while (text.find(" ") != std::string::npos) {
-			auto enter_char_index = text.find("\n");
-			tokens.push_back(text.substr(0, enter_char_index));
-			text.erase(0, enter_char_index + 1);
+		auto measure = [this](std::string_view value) {
+			return Vulkan::Draw_Font_2D::get_renderer_text_size(value, font_path, font_size, stroke_size);
+		};
+		// widths add up char by char, so every word is measured once and nothing is concatenated to measure.
+		const float space_width = measure(" ").x;
+		const float line_height = measure(" ").y;
+		const std::string_view ellipsis = "...";
+		const float ellipsis_width = measure(ellipsis).x;
+		int max_lines = line_height > 0.f ? std::max(1, (int)(remain_size.y / line_height)) : 1;
+
+		// words are views into `text` ('\n' is treated like a space); a word wider than the box is cut by chars.
+		std::vector<std::string_view> words;
+		std::string_view source = text;
+		size_t start = 0;
+		while (start < source.size()) {
+			size_t end = source.find_first_of(" \n", start);
+			if (end == std::string_view::npos)
+				end = source.size();
+			std::string_view word = source.substr(start, end - start);
+			start = end + 1;
+			if (word.empty())
+				continue;
+			if (measure(word).x <= remain_size.x) {
+				words.push_back(word);
+				continue;
+			}
+			// binary search the longest prefix of the rest that fits the width (at least 1 char, so it always ends).
+			std::string_view rest = word;
+			while (!rest.empty()) {
+				size_t low = 1, high = rest.size();
+				while (low < high) {
+					size_t mid = (low + high + 1) / 2;
+					if (measure(rest.substr(0, mid)).x <= remain_size.x) {
+						low = mid;
+					} else {
+						high = mid - 1;
+					}
+				}
+				words.push_back(rest.substr(0, low));
+				rest.remove_prefix(low);
+			}
 		}
-		if (text != "") {
-			tokens.push_back(text);
-		}
-		int current_line = 0;
-		float total_height = 0.f;
-		float max_height = 0.f;
-		glm::vec2 remain_size = text_size - padding;
+
+		// greedy fill: keep a running width per line instead of re-measuring line + " " + word.
 		std::vector<std::string> lines;
-		for (int i = 0; i < tokens.size(); i++) {
-			const auto& token = tokens[i];
-			glm::vec2 size_token = Vulkan::Draw_Font_2D::get_text_size(token, font_path, font_size, stroke_size);
-			if (total_height >= remain_size.y && fit_mode == LABEL_RENDER_FIT_MODE::ELLIPSIS) {
-				auto& last_line = lines.back();
-				last_line = last_line.substr(0, std::min((int)last_line.size() - 3, 0)) + "...";
+		std::vector<float> line_widths;
+		bool truncated = false;
+		for (std::string_view word : words) {
+			float word_width = measure(word).x;
+			if (!lines.empty() && line_widths.back() + space_width + word_width <= remain_size.x) {
+				lines.back() += ' ';
+				lines.back() += word;
+				line_widths.back() += space_width + word_width;
+				continue;
+			}
+			if (fit_mode == LABEL_RENDER_FIT_MODE::ELLIPSIS && (int)lines.size() >= max_lines) {
+				truncated = true;
 				break;
 			}
-			if (lines.size() <= current_line) {
-				lines.push_back("");
-			}
-			auto& line = lines[current_line];
-			if (line.size() < 1) {
-				line += token;
-
-				max_height = std::max(max_height, size_token.y);
-				total_height += max_height;
-			} else {
-				glm::vec2 size_line =
-					Vulkan::Draw_Font_2D::get_text_size(line + " " + token, font_path, font_size, stroke_size);
-				if (size_line.x <= remain_size.x) {
-					line += " " + token;
-					max_height = std::max(max_height, size_line.y);
-				} else {
-					max_height = 0.f;
-					current_line++;
-					i--;
-				}
-			}
+			lines.emplace_back(word);
+			line_widths.push_back(word_width);
 		}
-		text = "";
-		for (int i = 0; i < lines.size(); i++) {
-			text += lines[i];
-			if (i < lines.size() - 1) {
-				text += "\n";
+		if (truncated && !lines.empty()) {
+			std::string& last_line = lines.back();
+			float last_width = line_widths.back();
+			while (!last_line.empty() && last_width + ellipsis_width > remain_size.x) {
+				last_width -= measure(std::string_view(last_line).substr(last_line.size() - 1)).x;
+				last_line.pop_back();
 			}
+			last_line += ellipsis;
+		}
+
+		render_text.clear();
+		for (size_t i = 0; i < lines.size(); i++) {
+			if (i > 0)
+				render_text += '\n';
+			render_text += lines[i];
 		}
 		text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
-			font_path, final_text, (int)horizontal_align, font_size, stroke_size
+			font_path, render_text, (int)horizontal_align, font_size, stroke_size
 		);
 		fit_transform(text_size, text_helper.get_size(), padding);
 		switch (fit_mode) {
@@ -196,7 +225,7 @@ namespace Engine {
 				break;
 			}
 			default: {
-				clipping_enabled = false;
+				clipping_enabled = text_helper.width > remain_size.x || text_helper.height > remain_size.y;
 				break;
 			}
 		}

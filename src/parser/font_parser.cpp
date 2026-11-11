@@ -22,6 +22,7 @@ namespace Parser {
 		int max_char_height = 0;
 		float sfd_padding = 0;
 		float ratio_max_stroke = 1.f;
+		float desent = 0.f;
 		std::filesystem::file_time_type last_time_save;
 		std::uintmax_t file_size;
 		bool operator==(const Font_SFD_Meta_Data_Cache other) {
@@ -64,7 +65,7 @@ namespace Parser {
 
 	const std::string BIN_DATA_EXTENSION_NAME = ".bin_cached";
 
-	const int META_DATA_VERSION = 1;
+	const int META_DATA_VERSION = 3;
 
 	Font_SFD_Meta_Data_Cache get_meta_data_from(const std::string& font_path) {
 		Font_SFD_Meta_Data_Cache meta_data{};
@@ -96,6 +97,7 @@ namespace Parser {
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, line_height), sizeof(float));
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, max_stroke_size), sizeof(float));
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, sfd_padding), sizeof(float));
+		Utils::put_byte_from(&font, to_bytes, offsetof(Font, font_desent), sizeof(float));
 		short num_rect = (short)font.rects.size();
 		Utils::put_byte_from(&num_rect, to_bytes, 0, sizeof(short));
 		for (int i = 0; i < num_rect; i++) {
@@ -121,6 +123,7 @@ namespace Parser {
 		offset += Utils::read_byte_from<float>(bytes, &font.line_height, offset);
 		offset += Utils::read_byte_from<float>(bytes, &font.max_stroke_size, offset);
 		offset += Utils::read_byte_from<float>(bytes, &font.sfd_padding, offset);
+		offset += Utils::read_byte_from<float>(bytes, &font.font_desent, offset);
 		short num_rect = 0;
 		offset += Utils::read_byte_from<short>(bytes, &num_rect, offset);
 		for (int i = 0; i < num_rect; i++) {
@@ -196,6 +199,7 @@ namespace Parser {
 		stbtt_GetFontVMetrics(&font_info, &ascent, &descent, &line_gap);
 		float scale = stbtt_ScaleForPixelHeight(&font_info, MAX_PIXEL_HEIGHT);
 		font.line_height = (ascent - descent + line_gap) * scale;
+		font.font_desent = -descent * scale;
 		/**
 		 * Make unordered_map map character to rect draw.
 		 */
@@ -292,6 +296,7 @@ namespace Parser {
 		int ascent = 0, descent = 0, line_gap = 0;
 		stbtt_GetFontVMetrics(&font_info, &ascent, &descent, &line_gap);
 		font.line_height = (ascent - descent + line_gap) * scale;
+		font.font_desent = -descent * scale;
 		font.atlas.resize(base_atlas_size * base_atlas_size);
 		for (int i = 0; i < NUM_CHAR; i++) {
 			const auto& glyph_rect = glyph_rects[i];

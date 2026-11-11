@@ -39,6 +39,7 @@ namespace Parser {
 		int min_font_size = 0;
 		int max_font_size = 0;
 		float line_height = 0.f;
+		float font_desent = 0.f;
 		float max_stroke_size = 0.f;
 		float sfd_padding = 0.f;
 		inline friend std::ostream& operator<<(std::ostream& os, const Font& font) {

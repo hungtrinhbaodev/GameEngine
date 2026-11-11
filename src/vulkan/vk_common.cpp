@@ -232,7 +232,7 @@ namespace Vulkan {
 		uint32_t char_index = to_char_index(value);
 		const auto& rect = rects[char_index];
 		float stroke = claim_stroke(font_size, stroke_size) * sfd_padding;
-		return {rect.offset_x + stroke, rect.offset_y + stroke};
+		return {rect.offset_x + stroke, rect.offset_y + stroke + font_desent};
 	}
 
 	float Font::get_char_scale(int font_size) const {

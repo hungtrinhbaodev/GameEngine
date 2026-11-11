@@ -59,5 +59,19 @@ namespace Engine {
 				std::min(std::max(parent_size.y - container_size.y, position.y), 0.f)
 			);
 		}
+
+		void add_self_clipping_to_clipping_ancestors(
+			uint32_t& number_valid_handle, std::array<Handle, ::Const::MAX_DEPTH_CLIPPING>& clipping_handle_ancestors,
+			const Handle& self_clipping
+		) {
+			if (number_valid_handle >= ::Const::MAX_DEPTH_CLIPPING) {
+				for (int i = 0; i < clipping_handle_ancestors.size() - 1; i++) {
+					clipping_handle_ancestors[i] = clipping_handle_ancestors[i + 1];
+				}
+				clipping_handle_ancestors[number_valid_handle - 1] = self_clipping;
+			} else {
+				clipping_handle_ancestors[number_valid_handle++] = self_clipping;
+			}
+		}
 	} // namespace Utils
 } // namespace Engine

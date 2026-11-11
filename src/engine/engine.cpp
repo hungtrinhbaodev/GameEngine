@@ -1358,6 +1358,10 @@ namespace Engine {
 				set_image_use_custom_size_enabled(e, true);
 				break;
 			}
+			case DESCRIPTION_TYPE::LABEL_2D: {
+				set_label_use_custom_size_enabled(e, true);
+				break;
+			}
 			default: {
 				break;
 			}
@@ -2021,16 +2025,16 @@ namespace Engine {
 	}
 
 	void set_label_use_custom_size_enabled(const Handle& e, bool enabled) {
-		if (registry.has<Label_Renderer_Information>(e.id())) {
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
 			return;
 		}
 		auto [label_renderer] = registry.get<Label_Renderer_Information>(e.id());
-		set_dirty(e, label_renderer.use_custom_size != enabled, DIRTY_TRANSFORM);
+		set_dirty(e, label_renderer.use_custom_size != enabled, DIRTY_TRANSFORM | DIRTY_RENDERER);
 		label_renderer.use_custom_size = enabled;
 	}
 
 	bool is_label_use_custom_size_enabled(const Handle& e) {
-		if (registry.has<Label_Renderer_Information>(e.id())) {
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
 			return false;
 		}
 		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
@@ -2038,16 +2042,16 @@ namespace Engine {
 	}
 
 	void set_label_horizontal_align(const Handle& e, LABEL_HORIZONTAL_ALIGN horizontal_align) {
-		if (registry.has<Label_Renderer_Information>(e.id())) {
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
 			return;
 		}
 		auto [label_renderer] = registry.get<Label_Renderer_Information>(e.id());
-		set_dirty(e, label_renderer.horizontal_align != horizontal_align, DIRTY_TRANSFORM);
+		set_dirty(e, label_renderer.horizontal_align != horizontal_align, DIRTY_TRANSFORM | DIRTY_RENDERER);
 		label_renderer.horizontal_align = horizontal_align;
 	}
 
 	LABEL_HORIZONTAL_ALIGN get_label_horizontal_align(const Handle& e) {
-		if (registry.has<Label_Renderer_Information>(e.id())) {
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
 			return LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_CENTER;
 		}
 		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
@@ -2055,7 +2059,7 @@ namespace Engine {
 	}
 
 	void set_label_vertical_align(const Handle& e, LABEL_VERTICAL_ALIGN vertical_align) {
-		if (registry.has<Label_Renderer_Information>(e.id())) {
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
 			return;
 		}
 		auto [label_renderer] = registry.get<Label_Renderer_Information>(e.id());
@@ -2064,7 +2068,7 @@ namespace Engine {
 	}
 
 	LABEL_VERTICAL_ALIGN get_label_vertical_align(const Handle& e) {
-		if (registry.has<Label_Renderer_Information>(e.id())) {
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
 			return LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER;
 		}
 		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
@@ -2072,7 +2076,7 @@ namespace Engine {
 	}
 
 	void set_label_padding_horizontal(const Handle& e, float padding_horizontal) {
-		if (registry.has<Label_Renderer_Information>(e.id())) {
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
 			return;
 		}
 		auto [label_renderer] = registry.get<Label_Renderer_Information>(e.id());
@@ -2089,7 +2093,7 @@ namespace Engine {
 	}
 
 	void set_label_padding_vertial(const Handle& e, float padding_vertical) {
-		if (registry.has<Label_Renderer_Information>(e.id())) {
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
 			return;
 		}
 		auto [label_renderer] = registry.get<Label_Renderer_Information>(e.id());
@@ -2098,7 +2102,7 @@ namespace Engine {
 	}
 
 	float get_label_padding_vertical(const Handle& e) {
-		if (registry.has<Label_Renderer_Information>(e.id())) {
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
 			return 0.f;
 		}
 		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
@@ -2106,7 +2110,7 @@ namespace Engine {
 	}
 
 	void set_label_render_fit_mode(const Handle& e, LABEL_RENDER_FIT_MODE fit_mode) {
-		if (registry.has<Label_Renderer_Information>(e.id())) {
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
 			return;
 		}
 		auto [label_renderer] = registry.get<Label_Renderer_Information>(e.id());
@@ -2115,7 +2119,7 @@ namespace Engine {
 	}
 
 	LABEL_RENDER_FIT_MODE get_label_render_fit_mode(const Handle& e) {
-		if (registry.has<Label_Renderer_Information>(e.id())) {
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
 			return LABEL_RENDER_FIT_MODE::CLIP;
 		}
 		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());

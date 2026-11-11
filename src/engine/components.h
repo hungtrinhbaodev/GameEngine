@@ -116,15 +116,17 @@ namespace Engine {
 	struct Label_Renderer_Information {
 		std::string font_path = "";
 		std::string text = "";
+		// what is actually drawn when use_custom_size is on: text after wrap / ellipsis. `text` stays untouched.
+		std::string render_text = "";
 		int font_size = 8;
 		glm::vec3 stroke_color = {1.f, 1.f, 1.f};
 		float stroke_size = 0.f;
 
 		bool use_custom_size = false;
 		bool clipping_enabled = false;
-		LABEL_HORIZONTAL_ALIGN horizontal_align;
-		LABEL_VERTICAL_ALIGN vertical_align;
-		LABEL_RENDER_FIT_MODE fit_mode;
+		LABEL_HORIZONTAL_ALIGN horizontal_align = LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_CENTER;
+		LABEL_VERTICAL_ALIGN vertical_align = LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER;
+		LABEL_RENDER_FIT_MODE fit_mode = LABEL_RENDER_FIT_MODE::CLIP;
 		float horizontal_padding = 0.f;
 		float vertical_padding = 0.f;
 

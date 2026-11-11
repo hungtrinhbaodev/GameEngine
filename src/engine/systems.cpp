@@ -270,6 +270,8 @@ namespace Engine {
 			glm::vec2 size = {label.get_width(), label.get_height()};
 			set_dirty(e, c_size.value != size, DIRTY_RELATIVE_SIZE | DIRTY_TRANSFORM);
 			c_size.value = size;
+		} else {
+			label.set_align((int)label_renderer.horizontal_align);
 		}
 	}
 
@@ -427,6 +429,8 @@ namespace Engine {
 		if (label_renderer.use_custom_size) {
 			label_renderer.update_inner_text_by(c_size.value);
 			auto inner_transform = transform.transform(label_renderer.inner_label_transform);
+			inner_transform.color = transform.color;
+			label.set_text(label_renderer.render_text);
 			update_label_transform(label, inner_transform);
 			if (label_renderer.clipping_enabled) {
 				auto& clipping = Vulkan::modify_clipping(handles[1]);
@@ -438,17 +442,16 @@ namespace Engine {
 			}
 			const auto& [clipping_ancestor] = registry.read<Clipping_Ancestor_Information>(e_child.id());
 			auto [number_valid_handle, clipping_handle_ancestors] = validate_clipping_ancestors(clipping_ancestor);
-			if (number_valid_handle >= ::Const::MAX_DEPTH_CLIPPING) {
-				for (int i = 0; i < clipping_handle_ancestors.size() - 1; i++) {
-					clipping_handle_ancestors[i] = clipping_handle_ancestors[i + 1];
-				}
-				clipping_handle_ancestors[number_valid_handle - 1] = handles[1];
-			} else {
-				clipping_handle_ancestors[++number_valid_handle] = handles[1];
+			if (label_renderer.clipping_enabled) {
+				Utils::add_self_clipping_to_clipping_ancestors(
+					number_valid_handle, clipping_handle_ancestors, handles[1]
+				);
 			}
+			// always upload: when clipping turns off, the label must drop its own clip and keep only ancestors.
 			label.set_number_clipping(number_valid_handle);
 			label.set_clipping_ancestors(clipping_handle_ancestors);
 		} else {
+			// label.set_number_clipping(0);
 			update_label_transform(label, transform);
 		}
 		c_rect.transformed_rect = Math::transform_rect(

@@ -276,27 +276,30 @@ namespace Vulkan {
 			return sizeof(Instance_Data);
 		}
 
-		void break_lines(std::string text, std::vector<std::string>& lines) {
+		void break_lines(std::string_view text, std::vector<std::string>& lines) {
 			lines.clear();
-			while (text.find("\n") != std::string::npos) {
-				auto enter_char_index = text.find("\n");
-				lines.push_back(text.substr(0, enter_char_index));
-				text.erase(0, enter_char_index + 1);
-			}
-			if (text != "") {
-				lines.push_back(text);
+			size_t start = 0;
+			while (start < text.size()) {
+				size_t end = text.find('\n', start);
+				if (end == std::string_view::npos) {
+					lines.emplace_back(text.substr(start));
+					break;
+				}
+				lines.emplace_back(text.substr(start, end - start));
+				start = end + 1;
 			}
 		}
 
-		glm::vec2 get_text_size(
-			const std::string& text, const std::string& font_path, int font_size, float stroke_size
+		glm::vec2 get_renderer_text_size(
+			std::string_view text, const std::string& font_path, int font_size, float stroke_size
 		) {
 			uint32_t font_id = load_font(font_path);
 			const auto& font = view_font(font_id);
-			return get_text_size(text, font, font_size, stroke_size);
+			auto text_size = get_text_size(text, font, font_size, stroke_size);
+			return text_size * font.get_char_scale(font_size);
 		}
 
-		glm::vec2 get_text_size(const std::string& text, const Font& font, int font_size, float stroke_size) {
+		glm::vec2 get_text_size(std::string_view text, const Font& font, int font_size, float stroke_size) {
 			glm::vec2 line_size{0.f, 0.f};
 			for (int i = 0; i < text.size(); i++) {
 				glm::vec2 char_bound_box = font.get_char_bounding_box(text[i], font_size, stroke_size);
@@ -307,7 +310,7 @@ namespace Vulkan {
 		}
 
 		std::vector<glm::vec2> get_char_position_at(
-			std::string line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size
+			std::string_view line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size
 		) {
 			std::vector<glm::vec2> char_positions(line.size());
 			float start_x = 0;
@@ -360,7 +363,7 @@ namespace Vulkan {
 		}
 
 		Font_Helper gen_text_info_from(
-			std::string font_path, std::string text, int align, int font_size, float stroke_size
+			const std::string& font_path, std::string_view text, int align, int font_size, float stroke_size
 		) {
 			Font_Helper text_helper{};
 			uint32_t font_id = load_font(font_path);
