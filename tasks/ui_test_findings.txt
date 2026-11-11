@@ -429,6 +429,26 @@ Test: ./ui_test repro-api (key K), also in tests/run_all.sh. Run 2026-11-10: 10 
        uses get_clipping_ancestors_info() (ancestors + own clip), so both passes upload the same list.
        fuzz 7 3 4 PASS, full suite 19 of 19.
 
+[Done]: 36. CPU clip culling (02237c1) drops a label's own clip when the label is FULL_IN its ancestors.
+    update_clipped_state: CLIPPING_FULL_IN -> set_number_clipping(0) for every draw. A custom-size label with
+    clipping_enabled (text overflows its box) then uploads [] and its text draws outside the box. Also hits
+    labels with no clip ancestors at all: get_clipping_state_by_ancestors returns FULL_IN for an empty list.
+       all 8 fuzz seeds, e.g. fuzz 1 1 12: node 31 label, state IN, uploads [] want [35] (own clip).
+    Fix idea: FULL_IN keeps only self_clipping (count 1 when set, else 0); INTERSECT should take the count
+    from validate_clipping_ancestors (the list actually uploaded), not get_clipping_ancestors_info (raw,
+    before dead / invalid handles are filtered) - the two differ once an ancestor has no clip handle.
+    Note: handle_dirty_clipping still uploads the full list without classifying, so a clipping-only frame
+    undoes the cull until the next transform pass (correct picture, wasted GPU; checker logs [clip-cull]).
+    Run 2026-11-11 after fix attempt: 11 of 19 abort, std::runtime_error "Invalid handle in drawing":
+       Vulkan::assert_draw_handle vk_draw.cpp:928 <- make_clipping_storage_data(number_clipping=1) :947
+       <- Draw_Font_2D::Text_Data::make_storage_data vk_draw_font_2D.cpp:115 <- draw_frame.
+    update_clipped_state sets only set_number_clipping; the array is no longer written (removed from
+    handle_dirty_clipping), so slot 0 is empty or a stale ancestor. Set count and array together from one list
+    (FULL_IN: [own clip] or 0; INTERSECT: both values of validate_clipping_ancestors).
+    Verified 2026-11-11: FULL_IN uploads get_self_clipping_info (own clip only), INTERSECT uploads count +
+       array from validate_clipping_ancestors, clipping pass calls update_clipped_state. Suite 19 of 19,
+       label-wrap OK, perf layers80_clip3 26.04 ms / 38 fps (= no clip).
+
 ===== PERF (./ui_test perf, screenshots in build/ui_test_logs/perf, GPU label = avg of 20 frames) =====
 2026-11-11, M2, 2400x1440 framebuffer, vsync 60 fps in every case:
     empty scene 2.05 ms | picker clip on 3.42 / off 3.44 | lab clip on 4.41 / off 4.39 (55 draw calls)
@@ -452,6 +472,8 @@ Reading:
   children are; you already test "fully outside" in is_clipped_by), so number_clipping is 0 for them;
   (2) upload each clip as a precomputed world->clip-local 2x3 matrix (no sin/cos per pixel);
   (3) compute the world position in the vertex shader and pass it as a varying.
+- After CPU clip culling (02237c1, 2026-11-11): 80 layers under 3 clip parents 26.04 ms / 38 fps, same as
+  80 layers without clips (26.04 ms / 38 fps). Before: 73.05 ms / 13.7 fps. Fully-inside nodes upload 0 clips.
 - Real lead: lab scene = 55 draw calls (picker 12). Batching breaks when rect / label / image draws
   interleave in draw order.
 
@@ -479,6 +501,10 @@ Reading:
     sorted by z order. Runs after every fuzz frame and before every drive step; hidden draws (unused
     nine-scale pieces) are skipped.
 
-===== LAST RUN (2026-11-11, label self-clip fix) =====
+===== LAST RUN (2026-11-11, #36 fixed) =====
+Full suite 19 of 19 PASS. label-wrap OK. Perf: layers80_clip3 26.04 ms / 38 fps, same as no clips (was 73.05).
+Open: none.
+
+=====
 Full suite: 19 of 19 PASS (fuzz 7 3 4 fixed, #35). label-wrap / label-view OK.
 Open: none. repro-api now also checks label defaults (label-default).

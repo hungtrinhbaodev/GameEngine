@@ -18,6 +18,7 @@ namespace Engine {
 	extern std::vector<Handle> entities_scroll_listener;
 	extern std::vector<Handle> clean_up_entities;
 	Handle get_render_clipping_handle(const Handle& e);
+	CLIPPING_STATE get_clipping_state_by_ancestors(const Handle& e);
 } // namespace Engine
 
 namespace Test {
@@ -464,6 +465,30 @@ namespace Test {
 			}
 		}
 
+		size_t clip_cull_misses = 0;
+
+		// independent separating-axis classification (not the engine's): 0 out, 1 in, 2 intersect.
+		int classify_rect(const std::array<glm::vec2, 4>& node, const std::array<glm::vec2, 4>& clip) {
+			const glm::vec2 axes[4] = {node[1] - node[0], node[3] - node[0], clip[1] - clip[0], clip[3] - clip[0]};
+			bool inside = true;
+			for (int k = 0; k < 4; k++) {
+				float n_min = 1e30f, n_max = -1e30f, c_min = 1e30f, c_max = -1e30f;
+				for (int i = 0; i < 4; i++) {
+					float n = glm::dot(node[i], axes[k]);
+					float c = glm::dot(clip[i], axes[k]);
+					n_min = std::min(n_min, n), n_max = std::max(n_max, n);
+					c_min = std::min(c_min, c), c_max = std::max(c_max, c);
+				}
+				if (n_max < c_min || c_max < n_min)
+					return 0;
+				// contained on the clip's own axes (k >= 2) decides "fully in"; small epsilon for float noise.
+				float eps = 1e-3f * std::max(1.f, std::abs(c_max - c_min));
+				if (k >= 2 && (n_min < c_min - eps || n_max > c_max + eps))
+					inside = false;
+			}
+			return inside ? 1 : 2;
+		}
+
 		/**
 		 * @Note: ancestors of e with clipping enabled, outermost first, keeping
 		 * only the nearest MAX_DEPTH_CLIPPING (same rule as add_clipping_ancestor).
@@ -541,65 +566,98 @@ namespace Test {
 					return;
 				}
 
-				std::vector<Handle> expected_clips;
+				// CPU clip culling: fully out of any ancestor -> draw hidden (clip list not checked);
+				// fully inside every ancestor -> no ancestor clips; otherwise every ancestor clip.
+				int state = 1;
+				if (registry.has<Rect>(e)) {
+					const auto& node_rect = std::get<0>(registry.read<Rect>(e)).transformed_rect;
+					for (const auto& ancestor : expected) {
+						if (!registry.has<Rect>(ancestor.id()))
+							continue;
+						int s = classify_rect(node_rect, std::get<0>(registry.read<Rect>(ancestor.id())).transformed_rect);
+						if (s == 0) {
+							state = 0;
+							break;
+						}
+						if (s == 2)
+							state = 2;
+					}
+				}
+				// correct lists: `full` = every ancestor clip (+ own); `culled` = own clip only (ancestors fully in).
+				// fully in   -> culled, or full (a missed cull: right picture, wasted GPU)
+				// intersect  -> full
+				// fully out  -> hidden, or visible with full (missed cull)
+				std::vector<Handle> full_clips, culled_clips;
 				for (const auto& ancestor : expected) {
 					Handle clip = get_render_clipping_handle(ancestor);
 					if (!clip.is_invalid())
-						expected_clips.push_back(clip);
+						full_clips.push_back(clip);
 				}
 				// a custom-size label whose text overflows clips itself with its own clip (renderer handle 1),
 				// appended after its ancestors; at the depth limit the oldest ancestor is dropped.
+				std::string label_text = "";
 				if (registry.has<Label_Renderer_Information>(e)) {
 					const auto& [label] = registry.read<Label_Renderer_Information>(e);
 					const auto& handles = std::get<0>(registry.read<Renderer_Handles>(e)).value;
+					label_text = " | label custom " + std::to_string(label.use_custom_size) + " clip " +
+								 std::to_string(label.clipping_enabled);
 					if (label.use_custom_size && label.clipping_enabled && handles.size() > 1) {
-						if ((int)expected_clips.size() >= ::Const::MAX_DEPTH_CLIPPING)
-							expected_clips.erase(expected_clips.begin());
-						expected_clips.push_back(handles[1]);
+						if ((int)full_clips.size() >= ::Const::MAX_DEPTH_CLIPPING)
+							full_clips.erase(full_clips.begin());
+						full_clips.push_back(handles[1]);
+						culled_clips.push_back(handles[1]);
+						label_text += " own clip " + std::to_string(handles[1].id());
 					}
 				}
+				auto list_text = [](const std::vector<Handle>& list) {
+					std::string text = "[";
+					for (const auto& c : list)
+						text += std::to_string(c.id()) + " ";
+					return text + "]";
+				};
 				for (const auto& renderer_handle : get_renderer_handles(Handle(e, 0))) {
 					if (!is_draw_handle_alive(renderer_handle))
 						continue;
 					// modify_ is the only accessor; reading here only re-marks the draw for upload.
 					const auto& draw_attributes = Vulkan::modify_draw_attributes(renderer_handle);
+					if (state == 0 && !draw_attributes.is_visible())
+						continue;
 					uint32_t number = draw_attributes.get_number_clipping();
-					const auto& uploaded = draw_attributes.get_clipping_ancestors();
-					if (number != expected_clips.size()) {
-						issue = "draw " + std::to_string(renderer_handle.id()) + " uploads " + std::to_string(number) +
-								" clips, expected " + std::to_string(expected_clips.size());
-						if (number > 0)
-							issue += " | uploaded[0] " + std::to_string(uploaded[0].id());
-						if (registry.has<Label_Renderer_Information>(e)) {
-							const auto& [label] = registry.read<Label_Renderer_Information>(e);
-							const auto& handles = std::get<0>(registry.read<Renderer_Handles>(e)).value;
-							issue += " | label custom " + std::to_string(label.use_custom_size) + " clip " +
-									 std::to_string(label.clipping_enabled) + " own clip " +
-									 (handles.size() > 1 ? std::to_string(handles[1].id()) : std::string("-"));
-						}
-					}
-					for (uint32_t i = 0; issue.empty() && i < number; i++) {
-						if (!is_draw_handle_alive(uploaded[i])) {
+					const auto& uploaded_array = draw_attributes.get_clipping_ancestors();
+					std::vector<Handle> uploaded;
+					for (uint32_t i = 0; i < number && i < uploaded_array.size(); i++) {
+						if (!is_draw_handle_alive(uploaded_array[i])) {
 							issue = "draw " + std::to_string(renderer_handle.id()) + " uploads dead clip handle " +
-									std::to_string(uploaded[i].id()) + " at slot " + std::to_string(i);
-						} else if (!same(uploaded[i], expected_clips[i])) {
-							issue = "draw " + std::to_string(renderer_handle.id()) + " uploads clip handle " +
-									std::to_string(uploaded[i].id()) + " at slot " + std::to_string(i) + ", expected " +
-									std::to_string(expected_clips[i].id());
+									std::to_string(uploaded_array[i].id()) + " at slot " + std::to_string(i);
+							report(e, tree_info, issue);
+							return;
 						}
+						uploaded.push_back(uploaded_array[i]);
 					}
-					if (!issue.empty()) {
-						issue += " | uploaded [";
-						for (uint32_t i = 0; i < number; i++)
-							issue += std::to_string(uploaded[i].id()) + " ";
-						issue += "] expected [";
-						for (const auto& c : expected_clips)
-							issue += std::to_string(c.id()) + " ";
-						issue += "]";
-					}
-					if (!issue.empty()) {
+					auto equal = [&](const std::vector<Handle>& want) {
+						if (want.size() != uploaded.size())
+							return false;
+						for (size_t i = 0; i < want.size(); i++)
+							if (!same(want[i], uploaded[i]))
+								return false;
+						return true;
+					};
+					bool is_full = equal(full_clips);
+					bool ok = state == 2 ? is_full : state == 1 ? (equal(culled_clips) || is_full) : is_full;
+					if (!ok) {
+						const char* names[] = {"OUT(visible)", "IN", "INTERSECT"};
+						issue = "draw " + std::to_string(renderer_handle.id()) + " state " + names[state] + " (engine " +
+								std::to_string((int)get_clipping_state_by_ancestors(Handle(e, 0))) + ") uploads " +
+								list_text(uploaded) + " want " + (state == 1 ? list_text(culled_clips) + " or " : "") +
+								list_text(full_clips) + label_text;
 						report(e, tree_info, issue);
 						return;
+					}
+					if (state != 2 && is_full && !full_clips.empty() && full_clips.size() != culled_clips.size()) {
+						clip_cull_misses++;
+						if (log_issues && clip_cull_misses <= 3)
+							Log::info("[clip-cull] miss: node", e, state == 1 ? "fully in" : "fully out but visible",
+									  "still uploads", list_text(uploaded));
 					}
 				}
 			});
