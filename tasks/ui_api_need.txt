@@ -239,6 +239,67 @@ Names are suggestions. Coordinates as everywhere: world y up, label-local x from
          track, fill). Optional later: animate to value (needs actions, item 14), 9-slice images for track/fill.
     I will add it to the editor UI kit (helper on top of layouts) unless you prefer the engine widget.
 
+===== SCENE FILE (spec 2026-11-11) =====
+[]: 31. Save / load a scene (Cocos Studio .csd / Godot .tscn equivalent).
+    Why: the editor must save what you build and the game must load it at runtime, so load / save live in the
+    engine (editor and game share it); game code then finds nodes with find_node_by_name / find_node_by_tag.
+
+  31a. API.
+    bool   save_scene(const Handle& root_of_scene, const std::string& path);   // the node + its subtree
+    Handle load_scene(const std::string& path, const Handle& parent = root);  // invalid handle on failure
+    Optional: std::string scene_to_string(e) / Handle scene_from_string(json, parent) (tests, copy & paste,
+    undo snapshots, prefabs = load the same file many times).
+    Paths inside the file are relative to Utils::get_root_path() ("res/..."), like set_image_path.
+
+  31b. Node type (missing today: Description is internal).
+    API: NODE_TYPE get_node_type(e)  -> NODE / LAYOUT / IMAGE / LABEL / SCROLL_LAYOUT (public enum).
+    Scroll layout internals (inner container, touch container) are never saved; their children are saved as
+    the scroll layout's children (get_scroll_layout_children) and loaded with add_child_to_container.
+
+  31c. Size / position mode (so what loads back equals what was saved).
+    Problem: a node can be sized by content size, size percent or pinning, and positioned by position or
+    position percent. Saving the resolved numbers would lose "50% of parent" after a reload.
+    API: SIZE_MODE get_size_mode(e) -> AUTO (image / label natural size) | CUSTOM | PERCENT | PINNING
+         POSITION_MODE get_position_mode(e) -> ABSOLUTE | PERCENT
+    (or has_size_percent / has_size_pinning / has_position_percent booleans).
+    Save only the active mode's value; load calls the matching setter.
+
+  31d. Getter gaps found by reading engine.h (setter without getter):
+    set_label_padding_vertial -> typo; rename to set_label_padding_vertical (getter already has that name).
+    set_use_custom_size_enabled -> check: no is_use_custom_size_enabled (image / label versions exist).
+    set_touch_caller / set_click_caller -> not saved (code). Touch flags (touch enabled, swallow) are saved.
+
+  31e. File format: JSON (vendor/json.hpp, already used by the glTF parser). One object per node:
+    { "version": 1, "root": NODE }
+    NODE = {
+      "type": "layout|image|label|scroll_layout|node", "name": "...", "tag": 0,
+      "position": [x, y] | "position_percent": [x, y],
+      "anchor": [x, y], "scale": [x, y], "rotation": deg, "z": 0,
+      "opacity": 1, "color": [r, g, b], "visible": true,
+      "size": [w, h] | "size_percent": [x, y] | "pinning": {"left":..,"right":..,"top":..,"bottom":..} | (none = auto),
+      "touch": {"enabled": false, "swallow": true},
+      "layout": {"background": true, "background_color": [..], "radius": 0, "border_width": 0,
+                 "border_color": [..], "clipping": false},
+      "image":  {"path": "res/..", "rect": [x, y, w, h], "nine_scale": null | {"rect": [..]} | {"ratio": [..]}},
+      "label":  {"text": "..", "font": "res/fonts/..", "size": 16, "stroke_size": 0, "stroke_color": [..],
+                 "h_align": "left|center|right", "v_align": "top|center|bottom",
+                 "padding": [h, v], "fit": "clip|ellipsis"},
+      "scroll": {"direction": "vertical|horizontal", "speed": 30, "inner_size": [w, h],
+                 "touch_scroll": true, "swallow_scrolling": true},
+      "children": [ NODE, ... ]        // in z order; loads keep the saved z values
+    }
+    Rules: write only keys that differ from the default (small files, easy diffs); unknown keys are ignored
+    (old engines can read newer files); "version" lets load migrate older files.
+
+  31f. Errors: a missing image / font loads with the default image / font and logs once (same as today);
+    a broken file returns an invalid handle and logs the JSON error position; never a half-built tree.
+
+  Tests I will add when 31 lands: round trip (build the lab / label scenes -> save -> clear -> load -> compare
+  every getter of every node, by name path), percent / pinning survive a parent resize after reload, scroll
+  layout children come back inside the container, load twice under different parents (prefab), broken file
+  -> invalid handle and no leaked nodes (pool check), missing image path -> default image.
+  In the editor: File > Save / Open (Cmd+S / Cmd+O), hierarchy panel, inspector with edit boxes (item 29).
+
 ===== NOTES =====
 - When an item lands, tell me and I will switch the tests / scenes to it and add checks for it
   (drive scenario + fuzz op), so the harness stops reading components for that case.
