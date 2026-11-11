@@ -51,6 +51,20 @@ else()
     target_link_libraries(ui_test PRIVATE glm::glm Vulkan::Vulkan "${GLFW_DIR}/lib-mingw-w64/libglfw3.a")
 endif()
 
+# Scene editor: editor/*.cpp + engine sources. Build: cmake --build <dir> --target editor
+file(GLOB_RECURSE EDITOR_SOURCES "editor/*.cpp")
+add_executable(editor EXCLUDE_FROM_ALL ${EDITOR_SOURCES} ${ENGINE_SOURCES})
+target_compile_definitions(editor PRIVATE $<$<CONFIG:Debug>:_DEBUG>)
+target_compile_definitions(editor PRIVATE EDITOR_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_include_directories(editor PRIVATE src vendor editor)
+
+if(APPLE)
+    target_link_libraries(editor PRIVATE glm::glm Vulkan::Vulkan glfw)
+else()
+    target_include_directories(editor PRIVATE "${GLFW_DIR}/include/")
+    target_link_libraries(editor PRIVATE glm::glm Vulkan::Vulkan "${GLFW_DIR}/lib-mingw-w64/libglfw3.a")
+endif()
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND MSVC)
 
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")

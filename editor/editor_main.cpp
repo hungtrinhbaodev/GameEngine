@@ -1,0 +1,61 @@
+#include <chrono>
+#include <stdexcept>
+#include <thread>
+
+#include <GLFW/glfw3.h>
+#include <editor.h>
+#include <editor_selftest.h>
+#include <engine/engine.h>
+#include <utils.h>
+
+namespace {
+	void on_key(GLFWwindow*, int key, int, int action, int mods) {
+		if (action == GLFW_PRESS || action == GLFW_REPEAT)
+			Editor::on_key(key, mods);
+	}
+
+	void on_drop(GLFWwindow*, int count, const char** paths) {
+		std::vector<std::string> files(paths, paths + count);
+		Editor::on_files_dropped(files);
+	}
+} // namespace
+
+int main(int argc, char** argv) {
+	bool self_test = argc > 1 && std::string(argv[1]) == "--self-test";
+	if (!glfwInit()) {
+		throw std::runtime_error("fail to init glfw!");
+	}
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	GLFWwindow* window = glfwCreateWindow(1440, 900, "Scene Editor", nullptr, nullptr);
+
+	Engine::init(window);
+	// the engine owns mouse / cursor / scroll callbacks; keys and file drops are free for the editor.
+	glfwSetKeyCallback(window, on_key);
+	glfwSetDropCallback(window, on_drop);
+	Editor::init(window);
+	Engine::process_frame(0.f);
+	if (self_test)
+		Editor_Self_Test::start(window);
+
+	double start = Utils::now();
+	while (!glfwWindowShouldClose(window)) {
+		glfwPollEvents();
+		double current = Utils::now();
+		float dt = std::min((float)(current - start), 0.1f);
+		start = current;
+		if (self_test && !Editor_Self_Test::tick())
+			glfwSetWindowShouldClose(window, GLFW_TRUE);
+		Engine::process_frame(dt);
+	}
+	int exit_code = self_test && Editor_Self_Test::failures() > 0 ? 1 : 0;
+
+	Editor::destroy();
+	Engine::process_frame(0.f); // clean_up is queued until the next frame
+	Engine::destroy();
+	glfwDestroyWindow(window);
+	glfwTerminate();
+#ifdef _DEBUG
+	std::this_thread::sleep_for(std::chrono::milliseconds(50));
+#endif
+	return exit_code;
+}
