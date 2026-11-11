@@ -485,6 +485,11 @@ Reading:
   (3) compute the world position in the vertex shader and pass it as a varying.
 - After CPU clip culling (02237c1, 2026-11-11): 80 layers under 3 clip parents 26.04 ms / 38 fps, same as
   80 layers without clips (26.04 ms / 38 fps). Before: 73.05 ms / 13.7 fps. Fully-inside nodes upload 0 clips.
+- Scene editor (./editor --perf, 2880x1640, 2026-11-11): the overlay said 5.90 ms at 60 fps but an empty
+  window says 2.77 ms there (down-clocked GPU). At full clock (80 load layers 35.63 ms): editor UI = 1.12 ms,
+  mostly overdraw (full-window background under panels + canvas). Editor now draws no full-window background
+  (margin strips): 0.64 ms real, overlay 4.65 ms. Next is engine side: clear colour setter, opaque rect fast
+  path (ui_api_need.txt 27, 28).
 - Real lead: lab scene = 55 draw calls (picker 12). Batching breaks when rect / label / image draws
   interleave in draw order.
 

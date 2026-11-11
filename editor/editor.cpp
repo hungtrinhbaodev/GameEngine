@@ -528,7 +528,15 @@ namespace Editor {
 			const glm::vec2 window = Engine::get_window_size();
 			const Handle& root = Engine::get_root();
 
-			state.page = make_panel(root, {0.f, 0.f}, window, PAGE_BG, 0.f);
+			/**
+			 * @Note: GPU: no full-window background. Every opaque layer here costs ~0.45 ms per full window
+			 * at 2880x1640 at full clock, and the panels + canvas already cover almost everything; only the
+			 * margin around the canvas gets its own strips (see below). The render pass clear colour (grey)
+			 * is not settable yet (ui_api_need.txt 27), so nothing may leave a gap.
+			 */
+			state.page = Engine::create_layout();
+			Engine::set_content_size(state.page, window);
+			Engine::add_child(root, state.page);
 
 			// top bar
 			Handle top = make_panel(state.page, {0.f, window.y - TOP_BAR}, {window.x, TOP_BAR}, BAR_BG, 0.f);
@@ -595,8 +603,16 @@ namespace Editor {
 			// canvas
 			glm::vec2 area_min{LEFT_WIDTH, STATUS_BAR};
 			glm::vec2 area_size{window.x - LEFT_WIDTH - RIGHT_WIDTH, middle_height};
-			state.canvas = make_panel(state.page, area_min + area_size * 0.5f, area_size - glm::vec2(48.f), CANVAS_BG, 4.f,
-									  {0.5f, 0.5f});
+			const float margin = 24.f;
+			// the margin around the canvas: 4 strips instead of a background under the canvas (no overdraw).
+			make_panel(state.page, area_min, {area_size.x, margin}, PAGE_BG, 0.f);
+			make_panel(state.page, {area_min.x, area_min.y + area_size.y - margin}, {area_size.x, margin}, PAGE_BG, 0.f);
+			make_panel(state.page, {area_min.x, area_min.y + margin}, {margin, area_size.y - 2.f * margin}, PAGE_BG, 0.f);
+			make_panel(state.page, {area_min.x + area_size.x - margin, area_min.y + margin},
+					   {margin, area_size.y - 2.f * margin}, PAGE_BG, 0.f);
+			// square corners: a rounded canvas would show the grey clear colour in its corners.
+			state.canvas = make_panel(state.page, area_min + area_size * 0.5f, area_size - glm::vec2(2.f * margin),
+									  CANVAS_BG, 0.f, {0.5f, 0.5f});
 			Engine::set_layout_clipping_enabled(state.canvas, true);
 			set_canvas_drop_highlight(false);
 			Engine::set_touch_enabled(state.canvas, true);
@@ -730,6 +746,11 @@ namespace Editor {
 				count++;
 		}
 		return count;
+	}
+
+	void set_ui_visible(bool visible) {
+		if (Engine::is_valid(state.page))
+			Engine::set_visible(state.page, visible);
 	}
 
 	void set_copy_imports_to_source(bool enabled) {

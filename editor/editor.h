@@ -32,6 +32,8 @@ namespace Editor {
 	bool get_selected_position(float out[2]);
 	std::string get_selected_name();
 	unsigned get_canvas_node_count();
+	// perf mode: hide / show the whole editor UI.
+	void set_ui_visible(bool visible);
 	// imports from the self-test must not land in the source tree.
 	void set_copy_imports_to_source(bool enabled);
 

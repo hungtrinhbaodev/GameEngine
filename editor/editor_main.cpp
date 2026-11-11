@@ -22,7 +22,8 @@ namespace {
 } // namespace
 
 int main(int argc, char** argv) {
-	bool self_test = argc > 1 && std::string(argv[1]) == "--self-test";
+	bool perf = argc > 1 && std::string(argv[1]) == "--perf";
+	bool self_test = perf || (argc > 1 && std::string(argv[1]) == "--self-test");
 	// the engine loads shaders relative to the working directory: run from the executable's folder so
 	// opening build-editor/editor from Finder (cwd = home) or another folder still finds res/.
 	std::error_code cwd_error;
@@ -39,7 +40,9 @@ int main(int argc, char** argv) {
 	glfwSetDropCallback(window, on_drop);
 	Editor::init(window);
 	Engine::process_frame(0.f);
-	if (self_test)
+	if (perf)
+		Editor_Self_Test::start_perf(window);
+	else if (self_test)
 		Editor_Self_Test::start(window);
 
 	double start = Utils::now();

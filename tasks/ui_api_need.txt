@@ -149,6 +149,19 @@ editor/editor_api.cpp; when an item lands, the stand-in becomes a one-line forwa
     Fix: prefix shader paths with Utils::get_root_path() like images. Editor stand-in: editor_main.cpp sets
     the working directory to the executable's folder at startup.
 
+[]: 27. Clear colour setter (GPU).
+    Why: the render pass clears to grey 0.5 (vk_core.cpp ~523) and nothing can change it, so an app that wants
+    a dark background draws a full-window rect: ~0.45 ms GPU per full window at 2880x1640 (full clock), for
+    pixels the clear already writes for free. The editor now uses 4 margin strips instead (0.64 ms vs 1.12 ms).
+    API: void set_clear_color(const glm::vec3& color) (Engine:: forwarding to Vulkan).
+
+[]: 28. Cheaper opaque rects (GPU, engine side).
+    Why: every layout runs the rounded-rect SDF + border + clip shader with blending on every pixel, even a
+    plain opaque rectangle (radius 0, no border, opacity 1, no partial clip) which is most of the UI area.
+    Ideas, cheapest first: (a) shader early-out when radius == 0 && border == 0 (skip the SDF); (b) a pipeline
+    with blending off for fully opaque draws; (c) opaque-first with depth (draw_index as depth) so pixels hidden
+    under a panel are never shaded. Measure with ./editor --perf (editor cost = load80_editor - load80).
+
 []: 23. Later for the editor: save / load a scene file (node tree + properties), get_children order /
     reparent keeping world position, text field for rename (= item 15), hover cursor (deferred with select
     mode).

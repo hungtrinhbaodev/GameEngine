@@ -212,6 +212,57 @@ namespace Editor_Self_Test {
 		});
 	}
 
+	void start_perf(GLFWwindow* glfw_window) {
+		window = glfw_window;
+		glfwSetCursorPosCallback(window, nullptr);
+		glfwSetMouseButtonCallback(window, nullptr);
+		auto layers = std::make_shared<std::vector<Handle>>();
+		auto set_load = [layers](int count) {
+			for (const auto& layer : *layers)
+				Engine::clean_up(layer);
+			layers->clear();
+			glm::vec2 size = Engine::get_window_size();
+			for (int i = 0; i < count; i++) {
+				Handle layer = Engine::create_layout();
+				Engine::set_content_size(layer, size);
+				Engine::set_layout_background_enabled(layer, true);
+				Engine::set_layout_background_color(layer, {0.5f, 0.5f, 0.5f});
+				Engine::set_opacity(layer, 0.01f);
+				Engine::set_z_order(layer, 1u << 26);
+				Engine::add_child(Engine::get_root(), layer);
+				layers->push_back(layer);
+			}
+		};
+		auto measure = [](const std::string& name, const std::function<void()>& setup) {
+			then(0, [name, setup] {
+				Log::info("[editor-perf] case", name);
+				setup();
+			});
+			then(120, nullptr); // the overlay averages the GPU time over 20 frames
+			screenshot("perf_" + name);
+		};
+		measure("editor_only", [=] {
+			set_load(0);
+			Editor::set_ui_visible(true);
+		});
+		measure("empty", [=] {
+			set_load(0);
+			Editor::set_ui_visible(false);
+		});
+		measure("load80_editor", [=] {
+			set_load(80);
+			Editor::set_ui_visible(true);
+		});
+		measure("load80", [=] {
+			set_load(80);
+			Editor::set_ui_visible(false);
+		});
+		then(0, [=] {
+			set_load(0);
+			Log::info("[editor-perf] done");
+		});
+	}
+
 	bool tick() {
 		if (step_index >= steps.size())
 			return false;
