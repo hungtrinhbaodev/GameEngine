@@ -449,16 +449,43 @@ Test: ./ui_test repro-api (key K), also in tests/run_all.sh. Run 2026-11-10: 10 
        array from validate_clipping_ancestors, clipping pass calls update_clipped_state. Suite 19 of 19,
        label-wrap OK, perf layers80_clip3 26.04 ms / 38 fps (= no clip).
 
-[]: 37. set_touch_layout_scroll_enabled(false) has no effect (found by the editor, details ui_api_need.txt 24):
+[Done]: 37. set_touch_layout_scroll_enabled(false) has no effect (found by the editor, details ui_api_need.txt 24):
     switches the inner container's touch, not the scroll listener container's. A child dragged inside a scroll
     layout gets TOUCH_CANCEL after 7.5 px even with touch scrolling "off".
        ./editor --self-test, before the stand-in: "Drag cancelled" on every cell drag.
 
-[]: 38. to_my_position_space ignores the node's anchor (details ui_api_need.txt 25): result is relative to the
+[Done]: 38. to_my_position_space ignores the node's anchor (details ui_api_need.txt 25): result is relative to the
     anchor point, children are placed from the bottom-left. Canvas with anchor 0.5: drop at its centre -> node
     at (0, 0) = bottom-left corner.
        ./editor --self-test, before the stand-in: "node centred where it was dropped (off by 542 px)".
     TODO(test): repro-api item 4 should also check a parent with anchor (0.5, 0.5).
+
+[]: 39. find_topmost_node_at returns a parent over its own child, and hits invisible nodes.
+    engine.cpp ~2218: reverse DFS visits a parent before its children (children last-to-first), and the
+    callback stops at the first hit, so a parent containing the point wins over the child drawn on top of it.
+    is_world_position_in_entity_rect checks clip + rect but not visibility.
+       ./ui_test repro-api, item 19 (new checks): "a child over its parent wins (got id 1, parent 1, child 2)",
+       "an invisible node (and its subtree) is skipped (got id 1)". Sibling z order (the existing checks) is fine.
+    Fix idea: walk in draw order (normal DFS = draw order) without stopping and keep the LAST hit, skipping a
+    subtree when the node is not visible; or a reverse post-order walk (children before parent) and stop at the
+    first hit. Same rule the touch dispatch uses for "topmost".
+
+[]: 40. The engine root draws a grey full-window background, so set_clear_screen_color is never visible.
+    engine.cpp init_root (~626): set_layout_background_enabled(root, true) + colour 0.5 grey. Every app pays one
+    full-window layer (~0.45 ms GPU at 2880x1640, full clock) and the clear colour is hidden under it.
+    (Corrects the first note: the clear colour is fine, no sRGB issue - PAGE_BG shows exactly once the root
+    background is off.)
+    Fix: root background off by default (the clear colour is the background), or set_clear_screen_color turns
+    the root background off. Editor stand-in: set_layout_background_enabled(get_root(), false).
+
+[]: 41. Custom-size labels load their font relative to the working directory.
+    components.cpp Label_Renderer_Information::update_inner_text_by (lines ~189, 198, 275) passes font_path
+    ("res/fonts/...") straight to gen_text_info_from / get_renderer_text_size -> load_font, while the renderer
+    (systems.cpp update_label_renderer) uses Utils::get_root_path() + font_path when the file exists.
+    Started from another folder: "fail to load file: res/fonts/anonymous_pro_bold.ttf does not exist!"
+       build-editor/editor --self-test run from /tmp (after #26 fixed shaders, this is the next one).
+    Fix: resolve the path once the same way as the renderer (root + path if it exists, else the default font)
+    and use it in all three calls. Editor stand-in: editor_main.cpp switches the working directory.
 
 ===== PERF (./ui_test perf, screenshots in build/ui_test_logs/perf, GPU label = avg of 20 frames) =====
 2026-11-11, M2, 2400x1440 framebuffer, vsync 60 fps in every case:
@@ -490,6 +517,8 @@ Reading:
   mostly overdraw (full-window background under panels + canvas). Editor now draws no full-window background
   (margin strips): 0.64 ms real, overlay 4.65 ms. Next is engine side: clear colour setter, opaque rect fast
   path (ui_api_need.txt 27, 28).
+- 2026-11-12 after the engine rect shader change + root background off (editor --perf): 80 load layers
+  35.63 -> 21.24 ms (~0.27 ms per full-window layer, was ~0.45); editor UI 0.64 -> ~0.41 ms.
 - Real lead: lab scene = 55 draw calls (picker 12). Batching breaks when rect / label / image draws
   interleave in draw order.
 
@@ -517,10 +546,11 @@ Reading:
     sorted by z order. Runs after every fuzz frame and before every drive step; hidden draws (unused
     nine-scale pieces) are skipped.
 
-===== LAST RUN (2026-11-11, scene editor) =====
-New app: editor/ (target `editor`). ./editor --self-test: 13 of 13 PASS (drag cell -> canvas, drop outside,
-move by drag, nudge, duplicate, delete, Finder-drop import), screenshots /tmp/editor_*.png. UI suite unchanged
-(19 of 19 at last run). Open: 37, 38 (engine bugs found by the editor, worked around in editor/editor_api.cpp).
+===== LAST RUN (2026-11-12, editor round 2) =====
+UI suite 19 of 19 PASS. ./editor --self-test 25 of 25 PASS (Debug, and Release from /tmp with the cwd stand-in).
+Done today: 37 (scroll touch toggle), 38 (to_my_position_space anchor), #26 shader path.
+Open: 39 (find_topmost_node_at parent / invisible), 40 (root grey background hides the clear colour), 41 (label
+font path). repro-api fails only on the 2 new #39 checks. Editor GPU ~0.41 ms (was 0.64).
 
 =====
 Full suite: 19 of 19 PASS (fuzz 7 3 4 fixed, #35). label-wrap / label-view OK.

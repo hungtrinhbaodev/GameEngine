@@ -72,6 +72,8 @@ if [ -d "$ROOT/build-asan" ]; then
   if [ -z "$UI_TEST_SKIP_BUILD" ]; then
     cmake --build "$ROOT/build-asan" --target ui_test > "$OUT/build-asan.log" 2>&1 || echo "ASAN BUILD FAILED"
   fi
+  # shaders / images load from the executable's folder: ui_test does not sync res/ itself.
+  python3 "$ROOT/scripts/copy_res.py" "$ROOT/res" "$ROOT/build-asan/res" > "$OUT/build-asan-res.log" 2>&1
   BIN="$ROOT/build-asan/ui_test" run_case asan-repro-reentry repro-reentry
 fi
 echo "== stress"

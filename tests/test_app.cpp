@@ -601,6 +601,22 @@ namespace Test {
 				api_expect("19", top.id() == a.id(), "re-ordering z_order flips which node is topmost");
 				Handle miss = Engine::find_topmost_node_at({5000.f, 5000.f});
 				api_expect("19", miss.is_invalid(), "a point outside every node returns an invalid handle");
+				// a child is drawn after (on top of) its parent: it must win over the parent.
+				Handle child = Engine::create_layout();
+				Engine::set_content_size(child, {40.f, 40.f});
+				Engine::set_position(child, {30.f, 30.f});
+				Engine::add_child(a, child);
+				Engine::process_frame(0.f);
+				top = Engine::find_topmost_node_at({850.f, 90.f});
+				api_expect("19", top.id() == child.id(),
+						   "a child over its parent wins (got id " + std::to_string(top.id()) + ", parent " +
+							   std::to_string(a.id()) + ", child " + std::to_string(child.id()) + ")");
+				// an invisible node is not hit: the next one below it is.
+				Engine::set_visible(a, false);
+				Engine::process_frame(0.f);
+				top = Engine::find_topmost_node_at({850.f, 90.f});
+				api_expect("19", top.id() == b.id(),
+						   "an invisible node (and its subtree) is skipped (got id " + std::to_string(top.id()) + ")");
 				Engine::clean_up(a);
 				Engine::clean_up(b);
 				Engine::process_frame(0.f);
