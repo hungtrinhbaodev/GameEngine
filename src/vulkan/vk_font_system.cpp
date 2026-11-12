@@ -1,7 +1,10 @@
+#include <tuple>
 #include <utils.h>
 #include <vulkan/vk_font_system.h>
 
 namespace Vulkan {
+
+	const std::string NORMAL_FONT_EXTEND_PATH = "***FONT_PATH";
 
 	void Font_System::init(
 		SSBO_Buffer* ssbo, VkDevice device, std::vector<VkDescriptorPool> descriptor_pools,
@@ -14,17 +17,11 @@ namespace Vulkan {
 		);
 	}
 
-	uint32_t Font_System::load_font(std::string font_path) {
-		if (font_path == "") {
-			font_path = Const::PATH_DEFAULT_FONT;
-		}
-		if (file_to_ids.find(font_path) != file_to_ids.end()) {
-			return file_to_ids[font_path];
-		}
-		uint32_t font_id = font_id_generator.gen_id();
-		Parser::Font font = Parser::parse_sdf_font(font_path);
+	std::tuple<uint32_t, uint32_t, uint32_t> Font_System::make_font_storage_info(
+		const std::string& font_path, const Parser::Font& font
+	) {
 		uint32_t texture_id = texture_system.load_texture(
-			font_path, font.atlas.data(), font.size_atlas, font.size_atlas, 1, Const::ENABLED_TEXTURE_BUCKETS
+			font_path, (void*)font.atlas.data(), font.size_atlas, font.size_atlas, 1, Const::ENABLED_TEXTURE_BUCKETS
 		);
 		std::vector<glm::vec4> rects;
 		for (const auto& rect : font.rects) {
@@ -33,12 +30,41 @@ namespace Vulkan {
 		uint32_t rect_storage_id = ssbo->upload_data(rects.data(), sizeof(glm::vec4) * rects.size(), sizeof(glm::vec4));
 		const Buffer_Range& storage_range = ssbo->view_slot(rect_storage_id);
 		uint32_t rect_storage_offset = storage_range.offset_as<glm::vec4>();
+		return std::make_tuple(texture_id, rect_storage_id, rect_storage_offset);
+	}
+
+	std::string Font_System::to_normal_font_path(const std::string& path) {
+		return path + NORMAL_FONT_EXTEND_PATH;
+	}
+
+	uint32_t Font_System::load_font(std::string font_path) {
+		if (font_path == "") {
+			font_path = ::Utils::get_root_path() + Const::PATH_DEFAULT_FONT;
+		}
+		if (file_to_ids.find(font_path) != file_to_ids.end()) {
+			return file_to_ids[font_path];
+		}
+		uint32_t font_id = font_id_generator.gen_id();
+		Parser::Font sdf_font = Parser::parse_sdf_font(font_path);
+		Parser::Font normal_font = Parser::parse_font(font_path);
+		auto [sdf_texture_id, sdf_rect_storage_id, sdf_rect_storage_offset] =
+			make_font_storage_info(font_path, sdf_font);
 		file_to_ids[font_path] = font_id;
-		return fonts.insert(font_id, {std::move(font), texture_id, rect_storage_id, rect_storage_offset});
+		sdf_fonts.insert(font_id, {std::move(sdf_font), sdf_texture_id, sdf_rect_storage_id, sdf_rect_storage_offset});
+		auto [normal_texture_id, normal_rect_storage_id, normal_rect_storage_offset] =
+			make_font_storage_info(to_normal_font_path(font_path), normal_font);
+		normal_fonts.insert(
+			font_id, {std::move(normal_font), normal_texture_id, normal_rect_storage_id, normal_rect_storage_offset}
+		);
+		return font_id;
 	}
 
 	const Font& Font_System::view_font(uint32_t font_id) {
-		return fonts.get(font_id);
+		return sdf_fonts.get(font_id);
+	}
+
+	const Font& Font_System::view_normal_font(uint32_t font_id) {
+		return normal_fonts.get(font_id);
 	}
 
 	void Font_System::destroy() {

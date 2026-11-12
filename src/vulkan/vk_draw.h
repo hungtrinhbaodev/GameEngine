@@ -42,7 +42,11 @@ namespace Vulkan {
 
 	const Font& view_font(uint32_t font_id);
 
-	const Texture_View& view_font_texture(uint32_t font_id);
+	const Font& view_normal_font(uint32_t font_id);
+
+	const Texture_View& view_font_sdf_texture(uint32_t font_id);
+
+	const Texture_View& view_font_normal_texture(uint32_t font_id);
 
 	uint32_t load_model(const std::string& path, const std::vector<std::string>& animations_component_paths = {});
 
@@ -61,6 +65,11 @@ namespace Vulkan {
 	 * @Note: index 0 for texture individual, index 1 for texture bucket.
 	 */
 	std::array<VkDescriptorSet, 2> get_descriptor_set_font_sampler(uint32_t font_id, uint32_t frame_index);
+
+	/**
+	 * @Note: index 0 for texture individual, index 1 for texture bucket.
+	 */
+	std::array<VkDescriptorSet, 2> get_descriptor_set_normal_font_sampler(uint32_t font_id, uint32_t frame_index);
 
 	void bind_draw_resource(
 		VkCommandBuffer command_buffer, VkPipeline pipeline, VkPipelineLayout pipline_layout, VkBuffer indices_buffer,

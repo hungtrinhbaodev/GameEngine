@@ -15,7 +15,13 @@ namespace Vulkan {
 
 		Texture_System texture_system{};
 
-		Sparse_Set<Font> fonts{};
+		/**
+		 * @Note: use this type of font
+		 * to draw stroke to font.
+		 */
+		Sparse_Set<Font> sdf_fonts{};
+
+		Sparse_Set<Font> normal_fonts{};
 
 		SSBO_Buffer* ssbo = nullptr;
 
@@ -27,9 +33,17 @@ namespace Vulkan {
 			VkPhysicalDevice physical_device
 		);
 
+		std::tuple<uint32_t, uint32_t, uint32_t> make_font_storage_info(
+			const std::string& font_path, const Parser::Font& font
+		);
+
+		std::string to_normal_font_path(const std::string& path);
+
 		uint32_t load_font(std::string font_path);
 
 		const Font& view_font(uint32_t font_id);
+
+		const Font& view_normal_font(uint32_t font_id);
 
 		void destroy();
 	};

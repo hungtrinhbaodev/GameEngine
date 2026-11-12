@@ -246,6 +246,9 @@ namespace Vulkan {
 	}
 
 	float Font::claim_stroke(int font_size, float stroke_size) const {
+		if (sfd_padding <= 0.f) {
+			return 0.f;
+		}
 		float scale = get_char_scale(font_size);
 		float max_font_stroke_size = stroke_size / scale;
 		max_font_stroke_size = std::clamp(max_font_stroke_size, 0.f, max_stroke_size);

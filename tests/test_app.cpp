@@ -12,8 +12,10 @@
 #include <glm/glm.hpp>
 #include <log.h>
 #include <math_custom.h>
+#include <parser/font_parser.h>
 #include <string>
 #include <test_ui.h>
+#include <utils.h>
 
 namespace Engine {
 	uint32_t spawn_touch(const glm::vec2& touch_world_position, int button, int mods);
@@ -699,6 +701,86 @@ namespace Test {
 				Engine::process_frame(0.f);
 			} catch (const std::exception& exception) {
 				api_expect("22", false, std::string("threw: ") + exception.what());
+			}
+
+			// ---- font-parser: Parser::parse_font (the plain, non-SDF atlas path, no stroke support)
+			// is not wired into the engine's font loading yet (vk_font_system.cpp always uses
+			// parse_sdf_font), but the function itself must still produce a usable Font on its own.
+			try {
+				std::string font_path = ::Utils::get_root_path() + "res/fonts/pixantiqua.ttf";
+				Parser::Font font = Parser::parse_font(font_path);
+				api_expect(
+					"font-parser", font.rects.size() == 95,
+					"95 printable ASCII glyphs (" + std::to_string(font.rects.size()) + ")"
+				);
+				api_expect(
+					"font-parser", font.start_char == 32, "start_char is space (" + std::to_string((int)font.start_char) + ")"
+				);
+				api_expect(
+					"font-parser", font.size_atlas > 0 && font.atlas.size() == (size_t)font.size_atlas * font.size_atlas,
+					"atlas buffer matches size_atlas x size_atlas (" + std::to_string(font.atlas.size()) + " vs " +
+						std::to_string(font.size_atlas) + "^2)"
+				);
+				api_expect(
+					"font-parser", font.line_height > 0.f, "line_height is positive (" + std::to_string(font.line_height) + ")"
+				);
+				bool atlas_has_ink = false;
+				for (uint8_t v : font.atlas) {
+					if (v != 0) {
+						atlas_has_ink = true;
+						break;
+					}
+				}
+				api_expect("font-parser", atlas_has_ink, "the atlas has non-zero pixels baked into it");
+				int a_index = (int)'A' - (int)font.start_char;
+				bool a_in_range = a_index >= 0 && a_index < (int)font.rects.size();
+				api_expect(
+					"font-parser", a_in_range && font.rects[a_index].bounding_width > 0.f,
+					"'A' has a positive advance width (" +
+						(a_in_range ? std::to_string(font.rects[a_index].bounding_width) : std::string("out of range")) +
+						")"
+				);
+			} catch (const std::exception& exception) {
+				api_expect("font-parser", false, std::string("threw: ") + exception.what());
+			}
+
+			// ---- font-stroke: the SDF font's max_stroke_size/sfd_padding (used by Font::claim_stroke to
+			// clamp a requested stroke) must come out non-zero, otherwise every stroke request silently
+			// collapses to 0 and the fragment shader falls back to the plain, no-stroke render path.
+			try {
+				std::string font_path = ::Utils::get_root_path() + "res/fonts/pixantiqua.ttf";
+				uint32_t font_id = Vulkan::load_font(font_path);
+				const Vulkan::Font& sdf_font = Vulkan::view_font(font_id);
+				api_expect(
+					"font-stroke", sdf_font.max_stroke_size > 0.f,
+					"sdf font max_stroke_size is positive (" + std::to_string(sdf_font.max_stroke_size) + ")"
+				);
+				api_expect(
+					"font-stroke", sdf_font.sfd_padding > 0.f,
+					"sdf font sfd_padding is positive (" + std::to_string(sdf_font.sfd_padding) + ")"
+				);
+				float clamped = sdf_font.claim_stroke(24, 1.2f);
+				api_expect(
+					"font-stroke", clamped > 0.f,
+					"claim_stroke(font_size=24, stroke_size=1.2) stays non-zero (" + std::to_string(clamped) + ")"
+				);
+				float clamped_small = sdf_font.claim_stroke(8, 1.2f);
+				api_expect(
+					"font-stroke", clamped_small > 0.f,
+					"claim_stroke(font_size=8, stroke_size=1.2) stays non-zero (" + std::to_string(clamped_small) + ")"
+				);
+				float clamped_large = sdf_font.claim_stroke(64, 1.2f);
+				api_expect(
+					"font-stroke", clamped_large > 0.f,
+					"claim_stroke(font_size=64, stroke_size=1.2) stays non-zero (" + std::to_string(clamped_large) + ")"
+				);
+				float zero_requested = sdf_font.claim_stroke(24, 0.f);
+				api_expect(
+					"font-stroke", zero_requested == 0.f,
+					"claim_stroke with stroke_size=0 requested is 0 (" + std::to_string(zero_requested) + ")"
+				);
+			} catch (const std::exception& exception) {
+				api_expect("font-stroke", false, std::string("threw: ") + exception.what());
 			}
 
 			Engine::process_frame(0.f);

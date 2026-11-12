@@ -39,7 +39,11 @@ namespace Parser {
 		}
 	};
 
-	const int MAX_PIXEL_HEIGHT = 48;
+	const int MAX_PIXEL_NORMAL_FONT_HEIGHT = 64;
+
+	const int NORMAL_RENDER_FONT_SIZE = MAX_PIXEL_NORMAL_FONT_HEIGHT;
+
+	const int MAX_PIXEL_HEIGHT = 64;
 
 	const int START_CHAR = 32;
 
@@ -184,8 +188,8 @@ namespace Parser {
 			stbtt_pack_context pc;
 			stbtt_PackBegin(&pc, font.atlas.data(), base_atlas_size, base_atlas_size, 0, ATLAS_PADDING, nullptr);
 			result = stbtt_PackFontRange(
-				&pc, (const unsigned char*)bytes.data(), font_info.fontstart, MAX_PIXEL_HEIGHT, START_CHAR, NUM_CHAR,
-				packed_chars
+				&pc, (const unsigned char*)bytes.data(), font_info.fontstart, MAX_PIXEL_NORMAL_FONT_HEIGHT, START_CHAR,
+				NUM_CHAR, packed_chars
 			);
 			stbtt_PackEnd(&pc);
 			if (result <= 0) {
@@ -196,13 +200,13 @@ namespace Parser {
 			throw std::runtime_error("Fail to baked char in font:" + file_path + "!");
 		}
 		font.size_atlas = base_atlas_size;
-		font.max_char_height = MAX_PIXEL_HEIGHT;
+		font.max_char_height = MAX_PIXEL_NORMAL_FONT_HEIGHT;
 		font.min_font_size = MIN_FONT_SIZE;
 		font.max_font_size = MAX_FONT_SIZE;
-		font.render_font_size = RENDER_FONT_SIZE;
+		font.render_font_size = NORMAL_RENDER_FONT_SIZE;
 		int ascent = 0, descent = 0, line_gap = 0;
 		stbtt_GetFontVMetrics(&font_info, &ascent, &descent, &line_gap);
-		float scale = stbtt_ScaleForPixelHeight(&font_info, MAX_PIXEL_HEIGHT);
+		float scale = stbtt_ScaleForPixelHeight(&font_info, MAX_PIXEL_NORMAL_FONT_HEIGHT);
 		font.line_height = (ascent - descent + line_gap) * scale;
 		font.font_desent = -descent * scale;
 		/**
