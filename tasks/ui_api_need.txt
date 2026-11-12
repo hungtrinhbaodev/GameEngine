@@ -171,7 +171,6 @@ Order inside 29 = build order; 29a-29d are the core (a usable single-line edit b
 Names are suggestions. Coordinates as everywhere: world y up, label-local x from the label's left edge.
 
 []: 29. Edit box (single-line first).
-
   29a. Engine owns keyboard input.
     Why: today the app sets glfwSetKeyCallback itself (main.cpp, tests, editor), so the engine cannot route
     keys to a focused node. GLFW allows one callback per window.
@@ -299,6 +298,102 @@ Names are suggestions. Coordinates as everywhere: world y up, label-local x from
   layout children come back inside the container, load twice under different parents (prefab), broken file
   -> invalid handle and no leaked nodes (pool check), missing image path -> default image.
   In the editor: File > Save / Open (Cmd+S / Cmd+O), hierarchy panel, inspector with edit boxes (item 29).
+
+===== TRANSFORM GIZMO (spec 2026-11-12) =====
+Goal: the selected node gets a box with 8 handles (4 corners + 4 edge middles) + a rotate handle, like
+Godot / Cocos Studio. Hover an edge -> resize cursor, drag -> resize; hover outside a corner -> rotate cursor,
+drag -> rotate; drag inside -> move (works today). Later the same box gets 3D axis arrows (items 38-41).
+Order = build order. 32-34 unblock the 2D gizmo; 35-37 make it nicer.
+
+What the editor does itself (no engine API needed): the box (one layout, background off, border 1 px,
+rotated with the node), handle squares and the rotate circle (layouts with radius), the resize math (the
+opposite edge stays fixed, Shift = keep aspect, Alt = from the centre), the rotate math (Shift = 15 deg snap),
+and one undo step per drag. Resize writes content size for layouts and custom-size images; images and labels
+in AUTO size mode write scale (Cocos behaviour). Needs 31c (get_size_mode) to choose.
+
+[]: 32. Cursor move without a button (hover). Starts the deferred hover / select-mode work.
+    Why: the resize cursor must change when the mouse is over an edge BEFORE any click. Touch callers only
+    fire while a button is down, so today the editor cannot know where the mouse is between clicks.
+    API (minimum): void set_cursor_move_caller(std::function<void(glm::vec2 world)>)   // every cursor move
+         The editor hit tests its own handles with that. Item 10 (set_hover_caller per node) can be built on
+         the same per-frame hit test later.
+    Rules (from the hover design notes): run the hit test once per frame after the transform pass (not
+    inside the GLFW callback), use the same visible / clip / topmost rules as touch, call
+    enter / exit from a diff of last frame vs this frame, and a caller that destroys nodes must be safe
+    (same deferral as item 2). While a button is held, the pressed node keeps the hover (no flicker
+    during a drag). Cursor leaving the window = exit for everything (glfwSetCursorEnterCallback).
+
+[]: 33. Cursor shape.
+    Why: resize / rotate need the system arrows so the user sees what a drag will do.
+    GLFW 3.4+ (you have 3.5.1 on macOS, 3.4 on Windows) has all of them as standard cursors.
+    API: enum class CURSOR_SHAPE { ARROW, IBEAM, CROSSHAIR, HAND, RESIZE_EW, RESIZE_NS, RESIZE_NWSE,
+                                   RESIZE_NESW, RESIZE_ALL, NOT_ALLOWED };
+         void set_cursor_shape(CURSOR_SHAPE shape);        // glfwCreateStandardCursor once, cache, glfwSetCursor
+         void set_cursor_image(const std::string& path, glm::ivec2 hotspot);   // custom (rotate arrow)
+    Notes: create each GLFWcursor once and destroy them in Engine cleanup. Setting the same shape twice
+    does nothing (it is called on every move). On a rotated node the editor picks the diagonal / straight
+    arrow closest to the edge direction, so these 4 directions are enough.
+    Later: per node set_hover_cursor(e, shape) with item 10, so a button shows HAND by itself.
+
+[]: 34. World rotation / scale (or the world matrix).
+    Why: the box must turn with the node, and a drag must be turned back into the node's own axes:
+    "drag the right edge 10 px" on a node rotated 30 deg inside a parent rotated 45 deg is 10 px along the
+    node's local x. get_world_rect gives 4 corners, so rotation and size can be guessed from them, but a
+    negative scale (flip) and a zero-size node make that guess wrong.
+    API: float get_world_rotation(const Handle& e);      // degrees, all parents included
+         glm::vec2 get_world_scale(const Handle& e);
+         or one call: glm::mat3 get_world_transform(const Handle& e) (+ its inverse), which also covers 4.
+    Also check: to_my_position_space (item 25) uses the full inverse (rotation + scale), not only position.
+
+[]: 35. Pick filter for find_topmost_node_at (item 19 "optional filter", + finding 39).
+    Why: the box and its handles sit on top of the node; clicking the node through the box must still
+    select the node, and clicking a handle must not change the selection.
+    API: find_topmost_node_at(world, under, std::function<bool(Handle)> skip).
+    Stand-in until then: topmost_layout_at (draw-order walk) + the editor checks its handles first.
+
+[]: 36. Overlay layer (gizmo drawn above the scene, not clipped by it).
+    Why: the gizmo is a canvas child today so z order fights the scene's z values, and handles at the canvas
+    edge are cut by the canvas clip. Handles must also keep their size in pixels when the canvas zooms.
+    API (one of): a second root drawn after the main root (Handle get_overlay_root()), or
+         set_ignore_parent_clip(e, bool) + a z order range reserved for tools.
+    Stand-in: the gizmo stays a canvas child with z = next_z + 1000.
+
+[]: 37. Canvas zoom / pan (later, with 36).
+    Why: small sprites need zoom to grab a handle. Scaling the canvas works, but the clip rect and touch
+    hit test must use the scaled rect, and the gizmo (36) must not scale with it.
+    API: none new if set_scale on a clipping layout clips + hit tests correctly; please confirm, I will add
+    a repro check (scaled clip layout: touch outside the visible part must miss).
+
+===== 3D GIZMO (later, listed so the API fits) =====
+The axis gizmo: 3 arrows (X red, Y green, Z blue) to move, 3 rings to rotate, 3 small cubes to scale, plus a
+view cube / axis widget in the viewport corner that shows the camera direction (click X / Y / Z = snap the
+view). For 2D nodes the same gizmo shows only X / Y arrows + the Z ring, so one code path serves both.
+Most of these are already in tasks/editor_todo.txt section 1 (draw layer); here is what the gizmo adds.
+
+[]: 38. Camera + projection both ways.
+    API: set_camera(position, target, up, fov, near, far), get_view() / get_projection(),
+         glm::vec3 screen_to_ray(glm::vec2 screen) (origin + direction),
+         glm::vec2 world_to_screen(glm::vec3) (to place 2D labels "X" "Y" "Z" next to the arrow tips).
+    Today vk_draw_model_3D.cpp:738 says there is no camera yet.
+
+[]: 39. 3D node transform.
+    API: set/get_position_3D(e, vec3), set/get_rotation_3D(e, glm::quat) + euler helpers for the inspector,
+         set/get_scale_3D(e, vec3), get_world_transform_3D(e) (mat4), parent / child like 2D nodes.
+    Why quat: rotating by dragging a ring is "multiply by a rotation around the axis"; Euler angles lock
+    (gimbal lock) at 90 deg.
+
+[]: 40. Lines and simple shapes drawn on top.
+    Why: arrows, rings and the bounding box are lines / cones / tori that must stay visible through
+    the model (no depth test, or depth test + a faded pass when hidden).
+    API: draw_line_3D(a, b, color, width), draw_circle_3D(centre, normal, radius, color),
+         draw_cone / draw_box (or a small mesh set), each with an "on top" flag. Per-frame (immediate)
+         is enough for gizmos.
+
+[]: 41. Viewport rect for 3D.
+    Why: the 3D scene must render inside the canvas panel, not the whole window, and the corner axis widget
+    is a second tiny camera in a corner of that panel.
+    API: set_viewport_3D(rect) (viewport + scissor), later render-to-texture (editor_todo section 5).
+    Model picking (ray vs bounding box) is already in editor_todo section 1.
 
 ===== NOTES =====
 - When an item lands, tell me and I will switch the tests / scenes to it and add checks for it
