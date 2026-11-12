@@ -7,7 +7,6 @@
 #include <stb_truetype.h>
 
 namespace Parser {
-
 	struct Glyph_SDF {
 		int width = 0.f;
 		int height = 0.f;
