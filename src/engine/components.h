@@ -104,13 +104,12 @@ namespace Engine {
 	struct Image_Renderer_Information {
 		std::string image_path = "";
 		Geometry::Texture_Rect_2D image_rect{0.f, 0.f, 1.f, 1.f};
-		/**
-		 * @Note: if user call set_cotent_size
-		 * the image will switch on mode
-		 * use custom size and they will
-		 * retain untill end.
-		 */
-		bool use_custom_size = false;
+		IMAGE_RENDER_FIT_MODE fit_mode;
+		bool texture_changing = false;
+		Transform_2D inner_image_transform;
+		void update_transform_inner_image(
+			const glm::vec2& size, const glm::vec2& self_scale, const World_Transform_2D& world_transform
+		);
 	};
 
 	struct Label_Renderer_Information {
@@ -122,16 +121,15 @@ namespace Engine {
 		glm::vec3 stroke_color = {1.f, 1.f, 1.f};
 		float stroke_size = 0.f;
 
-		bool use_custom_size = false;
 		bool clipping_enabled = false;
 		LABEL_HORIZONTAL_ALIGN horizontal_align = LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_CENTER;
 		LABEL_VERTICAL_ALIGN vertical_align = LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER;
-		LABEL_RENDER_FIT_MODE fit_mode = LABEL_RENDER_FIT_MODE::CLIP;
+		LABEL_RENDER_FIT_MODE fit_mode = LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO;
 		float horizontal_padding = 0.f;
 		float vertical_padding = 0.f;
 
 		Transform_2D inner_label_transform;
-		void update_inner_text_by(const glm::vec2& text_size);
+		void update_inner_text_by(const glm::vec2& text_size, const World_Transform_2D& world_transform);
 	};
 
 	struct Clipping_Ancestor_Information {
@@ -169,9 +167,10 @@ namespace Engine {
 		bool use_rect_ratio = false;
 		Geometry::Texture_Rect_2D capset_rect_ratio{};
 		Geometry::Rect_2D capset_rect{};
-		glm::vec2 renderer_size{0.f, 0.f};
+		glm::vec2 renderer_size{-::Const::MAX_FLOAT};
 		std::array<World_Transform_2D, 9> pieces_transforms;
 		std::array<Geometry::Texture_Rect_2D, 9> pieces_rects;
+		bool is_manual_update_inner_size = false;
 		void update_piece_transforms(
 			const glm::vec2& renderer_size, const World_Transform_2D& world_transform, const glm::vec2& size,
 			const Geometry::Texture_Rect_2D& rect

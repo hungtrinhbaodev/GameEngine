@@ -1327,6 +1327,26 @@ namespace Engine {
 		return nine_scale.capset_rect;
 	}
 
+	void set_image_nine_scale_size(const Handle& e, const glm::vec2& renderer_size) {
+		assert_handle(e);
+		if (!registry.has<Nine_Scale_Information>(e.id())) {
+			return;
+		}
+		auto [nine_scale] = registry.get<Nine_Scale_Information>(e.id());
+		set_dirty(e, nine_scale.use_rect_ratio && nine_scale.renderer_size != renderer_size, DIRTY_RENDERER);
+		nine_scale.is_manual_update_inner_size = true;
+		nine_scale.renderer_size = renderer_size;
+	}
+
+	glm::vec2 get_image_nine_scale_size(const Handle& e, const Handle& renderer_size) {
+		assert_handle(e);
+		if (!registry.has<Nine_Scale_Information>(e.id())) {
+			return {0.f, 0.f};
+		}
+		const auto& [nine_scale] = registry.read<Nine_Scale_Information>(e.id());
+		return nine_scale.renderer_size;
+	}
+
 	void set_nine_scale_rect_ratio(const Handle& e, const Geometry::Texture_Rect_2D& capset_ratio) {
 		assert_handle(e);
 		if (!registry.has<Nine_Scale_Information>(e.id())) {
@@ -1353,19 +1373,6 @@ namespace Engine {
 			return;
 		clean_size_components(e);
 		const auto& [description] = registry.read<Description>(e.id());
-		switch (description.value) {
-			case DESCRIPTION_TYPE::IMAGE_2D: {
-				set_image_use_custom_size_enabled(e, true);
-				break;
-			}
-			case DESCRIPTION_TYPE::LABEL_2D: {
-				set_label_use_custom_size_enabled(e, true);
-				break;
-			}
-			default: {
-				break;
-			}
-		}
 		auto [c_size] = registry.get<Size>(e.id());
 		set_dirty(e, c_size.value != size, DIRTY_TRANSFORM | DIRTY_RELATIVE_SIZE | DIRTY_RELATIVE_POSITION);
 		c_size.value = size;
@@ -1413,6 +1420,21 @@ namespace Engine {
 		assert_handle(e);
 		if (!registry.has<Inner_Renderer_Size>(e.id())) {
 			return {0.f, 0.f};
+		}
+		if (registry.has<Description>(e.id())) {
+			const auto& [description] = registry.read<Description>(e.id());
+			switch (description.value) {
+				case DESCRIPTION_TYPE::LABEL_2D: {
+					if (is_dirty(e, DIRTY_RENDERER)) {
+						update_label_renderer(e);
+						resolve_transform(e);
+					}
+					break;
+				}
+				default: {
+					break;
+				}
+			}
 		}
 		const auto& [inner_size] = registry.read<Inner_Renderer_Size>(e.id());
 		return inner_size.value;
@@ -1664,6 +1686,7 @@ namespace Engine {
 		}
 		auto [image_renderer] = registry.get<Image_Renderer_Information>(e.id());
 		set_dirty(e, image_renderer.image_path != image_path, DIRTY_RENDERER);
+		image_renderer.texture_changing = image_renderer.image_path != image_path;
 		image_renderer.image_path = image_path;
 	}
 
@@ -1676,22 +1699,22 @@ namespace Engine {
 		return image_renderer.image_path;
 	}
 
-	void set_image_use_custom_size_enabled(const Handle& e, bool enabled) {
+	void set_image_fit_mode(const Handle& e, IMAGE_RENDER_FIT_MODE fit_mode) {
 		assert_handle(e);
 		if (!registry.has<Image_Renderer_Information>(e.id())) {
 			return;
 		}
 		auto [image_renderer] = registry.get<Image_Renderer_Information>(e.id());
-		set_dirty(e, image_renderer.use_custom_size != enabled, DIRTY_RENDERER);
-		image_renderer.use_custom_size = enabled;
+		set_dirty(e, image_renderer.fit_mode != fit_mode, DIRTY_RENDERER);
+		image_renderer.fit_mode = fit_mode;
 	}
 
-	bool is_image_use_custom_size_enabled(const Handle& e) {
+	IMAGE_RENDER_FIT_MODE get_image_fit_mode(const Handle& e) {
 		if (!registry.has<Image_Renderer_Information>(e.id())) {
-			return false;
+			return IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_AUTO;
 		}
 		const auto& [image_renderer] = registry.read<Image_Renderer_Information>(e.id());
-		return image_renderer.use_custom_size;
+		return image_renderer.fit_mode;
 	}
 
 	void set_image_rect(const Handle& e, const Geometry::Texture_Rect_2D& image_rect) {
@@ -2024,23 +2047,6 @@ namespace Engine {
 		return found_entity;
 	}
 
-	void set_label_use_custom_size_enabled(const Handle& e, bool enabled) {
-		if (!registry.has<Label_Renderer_Information>(e.id())) {
-			return;
-		}
-		auto [label_renderer] = registry.get<Label_Renderer_Information>(e.id());
-		set_dirty(e, label_renderer.use_custom_size != enabled, DIRTY_TRANSFORM | DIRTY_RENDERER);
-		label_renderer.use_custom_size = enabled;
-	}
-
-	bool is_label_use_custom_size_enabled(const Handle& e) {
-		if (!registry.has<Label_Renderer_Information>(e.id())) {
-			return false;
-		}
-		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
-		return label_renderer.use_custom_size;
-	}
-
 	void set_label_horizontal_align(const Handle& e, LABEL_HORIZONTAL_ALIGN horizontal_align) {
 		if (!registry.has<Label_Renderer_Information>(e.id())) {
 			return;
@@ -2120,10 +2126,18 @@ namespace Engine {
 
 	LABEL_RENDER_FIT_MODE get_label_render_fit_mode(const Handle& e) {
 		if (!registry.has<Label_Renderer_Information>(e.id())) {
-			return LABEL_RENDER_FIT_MODE::CLIP;
+			return LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_CLIP;
 		}
 		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
 		return label_renderer.fit_mode;
+	}
+
+	int get_min_font_size(const std::string& path) {
+		return Vulkan::get_max_font_size(path);
+	}
+
+	int get_max_font_size(const std::string& path) {
+		return Vulkan::get_min_font_size(path);
 	}
 
 } // namespace Engine

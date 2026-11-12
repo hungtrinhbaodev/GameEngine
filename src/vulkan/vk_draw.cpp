@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <array>
+#include <files.h>
 #include <id_generator.h>
 #include <map>
 #include <profiler.h>
@@ -1250,6 +1251,24 @@ namespace Vulkan {
 		draw_id_to_instances.erase(handle.id());
 		dirty_handles.erase(handle.id());
 		draw_handle_generator.release_handle(handle);
+	}
+
+	int get_max_font_size(const std::string& path) {
+		if (!::Files::is_file_exists(::Utils::get_root_path() + path)) {
+			return -1;
+		}
+		uint32_t font_id = load_font(::Utils::get_root_path() + path);
+		const auto& font = view_font(font_id);
+		return font.max_font_size;
+	}
+
+	int get_min_font_size(const std::string& path) {
+		if (!::Files::is_file_exists(::Utils::get_root_path() + path)) {
+			return -1;
+		}
+		uint32_t font_id = load_font(::Utils::get_root_path() + path);
+		const auto& font = view_font(font_id);
+		return font.min_font_size;
 	}
 
 } // namespace Vulkan

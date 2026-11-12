@@ -131,8 +131,8 @@ namespace Test {
 		Handle card_a = make_layout(page, {24.f, top}, card_size, CARD, 10.f, {0.f, 1.f});
 		make_label(card_a, "Visible mode", 20, INK, {20.f, card_size.y - 30.f}, {0.f, 0.5f});
 		make_label(
-			card_a, "Close hides the modal with\nset_visible(false). Click where\nit was: page must still respond.",
-			14, MUTED, {20.f, card_size.y - 100.f}, {0.f, 0.5f}
+			card_a, "Close hides the modal with\nset_visible(false). Click where\nit was: page must still respond.", 14,
+			MUTED, {20.f, card_size.y - 100.f}, {0.f, 0.5f}
 		);
 		make_button(card_a, "Open dialog", {20.f, 20.f}, {160.f, 44.f}, BLUE, []() {
 			open_modal(false);
@@ -143,8 +143,8 @@ namespace Test {
 		Handle card_b = make_layout(page, {24.f + card_size.x + 20.f, top}, card_size, CARD, 10.f, {0.f, 1.f});
 		make_label(card_b, "Create / destroy mode", 20, INK, {20.f, card_size.y - 30.f}, {0.f, 0.5f});
 		make_label(
-			card_b, "Every open builds a new modal,\nevery close calls clean_up.\nPress P to check pools.", 14,
-			MUTED, {20.f, card_size.y - 100.f}, {0.f, 0.5f}
+			card_b, "Every open builds a new modal,\nevery close calls clean_up.\nPress P to check pools.", 14, MUTED,
+			{20.f, card_size.y - 100.f}, {0.f, 0.5f}
 		);
 		make_button(card_b, "Build dialog", {20.f, 20.f}, {160.f, 44.f}, BLUE, []() {
 			open_modal(true);
@@ -152,8 +152,7 @@ namespace Test {
 		});
 
 		// card C: image + nine scale button.
-		Handle card_c =
-			make_layout(page, {24.f + 2.f * (card_size.x + 20.f), top}, card_size, CARD, 10.f, {0.f, 1.f});
+		Handle card_c = make_layout(page, {24.f + 2.f * (card_size.x + 20.f), top}, card_size, CARD, 10.f, {0.f, 1.f});
 		make_label(card_c, "Image + nine-scale", 20, INK, {20.f, card_size.y - 30.f}, {0.f, 0.5f});
 		Handle icon = make_image(card_c, "res/AddonIcon5.png", {card_size.x - 70.f, card_size.y - 80.f});
 		Engine::set_scale(icon, {0.6f, 0.6f});
@@ -161,6 +160,7 @@ namespace Test {
 		Engine::set_nine_scale_enabled(nine, true);
 		Engine::set_nine_scale_rect_ratio(nine, {0.25f, 0.3f, 0.5f, 0.4f});
 		Engine::set_content_size(nine, {220.f, 56.f});
+		Engine::set_image_nine_scale_size(nine, {220.f, 56.f});
 		make_label(nine, "Nine-scale button", 16, WHITE, {110.f, 28.f});
 		set_touch_action(nine, [](Handle, Engine::TOUCH_STATE touch_state, glm::vec2) {
 			if (touch_state != Engine::TOUCH_STATE::TOUCH_ENDED)
@@ -421,6 +421,7 @@ namespace Test {
 			Engine::set_nine_scale_enabled(nine, true);
 			Engine::set_nine_scale_rect_ratio(nine, {0.25f, 0.3f, 0.5f, 0.4f});
 			Engine::set_content_size(nine, nine_sizes[i]);
+			Engine::set_image_nine_scale_size(nine, nine_sizes[i]);
 			if (i == 2)
 				nine_big = nine;
 		}
@@ -428,6 +429,7 @@ namespace Test {
 		Engine::set_nine_scale_enabled(pixel_nine, true);
 		Engine::set_nine_scale_rect(pixel_nine, {30.f, 20.f, 169.f, 22.f});
 		Engine::set_content_size(pixel_nine, {340.f, 40.f});
+		Engine::set_image_nine_scale_size(pixel_nine, {340.f, 40.f});
 		make_button(box_3, "Toggle nine-scale", {14.f, 14.f}, {180.f, 36.f}, BLUE, []() {
 			Engine::set_nine_scale_enabled(nine_big, !Engine::is_nine_scale_enabled(nine_big));
 		});
@@ -514,7 +516,7 @@ namespace Test {
 			Engine::LABEL_VERTICAL_ALIGN vertical = Engine::LABEL_VERTICAL_ALIGN_CENTER;
 			float padding_horizontal = 0.f;
 			float padding_vertical = 0.f;
-			Engine::LABEL_RENDER_FIT_MODE fit = Engine::CLIP;
+			Engine::LABEL_RENDER_FIT_MODE fit = Engine::LABEL_RENDER_FIT_CLIP;
 			int font_size = 18;
 			float stroke = 0.f;
 			bool custom_size = true;
@@ -541,9 +543,10 @@ namespace Test {
 				Engine::set_label_stroke_size(label, setup.stroke);
 				Engine::set_label_stroke_color(label, BLUE);
 			}
-			Engine::set_label_use_custom_size_enabled(label, setup.custom_size);
 			if (setup.custom_size) {
 				Engine::set_content_size(label, CELL);
+			} else {
+				Engine::set_label_render_fit_mode(label, Engine::LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO);
 			}
 			// click the cell to cycle short / medium / two-line text and watch it re-layout.
 			auto step = std::make_shared<int>(0);
@@ -553,8 +556,10 @@ namespace Test {
 					return;
 				*step = (*step + 1) % 3;
 				Engine::set_label_string(label, CYCLE_TEXTS[*step]);
-				Log::info("[label] text ->", CYCLE_TEXTS[*step], "| size", Engine::get_content_size(label).x,
-						  Engine::get_content_size(label).y);
+				Log::info(
+					"[label] text ->", CYCLE_TEXTS[*step], "| size", Engine::get_content_size(label).x,
+					Engine::get_content_size(label).y
+				);
 			});
 			return label;
 		}
@@ -566,26 +571,67 @@ namespace Test {
 		using V = Engine::LABEL_VERTICAL_ALIGN;
 		glm::vec2 window = Engine::get_window_size();
 		Handle page = make_page("label lab", {0.9f, 0.91f, 0.93f});
-		make_label(page, "UI test 4: label align / padding / fit (click a cell: change text)", 16, INK,
-				   {20.f, window.y - 30.f}, {0.f, 0.5f});
+		make_label(
+			page, "UI test 4: label align / padding / fit (click a cell: change text)", 16, INK,
+			{20.f, window.y - 30.f}, {0.f, 0.5f}
+		);
 
 		// row 0: horizontal align (vertical centre).
-		make_cell(page, 0, 0, {"H LEFT, V CENTER", "Left", H::LABEL_HORIZONTAL_ALIGN_LEFT, V::LABEL_VERTICAL_ALIGN_CENTER});
-		make_cell(page, 1, 0, {"H CENTER, V CENTER", "Center", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_CENTER});
-		make_cell(page, 2, 0, {"H RIGHT, V CENTER", "Right", H::LABEL_HORIZONTAL_ALIGN_RIGHT, V::LABEL_VERTICAL_ALIGN_CENTER});
-		make_cell(page, 3, 0, {"H LEFT, V TOP", "Top left", H::LABEL_HORIZONTAL_ALIGN_LEFT, V::LABEL_VERTICAL_ALIGN_TOP});
+		make_cell(
+			page, 0, 0, {"H LEFT, V CENTER", "Left", H::LABEL_HORIZONTAL_ALIGN_LEFT, V::LABEL_VERTICAL_ALIGN_CENTER}
+		);
+		make_cell(
+			page, 1, 0,
+			{"H CENTER, V CENTER", "Center", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_CENTER}
+		);
+		make_cell(
+			page, 2, 0, {"H RIGHT, V CENTER", "Right", H::LABEL_HORIZONTAL_ALIGN_RIGHT, V::LABEL_VERTICAL_ALIGN_CENTER}
+		);
+		make_cell(
+			page, 3, 0, {"H LEFT, V TOP", "Top left", H::LABEL_HORIZONTAL_ALIGN_LEFT, V::LABEL_VERTICAL_ALIGN_TOP}
+		);
 		// row 1: vertical align (horizontal centre).
-		make_cell(page, 0, 1, {"H CENTER, V TOP", "Top", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_TOP});
-		make_cell(page, 1, 1, {"H CENTER, V CENTER", "Middle", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_CENTER});
-		make_cell(page, 2, 1, {"H CENTER, V BOTTOM", "Bottom", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_BOTTOM});
-		make_cell(page, 3, 1, {"H RIGHT, V BOTTOM", "Bottom right", H::LABEL_HORIZONTAL_ALIGN_RIGHT, V::LABEL_VERTICAL_ALIGN_BOTTOM});
+		make_cell(
+			page, 0, 1, {"H CENTER, V TOP", "Top", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_TOP}
+		);
+		make_cell(
+			page, 1, 1,
+			{"H CENTER, V CENTER", "Middle", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_CENTER}
+		);
+		make_cell(
+			page, 2, 1,
+			{"H CENTER, V BOTTOM", "Bottom", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_BOTTOM}
+		);
+		make_cell(
+			page, 3, 1,
+			{"H RIGHT, V BOTTOM", "Bottom right", H::LABEL_HORIZONTAL_ALIGN_RIGHT, V::LABEL_VERTICAL_ALIGN_BOTTOM}
+		);
 		// row 2: padding (20 px horizontal, 15 px vertical; ignored on a centred axis).
-		make_cell(page, 0, 2, {"LEFT + pad h 20", "Pad left", H::LABEL_HORIZONTAL_ALIGN_LEFT, V::LABEL_VERTICAL_ALIGN_CENTER, 20.f, 0.f});
-		make_cell(page, 1, 2, {"RIGHT + pad h 20", "Pad right", H::LABEL_HORIZONTAL_ALIGN_RIGHT, V::LABEL_VERTICAL_ALIGN_CENTER, 20.f, 0.f});
-		make_cell(page, 2, 2, {"TOP LEFT + pad 20 / 15", "Pad top", H::LABEL_HORIZONTAL_ALIGN_LEFT, V::LABEL_VERTICAL_ALIGN_TOP, 20.f, 15.f});
-		make_cell(page, 3, 2, {"BOTTOM RIGHT + pad 20 / 15", "Pad bottom", H::LABEL_HORIZONTAL_ALIGN_RIGHT, V::LABEL_VERTICAL_ALIGN_BOTTOM, 20.f, 15.f});
+		make_cell(
+			page, 0, 2,
+			{"LEFT + pad h 20", "Pad left", H::LABEL_HORIZONTAL_ALIGN_LEFT, V::LABEL_VERTICAL_ALIGN_CENTER, 20.f, 0.f}
+		);
+		make_cell(
+			page, 1, 2,
+			{"RIGHT + pad h 20", "Pad right", H::LABEL_HORIZONTAL_ALIGN_RIGHT, V::LABEL_VERTICAL_ALIGN_CENTER, 20.f,
+			 0.f}
+		);
+		make_cell(
+			page, 2, 2,
+			{"TOP LEFT + pad 20 / 15", "Pad top", H::LABEL_HORIZONTAL_ALIGN_LEFT, V::LABEL_VERTICAL_ALIGN_TOP, 20.f,
+			 15.f}
+		);
+		make_cell(
+			page, 3, 2,
+			{"BOTTOM RIGHT + pad 20 / 15", "Pad bottom", H::LABEL_HORIZONTAL_ALIGN_RIGHT,
+			 V::LABEL_VERTICAL_ALIGN_BOTTOM, 20.f, 15.f}
+		);
 		// row 3: multi-line, auto size (reference), stroke, big font.
-		make_cell(page, 0, 3, {"multi-line (\\n), CENTER", "First line\nSecond line", H::LABEL_HORIZONTAL_ALIGN_CENTER, V::LABEL_VERTICAL_ALIGN_CENTER});
+		make_cell(
+			page, 0, 3,
+			{"multi-line (\\n), CENTER", "First line\nSecond line", H::LABEL_HORIZONTAL_ALIGN_CENTER,
+			 V::LABEL_VERTICAL_ALIGN_CENTER}
+		);
 		Cell_Setup auto_size{"auto size (custom size off)", "Auto size"};
 		auto_size.custom_size = false;
 		make_cell(page, 1, 3, auto_size);
@@ -601,8 +647,10 @@ namespace Test {
 		make_button(page, "Overflow: no spaces", {740.f, window.y - 50.f}, {190.f, 36.f}, BLUE, [page]() {
 			glm::vec2 w = Engine::get_window_size();
 			for (int i = 0; i < 2; i++) {
-				Cell_Setup setup{i == 0 ? "no spaces, CLIP" : "no spaces, ELLIPSIS", "Supercalifragilisticexpialidocious_and_more"};
-				setup.fit = i == 0 ? Engine::CLIP : Engine::ELLIPSIS;
+				Cell_Setup setup{
+					i == 0 ? "no spaces, CLIP" : "no spaces, ELLIPSIS", "Supercalifragilisticexpialidocious_and_more"
+				};
+				setup.fit = i == 0 ? Engine::LABEL_RENDER_FIT_CLIP : Engine::LABEL_RENDER_FIT_ELLIPSIS;
 				setup.horizontal = H::LABEL_HORIZONTAL_ALIGN_LEFT;
 				make_cell(page, i, 4, setup);
 			}
@@ -611,9 +659,11 @@ namespace Test {
 		});
 		make_button(page, "Overflow: wrap", {945.f, window.y - 50.f}, {190.f, 36.f}, RED, [page]() {
 			for (int i = 0; i < 2; i++) {
-				Cell_Setup setup{i == 0 ? "wrap, CLIP" : "wrap, ELLIPSIS",
-								 "This sentence is far too long to fit in one line of this small box at all"};
-				setup.fit = i == 0 ? Engine::CLIP : Engine::ELLIPSIS;
+				Cell_Setup setup{
+					i == 0 ? "wrap, CLIP" : "wrap, ELLIPSIS",
+					"This sentence is far too long to fit in one line of this small box at all"
+				};
+				setup.fit = i == 0 ? Engine::LABEL_RENDER_FIT_CLIP : Engine::LABEL_RENDER_FIT_ELLIPSIS;
 				setup.horizontal = H::LABEL_HORIZONTAL_ALIGN_LEFT;
 				setup.vertical = V::LABEL_VERTICAL_ALIGN_TOP;
 				make_cell(page, 2 + i, 4, setup);

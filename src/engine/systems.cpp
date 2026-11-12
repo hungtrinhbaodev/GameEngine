@@ -79,7 +79,7 @@ namespace Engine {
 		registry.add(e_child.id(), std::move(relative_world_transform.transform(child_transform)));
 	}
 
-	Handle get_render_clipping_handle(const Handle& e) {
+	Handle get_clipping_renderer_handle(const Handle& e) {
 		Registry& registry = get_registry();
 		if (!registry.has<Description>(e.id())) {
 			return Handle::make_invalid_handle();
@@ -88,6 +88,7 @@ namespace Engine {
 		switch (description.value) {
 			case DESCRIPTION_TYPE::SCROLL_LAYOUT:
 			case DESCRIPTION_TYPE::LABEL_2D:
+			case DESCRIPTION_TYPE::IMAGE_2D:
 			case DESCRIPTION_TYPE::LAYOUT_2D: {
 				const auto& [handles] = registry.read<Renderer_Handles>(e.id());
 				if (handles.value.size() <= 1) {
@@ -154,7 +155,7 @@ namespace Engine {
 		uint32_t number_valid_handle = 0;
 		auto [number_clipping, clipping_ancestors] = clipping_ancestor;
 		for (int i = 0; i < number_clipping; i++) {
-			auto clipping_handle = get_render_clipping_handle(clipping_ancestors[i]);
+			auto clipping_handle = get_clipping_renderer_handle(clipping_ancestors[i]);
 			if (!clipping_handle.is_invalid()) {
 				clipping_handle_ancestor[number_valid_handle] = clipping_handle;
 				number_valid_handle++;
@@ -233,10 +234,10 @@ namespace Engine {
 
 	void update_image_renderer(const Handle& e) {
 		Registry& registry = get_registry();
-		const auto& [image_renderer, nine_scale] =
-			registry.read<Image_Renderer_Information, Nine_Scale_Information>(e.id());
-		auto [renderer_handles, nine_scale_renderer_handles, inner_size, c_size] =
-			registry.get<Renderer_Handles, Nine_Scale_Renderer_Handles, Inner_Renderer_Size, Size>(e.id());
+		auto [image_renderer, renderer_handles, nine_scale_renderer_handles, inner_size, c_size, nine_scale] =
+			registry.get<
+				Image_Renderer_Information, Renderer_Handles, Nine_Scale_Renderer_Handles, Inner_Renderer_Size, Size,
+				Nine_Scale_Information>(e.id());
 		auto& nine_scale_handles = nine_scale_renderer_handles.value;
 		auto& handles = renderer_handles.value;
 		/**
@@ -251,6 +252,7 @@ namespace Engine {
 			description.path = Vulkan::get_default_image_path();
 			description.is_visible = false;
 			handles.push_back(Vulkan::create_texture(description));
+			handles.push_back(Vulkan::create_clipping({}));
 		}
 		auto& texture = Vulkan::modify_texture(handles[0]);
 		if (!Files::is_file_exists(::Utils::get_root_path() + image_renderer.image_path)) {
@@ -262,9 +264,11 @@ namespace Engine {
 				}
 			}
 			inner_size.value = {0.f, 0.f};
-			if (image_renderer.use_custom_size) {
+			if (image_renderer.fit_mode == IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_AUTO) {
 				c_size.value = {0.f, 0.f};
 			}
+			image_renderer.texture_changing = false;
+			nine_scale.is_manual_update_inner_size = false;
 			set_dirty(e, true, DIRTY_RELATIVE_SIZE);
 			return;
 		}
@@ -284,12 +288,16 @@ namespace Engine {
 				auto& texture = Vulkan::modify_texture(nine_scale_handles[i]);
 				texture.set_texture_path(image_renderer.image_path);
 			}
-		} else {
-			if (!image_renderer.use_custom_size) {
-				set_dirty(e, c_size.value != inner_size.value, DIRTY_RELATIVE_SIZE);
-				c_size.value = inner_size.value;
+			if (image_renderer.texture_changing && !nine_scale.is_manual_update_inner_size) {
+				nine_scale.renderer_size = inner_size.value;
 			}
 		}
+		if (image_renderer.fit_mode == IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_AUTO) {
+			set_dirty(e, c_size.value != inner_size.value, DIRTY_RELATIVE_SIZE);
+			c_size.value = inner_size.value;
+		}
+		image_renderer.texture_changing = false;
+		nine_scale.is_manual_update_inner_size = false;
 	}
 
 	void update_label_renderer(const Handle& e) {
@@ -314,9 +322,9 @@ namespace Engine {
 		label.set_font_size(label_renderer.font_size);
 		label.set_stroke_color(label_renderer.stroke_color);
 		label.set_stroke_size(label_renderer.stroke_size);
-		if (!label_renderer.use_custom_size) {
+		if (label_renderer.fit_mode == LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO) {
 			glm::vec2 size = {label.get_width(), label.get_height()};
-			set_dirty(e, c_size.value != size, DIRTY_RELATIVE_SIZE | DIRTY_TRANSFORM);
+			set_dirty(e, c_size.value != size, DIRTY_RELATIVE_SIZE);
 			c_size.value = size;
 		} else {
 			label.set_align((int)label_renderer.horizontal_align);
@@ -416,11 +424,15 @@ namespace Engine {
 
 	void update_image_renderer_transform(const Handle& e_child) {
 		Registry& registry = get_registry();
-		const auto& [transform, renderer_handle, nice_scale_renderer_handles, c_size, draw_order] =
-			registry.read<World_Transform_2D, Renderer_Handles, Nine_Scale_Renderer_Handles, Size, Draw_Order>(
+		const auto& [transform, renderer_handle, nice_scale_renderer_handles, draw_order, image_inner_size] =
+			registry.read<
+				World_Transform_2D, Renderer_Handles, Nine_Scale_Renderer_Handles, Draw_Order, Inner_Renderer_Size>(
 				e_child.id()
 			);
-		auto [nine_scale, c_rect] = registry.get<Nine_Scale_Information, Rect>(e_child.id());
+		auto [nine_scale, c_rect, clipping_ancestors, c_size, image_renderer] =
+			registry.get<Nine_Scale_Information, Rect, Clipping_Ancestor_Information, Size, Image_Renderer_Information>(
+				e_child.id()
+			);
 		const auto& handles = renderer_handle.value;
 		const auto& nice_scale_handles = nice_scale_renderer_handles.value;
 		auto& texture = Vulkan::modify_texture(handles[0]);
@@ -433,24 +445,90 @@ namespace Engine {
 			texture.set_visible(transform.is_visible);
 			texture.set_scale(transform.scale);
 		};
+		auto get_fit_mode_scale_ratio = [&image_renderer](const auto& inner_size, const auto& render_size) {
+			glm::vec2 scale{1.f};
+			bool is_clipping = false;
+			switch (image_renderer.fit_mode) {
+				case IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_AUTO: {
+					scale = {1.f, 1.f};
+					break;
+				}
+				case IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_STRETCH: {
+					scale = {render_size.x / inner_size.x, render_size.y / inner_size.y};
+					break;
+				}
+				case IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_FILL: {
+					float max = std::max(render_size.x / inner_size.x, render_size.y / inner_size.y);
+					scale = {max, max};
+					is_clipping = max < 1.f;
+					break;
+				}
+				case IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_FIT: {
+					float min = std::min(render_size.x / inner_size.x, render_size.y / inner_size.y);
+					scale = {min, min};
+					break;
+				}
+				default: {
+					break;
+				}
+			}
+			return std::make_tuple(scale, is_clipping);
+		};
+		glm::vec2 inner_size{0.f, 0.f};
+		if (nine_scale.enabled) {
+			inner_size = nine_scale.renderer_size;
+		} else {
+			inner_size = image_inner_size.value;
+		}
+		if (image_renderer.fit_mode == IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_AUTO) {
+			c_size.value = inner_size;
+		}
+		auto [scale, is_clipping] = get_fit_mode_scale_ratio(inner_size, c_size.value);
+		image_renderer.update_transform_inner_image(c_size.value, scale, transform);
+		clipping_ancestors.update_self_clipping(is_clipping ? e_child : Handle::make_invalid_handle());
+		World_Transform_2D inner_world_transform = transform.transform(image_renderer.inner_image_transform);
+		auto [number_valid_clipping, valid_clipping_ancestors] =
+			validate_clipping_ancestors(clipping_ancestors.get_clipping_ancestors_info());
 		if (nine_scale.enabled) {
 			texture.set_visible(false);
+			if (nine_scale.renderer_size.x <= 0 || nine_scale.renderer_size.y <= 0) {
+				for (int i = 0; i < nice_scale_handles.size() && i < nine_scale.pieces_transforms.size(); i++) {
+					auto& piece_texture = Vulkan::modify_texture(nice_scale_handles[i]);
+					piece_texture.set_visible(false);
+				}
+				return;
+			}
 			nine_scale.update_piece_transforms(
-				c_size.value, transform, {texture.get_width(), texture.get_height()}, texture.get_texture_rect()
+				nine_scale.renderer_size, inner_world_transform, {texture.get_width(), texture.get_height()},
+				image_renderer.image_rect
 			);
+			inner_size = nine_scale.renderer_size;
 			for (int i = 0; i < nice_scale_handles.size() && i < nine_scale.pieces_transforms.size(); i++) {
 				auto& piece_texture = Vulkan::modify_texture(nice_scale_handles[i]);
 				const auto& piece_transform = nine_scale.pieces_transforms[i];
 				const auto& piece_rect = nine_scale.pieces_rects[i];
 				piece_texture.set_texture_rect(piece_rect);
+				piece_texture.set_number_clipping(number_valid_clipping);
+				piece_texture.set_clipping_ancestors(valid_clipping_ancestors);
 				update_texture_attributes(piece_texture, piece_transform);
 			}
 		} else {
+			inner_size = image_inner_size.value;
 			for (const auto& handle : nice_scale_handles) {
 				auto& piece_texture = Vulkan::modify_texture(handle);
 				piece_texture.set_visible(false);
 			}
-			update_texture_attributes(texture, transform);
+			texture.set_number_clipping(number_valid_clipping);
+			texture.set_clipping_ancestors(valid_clipping_ancestors);
+			update_texture_attributes(texture, inner_world_transform);
+		}
+		if (is_clipping) {
+			auto& clipping = Vulkan::modify_clipping(handles[1]);
+			clipping.set_anchor(transform.anchor);
+			clipping.set_content_size(c_size.value);
+			clipping.set_world_rotation(transform.rotation);
+			clipping.set_world_position(transform.position);
+			clipping.set_world_scale(transform.scale);
 		}
 		c_rect.transformed_rect = Math::transform_rect(
 			c_size.value, transform.position, transform.scale, transform.rotation, transform.anchor
@@ -459,10 +537,11 @@ namespace Engine {
 
 	void update_label_renderer_transform(const Handle& e_child) {
 		Registry& registry = get_registry();
-		const auto& [transform, c_handles, c_size] =
-			registry.read<World_Transform_2D, Renderer_Handles, Size>(e_child.id());
-		auto [label_renderer, clipping_ancestor] =
-			registry.get<Label_Renderer_Information, Clipping_Ancestor_Information>(e_child.id());
+		const auto& [transform, c_handles] = registry.read<World_Transform_2D, Renderer_Handles>(e_child.id());
+		auto [label_renderer, clipping_ancestors, c_size, c_inner_size] =
+			registry.get<Label_Renderer_Information, Clipping_Ancestor_Information, Size, Inner_Renderer_Size>(
+				e_child.id()
+			);
 		auto update_label_transform = [](Vulkan::Font_2D& label, const World_Transform_2D& transform) {
 			label.set_anchor(transform.anchor);
 			label.set_color(transform.color);
@@ -475,10 +554,9 @@ namespace Engine {
 		const auto& handles = c_handles.value;
 		auto& label = Vulkan::modify_label(handles[0]);
 		auto [c_rect] = registry.get<Rect>(e_child.id());
-		if (label_renderer.use_custom_size) {
-			label_renderer.update_inner_text_by(c_size.value);
+		if (label_renderer.fit_mode != LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO) {
+			label_renderer.update_inner_text_by(c_size.value, transform);
 			auto inner_transform = transform.transform(label_renderer.inner_label_transform);
-			inner_transform.color = transform.color;
 			label.set_text(label_renderer.render_text);
 			update_label_transform(label, inner_transform);
 			if (label_renderer.clipping_enabled) {
@@ -489,16 +567,18 @@ namespace Engine {
 				clipping.set_world_position(transform.position);
 				clipping.set_world_scale(transform.scale);
 			}
-			clipping_ancestor.update_self_clipping(Handle::make_invalid_handle());
+			clipping_ancestors.update_self_clipping(Handle::make_invalid_handle());
 			if (label_renderer.clipping_enabled) {
-				clipping_ancestor.update_self_clipping(e_child);
+				clipping_ancestors.update_self_clipping(e_child);
 			}
+			c_inner_size.value = glm::vec2(label.get_width(), label.get_height());
 		} else {
-			clipping_ancestor.update_self_clipping(Handle::make_invalid_handle());
+			c_inner_size.value = c_size.value;
+			clipping_ancestors.update_self_clipping(Handle::make_invalid_handle());
 			update_label_transform(label, transform);
 		}
 		auto [number_valid_handle, clipping_handle_ancestors] =
-			validate_clipping_ancestors(clipping_ancestor.get_clipping_ancestors_info());
+			validate_clipping_ancestors(clipping_ancestors.get_clipping_ancestors_info());
 		// always upload: when clipping turns off, the label must drop its own clip and keep only ancestors.
 		label.set_number_clipping(number_valid_handle);
 		label.set_clipping_ancestors(clipping_handle_ancestors);

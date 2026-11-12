@@ -150,4 +150,11 @@ namespace Vulkan {
 
 	void remove_draw(const Handle& handle);
 
+	/**
+	 * Support function.
+	 */
+	int get_max_font_size(const std::string& path);
+
+	int get_min_font_size(const std::string& path);
+
 } // namespace Vulkan

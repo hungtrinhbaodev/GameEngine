@@ -60,7 +60,8 @@ namespace Test {
 		Handle find_label(const std::string& prefix) {
 			Registry& registry = Engine::get_registry();
 			Handle found = Handle::make_invalid_handle();
-			registry.each<Engine::Label_Renderer_Information>([&](uint32_t e, Engine::Label_Renderer_Information& info) {
+			registry.each<Engine::Label_Renderer_Information>([&](uint32_t e,
+																  Engine::Label_Renderer_Information& info) {
 				if (found.is_invalid() && in_tree(e) && info.text.rfind(prefix, 0) == 0)
 					found = handle_of(e);
 			});
@@ -230,8 +231,9 @@ namespace Test {
 				Log::info("[drive] click", name, "at", *point);
 				Registry& registry = Engine::get_registry();
 				for (const auto& hit : Engine::find_entites_listen_touch_at(*point)) {
-					glm::vec2 size = registry.has<Engine::Size>(hit.id()) ? std::get<0>(registry.read<Engine::Size>(hit.id())).value
-																		  : glm::vec2(-1.f);
+					glm::vec2 size = registry.has<Engine::Size>(hit.id())
+										 ? std::get<0>(registry.read<Engine::Size>(hit.id())).value
+										 : glm::vec2(-1.f);
 					int type = registry.has<Engine::Description>(hit.id())
 								   ? (int)std::get<0>(registry.read<Engine::Description>(hit.id())).value
 								   : -1;
@@ -296,15 +298,21 @@ namespace Test {
 				glm::vec2 window = Engine::get_window_size();
 				Handle page = get_scene().root;
 				glm::vec2 page_size = Engine::get_content_size(page);
-				expect(glm::distance(page_size, window) < 1.f, "pinned page fills the window",
-					   "page " + std::to_string(page_size.x) + "x" + std::to_string(page_size.y));
+				expect(
+					glm::distance(page_size, window) < 1.f, "pinned page fills the window",
+					"page " + std::to_string(page_size.x) + "x" + std::to_string(page_size.y)
+				);
 				Handle header = parent_of(find_label("UI test 1"));
 				glm::vec2 header_size = Engine::get_content_size(header);
-				expect(glm::distance(header_size, glm::vec2(window.x, 64.f)) < 1.f, "pinned header is a 64 px bar",
-					   "header " + std::to_string(header_size.x) + "x" + std::to_string(header_size.y));
+				expect(
+					glm::distance(header_size, glm::vec2(window.x, 64.f)) < 1.f, "pinned header is a 64 px bar",
+					"header " + std::to_string(header_size.x) + "x" + std::to_string(header_size.y)
+				);
 				float header_top = world_center(header).y + header_size.y * 0.5f;
-				expect(std::abs(header_top - window.y) < 1.f, "pinned header sits at the top",
-					   "top edge at y " + std::to_string(header_top) + " of " + std::to_string(window.y));
+				expect(
+					std::abs(header_top - window.y) < 1.f, "pinned header sits at the top",
+					"top edge at y " + std::to_string(header_top) + " of " + std::to_string(window.y)
+				);
 				expect(rect_visible(page), "page background visible");
 			});
 			screenshot("modal_page");
@@ -350,7 +358,9 @@ namespace Test {
 			then(0, []() { expect_status("Status: opened (destroy mode)", "destroy mode opens a new dialog"); });
 			click_label("Destroy self");
 			then(0, []() {
-				expect_status("Status: modal destroyed itself inside its callback", "dialog destroys itself in its callback");
+				expect_status(
+					"Status: modal destroyed itself inside its callback", "dialog destroys itself in its callback"
+				);
 				expect(find_label("Delete 3 files?").is_invalid(), "destroyed dialog is gone from the tree");
 				expect(verify_tree(false) == 0, "tree valid after self destroy");
 			});
@@ -364,57 +374,72 @@ namespace Test {
 
 			// swatches sorted top-left first; pick a few different ones.
 			for (int pick : {0, 5, 17, 40, 66}) {
-				click_at([pick]() {
-					auto swatches = find_by_size({30.f, 30.f});
-					std::sort(swatches.begin(), swatches.end(), [](const Handle& a, const Handle& b) {
-						glm::vec2 ca = world_center(a), cb = world_center(b);
-						return std::abs(ca.y - cb.y) > 1.f ? ca.y > cb.y : ca.x < cb.x;
-					});
-					return pick < (int)swatches.size() ? world_center(swatches[pick]) : glm::vec2(-1.f);
-				}, "swatch " + std::to_string(pick));
+				click_at(
+					[pick]() {
+						auto swatches = find_by_size({30.f, 30.f});
+						std::sort(swatches.begin(), swatches.end(), [](const Handle& a, const Handle& b) {
+							glm::vec2 ca = world_center(a), cb = world_center(b);
+							return std::abs(ca.y - cb.y) > 1.f ? ca.y > cb.y : ca.x < cb.x;
+						});
+						return pick < (int)swatches.size() ? world_center(swatches[pick]) : glm::vec2(-1.f);
+					},
+					"swatch " + std::to_string(pick)
+				);
 			}
 			then(0, []() {
 				Handle hex = find_label("#");
-				expect(!hex.is_invalid() && Engine::get_label_string(hex).size() == 7, "hex label shows a colour",
-					   hex.is_invalid() ? "no hex label" : Engine::get_label_string(hex));
+				expect(
+					!hex.is_invalid() && Engine::get_label_string(hex).size() == 7, "hex label shows a colour",
+					hex.is_invalid() ? "no hex label" : Engine::get_label_string(hex)
+				);
 				Handle scroll = find_scroll_layout();
-				expect(!scroll.is_invalid() && child_count(container_of(scroll)) == 5, "5 recent colours added",
-					   scroll.is_invalid() ? "no scroll" : std::to_string(child_count(container_of(scroll))));
+				expect(
+					!scroll.is_invalid() && child_count(container_of(scroll)) == 5, "5 recent colours added",
+					scroll.is_invalid() ? "no scroll" : std::to_string(child_count(container_of(scroll)))
+				);
 			});
 
 			auto hex_before = std::make_shared<std::string>();
 			then(0, [hex_before]() { *hex_before = Engine::get_label_string(find_label("#")); });
-			drag([]() {
-				auto knobs = find_by_size({14.f, 22.f});
-				std::sort(knobs.begin(), knobs.end(), [](const Handle& a, const Handle& b) {
-					return world_center(a).y > world_center(b).y;
-				});
-				return knobs.empty() ? glm::vec2(-1.f) : world_center(knobs[0]);
-			}, {60.f, 0.f}, "R knob");
+			drag(
+				[]() {
+					auto knobs = find_by_size({14.f, 22.f});
+					std::sort(knobs.begin(), knobs.end(), [](const Handle& a, const Handle& b) {
+						return world_center(a).y > world_center(b).y;
+					});
+					return knobs.empty() ? glm::vec2(-1.f) : world_center(knobs[0]);
+				},
+				{60.f, 0.f}, "R knob"
+			);
 			then(0, [hex_before]() {
 				std::string hex_after = Engine::get_label_string(find_label("#"));
-				expect(hex_after != *hex_before, "dragging R knob changes the colour", *hex_before + " -> " + hex_after);
+				expect(
+					hex_after != *hex_before, "dragging R knob changes the colour", *hex_before + " -> " + hex_after
+				);
 			});
 			screenshot("picker_after_picks");
 
 			// fill the recent row past its width, then wheel it.
 			for (int pick = 0; pick < 12; pick++) {
-				click_at([pick]() {
-					auto swatches = find_by_size({30.f, 30.f});
-					return pick < (int)swatches.size() ? world_center(swatches[pick]) : glm::vec2(-1.f);
-				}, "swatch fill " + std::to_string(pick));
+				click_at(
+					[pick]() {
+						auto swatches = find_by_size({30.f, 30.f});
+						return pick < (int)swatches.size() ? world_center(swatches[pick]) : glm::vec2(-1.f);
+					},
+					"swatch fill " + std::to_string(pick)
+				);
 			}
 			auto container_x = std::make_shared<float>(0.f);
-			then(0, [container_x]() {
-				*container_x = Engine::get_position(container_of(find_scroll_layout())).x;
-			});
+			then(0, [container_x]() { *container_x = Engine::get_position(container_of(find_scroll_layout())).x; });
 			// content starts at the clamp edge (x = 0), so scroll toward the far end.
 			wheel([]() { return world_center(find_scroll_layout()); }, 3.f);
 			wheel([]() { return world_center(find_scroll_layout()); }, 3.f);
 			then(0, [container_x]() {
 				float x = Engine::get_position(container_of(find_scroll_layout())).x;
-				expect(x != *container_x, "mouse wheel scrolls the recent row",
-					   std::to_string(*container_x) + " -> " + std::to_string(x));
+				expect(
+					x != *container_x, "mouse wheel scrolls the recent row",
+					std::to_string(*container_x) + " -> " + std::to_string(x)
+				);
 			});
 			screenshot("picker_scrolled");
 		}
@@ -425,15 +450,16 @@ namespace Test {
 			then(0, []() {
 				// box 1: percent child = half of 160x120 and centred, pinned child = 20 px inset.
 				auto parents = find_by_size({160.f, 120.f});
-				expect(parents.size() == 2, "lab has both percent and pinning parents",
-					   std::to_string(parents.size()));
+				expect(parents.size() == 2, "lab has both percent and pinning parents", std::to_string(parents.size()));
 				auto halves = find_by_size({80.f, 60.f});
 				expect(halves.size() == 1, "size percent gives half size", std::to_string(halves.size()));
 				if (halves.size() == 1) {
 					glm::vec2 child = world_center(halves[0]);
 					glm::vec2 parent = world_center(parent_of(halves[0]));
-					expect(glm::distance(child, parent) < 1.f, "position percent centres the child",
-						   "child centre off by " + std::to_string(glm::distance(child, parent)));
+					expect(
+						glm::distance(child, parent) < 1.f, "position percent centres the child",
+						"child centre off by " + std::to_string(glm::distance(child, parent))
+					);
 				}
 				expect(find_by_size({120.f, 80.f}).size() == 1, "pinning gives a 20 px inset");
 			});
@@ -446,8 +472,10 @@ namespace Test {
 			then(0, [short_width]() {
 				Handle label = find_measure_label();
 				*short_width = label.is_invalid() ? 0.f : Engine::get_content_size(label).x;
-				expect(*short_width > 0.f, "measure label starts with a measured width", "label " +
-					   std::string(label.is_invalid() ? "not found" : "width 0"));
+				expect(
+					*short_width > 0.f, "measure label starts with a measured width",
+					"label " + std::string(label.is_invalid() ? "not found" : "width 0")
+				);
 			});
 			for (int i = 0; i < 4; i++) {
 				click_label("Change text");
@@ -463,10 +491,14 @@ namespace Test {
 					glm::vec2 measured = Engine::get_content_size(label);
 					glm::vec2 box = Engine::get_content_size(parent_of(label));
 					expect(text == measure_texts[index], "label string changed" + step, "\"" + text + "\"");
-					expect(Engine::get_label_font_size(label) == measure_sizes[index], "label font size changed" + step,
-						   std::to_string(Engine::get_label_font_size(label)));
-					expect(glm::distance(measured + glm::vec2(24.f, 16.f), box) < 0.5f, "measure box follows label text" + step,
-						   "label " + to_text(measured) + ", box " + to_text(box));
+					expect(
+						Engine::get_label_font_size(label) == measure_sizes[index], "label font size changed" + step,
+						std::to_string(Engine::get_label_font_size(label))
+					);
+					expect(
+						glm::distance(measured + glm::vec2(24.f, 16.f), box) < 0.5f,
+						"measure box follows label text" + step, "label " + to_text(measured) + ", box " + to_text(box)
+					);
 
 					// size N means N units per line, plus the stroke on both sides.
 					int lines = 0;
@@ -474,25 +506,35 @@ namespace Test {
 						lines += line.empty() ? 0 : 1;
 					float line_height = measure_sizes[index] + 2.f * Engine::get_label_stroke_size(label);
 					float expected_height = lines * line_height;
-					expect(std::abs(measured.y - expected_height) < 0.5f, "label height = lines x (font size + 2 x stroke)" + step,
-						   to_text(measured) + ", expected height " + std::to_string(expected_height));
+					expect(
+						std::abs(measured.y - expected_height) < 0.5f,
+						"label height = lines x (font size + 2 x stroke)" + step,
+						to_text(measured) + ", expected height " + std::to_string(expected_height)
+					);
 					if (lines == 0) {
 						expect(measured.x == 0.f, "empty label measures 0 wide" + step, to_text(measured));
 					}
 					// text changed, so the size must not be the stale one from the previous step.
 					if (index == 1) {
-						expect(measured.x > *short_width * 2.f, "longer text measures wider than \"Short\"" + step,
-							   to_text(measured) + " vs Short width " + std::to_string(*short_width));
+						expect(
+							measured.x > *short_width * 2.f, "longer text measures wider than \"Short\"" + step,
+							to_text(measured) + " vs Short width " + std::to_string(*short_width)
+						);
 					}
 					if (index == 0) {
-						expect(std::abs(measured.x - *short_width) < 0.5f, "\"Short\" measures the same width again" + step,
-							   to_text(measured) + " vs " + std::to_string(*short_width));
+						expect(
+							std::abs(measured.x - *short_width) < 0.5f,
+							"\"Short\" measures the same width again" + step,
+							to_text(measured) + " vs " + std::to_string(*short_width)
+						);
 					}
 				});
 			}
 
 			click_label("Raise next");
-			then(0, []() { expect(Engine::get_z_order(parent_of(find_label("A"))) > 0, "Raise next raises square A"); });
+			then(0, []() {
+				expect(Engine::get_z_order(parent_of(find_label("A"))) > 0, "Raise next raises square A");
+			});
 
 			// keep the handle: turning nine-scale off may change the content size.
 			auto nine_big = std::make_shared<Handle>(Handle::make_invalid_handle());
@@ -508,8 +550,10 @@ namespace Test {
 			then(0, [nine_big]() {
 				glm::vec2 size = Engine::get_content_size(*nine_big);
 				expect(Engine::is_nine_scale_enabled(*nine_big), "Toggle nine-scale turns it back on");
-				expect(glm::distance(size, glm::vec2(320.f, 90.f)) < 0.5f, "nine-scale keeps its 320x90 size after off/on",
-					   std::to_string(size.x) + "x" + std::to_string(size.y));
+				expect(
+					glm::distance(size, glm::vec2(320.f, 90.f)) < 0.5f, "nine-scale keeps its 320x90 size after off/on",
+					std::to_string(size.x) + "x" + std::to_string(size.y)
+				);
 			});
 
 			auto rotation_before = std::make_shared<float>(0.f);
@@ -529,15 +573,19 @@ namespace Test {
 			wheel([]() { return world_center(find_scroll_layout()); }, 4.f);
 			then(0, [list_y]() {
 				float y = Engine::get_position(container_of(find_scroll_layout())).y;
-				expect(y != *list_y, "mouse wheel scrolls the vertical list",
-					   std::to_string(*list_y) + " -> " + std::to_string(y));
+				expect(
+					y != *list_y, "mouse wheel scrolls the vertical list",
+					std::to_string(*list_y) + " -> " + std::to_string(y)
+				);
 			});
 			then(0, [list_y]() { *list_y = Engine::get_position(container_of(find_scroll_layout())).y; });
 			drag([]() { return world_center(find_scroll_layout()); }, {0.f, 80.f}, "list content");
 			then(0, [list_y]() {
 				float y = Engine::get_position(container_of(find_scroll_layout())).y;
-				expect(y != *list_y, "dragging scrolls the vertical list",
-					   std::to_string(*list_y) + " -> " + std::to_string(y));
+				expect(
+					y != *list_y, "dragging scrolls the vertical list",
+					std::to_string(*list_y) + " -> " + std::to_string(y)
+				);
 			});
 			screenshot("lab_after_actions");
 		}
@@ -549,7 +597,9 @@ namespace Test {
 		void perf_set_all_clipping(bool enabled) {
 			Registry& registry = Engine::get_registry();
 			std::vector<uint32_t> ids;
-			registry.each<Engine::Clipping_Information>([&ids](uint32_t e, Engine::Clipping_Information&) { ids.push_back(e); });
+			registry.each<Engine::Clipping_Information>([&ids](uint32_t e, Engine::Clipping_Information&) {
+				ids.push_back(e);
+			});
 			int changed = 0;
 			for (uint32_t id : ids) {
 				Handle e = handle_of(id);
@@ -688,15 +738,19 @@ namespace Test {
 		then(10, []() {
 			// what the engine computed for every custom-size label (align / padding / fit result).
 			Registry& registry = Engine::get_registry();
-			registry.each<Engine::Label_Renderer_Information>([&registry](uint32_t e, Engine::Label_Renderer_Information& info) {
-				if (!info.use_custom_size || !in_tree(e))
-					return;
-				glm::vec2 size = std::get<0>(registry.read<Engine::Size>(e)).value;
-				Log::info("[label] node", e, "text", info.text, "| h", (int)info.horizontal_align, "v", (int)info.vertical_align,
-						  "fit", (int)info.fit_mode, "pad", info.horizontal_padding, info.vertical_padding, "| size", size,
-						  "| inner pos", info.inner_label_transform.position, "anchor", info.inner_label_transform.anchor,
-						  "| clip", info.clipping_enabled);
-			});
+			registry.each<Engine::Label_Renderer_Information>(
+				[&registry](uint32_t e, Engine::Label_Renderer_Information& info) {
+					if (info.fit_mode != Engine::LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO || !in_tree(e))
+						return;
+					glm::vec2 size = std::get<0>(registry.read<Engine::Size>(e)).value;
+					Log::info(
+						"[label] node", e, "text", info.text, "| h", (int)info.horizontal_align, "v",
+						(int)info.vertical_align, "fit", (int)info.fit_mode, "pad", info.horizontal_padding,
+						info.vertical_padding, "| size", size, "| inner pos", info.inner_label_transform.position,
+						"anchor", info.inner_label_transform.anchor, "| clip", info.clipping_enabled
+					);
+				}
+			);
 		});
 		screenshot("label_scene");
 		click_label("Overflow: no spaces");

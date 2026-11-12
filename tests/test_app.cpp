@@ -103,6 +103,8 @@ namespace Test {
 				Handle label = Engine::create_label();
 				Engine::set_label_string(label, "Hi");
 				Engine::add_child(root, label);
+				// fit mode must be set manually now; set_content_size no longer implies custom sizing.
+				Engine::set_label_render_fit_mode(label, Engine::LABEL_RENDER_FIT_CLIP);
 				Engine::set_content_size(label, {300.f, 120.f});
 				Engine::process_frame(0.f);
 				auto h = Engine::get_label_horizontal_align(label);
@@ -117,7 +119,8 @@ namespace Test {
 					"vertical align " + std::to_string((int)v) + " (want CENTER 1)"
 				);
 				api_expect(
-					"label-default", fit == Engine::CLIP, "fit mode " + std::to_string((int)fit) + " (want CLIP 0)"
+					"label-default", fit == Engine::LABEL_RENDER_FIT_CLIP,
+					"fit mode " + std::to_string((int)fit) + " (want CLIP 0)"
 				);
 				const auto& [info] = Engine::get_registry().read<Engine::Label_Renderer_Information>(label.id());
 				glm::vec2 inner = info.inner_label_transform.position;
@@ -232,7 +235,8 @@ namespace Test {
 				Engine::process_frame(0.f);
 				got = Engine::get_scroll_layout_container_position(scroll);
 				api_expect(
-					"3", nearly_equal(got, {0.f, 0.f}), "set before the start is clamped to {0, 0} (got " + vec_text(got) + ")"
+					"3", nearly_equal(got, {0.f, 0.f}),
+					"set before the start is clamped to {0, 0} (got " + vec_text(got) + ")"
 				);
 				Engine::clean_up(scroll);
 				Engine::process_frame(0.f);

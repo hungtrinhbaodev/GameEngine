@@ -159,16 +159,14 @@ namespace Engine {
 
 	Geometry::Rect_2D get_nine_scale_rect(const Handle& e);
 
+	void set_image_nine_scale_size(const Handle& e, const glm::vec2& renderer_size);
+
+	glm::vec2 get_image_nine_scale_size(const Handle& e, const Handle& renderer_size);
+
 	void set_nine_scale_rect_ratio(const Handle& e, const Geometry::Texture_Rect_2D& capset_ratio);
 
 	Geometry::Texture_Rect_2D get_nine_scale_rect_ratio(const Handle& e);
 
-	/**
-	 * @Note:
-	 * - Image: when set content size image will auto switch into mode
-	 * use custom size when wanna back into inner size please
-	 * call set_use_custom_size_enabled(false).
-	 */
 	void set_content_size(const Handle& e, const glm::vec2& size);
 
 	glm::vec2 get_content_size(const Handle& e);
@@ -227,9 +225,9 @@ namespace Engine {
 
 	void set_image_rect(const Handle& e, const Geometry::Texture_Rect_2D& image_rect);
 
-	void set_image_use_custom_size_enabled(const Handle& e, bool enabled);
+	void set_image_fit_mode(const Handle& e, IMAGE_RENDER_FIT_MODE fit_mode);
 
-	bool is_image_use_custom_size_enabled(const Handle& e);
+	IMAGE_RENDER_FIT_MODE get_image_fit_mode(const Handle& e);
 
 	Geometry::Texture_Rect_2D get_image_rect(const Handle& e);
 
@@ -285,10 +283,6 @@ namespace Engine {
 
 	Handle find_node_by_tag(int tag, Handle parent = Handle::make_invalid_handle());
 
-	void set_label_use_custom_size_enabled(const Handle& e, bool enabled);
-
-	bool is_label_use_custom_size_enabled(const Handle& e);
-
 	void set_label_horizontal_align(const Handle& e, LABEL_HORIZONTAL_ALIGN horizontal_align);
 
 	LABEL_HORIZONTAL_ALIGN get_label_horizontal_align(const Handle& e);
@@ -308,5 +302,9 @@ namespace Engine {
 	void set_label_render_fit_mode(const Handle& e, LABEL_RENDER_FIT_MODE fit_mode);
 
 	LABEL_RENDER_FIT_MODE get_label_render_fit_mode(const Handle& e);
+
+	int get_min_font_size(const std::string& path);
+
+	int get_max_font_size(const std::string& path);
 
 } // namespace Engine

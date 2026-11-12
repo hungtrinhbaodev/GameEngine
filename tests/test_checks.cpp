@@ -17,7 +17,7 @@ namespace Engine {
 	extern std::vector<Handle> entities_touch_listener;
 	extern std::vector<Handle> entities_scroll_listener;
 	extern std::vector<Handle> clean_up_entities;
-	Handle get_render_clipping_handle(const Handle& e);
+	Handle get_clipping_renderer_handle(const Handle& e);
 	CLIPPING_STATE get_clipping_state_by_ancestors(const Handle& e);
 } // namespace Engine
 
@@ -574,7 +574,8 @@ namespace Test {
 					for (const auto& ancestor : expected) {
 						if (!registry.has<Rect>(ancestor.id()))
 							continue;
-						int s = classify_rect(node_rect, std::get<0>(registry.read<Rect>(ancestor.id())).transformed_rect);
+						int s =
+							classify_rect(node_rect, std::get<0>(registry.read<Rect>(ancestor.id())).transformed_rect);
 						if (s == 0) {
 							state = 0;
 							break;
@@ -589,7 +590,7 @@ namespace Test {
 				// fully out  -> hidden, or visible with full (missed cull)
 				std::vector<Handle> full_clips, culled_clips;
 				for (const auto& ancestor : expected) {
-					Handle clip = get_render_clipping_handle(ancestor);
+					Handle clip = get_clipping_renderer_handle(ancestor);
 					if (!clip.is_invalid())
 						full_clips.push_back(clip);
 				}
@@ -599,9 +600,12 @@ namespace Test {
 				if (registry.has<Label_Renderer_Information>(e)) {
 					const auto& [label] = registry.read<Label_Renderer_Information>(e);
 					const auto& handles = std::get<0>(registry.read<Renderer_Handles>(e)).value;
-					label_text = " | label custom " + std::to_string(label.use_custom_size) + " clip " +
-								 std::to_string(label.clipping_enabled);
-					if (label.use_custom_size && label.clipping_enabled && handles.size() > 1) {
+					label_text =
+						" | label custom " +
+						std::to_string((label.fit_mode == Engine::LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO)) +
+						" clip " + std::to_string(label.clipping_enabled);
+					if (label.fit_mode == Engine::LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO &&
+						label.clipping_enabled && handles.size() > 1) {
 						if ((int)full_clips.size() >= ::Const::MAX_DEPTH_CLIPPING)
 							full_clips.erase(full_clips.begin());
 						full_clips.push_back(handles[1]);
@@ -646,18 +650,21 @@ namespace Test {
 					bool ok = state == 2 ? is_full : state == 1 ? (equal(culled_clips) || is_full) : is_full;
 					if (!ok) {
 						const char* names[] = {"OUT(visible)", "IN", "INTERSECT"};
-						issue = "draw " + std::to_string(renderer_handle.id()) + " state " + names[state] + " (engine " +
-								std::to_string((int)get_clipping_state_by_ancestors(Handle(e, 0))) + ") uploads " +
-								list_text(uploaded) + " want " + (state == 1 ? list_text(culled_clips) + " or " : "") +
-								list_text(full_clips) + label_text;
+						issue = "draw " + std::to_string(renderer_handle.id()) + " state " + names[state] +
+								" (engine " + std::to_string((int)get_clipping_state_by_ancestors(Handle(e, 0))) +
+								") uploads " + list_text(uploaded) + " want " +
+								(state == 1 ? list_text(culled_clips) + " or " : "") + list_text(full_clips) +
+								label_text;
 						report(e, tree_info, issue);
 						return;
 					}
 					if (state != 2 && is_full && !full_clips.empty() && full_clips.size() != culled_clips.size()) {
 						clip_cull_misses++;
 						if (log_issues && clip_cull_misses <= 3)
-							Log::info("[clip-cull] miss: node", e, state == 1 ? "fully in" : "fully out but visible",
-									  "still uploads", list_text(uploaded));
+							Log::info(
+								"[clip-cull] miss: node", e, state == 1 ? "fully in" : "fully out but visible",
+								"still uploads", list_text(uploaded)
+							);
 					}
 				}
 			});

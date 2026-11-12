@@ -38,7 +38,7 @@ Mark with [Done] when added; the tests will be switched over to the public API a
     API: set_label_align(e, LEFT | CENTER | RIGHT), set_label_max_width(e, w) -> word wrap,
          optional set_label_overflow(e, CLIP | ELLIPSIS).
 
-[]: 6. Simple layout containers (row / column / grid).
+[Handled]: 6. Simple layout containers (row / column / grid).
     Why: the picker places 72 swatches, 3 sliders and the recent row by hand (x = 8 + step * i) and
     recomputes the inner container size every time an item is added; the lab boxes do the same.
     API: set_layout_kind(e, NONE | ROW | COLUMN | GRID) + set_layout_spacing(e, gap),
@@ -76,7 +76,7 @@ Mark with [Done] when added; the tests will be switched over to the public API a
     Why: with use_custom_size an image stretches to its rect; avatars / thumbnails need aspect kept.
     API: set_image_fill_mode(e, STRETCH | FIT | FILL) (FILL crops via image_rect).
 
-[]: 13. Font size limits made visible.
+[Handled]: 13. Font size limits made visible.
     Why: font sizes are clamped to [6, 72] silently and the stroke is capped by the SDF padding.
     API: get_label_min_font_size / get_label_max_font_size (or a log once when clamped).
 

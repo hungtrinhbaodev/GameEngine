@@ -528,7 +528,7 @@ void create_layout() {
 	Engine::set_layout_background_color(layout, random_color());
 	Engine::set_layout_border_radius(layout, 8.f);
 	Engine::set_rotation(layout, 5.f);
-	Engine::set_layout_clipping_enabled(layout, true);
+	// Engine::set_layout_clipping_enabled(layout, true);
 	Engine::set_touch_enabled(layout, true);
 	Engine::set_touch_caller(layout, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
 
@@ -545,14 +545,14 @@ void create_layout() {
 	// Engine::set_content_size(layout2, {132.f, 86.f});
 	Engine::set_anchor(layout2, {0.5f, 0.5f});
 	Engine::set_position(layout2, {0.f, 86.f});
-	Engine::set_scale(layout2, {1.5f, 1.5f});
+	// Engine::set_scale(layout2, {1.5f, 1.5f});
 	Engine::set_opacity(layout, 0.55f);
 	Engine::set_rotation(layout2, 10.f);
 	Engine::set_layout_border_radius(layout2, 8.f);
 	Engine::set_layout_background_enabled(layout2, true);
 	Engine::set_layout_background_color(layout2, random_color());
 	Engine::set_opacity(layout2, 1.f);
-	Engine::set_layout_clipping_enabled(layout2, true);
+	// Engine::set_layout_clipping_enabled(layout2, true);
 	Engine::set_touch_enabled(layout2, true);
 	layouts.push_back(layout2);
 
@@ -560,21 +560,23 @@ void create_layout() {
 	Engine::set_content_size(layout3, {121.f, 126.f});
 	Engine::set_position(layout3, {50.f, 0.f});
 	Engine::set_anchor(layout3, {0.5f, 0.5f});
-	Engine::set_scale(layout3, {0.85f, 0.85f});
+	// Engine::set_scale(layout3, {0.85f, 0.85f});
 	Engine::set_layout_background_enabled(layout3, true);
 	Engine::set_layout_background_color(layout3, random_color());
 	Engine::set_touch_enabled(layout3, true);
 	layouts.push_back(layout3);
 
 	auto image = Engine::create_image();
-	Engine::set_position(image, {60.f, 50.f});
+	Engine::set_position(image, screen_size * 0.5f);
 	Engine::set_anchor(image, {0.5f, 0.5f});
-	Engine::set_scale(image, {1.25f, 1.25f});
-	Engine::set_rotation(image, 30.f);
+	// Engine::set_scale(image, {1.25f, 1.25f});
+	Engine::set_image_fit_mode(image, Engine::IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_FIT);
+	Engine::set_content_size(image, {70.f, 100.f});
+	// Engine::set_rotation(image, 30.f)
 	Engine::set_image_path(image, random_item(texture_paths));
+	Engine::set_z_order(image, 1);
 	// Engine::set_image_rect(image, {0.3f, 0.2f, 0.7f, 0.8f});
 	images.push_back(image);
-	Engine::add_child(layout3, image);
 
 	label = Engine::create_label();
 	Engine::set_label_font_path(label, "");
@@ -611,9 +613,9 @@ void create_layout() {
 	Handle image_2 = Engine::create_image();
 	Engine::set_image_path(image_2, "res/GemsBarBg.png");
 	Engine::set_nine_scale_enabled(image_2, true);
-	Engine::set_content_size(image_2, {150.f, 200.f});
+	Engine::set_image_nine_scale_size(image_2, {150.f, 200.f});
 	Engine::set_nine_scale_rect_ratio(image_2, {0.2f, 0.2f, 0.6f, 0.6f});
-	Engine::set_position(image_2, {300.f, 50.f});
+	// Engine::set_position(image_2, {300.f, 50.f});
 	// Engine::set_rotation(image_2, 30.f);
 	Engine::set_anchor(image_2, {0.5f, 0.5f});
 	// Engine::set_touch_enabled(image_2, true);
@@ -627,6 +629,7 @@ void create_layout() {
 	Engine::add_child(node, layout);
 	Engine::add_child(layout, label);
 	Engine::add_child(layout2, layout3);
+	Engine::add_child(Engine::get_root(), image);
 
 	Engine::set_layout_border_color(layout, {0.f, 0.2f, 0.2f});
 	Engine::set_layout_border_width(layout, 3.f);

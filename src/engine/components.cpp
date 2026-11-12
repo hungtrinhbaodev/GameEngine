@@ -131,9 +131,22 @@ namespace Engine {
 		return world_transform;
 	}
 
-	void Label_Renderer_Information::update_inner_text_by(const glm::vec2& text_size) {
-		if (!use_custom_size)
-			return;
+	void Image_Renderer_Information::update_transform_inner_image(
+		const glm::vec2& size, const glm::vec2& self_scale, const World_Transform_2D& world_transform
+	) {
+		inner_image_transform.anchor = glm::vec2{0.5f, 0.5f};
+		inner_image_transform.position = (glm::vec2{0.5f, 0.5f} - world_transform.anchor) * size;
+		inner_image_transform.scale = self_scale;
+		inner_image_transform.is_visible = world_transform.is_visible;
+		inner_image_transform.color = world_transform.color;
+		inner_image_transform.opacity = world_transform.opacity;
+	}
+
+	void Label_Renderer_Information::update_inner_text_by(
+		const glm::vec2& text_size, const World_Transform_2D& world_transform
+	) {
+		inner_label_transform.color = world_transform.color;
+		inner_label_transform.opacity = world_transform.opacity;
 		auto fit_transform = [this](const glm::vec2& text_size, const glm::vec2& inner_size, const glm::vec2& padding) {
 			glm::vec2 label_position = {0.f, 0.f};
 			switch (horizontal_align) {
@@ -236,7 +249,7 @@ namespace Engine {
 				line_widths.back() += space_width + word_width;
 				continue;
 			}
-			if (fit_mode == LABEL_RENDER_FIT_MODE::ELLIPSIS && (int)lines.size() >= max_lines) {
+			if (fit_mode == LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_ELLIPSIS && (int)lines.size() >= max_lines) {
 				truncated = true;
 				break;
 			}
@@ -264,7 +277,7 @@ namespace Engine {
 		);
 		fit_transform(text_size, text_helper.get_size(), padding);
 		switch (fit_mode) {
-			case LABEL_RENDER_FIT_MODE::CLIP: {
+			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_CLIP: {
 				clipping_enabled = true;
 				break;
 			}
