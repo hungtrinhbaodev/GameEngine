@@ -24,8 +24,8 @@ namespace {
 int main(int argc, char** argv) {
 	bool perf = argc > 1 && std::string(argv[1]) == "--perf";
 	bool self_test = perf || (argc > 1 && std::string(argv[1]) == "--self-test");
-	// the engine loads shaders relative to the working directory: run from the executable's folder so
-	// opening build-editor/editor from Finder (cwd = home) or another folder still finds res/.
+	// TODO(engine finding 41): the label fit code loads fonts relative to the working directory. Run from the
+	// executable's folder so opening build-editor/editor from Finder (cwd = home) still finds res/.
 	std::error_code cwd_error;
 	std::filesystem::current_path(Utils::get_root_path(), cwd_error);
 	if (!glfwInit()) {
@@ -53,6 +53,7 @@ int main(int argc, char** argv) {
 		start = current;
 		if (self_test && !Editor_Self_Test::tick())
 			glfwSetWindowShouldClose(window, GLFW_TRUE);
+		Editor::tick();
 		Engine::process_frame(dt);
 	}
 	int exit_code = self_test && Editor_Self_Test::failures() > 0 ? 1 : 0;
