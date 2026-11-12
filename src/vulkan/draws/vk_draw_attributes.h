@@ -26,6 +26,7 @@ namespace Vulkan {
 	struct Texture_Helper {
 		float width = 0.f;
 		float height = 0.f;
+		glm::vec2 get_size();
 	};
 
 	struct Model_Animation_Helper {

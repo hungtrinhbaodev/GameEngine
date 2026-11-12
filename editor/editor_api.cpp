@@ -40,7 +40,7 @@ namespace Editor_Api {
 	}
 
 	void set_scroll_drag_enabled(const Handle& scroll_layout, bool enabled) {
-		Engine::set_touch_layout_scroll_enabled(scroll_layout, enabled);
+		Engine::set_layout_scroll_touch_enabled(scroll_layout, enabled);
 		Registry& registry = Engine::get_registry();
 		for (const auto& child : Engine::get_children(scroll_layout)) {
 			if (!registry.has<Engine::Description>(child.id()))

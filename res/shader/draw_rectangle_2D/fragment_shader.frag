@@ -52,15 +52,21 @@ bool is_clipping() {
 
 void main() {
     if (is_clipping()) discard;
-    float d = -sd_round_rect(local_pos, half_size, border_radius);
-    float smooth_width = fwidth(d);
-    float  alpha = smoothstep(-smooth_width, smooth_width, d);
-    if (alpha <= 0.f) discard;
-    if (border_width <= 0) {
-        out_color = vec4(frag_color, alpha * opacity);
+    if (border_width <= 0 && border_radius <= 0) {
+        out_color = vec4(frag_color, opacity);
     }
     else {
-        float border_alpha = smoothstep(border_width -smooth_width , border_width + smooth_width, d);
-        out_color = vec4(mix(border_color, frag_color, border_alpha), alpha * opacity);
+        float d = -sd_round_rect(local_pos, half_size, border_radius);
+        float smooth_width = fwidth(d);
+        float  alpha = smoothstep(-smooth_width, smooth_width, d);
+        if (alpha <= 0.f) discard;
+        if (border_width <= 0) {
+            out_color = vec4(frag_color, alpha * opacity);
+        }
+        else {
+            float border_alpha = smoothstep(border_width -smooth_width , border_width + smooth_width, d);
+            out_color = vec4(mix(border_color, frag_color, border_alpha), alpha * opacity);
+        }
     }
+    
 }

@@ -11,8 +11,6 @@
 
 namespace Engine {
 
-	const float RATE_CANCEL_MOVE = 0.5f;
-
 	const uint32_t MAX_LOG_RAISE = 10;
 
 	Id_Generator id_generator;
@@ -27,13 +25,13 @@ namespace Engine {
 
 	uint32_t current_log_count = 0;
 
-	bool is_canceling = false;
-
-	uint32_t spawn_touch(const glm::vec2& touch_world_position) {
+	uint32_t spawn_touch(const glm::vec2& touch_world_position, int button, int mods) {
 		uint32_t touch_id = id_generator.gen_id();
 		Handled_Touches_Information touch_info{};
 		touch_info.touch_state = TOUCH_STATE::TOUCH_INIT;
 		touch_info.touch_world_position = touch_world_position;
+		touch_info.touch_type = button;
+		touch_info.touch_mods = mods;
 		handling_touches.insert(touch_id, touch_info);
 		return touch_id;
 	}
@@ -64,7 +62,7 @@ namespace Engine {
 				glm::vec2 screen_size = get_window_size();
 				glm::vec2 world_pos = glm::vec2((float)x, screen_size.y - (float)y);
 				if (action == GLFW_PRESS) {
-					window_unique_touch_id = spawn_touch(world_pos);
+					window_unique_touch_id = spawn_touch(world_pos, button, mods);
 				} else if (action == GLFW_RELEASE) {
 					/**
 					 * @Note maybe the touch canceled because of
@@ -97,17 +95,8 @@ namespace Engine {
 		if (!handling_touches.has(window_unique_touch_id))
 			return;
 		auto& touch_info = handling_touches.modify(window_unique_touch_id);
-		bool is_canceling = false;
-		const auto& last_touch = touch_info.touch_world_position;
 		glm::vec2 screen_size = get_window_size();
 		glm::vec2 cur_touch{(float)x, screen_size.y - (float)y};
-		if (glm::distance(cur_touch, last_touch) >= RATE_CANCEL_MOVE * std::max(screen_size.x, screen_size.y) ||
-			std::min(cur_touch.x, cur_touch.y) < 0.f || cur_touch.x > screen_size.x || cur_touch.y > screen_size.y) {
-			is_canceling = true;
-		}
-		if (is_canceling) {
-			touch_info.touch_state = TOUCH_STATE::TOUCH_CANCEL;
-		}
 		switch (touch_info.touch_state) {
 			case TOUCH_STATE::TOUCH_BEGAN:
 			case TOUCH_STATE::TOUCH_MOVE: {
@@ -180,6 +169,10 @@ namespace Engine {
 			handling_touches.erase(removed_id);
 			id_generator.release_id(removed_id);
 		}
+	}
+
+	bool is_touch_entity_handling(const Handle& e) {
+		return handling_entities.has(e.id());
 	}
 
 	void discard_handling_touches_entities(const std::vector<Handle>& discard_entities) {

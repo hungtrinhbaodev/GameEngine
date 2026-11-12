@@ -89,7 +89,7 @@ namespace Engine {
 
 	// Query/Update objects.
 
-	bool is_touch_position_valid_with(const Handle& e, const glm::vec2& touch_position);
+	bool is_world_position_in_entity_rect(const Handle& e, const glm::vec2& touch_position);
 
 	bool is_scroll_position_valid_with(const Handle& e, const glm::vec2& scroll_position);
 
@@ -147,9 +147,9 @@ namespace Engine {
 
 	bool is_swallow_touches(const Handle& e);
 
-	void set_touch_caller(const Handle& e, const std::function<void(Handle, TOUCH_STATE, glm::vec2)> caller);
+	void set_touch_caller(const Handle& e, const std::function<void(Handle, TOUCH_STATE, glm::vec2, int, int)> caller);
 
-	void set_click_caller(const Handle& e, const std::function<void(Handle, glm::vec2)> caller);
+	void set_click_caller(const Handle& e, const std::function<void(Handle, glm::vec2, int, int)> caller);
 
 	void set_nine_scale_enabled(const Handle& e, bool enabled);
 
@@ -267,9 +267,13 @@ namespace Engine {
 
 	float get_scroll_speed(const Handle& e);
 
-	void set_touch_layout_scroll_enabled(const Handle& e, bool enabled);
+	void set_scroll_dragging_threshold(const Handle& e, float threshold = 7.5f);
 
-	bool is_touch_layout_scroll_enabled(const Handle& e);
+	float get_scroll_dragging_threshold(const Handle& e);
+
+	void set_layout_scroll_touch_enabled(const Handle& e, bool enabled);
+
+	bool is_layout_scroll_touch_enabled(const Handle& e);
 
 	void set_swallow_scrolling(const Handle& e, bool swallows);
 
@@ -295,7 +299,7 @@ namespace Engine {
 
 	float get_label_padding_horizontal(const Handle& e);
 
-	void set_label_padding_vertial(const Handle& e, float padding_vertical);
+	void set_label_padding_vertical(const Handle& e, float padding_vertical);
 
 	float get_label_padding_vertical(const Handle& e);
 
@@ -306,5 +310,22 @@ namespace Engine {
 	int get_min_font_size(const std::string& path);
 
 	int get_max_font_size(const std::string& path);
+
+	void set_clear_screen_color(const glm::vec3& color, float opacity = 1.f);
+
+	glm::vec2 query_image_size(const std::string& path);
+
+	/**
+	 * @Note: when this function call all
+	 * other entity is touching beside
+	 * this entity will be canceled.
+	 */
+	void claim_touch(const Handle& e);
+
+	glm::vec2 get_cursor_world_position();
+
+	void set_touch_cancel_on_fast_move(const Handle& e, bool enabled);
+
+	Handle find_topmost_node_at(const glm::vec2& world_position, Handle under = get_root());
 
 } // namespace Engine

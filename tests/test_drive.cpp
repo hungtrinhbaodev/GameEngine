@@ -16,7 +16,7 @@
 namespace Engine {
 	extern Handle_Generator entity_generator;
 	extern uint32_t window_unique_touch_id;
-	uint32_t spawn_touch(const glm::vec2& touch_world_position);
+	uint32_t spawn_touch(const glm::vec2& touch_world_position, int button, int mods);
 	void release_touch(uint32_t touch_id, const glm::vec2& touch_world_position);
 	void on_scroll_fire(GLFWwindow* window, double xoffset, double yoffset);
 } // namespace Engine
@@ -209,7 +209,7 @@ namespace Test {
 		}
 
 		void press(const glm::vec2& world) {
-			Engine::window_unique_touch_id = Engine::spawn_touch(world);
+			Engine::window_unique_touch_id = Engine::spawn_touch(world, GLFW_MOUSE_BUTTON_LEFT, 0);
 		}
 
 		void move(const glm::vec2& world) {
@@ -569,6 +569,23 @@ namespace Test {
 			});
 
 			auto list_y = std::make_shared<float>(0.f);
+
+			// item 24: set_scroll_enabled(false) must stop drag scrolling too (it toggled the wrong
+			// internal handle before the fix, so the layout still scrolled after 7.5 px of drag).
+			then(0, [list_y]() {
+				*list_y = Engine::get_position(container_of(find_scroll_layout())).y;
+				Engine::set_scroll_enabled(find_scroll_layout(), false);
+			});
+			drag([]() { return world_center(find_scroll_layout()); }, {0.f, 80.f}, "list content (scroll disabled)");
+			then(0, [list_y]() {
+				float y = Engine::get_position(container_of(find_scroll_layout())).y;
+				expect(
+					y == *list_y, "set_scroll_enabled(false) stops drag scrolling",
+					std::to_string(*list_y) + " -> " + std::to_string(y)
+				);
+				Engine::set_scroll_enabled(find_scroll_layout(), true);
+			});
+
 			then(0, [list_y]() { *list_y = Engine::get_position(container_of(find_scroll_layout())).y; });
 			wheel([]() { return world_center(find_scroll_layout()); }, 4.f);
 			then(0, [list_y]() {

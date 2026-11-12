@@ -156,10 +156,17 @@ namespace Engine {
 		bool swallow_touches = true;
 		TOUCH_STATE touch_state = TOUCH_STATE::TOUCH_INIT;
 		glm::vec2 touch_world_position{0.f};
-		std::function<void(Handle e, TOUCH_STATE touch_state, glm::vec2 touch_world_position)> caller = nullptr;
-		std::function<void(Handle e, glm::vec2 touch_world_position)> click_caller = nullptr;
+		std::function<
+			void(Handle e, TOUCH_STATE touch_state, glm::vec2 touch_world_position, int touch_type, int touch_mods)>
+			caller = nullptr;
+		std::function<void(Handle e, glm::vec2 touch_world_position, int touch_type, int touch_mods)> click_caller =
+			nullptr;
 		std::array<glm::vec2, 4> transformed_rect{};
 		uint32_t touched_order = 0;
+		bool claim_touch = false;
+		int touch_type = -1;
+		int touch_mods = -1;
+		bool canceling_touch_enabled = false;
 	};
 
 	struct Nine_Scale_Information {
@@ -183,13 +190,14 @@ namespace Engine {
 		Handle container_touch_handle;
 		glm::vec2 size{0.f, 0.f};
 		SCROLL_DIRECTION scroll_direction = SCROLL_DIRECTION::SCROLL_VERTICAL;
-		float scroll_speed = 1.f;
+		float scroll_speed = 1.5f;
 		glm::vec2 start_touch{0.f, 0.f};
 		bool swallow_scroll = true;
 		std::function<void(Handle e, float delta_scroll)> caller = nullptr;
 		std::array<glm::vec2, 4> transformed_rect{};
 		uint32_t scroll_order = 0;
 		TOUCH_SCROLL_STATE touch_state = TOUCH_SCROLL_STATE::IDLE;
+		float dragging_threshold = 7.5f;
 	};
 
 	struct Draw_Order {

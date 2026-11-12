@@ -39,19 +39,21 @@ namespace Parser {
 		}
 	};
 
-	const int MAX_PIXEL_HEIGHT = 72;
+	const int MAX_PIXEL_HEIGHT = 48;
 
 	const int START_CHAR = 32;
 
 	const int NUM_CHAR = 95;
 
-	const int MAX_FONT_SIZE = MAX_PIXEL_HEIGHT;
+	const int MAX_FONT_SIZE = 64;
 
-	const int MIN_FONT_SIZE = 6;
+	const int RENDER_FONT_SIZE = MAX_PIXEL_HEIGHT;
+
+	const int MIN_FONT_SIZE = 8;
 
 	const int ATLAS_PADDING = 2;
 
-	const int GLYPH_PADDING = 16;
+	const int GLYPH_PADDING = 12;
 
 	const float RATIO_MAX_STROKE = 0.45f;
 
@@ -65,7 +67,7 @@ namespace Parser {
 
 	const std::string BIN_DATA_EXTENSION_NAME = ".bin_cached";
 
-	const int META_DATA_VERSION = 3;
+	const int META_DATA_VERSION = 4;
 
 	Font_SFD_Meta_Data_Cache get_meta_data_from(const std::string& font_path) {
 		Font_SFD_Meta_Data_Cache meta_data{};
@@ -94,6 +96,7 @@ namespace Parser {
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, size_atlas), sizeof(int));
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, min_font_size), sizeof(int));
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, max_font_size), sizeof(int));
+		Utils::put_byte_from(&font, to_bytes, offsetof(Font, render_font_size), sizeof(int));
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, line_height), sizeof(float));
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, max_stroke_size), sizeof(float));
 		Utils::put_byte_from(&font, to_bytes, offsetof(Font, sfd_padding), sizeof(float));
@@ -120,6 +123,7 @@ namespace Parser {
 		offset += Utils::read_byte_from<int>(bytes, &font.size_atlas, offset);
 		offset += Utils::read_byte_from<int>(bytes, &font.min_font_size, offset);
 		offset += Utils::read_byte_from<int>(bytes, &font.max_font_size, offset);
+		offset += Utils::read_byte_from<int>(bytes, &font.render_font_size, offset);
 		offset += Utils::read_byte_from<float>(bytes, &font.line_height, offset);
 		offset += Utils::read_byte_from<float>(bytes, &font.max_stroke_size, offset);
 		offset += Utils::read_byte_from<float>(bytes, &font.sfd_padding, offset);
@@ -195,6 +199,7 @@ namespace Parser {
 		font.max_char_height = MAX_PIXEL_HEIGHT;
 		font.min_font_size = MIN_FONT_SIZE;
 		font.max_font_size = MAX_FONT_SIZE;
+		font.render_font_size = RENDER_FONT_SIZE;
 		int ascent = 0, descent = 0, line_gap = 0;
 		stbtt_GetFontVMetrics(&font_info, &ascent, &descent, &line_gap);
 		float scale = stbtt_ScaleForPixelHeight(&font_info, MAX_PIXEL_HEIGHT);
@@ -220,7 +225,7 @@ namespace Parser {
 		return font;
 	}
 
-	Font parse_font_2(const std::string& file_path) {
+	Font parse_sdf_font(const std::string& file_path) {
 		Profiler::start_scope(SCOPE_LOAD_FONT);
 		Font font{};
 		if (is_font_cached_on_disk(file_path)) {
@@ -293,6 +298,7 @@ namespace Parser {
 		font.min_font_size = MIN_FONT_SIZE;
 		font.max_stroke_size = GLYPH_PADDING * RATIO_MAX_STROKE;
 		font.sfd_padding = GLYPH_PADDING;
+		font.render_font_size = RENDER_FONT_SIZE;
 		int ascent = 0, descent = 0, line_gap = 0;
 		stbtt_GetFontVMetrics(&font_info, &ascent, &descent, &line_gap);
 		font.line_height = (ascent - descent + line_gap) * scale;
@@ -334,7 +340,7 @@ namespace Parser {
 	}
 
 	void test(const std::string& file_path) {
-		Font font = parse_font_2(file_path);
+		Font font = parse_sdf_font(file_path);
 		save_bin_cached_font(file_path, font);
 		Font font_result = load_bin_cached_font(file_path);
 		Log::info("What is font_result", font_result);

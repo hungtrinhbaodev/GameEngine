@@ -1,3 +1,4 @@
+#include <utils.h>
 #include <vulkan/vk_pipeline.h>
 #include <vulkan/vk_structs.h>
 #include <vulkan/vk_utils.h>
@@ -19,8 +20,10 @@ namespace Vulkan {
 
 		// Make shader stage create info for vertex and fragment shader
 		std::vector<VkPipelineShaderStageCreateInfo> shader_stages;
-		VkShaderModule vert_module = Structs::make_shader_module(config.vertex_shader_path, device);
-		VkShaderModule frag_module = Structs::make_shader_module(config.fragment_shader_path, device);
+		VkShaderModule vert_module =
+			Structs::make_shader_module(::Utils::get_root_path() + config.vertex_shader_path, device);
+		VkShaderModule frag_module =
+			Structs::make_shader_module(::Utils::get_root_path() + config.fragment_shader_path, device);
 		shader_stages.push_back(
 			Structs::make_pipeline_shader_stage_create_info(vert_module, VK_SHADER_STAGE_VERTEX_BIT)
 		);

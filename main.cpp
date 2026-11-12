@@ -530,7 +530,7 @@ void create_layout() {
 	Engine::set_rotation(layout, 5.f);
 	// Engine::set_layout_clipping_enabled(layout, true);
 	Engine::set_touch_enabled(layout, true);
-	Engine::set_touch_caller(layout, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
+	Engine::set_touch_caller(layout, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position, int, int) {
 
 	});
 	layouts.push_back(layout);
@@ -589,7 +589,7 @@ void create_layout() {
 	Engine::set_touch_enabled(label, true);
 	Engine::set_z_order(label, 1);
 	Engine::set_scale(label, {1.25f, 1.25f});
-	Engine::set_touch_caller(label, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
+	Engine::set_touch_caller(label, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position, int, int) {
 		switch (touch_state) {
 			case Engine::TOUCH_STATE::TOUCH_BEGAN: {
 				start_move_position = world_position;
@@ -619,7 +619,7 @@ void create_layout() {
 	// Engine::set_rotation(image_2, 30.f);
 	Engine::set_anchor(image_2, {0.5f, 0.5f});
 	// Engine::set_touch_enabled(image_2, true);
-	Engine::set_click_caller(image_2, [](Handle e, glm::vec2 world_position) {
+	Engine::set_click_caller(image_2, [](Handle e, glm::vec2 world_position, int, int) {
 		Log::info("What is here do we click it!", world_position);
 	});
 	images.push_back(image_2);
@@ -646,6 +646,7 @@ void create_layout() {
 	Engine::set_layout_clipping_enabled(scroll_layout, true);
 	Engine::add_child(Engine::get_root(), scroll_layout);
 	Engine::add_child_to_container(scroll_layout, image_2);
+	// Engine::set_layout_scroll_touch_enabled(scroll_layout, false);
 	// Engine::add_child(Engine::get_root(), image_2);
 
 	Log::info("What is my container size", layout2.id(), layout3.id());

@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h>
 #include <cmath>
 #include <engine/engine.h>
+#include <engine/touch_handler.h>
 #include <glfw/glfw3.h>
 #include <glm/glm.hpp>
 #include <log.h>
@@ -15,8 +16,10 @@
 #include <test_ui.h>
 
 namespace Engine {
-	uint32_t spawn_touch(const glm::vec2& touch_world_position);
+	uint32_t spawn_touch(const glm::vec2& touch_world_position, int button, int mods);
 	void release_touch(uint32_t touch_id, const glm::vec2& touch_world_position);
+	extern uint32_t window_unique_touch_id;
+	extern glm::vec2 cursor_world_position;
 } // namespace Engine
 
 namespace Test {
@@ -53,7 +56,7 @@ namespace Test {
 		 */
 		bool reentry_click(int case_id) {
 			try {
-				uint32_t id = Engine::spawn_touch(reentry_point);
+				uint32_t id = Engine::spawn_touch(reentry_point, GLFW_MOUSE_BUTTON_LEFT, 0);
 				Engine::process_frame(0.f);
 				Engine::release_touch(id, reentry_point);
 				Engine::process_frame(0.f);
@@ -347,10 +350,10 @@ namespace Test {
 				Engine::set_anchor(button, {0.5f, 0.5f});
 				Engine::set_position(button, reentry_point);
 				Engine::set_touch_enabled(button, true);
-				Engine::set_click_caller(button, [clicks](Handle, glm::vec2) { (*clicks)++; });
+				Engine::set_click_caller(button, [clicks](Handle, glm::vec2, int, int) { (*clicks)++; });
 				Engine::add_child(root, button);
 				Engine::process_frame(0.f);
-				uint32_t id = Engine::spawn_touch(reentry_point);
+				uint32_t id = Engine::spawn_touch(reentry_point, GLFW_MOUSE_BUTTON_LEFT, 0);
 				Engine::process_frame(0.f);
 				Engine::release_touch(id, reentry_point);
 				Engine::process_frame(0.f);
@@ -359,7 +362,7 @@ namespace Test {
 					"1", *clicks == 1, "press + release inside fires one click (" + std::to_string(*clicks) + ")"
 				);
 				*clicks = 0;
-				id = Engine::spawn_touch(reentry_point);
+				id = Engine::spawn_touch(reentry_point, GLFW_MOUSE_BUTTON_LEFT, 0);
 				Engine::process_frame(0.f);
 				Engine::release_touch(id, {5.f, 5.f});
 				Engine::process_frame(0.f);
@@ -369,7 +372,7 @@ namespace Test {
 					"press inside, release far outside fires no click (" + std::to_string(*clicks) + " clicks)"
 				);
 				*clicks = 0;
-				id = Engine::spawn_touch({5.f, 5.f});
+				id = Engine::spawn_touch({5.f, 5.f}, GLFW_MOUSE_BUTTON_LEFT, 0);
 				Engine::process_frame(0.f);
 				Engine::release_touch(id, reentry_point);
 				Engine::process_frame(0.f);
@@ -381,6 +384,321 @@ namespace Test {
 				Engine::process_frame(0.f);
 			} catch (const std::exception& exception) {
 				api_expect("1", false, std::string("threw: ") + exception.what());
+			}
+
+			// ---- 18. claim_touch: the claiming listener keeps the touch, every other listener still in
+			// the list gets exactly one TOUCH_CANCEL and nothing after it (drag out of a scroll layout).
+			try {
+				Handle cell = Engine::create_layout();
+				Engine::set_content_size(cell, {100.f, 100.f});
+				Engine::set_position(cell, {60.f, 60.f});
+				Engine::set_touch_enabled(cell, true);
+				Engine::set_swallow_touches(cell, false);
+				Engine::add_child(root, cell);
+				Handle scroll_stub = Engine::create_layout();
+				Engine::set_content_size(scroll_stub, {100.f, 100.f});
+				Engine::set_position(scroll_stub, {60.f, 60.f});
+				Engine::set_touch_enabled(scroll_stub, true);
+				Engine::set_swallow_touches(scroll_stub, false);
+				Engine::add_child(root, scroll_stub);
+				Engine::process_frame(0.f);
+
+				auto scroll_states = std::make_shared<std::vector<Engine::TOUCH_STATE>>();
+				auto cell_states = std::make_shared<std::vector<Engine::TOUCH_STATE>>();
+				auto claimed = std::make_shared<bool>(false);
+				Engine::set_touch_caller(
+					scroll_stub,
+					[scroll_states](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
+						scroll_states->push_back(state);
+					}
+				);
+				Engine::set_touch_caller(
+					cell, [cell_states, claimed, cell](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
+						cell_states->push_back(state);
+						if (state == Engine::TOUCH_STATE::TOUCH_MOVE && !*claimed) {
+							*claimed = true;
+							Engine::claim_touch(cell);
+						}
+					}
+				);
+
+				uint32_t id = Engine::spawn_touch({110.f, 110.f}, GLFW_MOUSE_BUTTON_LEFT, 0);
+				Engine::process_frame(0.f); // TOUCH_BEGAN to both
+				Engine::process_frame(0.f); // TOUCH_MOVE to both; cell claims here
+				Engine::process_frame(0.f); // scroll_stub already discarded; cell keeps moving
+				Engine::release_touch(id, {110.f, 110.f});
+				Engine::process_frame(0.f); // TOUCH_ENDED, only to cell
+				Engine::process_frame(0.f);
+
+				int cancels = 0;
+				for (const auto& state : *scroll_states) {
+					if (state == Engine::TOUCH_STATE::TOUCH_CANCEL)
+						cancels++;
+				}
+				api_expect(
+					"18", cancels == 1,
+					"the non-claiming listener gets exactly one TOUCH_CANCEL (" + std::to_string(cancels) + ")"
+				);
+				api_expect(
+					"18", !scroll_states->empty() && scroll_states->back() == Engine::TOUCH_STATE::TOUCH_CANCEL,
+					"TOUCH_CANCEL is the last thing the non-claiming listener ever sees"
+				);
+				api_expect(
+					"18", !cell_states->empty() && cell_states->back() == Engine::TOUCH_STATE::TOUCH_ENDED,
+					"the claiming listener keeps the touch through to TOUCH_ENDED"
+				);
+				Engine::clean_up(cell);
+				Engine::clean_up(scroll_stub);
+				Engine::process_frame(0.f);
+			} catch (const std::exception& exception) {
+				api_expect("18", false, std::string("threw: ") + exception.what());
+			}
+
+			// ---- 25. to_my_position_space with a non-default anchor (item 4's checks above only used
+			// anchor {0, 0}, so they missed the anchor-offset bug this fix addresses).
+			try {
+				Handle parent = Engine::create_layout();
+				Engine::set_content_size(parent, {100.f, 100.f});
+				Engine::set_anchor(parent, {0.5f, 0.5f});
+				Engine::set_position(parent, {300.f, 200.f});
+				Engine::add_child(root, parent);
+				Handle child = Engine::create_layout();
+				Engine::set_position(child, {10.f, 20.f});
+				Engine::add_child(parent, child);
+				Engine::process_frame(0.f);
+				glm::vec2 child_world = Engine::get_world_position(child);
+				glm::vec2 back = Engine::to_my_position_space(parent, child_world);
+				api_expect(
+					"25", nearly_equal(back, {10.f, 20.f}, 0.05f),
+					"to_my_position_space with anchor (0.5, 0.5) still returns the child's position measured "
+					"from the parent's bottom-left (" + vec_text(back) + ")"
+				);
+				Engine::clean_up(parent);
+				Engine::process_frame(0.f);
+			} catch (const std::exception& exception) {
+				api_expect("25", false, std::string("threw: ") + exception.what());
+			}
+
+			// ---- 17. query_image_size: reads a texture's pixel size directly, without creating a node.
+			try {
+				std::string missing_path = "res/this_file_does_not_exist_____.png";
+				glm::vec2 missing_size = Engine::query_image_size(missing_path);
+				api_expect(
+					"17", missing_size == glm::vec2(0.f, 0.f),
+					"a missing file returns {0, 0} (" + vec_text(missing_size) + ")"
+				);
+
+				std::string image_path = "res/AddonIcon5.png";
+				glm::vec2 queried = Engine::query_image_size(image_path);
+				api_expect(
+					"17", queried.x > 0.f && queried.y > 0.f, "an existing file returns a real size (" + vec_text(queried) + ")"
+				);
+
+				Handle image = Engine::create_image();
+				Engine::set_image_path(image, image_path);
+				Engine::add_child(root, image);
+				Engine::process_frame(0.f);
+				glm::vec2 rendered = Engine::get_content_size(image);
+				api_expect(
+					"17", nearly_equal(queried, rendered),
+					"matches the size the renderer measures for the same file (" + vec_text(queried) + " vs " +
+						vec_text(rendered) + ")"
+				);
+				Engine::clean_up(image);
+				Engine::process_frame(0.f);
+			} catch (const std::exception& exception) {
+				api_expect("17", false, std::string("threw: ") + exception.what());
+			}
+
+			// ---- 27. set_clear_screen_color: smoke test only, there is no readback API to check the
+			// value against (nothing in the pipeline exposes the current clear colour).
+			try {
+				Engine::set_clear_screen_color({0.1f, 0.2f, 0.3f}, 1.f);
+				Engine::process_frame(0.f);
+				Engine::set_clear_screen_color({0.5f, 0.5f, 0.5f}, 1.f); // restore the default
+				Engine::process_frame(0.f);
+				api_expect("27", true, "set_clear_screen_color runs without throwing");
+			} catch (const std::exception& exception) {
+				api_expect("27", false, std::string("threw: ") + exception.what());
+			}
+
+			// ---- 12. set_image_fit_mode / get_image_fit_mode: STRETCH scales each axis independently,
+			// FIT clamps to the smaller ratio, FILL clamps to the larger ratio.
+			try {
+				std::string path = "res/AddonIcon5.png";
+				glm::vec2 native = Engine::query_image_size(path);
+				Handle image = Engine::create_image();
+				Engine::set_image_path(image, path);
+				Engine::add_child(root, image);
+				Engine::process_frame(0.f);
+				api_expect(
+					"12", Engine::get_image_fit_mode(image) == Engine::IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_AUTO,
+					"a new image defaults to fit mode AUTO"
+				);
+
+				glm::vec2 target{native.x * 2.f, native.y}; // twice as wide as the image, same height
+				auto read_inner_scale = [&]() {
+					const auto& [info] = Engine::get_registry().read<Engine::Image_Renderer_Information>(image.id());
+					return info.inner_image_transform.scale;
+				};
+
+				Engine::set_image_fit_mode(image, Engine::IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_FIT);
+				api_expect(
+					"12", Engine::get_image_fit_mode(image) == Engine::IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_FIT,
+					"fit mode round-trips (FIT)"
+				);
+				Engine::set_content_size(image, target);
+				Engine::process_frame(0.f);
+				glm::vec2 fit_scale = read_inner_scale();
+				api_expect(
+					"12", nearly_equal(fit_scale, glm::vec2(1.f, 1.f), 0.05f),
+					"FIT clamps to the smaller axis ratio (" + vec_text(fit_scale) + ", want (1, 1))"
+				);
+
+				Engine::set_image_fit_mode(image, Engine::IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_FILL);
+				Engine::process_frame(0.f);
+				glm::vec2 fill_scale = read_inner_scale();
+				api_expect(
+					"12", nearly_equal(fill_scale, glm::vec2(2.f, 2.f), 0.05f),
+					"FILL clamps to the larger axis ratio (" + vec_text(fill_scale) + ", want (2, 2))"
+				);
+
+				Engine::set_image_fit_mode(image, Engine::IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_STRETCH);
+				Engine::process_frame(0.f);
+				glm::vec2 stretch_scale = read_inner_scale();
+				api_expect(
+					"12", nearly_equal(stretch_scale, glm::vec2(2.f, 1.f), 0.05f),
+					"STRETCH scales each axis independently (" + vec_text(stretch_scale) + ", want (2, 1))"
+				);
+
+				Engine::clean_up(image);
+				Engine::process_frame(0.f);
+			} catch (const std::exception& exception) {
+				api_expect("12", false, std::string("threw: ") + exception.what());
+			}
+
+			// ---- 19. find_topmost_node_at: works with no touch listener needed, honours z order.
+			try {
+				Handle a = Engine::create_layout();
+				Engine::set_content_size(a, {100.f, 100.f});
+				Engine::set_position(a, {800.f, 40.f});
+				Engine::set_z_order(a, 0);
+				Engine::add_child(root, a);
+				Handle b = Engine::create_layout();
+				Engine::set_content_size(b, {100.f, 100.f});
+				Engine::set_position(b, {800.f, 40.f});
+				Engine::set_z_order(b, 1);
+				Engine::add_child(root, b);
+				// neither node has touch enabled and neither has a caller set.
+				Engine::process_frame(0.f);
+				Handle top = Engine::find_topmost_node_at({850.f, 90.f});
+				api_expect(
+					"19", top.id() == b.id(), "the higher z-order node wins with no touch listener on either node"
+				);
+				Engine::set_z_order(a, 2);
+				Engine::process_frame(0.f);
+				top = Engine::find_topmost_node_at({850.f, 90.f});
+				api_expect("19", top.id() == a.id(), "re-ordering z_order flips which node is topmost");
+				Handle miss = Engine::find_topmost_node_at({5000.f, 5000.f});
+				api_expect("19", miss.is_invalid(), "a point outside every node returns an invalid handle");
+				Engine::clean_up(a);
+				Engine::clean_up(b);
+				Engine::process_frame(0.f);
+			} catch (const std::exception& exception) {
+				api_expect("19", false, std::string("threw: ") + exception.what());
+			}
+
+			// ---- 20. get_cursor_world_position: returns whatever the real cursor callback last stored.
+			try {
+				Engine::cursor_world_position = {321.f, 654.f};
+				api_expect(
+					"20", nearly_equal(Engine::get_cursor_world_position(), {321.f, 654.f}),
+					"returns the stored cursor world position (" + vec_text(Engine::get_cursor_world_position()) + ")"
+				);
+			} catch (const std::exception& exception) {
+				api_expect("20", false, std::string("threw: ") + exception.what());
+			}
+
+			// ---- 21. set_touch_cancel_on_fast_move(e, false): a fast drag across the window must not
+			// get cancelled for a node that opted out.
+			try {
+				Handle e = Engine::create_layout();
+				Engine::set_content_size(e, {1200.f, 720.f});
+				Engine::set_touch_enabled(e, true);
+				Engine::set_swallow_touches(e, false);
+				Engine::add_child(root, e);
+				Engine::set_touch_cancel_on_fast_move(e, false);
+				Engine::process_frame(0.f);
+
+				auto states = std::make_shared<std::vector<Engine::TOUCH_STATE>>();
+				Engine::set_touch_caller(e, [states](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
+					states->push_back(state);
+				});
+
+				uint32_t id = Engine::spawn_touch({10.f, 10.f}, GLFW_MOUSE_BUTTON_LEFT, 0);
+				Engine::window_unique_touch_id = id;
+				Engine::process_frame(0.f); // TOUCH_BEGAN
+				glm::vec2 screen = Engine::get_window_size();
+				glm::vec2 far_world{1100.f, 700.f}; // far corner: well past the fast-move cancel threshold
+				Engine::on_cursor_touch_position(nullptr, far_world.x, screen.y - far_world.y);
+				Engine::process_frame(0.f);
+				Engine::process_frame(0.f);
+
+				bool ever_cancelled = false;
+				for (const auto& state : *states) {
+					if (state == Engine::TOUCH_STATE::TOUCH_CANCEL)
+						ever_cancelled = true;
+				}
+				api_expect(
+					"21", !ever_cancelled,
+					"a fast drag is not cancelled once this node opts out of the fast-move cancel rule"
+				);
+				if (Engine::is_valid(e))
+					Engine::release_touch(id, far_world);
+				Engine::process_frame(0.f);
+				Engine::process_frame(0.f);
+				Engine::clean_up(e);
+				Engine::process_frame(0.f);
+			} catch (const std::exception& exception) {
+				api_expect("21", false, std::string("threw: ") + exception.what());
+			}
+
+			// ---- 22. the touch caller receives the real mouse button and modifier flags from spawn_touch.
+			try {
+				Handle e = Engine::create_layout();
+				Engine::set_content_size(e, {50.f, 50.f});
+				Engine::set_position(e, {700.f, 700.f});
+				Engine::set_touch_enabled(e, true);
+				Engine::add_child(root, e);
+				Engine::process_frame(0.f);
+
+				auto seen_button = std::make_shared<int>(-1);
+				auto seen_mods = std::make_shared<int>(-1);
+				Engine::set_touch_caller(
+					e, [seen_button, seen_mods](Handle, Engine::TOUCH_STATE state, glm::vec2, int button, int mods) {
+						if (state == Engine::TOUCH_STATE::TOUCH_BEGAN) {
+							*seen_button = button;
+							*seen_mods = mods;
+						}
+					}
+				);
+				uint32_t id = Engine::spawn_touch({710.f, 710.f}, GLFW_MOUSE_BUTTON_RIGHT, GLFW_MOD_SHIFT);
+				Engine::process_frame(0.f);
+				api_expect(
+					"22", *seen_button == GLFW_MOUSE_BUTTON_RIGHT,
+					"the touch caller receives the real button (" + std::to_string(*seen_button) + ")"
+				);
+				api_expect(
+					"22", *seen_mods == GLFW_MOD_SHIFT,
+					"the touch caller receives the modifier flags (" + std::to_string(*seen_mods) + ")"
+				);
+				Engine::release_touch(id, {710.f, 710.f});
+				Engine::process_frame(0.f);
+				Engine::process_frame(0.f);
+				Engine::clean_up(e);
+				Engine::process_frame(0.f);
+			} catch (const std::exception& exception) {
+				api_expect("22", false, std::string("threw: ") + exception.what());
 			}
 
 			Engine::process_frame(0.f);
@@ -412,11 +730,11 @@ namespace Test {
 				Engine::add_child(root, b);
 				Handle a = make_touch_layer();
 				Engine::add_child(root, a);
-				Engine::set_touch_caller(b, [b_calls](Handle, Engine::TOUCH_STATE state, glm::vec2) {
+				Engine::set_touch_caller(b, [b_calls](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
 					b_calls->push_back(state);
 				});
 				Engine::set_touch_caller(
-					a, [a_calls, percent, percent_holder](Handle, Engine::TOUCH_STATE state, glm::vec2) {
+					a, [a_calls, percent, percent_holder](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
 						a_calls->push_back(state);
 						// make the size dirty, then query it: the resolver refills the engine scratch list.
 						Engine::set_content_size(percent_holder, {200.f + a_calls->size(), 200.f});
@@ -450,9 +768,9 @@ namespace Test {
 				Engine::set_position(other, {5.f, 5.f});
 				Engine::set_touch_enabled(other, true);
 				Engine::add_child(root, other);
-				Engine::set_click_caller(other, [other_clicks](Handle, glm::vec2) { (*other_clicks)++; });
-				Engine::set_click_caller(self, [](Handle, glm::vec2) {});
-				Engine::set_touch_caller(self, [](Handle e, Engine::TOUCH_STATE state, glm::vec2) {
+				Engine::set_click_caller(other, [other_clicks](Handle, glm::vec2, int, int) { (*other_clicks)++; });
+				Engine::set_click_caller(self, [](Handle, glm::vec2, int, int) {});
+				Engine::set_touch_caller(self, [](Handle e, Engine::TOUCH_STATE state, glm::vec2, int, int) {
 					if (state == Engine::TOUCH_STATE::TOUCH_ENDED)
 						Engine::clean_up(e); // nothing captured is used after this line
 				});
@@ -474,10 +792,10 @@ namespace Test {
 				Engine::add_child(root, below);
 				Handle top = make_touch_layer();
 				Engine::add_child(root, top);
-				Engine::set_touch_caller(below, [below_calls](Handle, Engine::TOUCH_STATE, glm::vec2) {
+				Engine::set_touch_caller(below, [below_calls](Handle, Engine::TOUCH_STATE, glm::vec2, int, int) {
 					(*below_calls)++;
 				});
-				Engine::set_touch_caller(top, [below](Handle, Engine::TOUCH_STATE state, glm::vec2) {
+				Engine::set_touch_caller(top, [below](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
 					if (state == Engine::TOUCH_STATE::TOUCH_BEGAN && Engine::is_valid(below))
 						Engine::clean_up(below);
 				});
@@ -498,18 +816,20 @@ namespace Test {
 				auto fresh = std::make_shared<Handle>(Handle::make_invalid_handle());
 				Handle below = make_touch_layer();
 				Engine::add_child(root, below);
-				Engine::set_touch_caller(below, [](Handle, Engine::TOUCH_STATE, glm::vec2) {});
+				Engine::set_touch_caller(below, [](Handle, Engine::TOUCH_STATE, glm::vec2, int, int) {});
 				Handle top = make_touch_layer();
 				Engine::add_child(root, top);
 				Engine::set_touch_caller(
-					top, [below, fresh, fresh_calls](Handle, Engine::TOUCH_STATE state, glm::vec2) {
+					top, [below, fresh, fresh_calls](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
 						if (state != Engine::TOUCH_STATE::TOUCH_ENDED || !Engine::is_valid(below))
 							return;
 						Engine::clean_up(below);
 						*fresh = make_touch_layer();
-						Engine::set_touch_caller(*fresh, [fresh_calls](Handle, Engine::TOUCH_STATE s, glm::vec2) {
-							fresh_calls->push_back(s);
-						});
+						Engine::set_touch_caller(
+							*fresh, [fresh_calls](Handle, Engine::TOUCH_STATE s, glm::vec2, int, int) {
+								fresh_calls->push_back(s);
+							}
+						);
 						Engine::add_child(Engine::get_root(), *fresh);
 					}
 				);
@@ -532,15 +852,15 @@ namespace Test {
 				auto both_clicks = std::make_shared<int>(0);
 				Handle click_only = make_touch_layer();
 				Engine::add_child(root, click_only);
-				Engine::set_click_caller(click_only, [disabled_clicks](Handle, glm::vec2) { (*disabled_clicks)++; });
+				Engine::set_click_caller(click_only, [disabled_clicks](Handle, glm::vec2, int, int) { (*disabled_clicks)++; });
 				// same, but with a touch caller too (the other path through the disabled branch).
 				Handle both = make_touch_layer();
 				Engine::add_child(root, both);
-				Engine::set_touch_caller(both, [](Handle, Engine::TOUCH_STATE, glm::vec2) {});
-				Engine::set_click_caller(both, [both_clicks](Handle, glm::vec2) { (*both_clicks)++; });
+				Engine::set_touch_caller(both, [](Handle, Engine::TOUCH_STATE, glm::vec2, int, int) {});
+				Engine::set_click_caller(both, [both_clicks](Handle, glm::vec2, int, int) { (*both_clicks)++; });
 				Handle top = make_touch_layer();
 				Engine::add_child(root, top);
-				Engine::set_touch_caller(top, [click_only, both](Handle, Engine::TOUCH_STATE state, glm::vec2) {
+				Engine::set_touch_caller(top, [click_only, both](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
 					if (state == Engine::TOUCH_STATE::TOUCH_BEGAN) {
 						Engine::set_touch_enabled(click_only, false);
 						Engine::set_touch_enabled(both, false);

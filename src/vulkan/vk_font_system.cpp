@@ -22,7 +22,7 @@ namespace Vulkan {
 			return file_to_ids[font_path];
 		}
 		uint32_t font_id = font_id_generator.gen_id();
-		Parser::Font font = Parser::parse_font_2(font_path);
+		Parser::Font font = Parser::parse_sdf_font(font_path);
 		uint32_t texture_id = texture_system.load_texture(
 			font_path, font.atlas.data(), font.size_atlas, font.size_atlas, 1, Const::ENABLED_TEXTURE_BUCKETS
 		);

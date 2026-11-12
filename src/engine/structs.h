@@ -65,11 +65,29 @@ namespace Engine {
 		CLIPPING_INTERECT
 	};
 
+	/**
+	 * @Note: defiend will be same
+	 * as GLFW defined.
+	 */
 	struct Handled_Touches_Information {
 		glm::vec2 touch_world_position{0.f};
 		TOUCH_STATE touch_state = TOUCH_STATE::TOUCH_INIT;
 		bool remove_next_frame = false;
 		std::vector<Handle> entities;
+		/**
+		 * #define GLFW_MOUSE_BUTTON_1         0
+			#define GLFW_MOUSE_BUTTON_2         1
+			#define GLFW_MOUSE_BUTTON_3         2
+			...
+			#define GLFW_MOUSE_BUTTON_LEFT      GLFW_MOUSE_BUTTON_1   // = 0
+			#define GLFW_MOUSE_BUTTON_RIGHT     GLFW_MOUSE_BUTTON_2   // = 1
+			#define GLFW_MOUSE_BUTTON_MIDDLE    GLFW_MOUSE_BUTTON_3   // = 2
+		 */
+		int touch_type = -1;
+		/**
+		 * GLFW_MOD_CONTROL, GLFW_MOD_ALT,...
+		 */
+		int touch_mods = -1;
 	};
 
 } // namespace Engine

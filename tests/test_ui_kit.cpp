@@ -132,13 +132,15 @@ namespace Test {
 
 	void set_touch_action(const Handle& e, const Touch_Action& action) {
 		Engine::set_touch_enabled(e, true);
-		Engine::set_touch_caller(e, [action](Handle h, Engine::TOUCH_STATE touch_state, glm::vec2 world_position) {
-			try {
-				action(h, touch_state, world_position);
-			} catch (const std::exception& exception) {
-				Log::info("[test] exception inside touch callback:", exception.what());
+		Engine::set_touch_caller(
+			e, [action](Handle h, Engine::TOUCH_STATE touch_state, glm::vec2 world_position, int, int) {
+				try {
+					action(h, touch_state, world_position);
+				} catch (const std::exception& exception) {
+					Log::info("[test] exception inside touch callback:", exception.what());
+				}
 			}
-		});
+		);
 	}
 
 	Handle make_button(

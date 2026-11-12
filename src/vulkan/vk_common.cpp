@@ -237,7 +237,7 @@ namespace Vulkan {
 
 	float Font::get_char_scale(int font_size) const {
 		font_size = std::max(std::min(font_size, max_font_size), min_font_size);
-		return (float)font_size / max_font_size;
+		return (float)font_size / render_font_size;
 	}
 
 	uint32_t Font::get_char_rect_offset(char value) const {

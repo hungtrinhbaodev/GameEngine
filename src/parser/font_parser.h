@@ -38,6 +38,7 @@ namespace Parser {
 		int size_atlas = 0;
 		int min_font_size = 0;
 		int max_font_size = 0;
+		int render_font_size = 0;
 		float line_height = 0.f;
 		float font_desent = 0.f;
 		float max_stroke_size = 0.f;
@@ -55,7 +56,7 @@ namespace Parser {
 
 	Font parse_font(std::string file_path);
 
-	Font parse_font_2(const std::string& file_path);
+	Font parse_sdf_font(const std::string& file_path);
 
 	void test(const std::string& file_path);
 

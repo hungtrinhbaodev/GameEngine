@@ -234,6 +234,8 @@ namespace Vulkan {
 
 	std::function<void()> resize_finish_fn;
 
+	glm::vec4 clear_color = {0.5f, 0.5f, 0.5f, 1.f};
+
 	void Profiling::init_gpu_timestamps() {
 		VkPhysicalDeviceProperties properties{};
 		vkGetPhysicalDeviceProperties(physical_device, &properties);
@@ -520,7 +522,7 @@ namespace Vulkan {
 			 * Clear color to background and depth image before draw.
 			 */
 			std::vector<VkClearValue> clear_colors(2);
-			clear_colors[0].color = {{0.5f, 0.5f, 0.5f, 1.0f}};
+			clear_colors[0].color = {{clear_color.x, clear_color.y, clear_color.z, clear_color.w}};
 			clear_colors[1].depthStencil = {1.0f, 0};
 			VkRenderPassBeginInfo render_pass_info = Structs::make_render_pass_begin_info(
 				render_pass, frame_buffers[image_index], swapchain_extent, clear_colors
@@ -626,6 +628,10 @@ namespace Vulkan {
 	void set_total_instance_draw(uint32_t number_instance_draw) {
 		profiling.number_instance_draw = number_instance_draw;
 		profiling.update_draw_call_labels();
+	}
+
+	void set_clear_screen_color(const glm::vec3& color, float opacity) {
+		clear_color = glm::vec4(color, std::max(std::min(opacity, 1.f), 0.f));
 	}
 
 } // namespace Vulkan

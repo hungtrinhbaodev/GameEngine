@@ -27,51 +27,6 @@
 
 namespace Vulkan {
 
-	struct Core_Vulkan {
-
-		std::shared_ptr<ThreadPool> global_thread_pool = nullptr;
-
-		std::shared_ptr<Scheduler> global_scheduler = nullptr;
-
-		GLFWwindow* window = nullptr;
-
-		VkDebugUtilsMessengerEXT debug_messenger = VK_NULL_HANDLE;
-
-		VkInstance instance = VK_NULL_HANDLE;
-
-		VkSurfaceKHR surface = VK_NULL_HANDLE;
-
-		VkPhysicalDevice physical_device = VK_NULL_HANDLE;
-
-		VkDevice device = VK_NULL_HANDLE;
-
-		VkQueue graphics_queue = VK_NULL_HANDLE;
-
-		VkQueue present_queue = VK_NULL_HANDLE;
-
-		VkSwapchainKHR swapchain = VK_NULL_HANDLE;
-
-		std::vector<VkImage> swapchain_images{};
-
-		VkFormat swapchain_format{};
-
-		VkExtent2D swapchain_extent{};
-
-		std::vector<VkFramebuffer> frame_buffers{};
-
-		Image depth_image{};
-
-		VkRenderPass render_pass{};
-
-		uint32_t current_frame = 0;
-
-		Model_3D_System model_system{};
-
-		Font_System font_system{};
-
-		Texture_System texture_system{};
-	};
-
 	extern VkInstance instance;
 
 	extern VkDebugUtilsMessengerEXT debug_messenger;
@@ -139,4 +94,6 @@ namespace Vulkan {
 	void set_number_draw_call(uint32_t number_draw_call);
 
 	void set_total_instance_draw(uint32_t number_instance_draw);
+
+	void set_clear_screen_color(const glm::vec3& color, float opacity = 1.f);
 } // namespace Vulkan

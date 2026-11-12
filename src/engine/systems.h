@@ -3,6 +3,8 @@
 
 namespace Engine {
 
+	World_Transform_2D get_relative_world_transform(const Handle& e);
+
 	std::vector<Handle> get_renderer_handles(const Handle& e);
 
 	void update_image_renderer(const Handle& e);

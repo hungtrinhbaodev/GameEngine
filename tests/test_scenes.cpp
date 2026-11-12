@@ -327,7 +327,7 @@ namespace Test {
 		Engine::set_layout_border_radius(recent_scroll, 10.f);
 		Engine::set_scroll_direction(recent_scroll, Engine::SCROLL_DIRECTION::SCROLL_HORIZONTAL);
 		Engine::set_inner_container_size(recent_scroll, {592.f, 56.f});
-		Engine::set_touch_layout_scroll_enabled(recent_scroll, true);
+		Engine::set_layout_scroll_touch_enabled(recent_scroll, true);
 		Engine::add_child(panel, recent_scroll);
 		track(recent_scroll);
 
@@ -476,7 +476,7 @@ namespace Test {
 		Engine::set_layout_background_color(list, {0.93f, 0.94f, 0.96f});
 		Engine::set_layout_border_radius(list, 8.f);
 		Engine::set_scroll_direction(list, Engine::SCROLL_DIRECTION::SCROLL_VERTICAL);
-		Engine::set_touch_layout_scroll_enabled(list, true);
+		Engine::set_layout_scroll_touch_enabled(list, true);
 		const int rows = 30;
 		Engine::set_inner_container_size(list, {200.f, rows * 40.f});
 		Engine::add_child(box_6, list);
@@ -537,7 +537,7 @@ namespace Test {
 			Engine::set_label_horizontal_align(label, setup.horizontal);
 			Engine::set_label_vertical_align(label, setup.vertical);
 			Engine::set_label_padding_horizontal(label, setup.padding_horizontal);
-			Engine::set_label_padding_vertial(label, setup.padding_vertical);
+			Engine::set_label_padding_vertical(label, setup.padding_vertical);
 			Engine::set_label_render_fit_mode(label, setup.fit);
 			if (setup.stroke > 0.f) {
 				Engine::set_label_stroke_size(label, setup.stroke);
@@ -551,7 +551,7 @@ namespace Test {
 			// click the cell to cycle short / medium / two-line text and watch it re-layout.
 			auto step = std::make_shared<int>(0);
 			Engine::set_touch_enabled(cell, true);
-			Engine::set_click_caller(cell, [label, step](Handle, glm::vec2) {
+			Engine::set_click_caller(cell, [label, step](Handle, glm::vec2, int, int) {
 				if (!Engine::is_valid(label))
 					return;
 				*step = (*step + 1) % 3;

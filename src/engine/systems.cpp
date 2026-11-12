@@ -651,23 +651,19 @@ namespace Engine {
 
 	void handle_enities_touched(const std::vector<Handle>& dirty_entities) {
 		Registry& registry = get_registry();
-		std::vector<Handle> discard_touch_entities;
-		for (int i = 0; i < dirty_entities.size(); i++) {
-			const auto& e = dirty_entities[i];
-			if (!is_valid(e) || !registry.has_all<Touching_Information>(e.id())) {
-				discard_touch_entities.push_back(e);
-				continue;
-			}
+		Sparse_Set<Handle> discard_touch_entities;
+		Handle claimed_entity = Handle::make_invalid_handle();
+		auto touching_caller = [&registry](const Handle& e) {
 			const auto& [touch_info] = registry.read<Touching_Information>(e.id());
-			if (touch_info.caller == nullptr && touch_info.click_caller == nullptr)
-				continue;
 			if (touch_info.caller != nullptr) {
 				if (!touch_info.enabled) {
 					switch (touch_info.touch_state) {
 						case TOUCH_STATE::TOUCH_BEGAN:
 						case TOUCH_STATE::TOUCH_MOVE: {
-							discard_touch_entities.push_back(e);
-							touch_info.caller(e, TOUCH_STATE::TOUCH_ENDED, touch_info.touch_world_position);
+							touch_info.caller(
+								e, TOUCH_STATE::TOUCH_ENDED, touch_info.touch_world_position, touch_info.touch_type,
+								touch_info.touch_mods
+							);
 							break;
 						}
 						default: {
@@ -675,14 +671,19 @@ namespace Engine {
 						}
 					}
 				} else {
-					touch_info.caller(e, touch_info.touch_state, touch_info.touch_world_position);
+					touch_info.caller(
+						e, touch_info.touch_state, touch_info.touch_world_position, touch_info.touch_type,
+						touch_info.touch_mods
+					);
 				}
 			}
 			if (touch_info.click_caller != nullptr &&
-				is_touch_position_valid_with(e, touch_info.touch_world_position)) {
+				is_world_position_in_entity_rect(e, touch_info.touch_world_position)) {
 				switch (touch_info.touch_state) {
 					case TOUCH_STATE::TOUCH_ENDED: {
-						touch_info.click_caller(e, touch_info.touch_world_position);
+						touch_info.click_caller(
+							e, touch_info.touch_world_position, touch_info.touch_type, touch_info.touch_mods
+						);
 						break;
 					}
 					default: {
@@ -690,41 +691,40 @@ namespace Engine {
 					}
 				}
 			}
-			/**
-			 * @Note: if the touch belong to the container
-			 * and after fire if the container scroll take
-			 * control ,it will cancel all child bellow
-			 * touch!
-			 */
-			if (registry.has<Description>(e.id())) {
-				const auto& [description] = registry.read<Description>(e.id());
-				switch (description.value) {
-					case DESCRIPTION_TYPE::SCROLL_LISTENER_CONTAINER: {
-						const auto& [tree_info] = registry.read<Tree_Information>(e.id());
-						const auto& [scroll_info] = registry.read<Scroll_Information>(tree_info.parent.id());
-						switch (scroll_info.touch_state) {
-							case TOUCH_SCROLL_STATE::SCROLLING: {
-								for (int j = i + 1; j < dirty_entities.size(); j++) {
-									const auto& cancel_entity = dirty_entities[j];
-									auto [cancel_touch_info] = registry.get<Touching_Information>(cancel_entity.id());
-									cancel_touch_info.touch_state = TOUCH_STATE::TOUCH_CANCEL;
-									discard_touch_entities.push_back(cancel_entity);
-								}
-								break;
-							}
-							default: {
-								break;
-							}
-						}
-						break;
-					}
-					default: {
-						break;
-					}
+		};
+		for (int i = 0; i < dirty_entities.size(); i++) {
+			const auto& e = dirty_entities[i];
+			if (!is_valid(e) || !registry.has_all<Touching_Information>(e.id())) {
+				discard_touch_entities.insert(e.id(), e);
+				continue;
+			}
+			const auto& [touch_info] = registry.read<Touching_Information>(e.id());
+			if (touch_info.caller == nullptr && touch_info.click_caller == nullptr)
+				continue;
+			if (touch_info.caller != nullptr && !touch_info.enabled) {
+				discard_touch_entities.insert(e.id(), e);
+			}
+			touching_caller(e);
+			if (touch_info.claim_touch) {
+				claimed_entity = e;
+				break;
+			}
+		}
+		if (is_valid(claimed_entity)) {
+			for (const auto& e : dirty_entities) {
+				if (e.id() != claimed_entity.id()) {
+					auto [touch_info] = registry.get<Touching_Information>(e.id());
+					touch_info.touch_state = TOUCH_STATE::TOUCH_CANCEL;
+					touching_caller(e);
+					discard_touch_entities.insert(e.id(), e);
 				}
 			}
 		}
-		discard_handling_touches_entities(discard_touch_entities);
+		for (const auto& e : dirty_entities) {
+			auto [touch_info] = registry.get<Touching_Information>(e.id());
+			touch_info.claim_touch = false;
+		}
+		discard_handling_touches_entities(discard_touch_entities.values());
 	}
 
 	void handle_entites_scrolling(const std::vector<Handle>& scrolling_entities) {

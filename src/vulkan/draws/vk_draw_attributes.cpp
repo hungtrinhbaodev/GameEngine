@@ -11,6 +11,10 @@ namespace Vulkan {
 		return {width, height};
 	}
 
+	glm::vec2 Texture_Helper::get_size() {
+		return {width, height};
+	}
+
 	Base_Attributes::Base_Attributes() {}
 
 	Base_Attributes::Base_Attributes(const Handle& i_handle) {
