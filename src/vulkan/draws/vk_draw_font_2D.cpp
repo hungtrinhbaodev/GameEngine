@@ -53,11 +53,7 @@ namespace Vulkan {
 			float stroke_size = 0.f;					// 4/4
 			Clipping_Ancestor_Storage clipping_storage; // 16/16
 			glm::vec2 normal_tex_size{0.f, 0.f};		// 8/8
-			float _pad[2] = {};							// 8/8 (keeps size a multiple of the struct's
-														// own 16-byte std430 base alignment, matching
-														// what the GLSL array stride would round up to
-														// anyway, so sizeof(Storage_Data) == the real
-														// per-element GPU stride)
+			float _pad[2] = {};							// 8/8
 			friend std::ostream& operator<<(std::ostream& os, const Storage_Data& instance) {
 				os << "{Storage_Data: translation: " << instance.translation << ", tex_size: " << instance.tex_size
 				   << ", scale: " << instance.scale << ", color: " << instance.color
@@ -92,6 +88,7 @@ namespace Vulkan {
 			uint32_t font_id = ::Const::MAX_UINT32;
 			uint32_t storage_texture_id = ::Const::MAX_UINT32;
 			glm::vec2 text_anchor{0.f};
+			float stroke_size = ::Const::MAX_UINT32;
 
 			std::vector<Storage_Char_Data> make_char_storages_data(
 				const Font& font, const Font& normal_font, const Font_2D& attributes
@@ -122,7 +119,8 @@ namespace Vulkan {
 				const Font& font, const Font& normal_font, uint32_t texture_storage_offset, const Font_2D& attributes
 			) {
 				Storage_Data storage{};
-				float char_scale = font.get_char_scale(attributes.get_font_size());
+				const Font& used_font = (attributes.get_stroke_size() <= 0.f) ? normal_font : font;
+				float char_scale = used_font.get_char_scale(attributes.get_font_size());
 				storage.translation = attributes.get_position();
 				storage.scale = attributes.get_scale() * char_scale;
 				storage.tex_size = {font.size_atlas, font.size_atlas};
@@ -143,6 +141,7 @@ namespace Vulkan {
 				storage_char_id = ::Const::MAX_UINT32;
 				storage_id = ::Const::MAX_UINT32;
 				storage_texture_id = ::Const::MAX_UINT32;
+				stroke_size = ::Const::MAX_UINT32;
 				text = "";
 				text_anchor = {0.f, 0.f};
 				for (const auto& draw_instance : draw_instances) {
@@ -164,13 +163,15 @@ namespace Vulkan {
 				font_id = i_font_id;
 				const Font& font = view_font(font_id);
 				const Font& normal_font = view_normal_font(font_id);
-				if (align != attributes.get_align() || text_anchor != attributes.get_anchor()) {
+				if (align != attributes.get_align() || text_anchor != attributes.get_anchor() ||
+					stroke_size != attributes.get_stroke_size()) {
+					stroke_size = attributes.get_stroke_size();
 					make_lines_render_info(
-						font, attributes.get_align(), attributes.get_font_size(), start_line_positions, width, height,
-						lines, attributes.get_stroke_size()
+						(stroke_size <= 0.f) ? normal_font : font, attributes.get_align(), attributes.get_font_size(),
+						start_line_positions, width, height, lines, attributes.get_stroke_size()
 					);
 					std::vector<Storage_Char_Data> char_storages =
-						make_char_storages_data(font, normal_font, attributes);
+						make_char_storages_data((stroke_size <= 0.f) ? normal_font : font, normal_font, attributes);
 					ssbo.update_data(storage_char_id, char_storages.data());
 				}
 				const Buffer_Range& texture_storage_range = ssbo.view_slot(storage_texture_id);
@@ -197,13 +198,14 @@ namespace Vulkan {
 				text = attributes.get_text();
 				align = attributes.get_align();
 				text_anchor = attributes.get_anchor();
+				stroke_size = attributes.get_stroke_size();
 				font_id = load_font(attributes.get_font_path());
 				const Font& font = view_font(font_id);
 				const Font& normal_font = view_normal_font(font_id);
 				break_lines(text, lines);
 				make_lines_render_info(
-					font, attributes.get_align(), attributes.get_font_size(), start_line_positions, width, height,
-					lines, attributes.get_stroke_size()
+					(stroke_size <= 0.f) ? normal_font : font, attributes.get_align(), attributes.get_font_size(),
+					start_line_positions, width, height, lines, attributes.get_stroke_size()
 				);
 				const Texture_View& sdf_texture_view = view_font_sdf_texture(font_id);
 				const Texture_View& normal_texture_view = view_font_normal_texture(font_id);
@@ -220,7 +222,8 @@ namespace Vulkan {
 				storage_id = ssbo.upload_data(&storage, sizeof(Storage_Data), sizeof(Storage_Data));
 				Buffer_Range storage_range = ssbo.view_slot(storage_id);
 				Buffer_Range vertex_range = static_buffer.view_slot(vertex_id);
-				std::vector<Storage_Char_Data> char_storages = make_char_storages_data(font, normal_font, attributes);
+				std::vector<Storage_Char_Data> char_storages =
+					make_char_storages_data((stroke_size <= 0.f) ? normal_font : font, normal_font, attributes);
 				storage_char_id = ssbo.upload_data(
 					char_storages.data(), char_storages.size() * sizeof(Storage_Char_Data), sizeof(Storage_Char_Data)
 				);
@@ -288,8 +291,8 @@ namespace Vulkan {
 			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::IMAGE_SAMPLER));
 			layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::IMAGE_SAMPLER));
 			if (Const::ENABLED_TEXTURE_BUCKETS) {
-				layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::BUCKET_IMAGE_SAMPLER));
-				layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::BUCKET_IMAGE_SAMPLER));
+				layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::FONT_BUCKET_IMAGE_SAMPLER));
+				layouts.push_back(get_layout(Const::DESCRITPOR_LAYOUT::FONT_BUCKET_IMAGE_SAMPLER));
 			}
 			pipeline_config = Vulkan::make_default_pipeline_config();
 			pipeline_config.vertex_binding_descriptions = vertex_builder.build_binding_descriptions();
@@ -406,7 +409,7 @@ namespace Vulkan {
 		) {
 			Font_Helper text_helper{};
 			uint32_t font_id = load_font(font_path);
-			const Font& font = view_font(font_id);
+			const Font& font = (stroke_size <= 0.f) ? view_normal_font(font_id) : view_font(font_id);
 			break_lines(text, text_helper.lines);
 			make_lines_render_info(
 				font, align, font_size, text_helper.start_line_positions, text_helper.width, text_helper.height,

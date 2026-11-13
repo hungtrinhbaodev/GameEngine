@@ -272,6 +272,13 @@ namespace Vulkan {
 		font_bucket_descriptor_sets = font_system.texture_system.make_bucket_descriptor_sets_2(bucket_layout);
 		layouts[Const::DESCRITPOR_LAYOUT::BUCKET_IMAGE_SAMPLER] = bucket_layout;
 		/**
+		 * Init descriptor set layout for font texture bucket.
+		 */
+		VkDescriptorSetLayout font_bucket_layout = font_system.texture_system.make_bucket_descriptor_set_layout();
+		texture_bucket_descriptor_sets = font_system.texture_system.make_bucket_descriptor_sets_2(font_bucket_layout);
+		font_bucket_descriptor_sets = font_system.texture_system.make_bucket_descriptor_sets_2(font_bucket_layout);
+		layouts[Const::DESCRITPOR_LAYOUT::FONT_BUCKET_IMAGE_SAMPLER] = font_bucket_layout;
+		/**
 		 * Init descriptor set layout uniform buffer.
 		 */
 		layout_builder.clear();

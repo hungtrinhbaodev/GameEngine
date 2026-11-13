@@ -42,7 +42,7 @@ namespace Parser {
 
 	const int NORMAL_RENDER_FONT_SIZE = MAX_PIXEL_NORMAL_FONT_HEIGHT;
 
-	const int MAX_PIXEL_HEIGHT = 64;
+	const int MAX_PIXEL_HEIGHT = 48;
 
 	const int START_CHAR = 32;
 

@@ -445,10 +445,10 @@ namespace Engine {
 			texture.set_visible(transform.is_visible);
 			texture.set_scale(transform.scale);
 		};
-		auto get_fit_mode_scale_ratio = [&image_renderer](const auto& inner_size, const auto& render_size) {
+		auto get_fit_mode_scale_ratio = [&renderer = image_renderer](const auto& inner_size, const auto& render_size) {
 			glm::vec2 scale{1.f};
 			bool is_clipping = false;
-			switch (image_renderer.fit_mode) {
+			switch (renderer.fit_mode) {
 				case IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_AUTO: {
 					scale = {1.f, 1.f};
 					break;
