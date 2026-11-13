@@ -86,12 +86,7 @@ void main() {
         float smooth_width = fwidth(distance);
         clamp(smooth_width, 0.01, 0.05);
         float alpha = smoothstep(0.5 - smooth_width, 0.5 + smooth_width, distance);
-        if (stroke_size <= 0) {
-            out_color = vec4(in_color, alpha * opacity);
-        }
-        else {
-            float stroke_alpha = smoothstep((0.5 - stroke_size) - smooth_width, (0.5 - stroke_size) + smooth_width, distance);
-            out_color = vec4(mix(stroke_color, in_color, alpha), stroke_alpha * opacity);
-        }
+        float stroke_alpha = smoothstep((0.5 - stroke_size) - smooth_width, (0.5 - stroke_size) + smooth_width, distance);
+        out_color = vec4(mix(stroke_color, in_color, alpha), stroke_alpha * opacity);
     }
 }

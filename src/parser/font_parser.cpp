@@ -186,6 +186,7 @@ namespace Parser {
 			font.atlas.resize(base_atlas_size * base_atlas_size);
 			stbtt_pack_context pc;
 			stbtt_PackBegin(&pc, font.atlas.data(), base_atlas_size, base_atlas_size, 0, ATLAS_PADDING, nullptr);
+			// stbtt_PackSetOversampling(&pc, 2, 2);
 			result = stbtt_PackFontRange(
 				&pc, (const unsigned char*)bytes.data(), font_info.fontstart, MAX_PIXEL_NORMAL_FONT_HEIGHT, START_CHAR,
 				NUM_CHAR, packed_chars

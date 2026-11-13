@@ -96,11 +96,12 @@ namespace Vulkan {
 				std::vector<Storage_Char_Data> char_storages;
 				float char_scale = font.get_char_scale(attributes.get_font_size());
 				glm::vec2 origin = -glm::vec2(width / char_scale, height / char_scale) * attributes.get_anchor();
+				const Font& used_font = (attributes.get_stroke_size() <= 0.f ? normal_font : font);
 				for (int i = 0; i < lines.size(); i++) {
 					const std::string& line = lines[i];
 					const glm::vec2& start_line_position = start_line_positions[i];
 					std::vector<glm::vec2> positions = get_char_position_at(
-						line, start_line_position + origin, font, attributes.get_font_size(),
+						line, start_line_position + origin, used_font, attributes.get_font_size(),
 						attributes.get_stroke_size()
 					);
 					for (int j = 0; j < positions.size(); j++) {
