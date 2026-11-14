@@ -1,10 +1,7 @@
 #version 450
 
 layout (set = 1, binding = 0) uniform sampler2D tex_sampler;
-layout (set = 2, binding = 0) uniform sampler2D normal_tex_sampler;
-
-layout (set = 3, binding = 0) uniform sampler2DArray bucket_tex_sampler_0;
-layout (set = 4, binding = 0) uniform sampler2DArray normal_bucket_tex_sampler_0;
+layout (set = 2, binding = 0) uniform sampler2DArray bucket_tex_sampler_0;
 
 struct Clipping_Data {
     vec2 half_size;
@@ -32,8 +29,6 @@ layout (location = 10) in flat vec2 scale;
 layout (location = 11) in flat float rotation;
 layout (location = 12) in vec2 local_pos;
 layout (location = 13) in flat vec2 half_size;
-layout (location = 14) in flat int normal_bucket_index;
-layout (location = 15) in flat int normal_slot_index;
 
 layout (location = 0) out vec4 out_color;
 
@@ -41,14 +36,6 @@ vec4 get_bucket_sampler(int bucket_index, int slot_index, vec2 in_tex_coord) {
     switch(bucket_index) {
         case 0: {
             return texture(bucket_tex_sampler_0, vec3(in_tex_coord, float(slot_index)));
-        }
-    }
-}
-
-vec4 get_normal_bucket_sampler(int bucket_index, int slot_index, vec2 in_tex_coord) {
-    switch(bucket_index) {
-        case 0: {
-            return texture(normal_bucket_tex_sampler_0, vec3(in_tex_coord, float(slot_index)));
         }
     }
 }
@@ -75,18 +62,22 @@ bool is_clipping() {
     return false;
 }
 
+const float min_edge_rate = 0.45f;
+const float max_edge_rate = 0.47f;
+
 void main() {
     if (is_clipping()) discard;
-    if (stroke_size <= 0.f) {
-        float coverage = bucket_index < 0 ? texture(normal_tex_sampler, in_tex_coord).r : get_normal_bucket_sampler(normal_bucket_index, normal_slot_index, in_tex_coord).r;
-        out_color = vec4(in_color, coverage * opacity);
+    float distance = bucket_index < 0 ? texture(tex_sampler, in_tex_coord).r : get_bucket_sampler(bucket_index, slot_index, in_tex_coord).r;
+    float smooth_width = fwidth(distance);
+    clamp(smooth_width, 0.01, 0.05);
+    if (stroke_size <= 0) {
+        float alpha = smoothstep(min_edge_rate - smooth_width, max_edge_rate + smooth_width, distance);
+        out_color = vec4(in_color, alpha * opacity);
     }
     else {
-        float distance = bucket_index < 0 ? texture(tex_sampler, in_tex_coord).r : get_bucket_sampler(bucket_index, slot_index, in_tex_coord).r;
-        float smooth_width = fwidth(distance);
-        clamp(smooth_width, 0.01, 0.05);
-        float alpha = smoothstep(0.5 - smooth_width, 0.5 + smooth_width, distance);
-        float stroke_alpha = smoothstep((0.5 - stroke_size) - smooth_width, (0.5 - stroke_size) + smooth_width, distance);
+        float alpha = smoothstep(min_edge_rate - smooth_width, max_edge_rate + smooth_width, distance);
+        float stroke_alpha = smoothstep((min_edge_rate - stroke_size) - smooth_width, (max_edge_rate - stroke_size) + smooth_width, distance);
         out_color = vec4(mix(stroke_color, in_color, alpha), stroke_alpha * opacity);
     }
+   
 }

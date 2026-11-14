@@ -4,8 +4,6 @@
 
 namespace Vulkan {
 
-	const std::string NORMAL_FONT_EXTEND_PATH = "***FONT_PATH";
-
 	void Font_System::init(
 		SSBO_Buffer* ssbo, VkDevice device, std::vector<VkDescriptorPool> descriptor_pools,
 		std::array<VkDescriptorPool, Const::MAX_FRAMES_IN_FLIGHT> descriptor_pools_2, VkPhysicalDevice physical_device
@@ -13,7 +11,7 @@ namespace Vulkan {
 		this->ssbo = ssbo;
 		texture_system.init(
 			Const::FONT_TEXTURE_BUCKET_SIZES, Const::NUMBER_LAYER_FONT_TEXTURE_PER_BUCKETS, device, descriptor_pools,
-			descriptor_pools_2, physical_device, VK_FORMAT_R8_UNORM, true, VK_SAMPLER_MIPMAP_MODE_NEAREST
+			descriptor_pools_2, physical_device, VK_FORMAT_R8_UNORM, true, VK_SAMPLER_MIPMAP_MODE_LINEAR
 		);
 	}
 
@@ -33,10 +31,6 @@ namespace Vulkan {
 		return std::make_tuple(texture_id, rect_storage_id, rect_storage_offset);
 	}
 
-	std::string Font_System::to_normal_font_path(const std::string& path) {
-		return path + NORMAL_FONT_EXTEND_PATH;
-	}
-
 	uint32_t Font_System::load_font(std::string font_path) {
 		if (font_path == "") {
 			font_path = ::Utils::get_root_path() + Const::PATH_DEFAULT_FONT;
@@ -46,25 +40,15 @@ namespace Vulkan {
 		}
 		uint32_t font_id = font_id_generator.gen_id();
 		Parser::Font sdf_font = Parser::parse_sdf_font(font_path);
-		Parser::Font normal_font = Parser::parse_font(font_path);
 		auto [sdf_texture_id, sdf_rect_storage_id, sdf_rect_storage_offset] =
 			make_font_storage_info(font_path, sdf_font);
 		file_to_ids[font_path] = font_id;
 		sdf_fonts.insert(font_id, {std::move(sdf_font), sdf_texture_id, sdf_rect_storage_id, sdf_rect_storage_offset});
-		auto [normal_texture_id, normal_rect_storage_id, normal_rect_storage_offset] =
-			make_font_storage_info(to_normal_font_path(font_path), normal_font);
-		normal_fonts.insert(
-			font_id, {std::move(normal_font), normal_texture_id, normal_rect_storage_id, normal_rect_storage_offset}
-		);
 		return font_id;
 	}
 
 	const Font& Font_System::view_font(uint32_t font_id) {
 		return sdf_fonts.get(font_id);
-	}
-
-	const Font& Font_System::view_normal_font(uint32_t font_id) {
-		return normal_fonts.get(font_id);
 	}
 
 	void Font_System::destroy() {

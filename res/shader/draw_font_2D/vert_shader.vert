@@ -18,8 +18,6 @@ struct Instance_Data {
     float stroke_size;
     uvec3 clipping_offsets;
     uint  number_clipping;
-    vec2  normal_tex_size;
-    vec2  _pad;
 };
 
 layout(std430, set = 0, binding = 0) readonly buffer Instance_Buffer {
@@ -29,7 +27,7 @@ layout(std430, set = 0, binding = 0) readonly buffer Instance_Buffer {
 struct Char_Instance_Data {
     vec2  char_translation;
     uint  rect_offset;
-    uint  normal_rect_offset;
+    float _pad;
 };
 
 layout(std430, set = 0, binding = 1) readonly buffer Char_Instance_Buffer {
@@ -55,8 +53,6 @@ layout(std430, set = 0, binding = 3) readonly buffer Config_2D_Data_Buffer {
 struct Texture_Data {
     int bucket_index;
     int slot_index;
-    int normal_bucket_index;
-    int normal_slot_index;
 };
 
 layout(std430, set = 0, binding = 4) readonly buffer Texture_Data_Buffer {
@@ -77,8 +73,6 @@ layout (location = 10) out vec2 scale;
 layout (location = 11) out float rotation;
 layout (location = 12) out vec2 local_pos;
 layout (location = 13) out vec2 half_size;
-layout (location = 14) out int normal_bucket_index;
-layout (location = 15) out int normal_slot_index;
 
 
 vec2 norm_position(vec2 position, vec2 screen_size) {
@@ -138,10 +132,10 @@ vec2 map_char_position(uint vertex_index, vec2 char_translation, vec2 rect_size)
 void main() {
     Instance_Data data = instance_buffer.data[in_storage_index];
     Char_Instance_Data char_data = char_instance_buffer.data[in_char_storage_index];
-    Char_Rect_Instance_Data rect_data = (data.stroke_size <= 0.f) ? rect_instance_buffer.data[char_data.normal_rect_offset] : rect_instance_buffer.data[char_data.rect_offset];
+    Char_Rect_Instance_Data rect_data = rect_instance_buffer.data[char_data.rect_offset];
     Config_2D_Data config = config_2D_buffer.data[in_config_index];
     uint vertex_index = gl_VertexIndex - in_vertex_offset;
-    vec2 tex_size = (data.stroke_size <= 0.f) ? data.normal_tex_size : data.tex_size;
+    vec2 tex_size = data.tex_size;
     vec2 rect_size = vec2(rect_data.rect.z, rect_data.rect.w) * tex_size;
     vec2 translate_anchor = map_char_position(vertex_index, char_data.char_translation, rect_size) * data.scale;
     vec2 rectangle_position = data.translation + rotate(data.rotation, translate_anchor);
@@ -151,8 +145,6 @@ void main() {
     Texture_Data texture = texture_data_buffer.data[data.texture_offset];
     bucket_index = texture.bucket_index;
     slot_index = texture.slot_index;
-    normal_bucket_index = texture.normal_bucket_index;
-    normal_slot_index = texture.normal_slot_index;
     out_color = data.color;
     out_stroke_color = data.stroke_color;
     out_stroke_size = data.stroke_size;

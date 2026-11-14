@@ -21,8 +21,6 @@ namespace Vulkan {
 		 */
 		Sparse_Set<Font> sdf_fonts{};
 
-		Sparse_Set<Font> normal_fonts{};
-
 		SSBO_Buffer* ssbo = nullptr;
 
 		std::unordered_map<std::string, uint32_t> file_to_ids{};
@@ -37,13 +35,9 @@ namespace Vulkan {
 			const std::string& font_path, const Parser::Font& font
 		);
 
-		std::string to_normal_font_path(const std::string& path);
-
 		uint32_t load_font(std::string font_path);
 
 		const Font& view_font(uint32_t font_id);
-
-		const Font& view_normal_font(uint32_t font_id);
 
 		void destroy();
 	};

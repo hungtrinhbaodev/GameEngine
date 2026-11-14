@@ -617,11 +617,8 @@ namespace Vulkan {
 	uint32_t load_font(std::string font_path) {
 		uint32_t font_id = font_system.load_font(font_path);
 		const Font& sdf_font = font_system.view_font(font_id);
-		const Font& normal_font = font_system.view_normal_font(font_id);
 		Texture_View texture_view = font_system.texture_system.view_texture(sdf_font.texture_id);
-		Texture_View normal_texture_view = font_system.texture_system.view_texture(normal_font.texture_id);
-		if (texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::BUCKET &&
-			normal_texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::BUCKET) {
+		if (texture_view.storage_mode == Const::TEXTURE_STORAGE_MODE::BUCKET) {
 			return font_id;
 		}
 		if (!frame_font_descriptor_sets.has(sdf_font.texture_id)) {
@@ -632,14 +629,6 @@ namespace Vulkan {
 				);
 			frame_font_descriptor_sets.insert(sdf_font.texture_id, font_descriptor_sets);
 		}
-		if (!frame_font_descriptor_sets.has(normal_font.texture_id)) {
-			std::array<VkDescriptorSet, Const::MAX_FRAMES_IN_FLIGHT> font_descriptor_sets =
-				Utils::make_texture_descriptor_sets_2(
-					descriptor_pools_2, layouts[Const::DESCRITPOR_LAYOUT::IMAGE_SAMPLER],
-					normal_texture_view.image.get_descriptor_info(), device
-				);
-			frame_font_descriptor_sets.insert(normal_font.texture_id, font_descriptor_sets);
-		}
 		return font_id;
 	}
 
@@ -647,17 +636,8 @@ namespace Vulkan {
 		return font_system.view_font(font_id);
 	}
 
-	const Font& view_normal_font(uint32_t font_id) {
-		return font_system.view_normal_font(font_id);
-	}
-
 	const Texture_View& view_font_sdf_texture(uint32_t font_id) {
 		const Font& font = view_font(font_id);
-		return font_system.texture_system.view_texture(font.texture_id);
-	}
-
-	const Texture_View& view_font_normal_texture(uint32_t font_id) {
-		const Font& font = font_system.view_normal_font(font_id);
 		return font_system.texture_system.view_texture(font.texture_id);
 	}
 
@@ -719,14 +699,6 @@ namespace Vulkan {
 
 	std::array<VkDescriptorSet, 2> get_descriptor_set_font_sampler(uint32_t font_id, uint32_t frame_index) {
 		const Font& font = font_system.view_font(font_id);
-		return get_image_descriptor_from(
-			font_system.texture_system, font.texture_id, frame_index, frame_font_descriptor_sets,
-			default_font_descriptor_sets, font_bucket_descriptor_sets
-		);
-	}
-
-	std::array<VkDescriptorSet, 2> get_descriptor_set_normal_font_sampler(uint32_t font_id, uint32_t frame_index) {
-		const Font& font = font_system.view_normal_font(font_id);
 		return get_image_descriptor_from(
 			font_system.texture_system, font.texture_id, frame_index, frame_font_descriptor_sets,
 			default_font_descriptor_sets, font_bucket_descriptor_sets
