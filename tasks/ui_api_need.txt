@@ -239,7 +239,7 @@ Names are suggestions. Coordinates as everywhere: world y up, label-local x from
     I will add it to the editor UI kit (helper on top of layouts) unless you prefer the engine widget.
 
 ===== SCENE FILE (spec 2026-11-11) =====
-[]: 31. Save / load a scene (Cocos Studio .csd / Godot .tscn equivalent).
+[Handled 31c, 31b, 31d]: 31. Save / load a scene (Cocos Studio .csd / Godot .tscn equivalent).
     Why: the editor must save what you build and the game must load it at runtime, so load / save live in the
     engine (editor and game share it); game code then finds nodes with find_node_by_name / find_node_by_tag.
 

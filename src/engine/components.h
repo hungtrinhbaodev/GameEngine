@@ -11,16 +11,6 @@
 
 namespace Engine {
 
-	enum DESCRIPTION_TYPE {
-		NODE_2D,
-		LAYOUT_2D,
-		IMAGE_2D,
-		LABEL_2D,
-		SCROLL_LAYOUT,
-		INNER_CONTAINER,
-		SCROLL_LISTENER_CONTAINER,
-	};
-
 	struct Tree_Information {
 		bool valid_child = false;
 		uint32_t depth = ::Const::MAX_UINT32;

@@ -328,4 +328,10 @@ namespace Engine {
 
 	Handle find_topmost_node_at(const glm::vec2& world_position, Handle under = get_root());
 
+	SIZE_TYPE get_size_type(const Handle& e);
+
+	POSITION_TYPE get_position_type(const Handle& e);
+
+	DESCRIPTION_TYPE get_description_type(const Handle& e);
+
 } // namespace Engine

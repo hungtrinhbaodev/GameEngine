@@ -2232,4 +2232,38 @@ namespace Engine {
 		return found;
 	}
 
+	SIZE_TYPE get_size_type(const Handle& e) {
+		if (registry.has<Size_Pinning>(e.id())) {
+			const auto& [size_pinning] = registry.read<Size_Pinning>(e.id());
+			if (size_pinning.enabled) {
+				return SIZE_TYPE::SIZE_TYPE_PINNING_RELATIVE;
+			}
+		}
+		if (registry.has<Size_Percent>(e.id())) {
+			const auto& [size_percent] = registry.read<Size_Percent>(e.id());
+			if (size_percent.enabled) {
+				return SIZE_TYPE::SIZE_TYPE_PERCENT_RELATIVE;
+			}
+		}
+		return SIZE_TYPE::SIZE_TYPE_ABSOLUTE;
+	}
+
+	POSITION_TYPE get_position_type(const Handle& e) {
+		if (registry.has<Position_Percent>(e.id())) {
+			const auto& [position_percent] = registry.read<Position_Percent>(e.id());
+			if (position_percent.enabled) {
+				return POSITION_TYPE::POSITION_TYPE_PERCENT_RELATIVE;
+			}
+		}
+		return POSITION_TYPE::POSITION_TYPE_ABSOLUTE;
+	}
+
+	DESCRIPTION_TYPE get_description_type(const Handle& e) {
+		if (registry.has<Description>(e.id())) {
+			const auto& [description] = registry.read<Description>(e.id());
+			return description.value;
+		}
+		return DESCRIPTION_TYPE::NONE;
+	}
+
 } // namespace Engine
