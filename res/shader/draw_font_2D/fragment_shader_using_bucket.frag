@@ -76,7 +76,7 @@ void main() {
     }
     else {
         float alpha = smoothstep(min_edge_rate - smooth_width, max_edge_rate + smooth_width, distance);
-        float stroke_alpha = smoothstep((min_edge_rate - stroke_size) - smooth_width, (max_edge_rate - stroke_size) + smooth_width, distance);
+        float stroke_alpha = smoothstep((0.5f - stroke_size) - smooth_width, (0.5f - stroke_size) + smooth_width, distance);
         out_color = vec4(mix(stroke_color, in_color, alpha), stroke_alpha * opacity);
     }
 }
