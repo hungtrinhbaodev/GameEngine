@@ -162,7 +162,8 @@ namespace Vulkan {
 					ssbo.update_data(storage_char_id, char_storages.data());
 				}
 				const Buffer_Range& texture_storage_range = ssbo.view_slot(storage_texture_id);
-				Storage_Data storage = make_storage_data(font, texture_storage_range.inner_offset(), attributes);
+				Storage_Data storage =
+					make_storage_data(font, texture_storage_range.offset_as<Texture_Storage_Data>(), attributes);
 				ssbo.update_data(storage_id, &storage);
 				text = attributes.get_text();
 				align = attributes.get_align();

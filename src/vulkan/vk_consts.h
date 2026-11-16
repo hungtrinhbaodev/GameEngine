@@ -152,7 +152,7 @@ namespace Vulkan {
 		const inline std::string PATH_FRAG_SHADERD_DRAW_FONT_2D_USING_BUCKET =
 			"res/shader/draw_font_2D/fragment_shader_using_bucket.frag.spv";
 
-		const inline std::string PATH_DEFAULT_FONT = "res/fonts/anonymous_pro_bold.ttf";
+		const inline std::string PATH_DEFAULT_FONT = "res/fonts/BeVietnamPro-Regular.ttf";
 
 	} // namespace Const
 
