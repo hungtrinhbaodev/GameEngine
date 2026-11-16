@@ -13,7 +13,7 @@ namespace Engine {
 
 	void update_scroll_layout_renderer(const Handle& e);
 
-	void handle_enities_touched(const std::vector<Handle>& dirty_entities);
+	std::vector<Handle> handle_enities_touched(const std::vector<Handle>& dirty_entities);
 
 	void handle_entites_scrolling(const std::vector<Handle>& scrolling_entities);
 
@@ -28,6 +28,8 @@ namespace Engine {
 	void handle_dirty_relative_position(const std::vector<Handle>& dirty_entities);
 
 	void handle_dirty_transform(const std::vector<Handle>& dirty_entities);
+
+	void handle_dirty_compute_global_aabb(const std::vector<Handle>& dirty_entities);
 
 	void handle_dirty_clipping(const std::vector<Handle>& dirty_entities);
 

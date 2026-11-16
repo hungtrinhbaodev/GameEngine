@@ -11,29 +11,24 @@
 
 namespace Engine {
 
-	const uint32_t MAX_LOG_RAISE = 10;
-
-	Id_Generator id_generator;
+	Handle_Generator handle_generator;
 
 	Sparse_Set<Handled_Touches_Information> handling_touches;
 
 	std::vector<Handled_Touches_Information> handled_touches;
 
-	Sparse_Set<bool> handling_entities;
-
 	uint32_t window_unique_touch_id = ::Const::MAX_UINT32;
 
-	uint32_t current_log_count = 0;
-
 	uint32_t spawn_touch(const glm::vec2& touch_world_position, int button, int mods) {
-		uint32_t touch_id = id_generator.gen_id();
+		Handle handle = handle_generator.gen_handle();
 		Handled_Touches_Information touch_info{};
+		touch_info.id = handle;
 		touch_info.touch_state = TOUCH_STATE::TOUCH_INIT;
 		touch_info.touch_world_position = touch_world_position;
 		touch_info.touch_type = button;
 		touch_info.touch_mods = mods;
-		handling_touches.insert(touch_id, touch_info);
-		return touch_id;
+		handling_touches.insert(handle.id(), touch_info);
+		return handle.id();
 	}
 
 	void release_touch(uint32_t touch_id, const glm::vec2& touch_world_position) {
@@ -42,15 +37,6 @@ namespace Engine {
 		auto& touch_info = handling_touches.modify(touch_id);
 		touch_info.touch_state = TOUCH_STATE::TOUCH_ENDED;
 		touch_info.touch_world_position = touch_world_position;
-	}
-
-	void sort_touched(std::vector<Handle>& enitites) {
-		Registry& registry = get_registry();
-		Utils::sort_entities(enitites, [&registry](const auto& a, const auto& b) {
-			const auto& [touch_info_a] = registry.read<Touching_Information>(a.id());
-			const auto& [touch_info_b] = registry.read<Touching_Information>(b.id());
-			return touch_info_a.touched_order > touch_info_b.touched_order;
-		});
 	}
 
 	void on_mouse_button(GLFWwindow* window, int button, int action, int mods) {
@@ -120,15 +106,6 @@ namespace Engine {
 			auto& touch_info = handling_touches.modify(touch_id);
 			switch (touch_info.touch_state) {
 				case TOUCH_STATE::TOUCH_INIT: {
-					touch_info.entities.clear();
-					auto enitites = Engine::find_entites_listen_touch_at(touch_info.touch_world_position);
-					sort_touched(enitites);
-					for (const auto& e : enitites) {
-						if (handling_entities.has(e.id()))
-							continue;
-						handling_entities.insert(e.id(), true);
-						touch_info.entities.push_back(e);
-					}
 					touch_info.touch_state = TOUCH_STATE::TOUCH_BEGAN;
 					break;
 				}
@@ -162,35 +139,9 @@ namespace Engine {
 			if (removed_id == window_unique_touch_id) {
 				window_unique_touch_id = ::Const::MAX_UINT32;
 			}
-			const auto& handling_touch = handling_touches.get(removed_id);
-			for (const auto& e : handling_touch.entities) {
-				handling_entities.erase(e.id());
-			}
+			const auto& touch_info = handling_touches.get(removed_id);
+			handle_generator.release_handle(touch_info.id);
 			handling_touches.erase(removed_id);
-			id_generator.release_id(removed_id);
-		}
-	}
-
-	bool is_touch_entity_handling(const Handle& e) {
-		return handling_entities.has(e.id());
-	}
-
-	void discard_handling_touches_entities(const std::vector<Handle>& discard_entities) {
-		for (const Handle& e : discard_entities) {
-			if (!handling_entities.has(e.id()))
-				continue;
-			for (auto& touch_info : handling_touches.modify_values()) {
-				for (int i = 0; i < touch_info.entities.size(); i++) {
-					if (touch_info.entities[i].id() == e.id()) {
-						touch_info.entities[i] = touch_info.entities.back();
-						touch_info.entities.pop_back();
-						i--;
-					}
-				}
-				sort_touched(touch_info.entities);
-			}
-			handling_entities.erase(e.id());
-			id_generator.release_id(e.id());
 		}
 	}
 

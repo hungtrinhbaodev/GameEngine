@@ -460,7 +460,7 @@ Test: ./ui_test repro-api (key K), also in tests/run_all.sh. Run 2026-11-10: 10 
        ./editor --self-test, before the stand-in: "node centred where it was dropped (off by 542 px)".
     TODO(test): repro-api item 4 should also check a parent with anchor (0.5, 0.5).
 
-[]: 39. find_topmost_node_at returns a parent over its own child, and hits invisible nodes.
+[Handled]: 39. find_topmost_node_at returns a parent over its own child, and hits invisible nodes.
     engine.cpp ~2218: reverse DFS visits a parent before its children (children last-to-first), and the
     callback stops at the first hit, so a parent containing the point wins over the child drawn on top of it.
     is_world_position_in_entity_rect checks clip + rect but not visibility.
@@ -470,7 +470,7 @@ Test: ./ui_test repro-api (key K), also in tests/run_all.sh. Run 2026-11-10: 10 
     subtree when the node is not visible; or a reverse post-order walk (children before parent) and stop at the
     first hit. Same rule the touch dispatch uses for "topmost".
 
-[]: 40. The engine root draws a grey full-window background, so set_clear_screen_color is never visible.
+[Handled]: 40. The engine root draws a grey full-window background, so set_clear_screen_color is never visible.
     engine.cpp init_root (~626): set_layout_background_enabled(root, true) + colour 0.5 grey. Every app pays one
     full-window layer (~0.45 ms GPU at 2880x1640, full clock) and the clear colour is hidden under it.
     (Corrects the first note: the clear colour is fine, no sRGB issue - PAGE_BG shows exactly once the root
@@ -478,7 +478,7 @@ Test: ./ui_test repro-api (key K), also in tests/run_all.sh. Run 2026-11-10: 10 
     Fix: root background off by default (the clear colour is the background), or set_clear_screen_color turns
     the root background off. Editor stand-in: set_layout_background_enabled(get_root(), false).
 
-[]: 41. Custom-size labels load their font relative to the working directory.
+[Handled]: 41. Custom-size labels load their font relative to the working directory.
     components.cpp Label_Renderer_Information::update_inner_text_by (lines ~189, 198, 275) passes font_path
     ("res/fonts/...") straight to gen_text_info_from / get_renderer_text_size -> load_font, while the renderer
     (systems.cpp update_label_renderer) uses Utils::get_root_path() + font_path when the file exists.
@@ -546,7 +546,35 @@ Reading:
     sorted by z order. Runs after every fuzz frame and before every drive step; hidden draws (unused
     nine-scale pieces) are skipped.
 
-===== LAST RUN (2026-11-12, editor round 2) =====
+===== LAST RUN (2026-11-16, touch targets owned by the engine) =====
+UI suite 18 of 18 PASS (repro-reentry + asan failed on case 5 first: a click-only node disabled mid-touch
+still got its click because discard_handling_touches_entities became a no-op; fixed by calling
+remove_entities_from_touch_listener from both listener paths). ./editor --self-test 25 of 25 PASS.
+Done: 39, 40, 41 (editor stand-ins removed, topmost_layout_at uses find_topmost_node_at).
+Open (review notes, not covered by a test yet):
+- dispatch checks registry.has(e.id()) but not is_valid(e): a stale handle can write touch state into a
+  new node that reused the id (no wrong callback, the is_valid check in handle_enities_touched drops it).
+- a node detached with remove_child (not cleaned up) keeps getting MOVE / ENDED; plan was CANCEL once + drop.
+- fast-move CANCEL does not drop the target: next frame it gets MOVE / ENDED (and a click) again.
+- claim_touch cancels the targets of every touch, not only the claiming touch (multi-touch only).
+- has_entity compares id(), remove_entity compares the full handle.
+Rerun after way 2 (handle_enities_touched drops disabled targets): 18 of 18 PASS.
+- [Done] DIRTY_TOUCHING / DIRTY_SCROLLING, listener lists, touched_order / scroll_order removed; scroll now
+  uses the same tree walk as touch (find_entities_listen_scroll_at). process_frame ends with
+  dirty_entities.clear(): safe while every pass only sets flags for later passes.
+Rerun after dead-code cleanup + scroll tree walk: 18 of 18 PASS.
+- [Done] engine removed entities_touch_listener / entities_scroll_listener; test_checks.cpp
+  check_stale_listeners + its 2 fuzz call sites + the UI_TEST_VERBOSE touch-list dump removed.
+  Rerun: 18 of 18 PASS, editor --self-test 25 of 25.
+- test gap: nothing checks the running touch targets now (live handle, has Touching_Information, in one
+  touch only). Touch_Target_Information lives only in engine.cpp; needs a debug getter
+  (get_running_touch_targets) or the struct in a header so the test can read touch_id_to_entities.
+- [Done] discard_handling_touches_entities removed. Rerun: 18 of 18 PASS, editor --self-test 25 of 25.
+- leftover: Id_Generator id_generator in touch_handler.cpp is unused (touches use handle_generator).
+- way 2 skips touching_caller for a disabled node: a touch-caller node disabled mid-touch gets no ENDED /
+  CANCEL any more (old code sent one ENDED). No test covers this.
+
+===== PREVIOUS RUN (2026-11-12, editor round 2) =====
 UI suite 19 of 19 PASS. ./editor --self-test 25 of 25 PASS (Debug, and Release from /tmp with the cwd stand-in).
 Done today: 37 (scroll touch toggle), 38 (to_my_position_space anchor), #26 shader path.
 Open: 39 (find_topmost_node_at parent / invisible), 40 (root grey background hides the clear colour), 41 (label

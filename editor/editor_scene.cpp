@@ -144,16 +144,18 @@ namespace Editor {
 	}
 
 	/**
-	 * @Note: TODO(engine finding 39) Engine::find_topmost_node_at returns a parent over its own child and
-	 * hits invisible nodes. Stand-in: walk the canvas in draw order, keep the last visible layout hit.
+	 * The layout a drop at `world` goes into: the topmost scene node under the point (the selection frame is
+	 * skipped), then up to its nearest layout that contains the point (an image sticking out of its layout
+	 * does not drop into that layout). Invalid = the canvas itself.
 	 */
 	Handle topmost_layout_at(glm::vec2 world) {
-		Handle found = Handle::make_invalid_handle();
-		for_each_canvas_node([&](const Handle& e, int) {
-			if (kind_of(e) == Kind::LAYOUT && Engine::is_world_visible(e) && Editor_Api::is_point_in_node(e, world))
-				found = e;
-		});
-		return found;
+		Handle node = Engine::find_topmost_node_at(world, state.canvas, skip_in_scene);
+		while (Engine::is_valid(node) && node.id() != state.canvas.id()) {
+			if (kind_of(node) == Kind::LAYOUT && Editor_Api::is_point_in_node(node, world))
+				return node;
+			node = Engine::get_parent(node);
+		}
+		return Handle::make_invalid_handle();
 	}
 
 	// ---------------------------------------------------------------- create / delete / duplicate

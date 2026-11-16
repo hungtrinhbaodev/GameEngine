@@ -58,7 +58,7 @@ void main() {
     else {
         float d = -sd_round_rect(local_pos, half_size, border_radius);
         float smooth_width = fwidth(d);
-        float  alpha = smoothstep(-smooth_width, smooth_width, d);
+        float alpha = smoothstep(-smooth_width, smooth_width, d);
         if (alpha <= 0.f) discard;
         if (border_width <= 0) {
             out_color = vec4(frag_color, alpha * opacity);
@@ -68,5 +68,4 @@ void main() {
             out_color = vec4(mix(border_color, frag_color, border_alpha), alpha * opacity);
         }
     }
-    
 }

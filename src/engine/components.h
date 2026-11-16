@@ -151,8 +151,6 @@ namespace Engine {
 			caller = nullptr;
 		std::function<void(Handle e, glm::vec2 touch_world_position, int touch_type, int touch_mods)> click_caller =
 			nullptr;
-		std::array<glm::vec2, 4> transformed_rect{};
-		uint32_t touched_order = 0;
 		bool claim_touch = false;
 		int touch_type = -1;
 		int touch_mods = -1;
@@ -168,6 +166,7 @@ namespace Engine {
 		std::array<World_Transform_2D, 9> pieces_transforms;
 		std::array<Geometry::Texture_Rect_2D, 9> pieces_rects;
 		bool is_manual_update_inner_size = false;
+
 		void update_piece_transforms(
 			const glm::vec2& renderer_size, const World_Transform_2D& world_transform, const glm::vec2& size,
 			const Geometry::Texture_Rect_2D& rect
@@ -184,8 +183,6 @@ namespace Engine {
 		glm::vec2 start_touch{0.f, 0.f};
 		bool swallow_scroll = true;
 		std::function<void(Handle e, float delta_scroll)> caller = nullptr;
-		std::array<glm::vec2, 4> transformed_rect{};
-		uint32_t scroll_order = 0;
 		TOUCH_SCROLL_STATE touch_state = TOUCH_SCROLL_STATE::IDLE;
 		float dragging_threshold = 7.5f;
 	};
@@ -196,8 +193,17 @@ namespace Engine {
 
 	struct Rect {
 		std::array<glm::vec2, 4> transformed_rect;
+		glm::vec2 min{::Const::MAX_FLOAT};
+		glm::vec2 max{-::Const::MAX_FLOAT};
+		glm::vec2 global_min{::Const::MAX_FLOAT};
+		glm::vec2 global_max{-::Const::MAX_FLOAT};
+
+		void clean_global_min_max();
+		void update_transformed_rect(const std::array<glm::vec2, 4>& transformed_rect);
+		void update_global_min_max(const glm::vec2& child_global_min, const glm::vec2& child_global_max);
 		bool is_clipped_by(const Rect& parent_rect) const;
 		CLIPPING_STATE get_cliping_state_with(const Rect& parent_rect) const;
+
 		inline friend std::ostream& operator<<(std::ostream& os, const Rect& rect) {
 			os << "{";
 			for (int i = 0; i < rect.transformed_rect.size(); i++) {

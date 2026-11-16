@@ -34,11 +34,9 @@ namespace Engine {
 	 */
 	const uint64_t DIRTY_DRAW_ORDER = (1 << 5);
 
-	const uint64_t DIRTY_TOUCHING = (1 << 6);
+	const uint64_t DIRTY_CONTAINER_TRANSFORM = (1 << 6);
 
-	const uint64_t DIRTY_CONTAINER_TRANSFORM = (1 << 7);
-
-	const uint64_t DIRTY_SCROLLING = (1 << 8);
+	const uint64_t DIRTY_GLOBAL_AABB = (1 << 7);
 
 	// Main caller functions.
 	void init(GLFWwindow* window);
@@ -90,8 +88,6 @@ namespace Engine {
 	// Query/Update objects.
 
 	bool is_world_position_in_entity_rect(const Handle& e, const glm::vec2& touch_position);
-
-	bool is_scroll_position_valid_with(const Handle& e, const glm::vec2& scroll_position);
 
 	std::vector<Handle> find_entites_listen_touch_at(const glm::vec2& world_touch_position);
 
@@ -326,7 +322,10 @@ namespace Engine {
 
 	void set_touch_cancel_on_fast_move(const Handle& e, bool enabled);
 
-	Handle find_topmost_node_at(const glm::vec2& world_position, Handle under = get_root());
+	Handle find_topmost_node_at(
+		const glm::vec2& world_position, const Handle& under = get_root(),
+		const std::function<bool(const Handle&)>& skip = nullptr
+	);
 
 	SIZE_TYPE get_size_type(const Handle& e);
 

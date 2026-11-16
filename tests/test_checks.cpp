@@ -14,8 +14,6 @@
  */
 namespace Engine {
 	extern Handle_Generator entity_generator;
-	extern std::vector<Handle> entities_touch_listener;
-	extern std::vector<Handle> entities_scroll_listener;
 	extern std::vector<Handle> clean_up_entities;
 	Handle get_clipping_renderer_handle(const Handle& e);
 	CLIPPING_STATE get_clipping_state_by_ancestors(const Handle& e);
@@ -742,47 +740,8 @@ namespace Test {
 
 	namespace {
 
-		bool logged_stale_listener = false;
-
-		/**
-		 * @Note: after a full frame every listener entry must be a live handle
-		 * that still has its component, otherwise the next sort / hit test reads a missing one.
-		 */
-		size_t check_stale_listeners(bool log_issues) {
-			using namespace Engine;
-			Registry& registry = get_registry();
-			size_t stale = 0;
-			auto check = [&](const std::vector<Handle>& list, const char* name, bool touch) {
-				for (const auto& e : list) {
-					bool alive = entity_generator.validate_handle(e);
-					bool has_component =
-						touch ? registry.has<Touching_Information>(e.id()) : registry.has<Scroll_Information>(e.id());
-					if (alive && has_component)
-						continue;
-					stale++;
-					if (log_issues) {
-						Log::info(
-							"[listener]", name, "holds entity", e.id(), "generation", e.generation(), "| handle alive",
-							alive, "| has component", has_component
-						);
-					}
-				}
-			};
-			check(entities_touch_listener, "touch list", true);
-			check(entities_scroll_listener, "scroll list", false);
-			return stale;
-		}
-
 		void fuzz_frame() {
 			fresh_nodes.clear();
-			if (!logged_stale_listener && check_stale_listeners(false) > 0) {
-				logged_stale_listener = true;
-				Log::info("[listener] stale entry after frame", job.frame - 1, "- ops of that frame:");
-				for (const auto& op : last_frame_ops) {
-					Log::info("   ", op);
-				}
-				check_stale_listeners(true);
-			}
 			if (!logged_draw_order && check_draw_order(false) > 0) {
 				logged_draw_order = true;
 				Log::info("[draw-order] broken after frame", job.frame - 1, "- ops of that frame:");
@@ -814,28 +773,6 @@ namespace Test {
 						Log::info("[fuzz] frame", job.frame, "exception:", exception.what());
 					}
 				}
-			}
-			if (std::getenv("UI_TEST_VERBOSE")) {
-				Registry& registry = Engine::get_registry();
-				for (const auto& e : Engine::entities_touch_listener) {
-					int type = registry.has<Engine::Description>(e.id())
-								   ? (int)std::get<0>(registry.read<Engine::Description>(e.id())).value
-								   : -1;
-					Log::info(
-						"[listener] frame", job.frame, "touch list has", e.id(), "gen", e.generation(), "type", type,
-						"alive", Engine::entity_generator.validate_handle(e), "touch component",
-						registry.has<Engine::Touching_Information>(e.id())
-					);
-				}
-			}
-			// same check right after the ops: process_frame sorts the lists before the next frame starts.
-			if (!logged_stale_listener && check_stale_listeners(false) > 0) {
-				logged_stale_listener = true;
-				Log::info("[listener] stale entry right after the ops of frame", job.frame, ":");
-				for (const auto& op : last_frame_ops) {
-					Log::info("   ", op);
-				}
-				check_stale_listeners(true);
 			}
 			size_t issues = verify_tree(false);
 			if (issues > 0) {

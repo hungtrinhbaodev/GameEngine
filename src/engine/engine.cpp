@@ -35,6 +35,37 @@ namespace Engine {
 		TRAVEL_BFS
 	};
 
+	struct Travel_Entity_Information {
+		Handle child = Handle::make_invalid_handle();
+		int parent_index = -1;
+		bool is_visited = false;
+		bool break_chain = false;
+	};
+
+	struct Touch_Target_Information {
+		Handle touch_id = Handle::make_invalid_handle();
+		std::vector<Handle> entities;
+
+		bool has_entity(const Handle& e) const {
+			for (const auto& entity : entities) {
+				if (entity.id() == e.id()) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		void remove_entity(const Handle& e) {
+			std::vector<Handle> remains;
+			for (int i = 0; i < entities.size(); i++) {
+				if (entities[i] != e) {
+					remains.push_back(entities[i]);
+				}
+			}
+			entities = remains;
+		}
+	};
+
 	const float RATE_CANCEL_MOVE = 0.5f;
 
 	Registry registry{};
@@ -45,13 +76,11 @@ namespace Engine {
 
 	Sparse_Set<Handle> dirty_entities{};
 
-	std::vector<Handle> entities_touch_listener{};
-
-	std::vector<Handle> entities_scroll_listener{};
-
 	std::vector<Handle> clean_up_entities{};
 
 	glm::vec2 cursor_world_position = {0.f, 0.f};
+
+	Sparse_Set<Touch_Target_Information> touch_id_to_entities{};
 
 	std::string get_entity_description_name(const Handle& e) {
 		if (!registry.has<Description>(e.id())) {
@@ -84,39 +113,81 @@ namespace Engine {
 	}
 
 	void travel_down_dfs(
-		const Handle& root, const std::function<bool(const Handle& parent, const Handle& child)>& fn,
-		bool reverse = false
+		const Handle& root,
+		const std::function<void(const Handle& parent, const Handle& child, bool& break_chain, bool& break_all)>&
+			top_down_fn,
+		bool reverse_children_order = false,
+		const std::function<void(const Handle& parent, const Handle& child, bool& break_chain, bool& break_all)>&
+			down_top_fn = nullptr
 	) {
+		bool break_all = false;
 		if (!registry.has<Tree_Information>(root.id())) {
-			fn(Handle::make_invalid_handle(), root);
+			bool break_chain = false;
+			top_down_fn(Handle::make_invalid_handle(), root, break_chain, break_all);
 			return;
 		}
-		std::stack<Handle> stack{};
-		stack.push(root);
+		std::vector<Travel_Entity_Information> stack{};
+		bool need_down_top_execute = down_top_fn != nullptr;
+		stack.push_back({root, -1});
 		while (stack.size()) {
-			Handle current = stack.top();
-			stack.pop();
-			const auto& [tree_info] = registry.read<Tree_Information>(current.id());
-			if (fn(tree_info.parent, current))
-				break;
-
-			if (reverse) {
-				for (int i = 0; i < tree_info.children.size(); i++) {
-					const auto& child = tree_info.children[i];
-					stack.push(child);
+			int travel_index = stack.size() - 1;
+			const auto& [current_tree_info] = registry.read<Tree_Information>(stack[travel_index].child.id());
+			if (!stack[travel_index].is_visited) {
+				bool break_chain = false;
+				top_down_fn(current_tree_info.parent, stack[travel_index].child, break_chain, break_all);
+				const auto& [current_tree_info] = registry.read<Tree_Information>(stack[travel_index].child.id());
+				if (break_all) {
+					break;
+				}
+				if (break_chain) {
+					stack.pop_back();
+					continue;
+				}
+				if (!need_down_top_execute) {
+					stack.pop_back();
+				} else {
+					stack[travel_index].is_visited = true;
+				}
+				if (reverse_children_order) {
+					for (int i = 0; i < current_tree_info.children.size(); i++) {
+						const auto& child = current_tree_info.children[i];
+						stack.push_back({child, travel_index});
+					}
+				} else {
+					for (int i = current_tree_info.children.size() - 1; i > -1; i--) {
+						const auto& child = current_tree_info.children[i];
+						stack.push_back({child, travel_index});
+					}
 				}
 			} else {
-				for (int i = tree_info.children.size() - 1; i > -1; i--) {
-					const auto& child = tree_info.children[i];
-					stack.push(child);
+				if (stack[travel_index].break_chain) {
+					if (stack[travel_index].parent_index >= 0) {
+						stack[stack[travel_index].parent_index].break_chain |= false;
+					}
+					stack.pop_back();
+					continue;
 				}
+				bool break_chain = false;
+				down_top_fn(current_tree_info.parent, stack[travel_index].child, break_chain, break_all);
+				stack[travel_index].break_chain = break_chain;
+				if (break_all)
+					break;
+				if (stack[travel_index].parent_index >= 0) {
+					stack[stack[travel_index].parent_index].break_chain |= break_chain;
+				}
+				stack.pop_back();
 			}
 		}
 	}
 
-	void travel_down_bfs(const Handle& root, const std::function<bool(const Handle& parent, const Handle& child)>& fn) {
+	void travel_down_bfs(
+		const Handle& root,
+		const std::function<void(const Handle& parent, const Handle& child, bool& break_chain, bool& break_all)>& fn
+	) {
+		bool break_all = false;
 		if (!registry.has<Tree_Information>(root.id())) {
-			fn(Handle::make_invalid_handle(), root);
+			bool break_chain = false;
+			fn(Handle::make_invalid_handle(), root, break_chain, break_all);
 			return;
 		}
 		std::queue<Handle> queue{};
@@ -125,8 +196,12 @@ namespace Engine {
 			Handle current = queue.front();
 			queue.pop();
 			const auto& [tree_info] = registry.read<Tree_Information>(current.id());
-			if (fn(tree_info.parent, current))
+			bool break_chain = false;
+			fn(tree_info.parent, current, break_chain, break_all);
+			if (break_all)
 				break;
+			if (break_chain)
+				continue;
 			for (int i = tree_info.children.size() - 1; i > -1; i--) {
 				const auto& child = tree_info.children[i];
 				queue.push(child);
@@ -135,12 +210,15 @@ namespace Engine {
 	}
 
 	void travel_down(
-		const Handle& root, const std::function<bool(const Handle& parent, const Handle& child)>& fn,
-		TRAVEL_TYPE travel_type = TRAVEL_TYPE::TRAVEL_DFS, bool reverse = false
+		const Handle& root,
+		const std::function<void(const Handle& parent, const Handle& child, bool& break_chain, bool& break_all)>& fn,
+		TRAVEL_TYPE travel_type = TRAVEL_TYPE::TRAVEL_DFS, bool reverse_children_order = false,
+		const std::function<void(const Handle& parent, const Handle& child, bool& break_chain, bool& break_all)>&
+			down_top_fn = nullptr
 	) {
 		switch (travel_type) {
 			case TRAVEL_TYPE::TRAVEL_DFS: {
-				travel_down_dfs(root, fn, reverse);
+				travel_down_dfs(root, fn, reverse_children_order, down_top_fn);
 				break;
 			}
 			default: {
@@ -150,16 +228,20 @@ namespace Engine {
 		}
 	}
 
-	void travel_up(Handle child, const std::function<bool(const Handle& parent, const Handle& child)>& fn) {
+	void travel_up(
+		Handle child, const std::function<void(const Handle& parent, const Handle& child, bool& break_chain)>& fn
+	) {
 		if (!registry.has<Tree_Information>(child.id())) {
 			return;
 		}
 		const auto& [tree_info] = registry.read<Tree_Information>(child.id());
 		Handle parent = tree_info.parent;
-		bool stop = false;
-		while (!stop && !child.is_invalid() && registry.has<Tree_Information>(parent.id())) {
-			stop = fn(parent, child);
+		bool break_chain = false;
+		while (!break_chain && !child.is_invalid()) {
+			fn(parent, child, break_chain);
 			child = parent;
+			if (child.is_invalid())
+				break;
 			const auto& [tree_info] = registry.read<Tree_Information>(child.id());
 			parent = tree_info.parent;
 		}
@@ -174,6 +256,7 @@ namespace Engine {
 		registry.erase<Tree_Information>(e.id());
 		registry.erase<World_Transform_2D>(e.id());
 		registry.erase<Draw_Order>(e.id());
+		registry.erase<Rect>(e.id());
 	}
 
 	void remove_layout(const Handle& e) {
@@ -191,7 +274,6 @@ namespace Engine {
 		registry.erase<Touching_Information>(e.id());
 		registry.erase<Size>(e.id());
 		registry.erase<Clipping_Information>(e.id());
-		registry.erase<Rect>(e.id());
 	}
 
 	void remove_scroll_layout(const Handle& e) {
@@ -222,7 +304,6 @@ namespace Engine {
 		registry.erase<Touching_Information>(e.id());
 		registry.erase<Size_Pinning>(e.id());
 		registry.erase<Size_Percent>(e.id());
-		registry.erase<Rect>(e.id());
 	}
 
 	void remove_label(const Handle& e) {
@@ -238,7 +319,6 @@ namespace Engine {
 		registry.erase<Renderer_Handles>(e.id());
 		registry.erase<Inner_Renderer_Size>(e.id());
 		registry.erase<Touching_Information>(e.id());
-		registry.erase<Rect>(e.id());
 	}
 
 	void clean_size_components(const Handle& e) {
@@ -284,9 +364,9 @@ namespace Engine {
 
 	bool has_node_ancestor_dirty(const Handle& e, uint64_t flag) {
 		bool found_dirty = false;
-		travel_up(e, [&found_dirty, &flag](const Handle&, const Handle& child) {
+		travel_up(e, [&found_dirty, &flag](const Handle&, const Handle& child, bool& break_chain) {
 			found_dirty = is_dirty(child, flag);
-			return found_dirty;
+			break_chain = found_dirty;
 		});
 		return found_dirty;
 	}
@@ -342,30 +422,32 @@ namespace Engine {
 					if (!is_dirty(dirty_entity, dirty_flag))
 						continue;
 					travel_down(
-						dirty_entity, [&dirty_flag, &picked_mode, &push_item_by_picked_mode,
-									   &processing_traveled_entities](const Handle&, const Handle& child) {
+						dirty_entity,
+						[&dirty_flag, &picked_mode, &push_item_by_picked_mode,
+						 &processing_traveled_entities](const Handle&, const Handle& child, bool&, bool&) {
 							push_item_by_picked_mode(dirty_flag, picked_mode, processing_traveled_entities, child);
-							return false;
 						}
 					);
 				}
 				break;
 			}
 			case TRAVEL_NODE_MODE::TRAVEL_UP: {
-				std::sort(processing_dirty_entities.begin(), processing_dirty_entities.end(), node_greater);
-				std::reverse(processing_dirty_entities.begin(), processing_dirty_entities.end());
+				std::unordered_map<uint32_t, bool> visited;
 				for (const auto& dirty_entity : processing_dirty_entities) {
-					if (!is_dirty(dirty_entity, dirty_flag))
-						continue;
 					travel_up(
-						dirty_entity, [&dirty_flag, &picked_mode, &push_item_by_picked_mode,
-									   &processing_traveled_entities](const Handle&, const Handle& child) {
+						dirty_entity,
+						[&dirty_flag, &picked_mode, &push_item_by_picked_mode, &processing_traveled_entities,
+						 &visited](const Handle&, const Handle& child, bool& break_chain) {
+							if (visited.find(child.id()) != visited.end()) {
+								break_chain = true;
+								return;
+							}
 							push_item_by_picked_mode(dirty_flag, picked_mode, processing_traveled_entities, child);
-							return false;
+							visited[child.id()] = true;
 						}
 					);
 				}
-				std::reverse(processing_traveled_entities.begin(), processing_traveled_entities.end());
+				std::sort(processing_traveled_entities.begin(), processing_traveled_entities.end(), node_greater);
 				break;
 			}
 			default: {
@@ -385,9 +467,8 @@ namespace Engine {
 						continue;
 					travel_up(
 						dirty_entity, [&dirty_flag, &picked_mode, &push_item_by_picked_mode,
-									   &processing_traveled_entities](const Handle&, const Handle& child) {
+									   &processing_traveled_entities](const Handle&, const Handle& child, bool&) {
 							push_item_by_picked_mode(dirty_flag, picked_mode, processing_traveled_entities, child);
-							return false;
 						}
 					);
 				}
@@ -396,10 +477,10 @@ namespace Engine {
 					if (!is_dirty(dirty_entity, dirty_flag))
 						continue;
 					travel_down(
-						dirty_entity, [&dirty_flag, &picked_mode, &push_item_by_picked_mode,
-									   &processing_traveled_entities](const Handle&, const Handle& child) {
+						dirty_entity,
+						[&dirty_flag, &picked_mode, &push_item_by_picked_mode,
+						 &processing_traveled_entities](const Handle&, const Handle& child, bool&, bool&) {
 							push_item_by_picked_mode(dirty_flag, picked_mode, processing_traveled_entities, child);
-							return false;
 						}
 					);
 				}
@@ -443,19 +524,93 @@ namespace Engine {
 
 	void update_tree_changing_z_order() {
 		std::vector<Handle> prcessing_entities{};
-		travel_down(root, [&prcessing_entities](const Handle&, const Handle& child) {
+		travel_down(root, [&prcessing_entities](const Handle&, const Handle& child, bool&, bool&) {
 			prcessing_entities.push_back(child);
-			return false;
 		});
 		handle_update_tree_draw_order(prcessing_entities);
 	}
 
+	bool is_touch_entity_handling(const Handle& e) {
+		if (!registry.has<Touching_Information>(e.id()) || !is_valid(e)) {
+			return false;
+		}
+		const auto& [touch_info] = registry.read<Touching_Information>(e.id());
+		if (!touch_info.enabled) {
+			return false;
+		}
+		for (const auto& touch_target_info : touch_id_to_entities.values()) {
+			if (touch_target_info.has_entity(e)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	void remove_entities_from_touch_listener(const std::vector<Handle>& discard_entities) {
+		for (const Handle& e : discard_entities) {
+			for (auto& touch_target_info : touch_id_to_entities.modify_values()) {
+				if (touch_target_info.has_entity(e)) {
+					touch_target_info.remove_entity(e);
+				}
+			}
+		}
+	}
+
 	std::vector<Handle> make_processing_enitites_touched() {
-		std::vector<Handle> executing_entities_listener;
+		/**
+		 * Remove all touch that removed from list touch id.
+		 */
 		const auto& handled_touches = get_handled_touches();
+		std::vector<uint32_t> removed_touch_ids{};
+		for (const auto& touch_target_info : touch_id_to_entities.values()) {
+			bool has_touch_id = false;
+			for (const auto& touch_info : handled_touches) {
+				if (touch_info.id == touch_target_info.touch_id) {
+					has_touch_id = true;
+					break;
+				}
+			}
+			if (!has_touch_id) {
+				removed_touch_ids.push_back(touch_target_info.touch_id.id());
+			}
+		}
+		for (const auto& id : removed_touch_ids) {
+			touch_id_to_entities.erase(id);
+		}
+		/**
+		 * Handle add new touch information into entities listener.
+		 */
+		for (const auto& touch_info : handled_touches) {
+			switch (touch_info.touch_state) {
+				case TOUCH_STATE::TOUCH_BEGAN: {
+					if (touch_id_to_entities.has(touch_info.id.id())) {
+						throw std::runtime_error("Fail to sync touch from touch handler, touch began is exists!");
+					}
+					auto listener_entities = find_entites_listen_touch_at(touch_info.touch_world_position);
+					listener_entities = Utils::find_entites_satify_from(listener_entities, [](const Handle& e) {
+						for (const auto& touch_target_info : touch_id_to_entities.values()) {
+							if (touch_target_info.has_entity(e)) {
+								return false;
+							}
+						}
+						return true;
+					});
+					touch_id_to_entities.insert(touch_info.id.id(), {touch_info.id, listener_entities});
+					break;
+				}
+				default: {
+					break;
+				}
+			}
+		}
+		/**
+		 * Handle update touch state for every entites
+		 */
+		std::vector<Handle> executing_entities_listener;
 		auto screen_size = get_window_size();
 		for (const auto& touch_info : handled_touches) {
-			const auto& entities = touch_info.entities;
+			const auto& touch_target_info = touch_id_to_entities.get(touch_info.id.id());
+			const auto& entities = touch_target_info.entities;
 			for (const auto& e : entities) {
 				if (!registry.has<Touching_Information>(e.id()))
 					continue;
@@ -479,70 +634,6 @@ namespace Engine {
 			}
 		}
 		return std::move(executing_entities_listener);
-	}
-
-	void clean_touch_removed_child_listener_entities(const std::vector<Handle>& entities) {
-		for (const auto& e : entities) {
-			Utils::remove_entities_from(entities_touch_listener, e);
-		}
-		Utils::sort_entities(entities_touch_listener, [](const Handle& a, const Handle& b) {
-			const auto& [touch_info_a] = registry.read<Touching_Information>(a.id());
-			const auto& [touch_info_b] = registry.read<Touching_Information>(b.id());
-			return touch_info_a.touched_order > touch_info_b.touched_order;
-		});
-		discard_handling_touches_entities(entities);
-	}
-
-	void handle_update_entities_touch_listener(const std::vector<Handle>& dirty_entities) {
-		std::vector<Handle> removed_enitites_listener;
-		for (const auto& e : dirty_entities) {
-			if (!registry.has<Touching_Information>(e.id()))
-				continue;
-			const auto& [touch_info] = registry.read<Touching_Information>(e.id());
-			if (!touch_info.enabled) {
-				Utils::remove_entities_from(entities_touch_listener, e);
-				removed_enitites_listener.push_back(e);
-			} else {
-				Utils::insert_entities_to(entities_touch_listener, e);
-			}
-		}
-		Utils::sort_entities(entities_touch_listener, [](const Handle& a, const Handle& b) {
-			const auto& [touch_info_a] = registry.read<Touching_Information>(a.id());
-			const auto& [touch_info_b] = registry.read<Touching_Information>(b.id());
-			return touch_info_a.touched_order > touch_info_b.touched_order;
-		});
-		discard_handling_touches_entities(removed_enitites_listener);
-	}
-
-	void clean_scroll_removed_child_listener_entities(const std::vector<Handle>& entities) {
-		for (const auto& e : entities) {
-			if (!registry.has<Scroll_Information>(e.id()))
-				continue;
-			Utils::remove_entities_from(entities_scroll_listener, e);
-		}
-		Utils::sort_entities(entities_scroll_listener, [](const Handle& a, const Handle& b) {
-			const auto& [scroll_info_a] = registry.read<Scroll_Information>(a.id());
-			const auto& [scroll_info_b] = registry.read<Scroll_Information>(b.id());
-			return scroll_info_a.scroll_order > scroll_info_b.scroll_order;
-		});
-	}
-
-	void handle_update_entities_scroll_listener(const std::vector<Handle>& dirty_entities) {
-		for (const auto& e : dirty_entities) {
-			if (!registry.has<Scroll_Information>(e.id()))
-				continue;
-			const auto& [scroll_info] = registry.read<Scroll_Information>(e.id());
-			if (!scroll_info.enabled) {
-				Utils::remove_entities_from(entities_scroll_listener, e);
-			} else {
-				Utils::insert_entities_to(entities_scroll_listener, e);
-			}
-			Utils::sort_entities(entities_scroll_listener, [](const Handle& a, const Handle& b) {
-				const auto& [scroll_info_a] = registry.read<Scroll_Information>(a.id());
-				const auto& [scroll_info_b] = registry.read<Scroll_Information>(b.id());
-				return scroll_info_a.scroll_order > scroll_info_b.scroll_order;
-			});
-		}
 	}
 
 	bool is_position_clipped_by_clipping_ancestors(const Handle& e, const glm::vec2& touch_position) {
@@ -574,10 +665,7 @@ namespace Engine {
 	void process_clean_up_entities() {
 		for (const auto& e : clean_up_entities) {
 			std::vector<Handle> nodes;
-			travel_down(e, [&nodes](const Handle&, const Handle& child) {
-				nodes.push_back(child);
-				return false;
-			});
+			travel_down(e, [&nodes](const Handle&, const Handle& child, bool&, bool&) { nodes.push_back(child); });
 			for (int i = nodes.size() - 1; i > -1; i--) {
 				const auto& node = nodes[i];
 				if (!registry.has<Description>(node.id())) {
@@ -624,8 +712,6 @@ namespace Engine {
 		tree_info.valid_child = true;
 		tree_info.depth = 0;
 		set_content_size(root, get_window_size());
-		set_layout_background_enabled(root, true);
-		set_layout_background_color(root, {0.5f, 0.5f, 0.5f});
 	}
 
 	Handle create_node(DESCRIPTION_TYPE type) {
@@ -638,6 +724,7 @@ namespace Engine {
 		registry.add(entity.id(), Tree_Information{});
 		registry.add(entity.id(), World_Transform_2D{});
 		registry.add(entity.id(), Draw_Order{});
+		registry.add(entity.id(), Rect{});
 		return entity;
 	}
 
@@ -657,10 +744,12 @@ namespace Engine {
 	void process_frame(double dt) {
 
 		std::vector<Handle> processing_dirty_entities;
+		std::vector<Handle> discard_listener_entities;
 
 		handle_touches_logic();
 		processing_dirty_entities = make_processing_enitites_touched();
-		handle_enities_touched(processing_dirty_entities);
+		discard_listener_entities = handle_enities_touched(processing_dirty_entities);
+		remove_entities_from_touch_listener(discard_listener_entities);
 
 		if (has_scrolling()) {
 			processing_dirty_entities = find_entities_listen_scroll_at(get_world_scrolling_position());
@@ -694,11 +783,9 @@ namespace Engine {
 		processing_dirty_entities = make_processing_dirty_entities(DIRTY_TRANSFORM, TRAVEL_NODE_MODE::TRAVEL_DOWN);
 		handle_dirty_transform(processing_dirty_entities);
 
-		processing_dirty_entities = make_processing_dirty_entities(DIRTY_TOUCHING, TRAVEL_NODE_MODE::TRAVEL_NONE);
-		handle_update_entities_touch_listener(processing_dirty_entities);
-
-		processing_dirty_entities = make_processing_dirty_entities(DIRTY_SCROLLING, TRAVEL_NODE_MODE::TRAVEL_NONE);
-		handle_update_entities_scroll_listener(processing_dirty_entities);
+		processing_dirty_entities = make_processing_dirty_entities(DIRTY_GLOBAL_AABB, TRAVEL_NODE_MODE::TRAVEL_UP);
+		std::reverse(processing_dirty_entities.begin(), processing_dirty_entities.end());
+		handle_dirty_compute_global_aabb(processing_dirty_entities);
 
 		dirty_entities.clear();
 		Vulkan::draw_frame(dt);
@@ -738,7 +825,6 @@ namespace Engine {
 		registry.add(layout.id(), Size_Percent{});
 		registry.add(layout.id(), Clipping_Information{});
 		registry.add(layout.id(), Touching_Information{});
-		registry.add(layout.id(), Rect{});
 		return layout;
 	}
 
@@ -907,11 +993,11 @@ namespace Engine {
 		 * we need confirm that child
 		 * don't contain it parent.
 		 */
-		travel_down(e_child, [&is_recurse, &e_parent](const Handle&, const Handle& child) {
+		travel_down(e_child, [&is_recurse, &e_parent](const Handle&, const Handle& child, bool&, bool& break_all) {
 			if (child.id() == e_parent.id()) {
 				is_recurse = true;
 			}
-			return is_recurse;
+			break_all = is_recurse;
 		});
 		if (is_recurse) {
 			return;
@@ -924,25 +1010,19 @@ namespace Engine {
 		tree_info.parent = e_parent;
 		tree_info.valid_child = parent_tree_info.valid_child;
 		if (tree_info.valid_child) {
-			uint64_t all_dirty = DIRTY_TRANSFORM | DIRTY_RENDERER | DIRTY_CLIPPING;
-			travel_down(e_child, [&all_dirty](const Handle& parent, const Handle& child) {
+			uint64_t all_dirty = DIRTY_TRANSFORM | DIRTY_RENDERER | DIRTY_CLIPPING | DIRTY_GLOBAL_AABB;
+			travel_down(e_child, [&all_dirty](const Handle& parent, const Handle& child, bool&, bool& break_all) {
 				if (!registry.has<Tree_Information>(parent.id()) ||
 					!registry.has_all<Tree_Information, Dirty_Flag>(child.id())) {
-					return true;
+					break_all = true;
+					return;
 				}
 				const auto& [parent_tree_info] = registry.read<Tree_Information>(parent.id());
 				auto [child_tree_info] = registry.get<Tree_Information>(child.id());
 				auto [dirty_flag] = registry.read<Dirty_Flag>(child.id());
 				child_tree_info.valid_child = parent_tree_info.valid_child;
-				if (registry.has<Touching_Information>(child.id())) {
-					all_dirty |= DIRTY_TOUCHING;
-				}
-				if (registry.has<Scroll_Information>(child.id())) {
-					all_dirty |= DIRTY_SCROLLING;
-				}
 				set_dirty(child, true, dirty_flag.value | all_dirty);
 				child_tree_info.depth = parent_tree_info.depth + 1;
-				return false;
 			});
 		}
 		parent_tree_info.children.push_back(e_child);
@@ -985,10 +1065,9 @@ namespace Engine {
 				i--;
 			}
 		}
-		set_dirty(tree_info.parent, true, DIRTY_DRAW_ORDER);
-		travel_down(e, [&removed_children](const Handle&, const Handle& child) {
+		set_dirty(tree_info.parent, true, DIRTY_DRAW_ORDER | DIRTY_GLOBAL_AABB);
+		travel_down(e, [&removed_children](const Handle&, const Handle& child, bool&, bool&) {
 			removed_children.push_back(child);
-			return false;
 		});
 		handle_removed_children(removed_children);
 		tree_info.parent = Handle::make_invalid_handle();
@@ -999,22 +1078,6 @@ namespace Engine {
 		for (const auto& e : removed_children) {
 			remove_entity_from_dirty_list(e);
 		}
-
-		std::vector<Handle> removed_enitites_listener;
-		for (const auto& e : removed_children) {
-			if (registry.has<Touching_Information>(e.id())) {
-				removed_enitites_listener.push_back(e);
-			}
-		}
-		clean_touch_removed_child_listener_entities(removed_enitites_listener);
-
-		removed_enitites_listener.clear();
-		for (const auto& e : removed_children) {
-			if (registry.has<Scroll_Information>(e.id())) {
-				removed_enitites_listener.push_back(e);
-			}
-		}
-		clean_scroll_removed_child_listener_entities(removed_enitites_listener);
 	}
 
 	void clean_up(const Handle& e) {
@@ -1024,35 +1087,59 @@ namespace Engine {
 	}
 
 	std::vector<Handle> find_entites_listen_touch_at(const glm::vec2& world_touch_position) {
-		return std::move(
-			Utils::find_entites_satify_from(entities_touch_listener, [&world_touch_position](const Handle& e) {
-				bool found = false, stop = false;
-				const auto& [touch_info, transform] = registry.read<Touching_Information, World_Transform_2D>(e.id());
-				if (is_valid(e) && transform.is_visible && is_world_position_in_entity_rect(e, world_touch_position)) {
-					found = true;
+		std::vector<Handle> found_entities;
+		travel_down(
+			root,
+			[&world_touch_position](const Handle&, const Handle& e, bool& break_chain, bool&) {
+				const auto& [c_rect, transform] = registry.read<Rect, World_Transform_2D>(e.id());
+				if (!is_valid(e) || !transform.is_visible ||
+					!Math::point_in_aabb(c_rect.global_min, c_rect.global_max, world_touch_position)) {
+					break_chain = true;
+				}
+			},
+			TRAVEL_TYPE::TRAVEL_DFS, true,
+			[&world_touch_position, &found_entities](const Handle&, const Handle& e, bool&, bool& break_all) {
+				if (!registry.has<Touching_Information>(e.id())) {
+					return;
+				}
+				const auto& [touch_info] = registry.read<Touching_Information>(e.id());
+				if (touch_info.enabled && is_world_position_in_entity_rect(e, world_touch_position)) {
+					found_entities.push_back(e);
 					if (touch_info.swallow_touches) {
-						stop = true;
+						break_all = true;
 					}
 				}
-				return std::make_tuple(found, stop);
-			})
+			}
 		);
+		return found_entities;
 	}
 
-	std::vector<Handle> find_entities_listen_scroll_at(const glm::vec2& world_scroll_position) {
-		return std::move(
-			Utils::find_entites_satify_from(entities_scroll_listener, [&world_scroll_position](const Handle& e) {
-				bool found = false, stop = false;
-				const auto& [scroll_info, transform] = registry.read<Scroll_Information, World_Transform_2D>(e.id());
-				if (is_valid(e) && transform.is_visible && is_world_position_in_entity_rect(e, world_scroll_position)) {
-					found = true;
+	std::vector<Handle> find_entities_listen_scroll_at(const glm::vec2& world_touch_position) {
+		std::vector<Handle> found_entities;
+		travel_down(
+			root,
+			[&world_touch_position](const Handle&, const Handle& e, bool& break_chain, bool&) {
+				const auto& [c_rect, transform] = registry.read<Rect, World_Transform_2D>(e.id());
+				if (!is_valid(e) || !transform.is_visible ||
+					!Math::point_in_aabb(c_rect.global_min, c_rect.global_max, world_touch_position)) {
+					break_chain = true;
+				}
+			},
+			TRAVEL_TYPE::TRAVEL_DFS, true,
+			[&world_touch_position, &found_entities](const Handle&, const Handle& e, bool&, bool& break_all) {
+				if (!registry.has<Scroll_Information>(e.id())) {
+					return;
+				}
+				const auto& [scroll_info] = registry.read<Scroll_Information>(e.id());
+				if (scroll_info.enabled && is_world_position_in_entity_rect(e, world_touch_position)) {
+					found_entities.push_back(e);
 					if (scroll_info.swallow_scroll) {
-						stop = true;
+						break_all = true;
 					}
 				}
-				return std::make_tuple(found, stop);
-			})
+			}
 		);
+		return found_entities;
 	}
 
 	const Handle& get_root() {
@@ -1263,7 +1350,6 @@ namespace Engine {
 			return;
 		}
 		auto [touch_info] = registry.get<Touching_Information>(e.id());
-		set_dirty(e, touch_info.enabled != touch_enabled, DIRTY_TOUCHING);
 		touch_info.enabled = touch_enabled;
 	}
 
@@ -1859,7 +1945,6 @@ namespace Engine {
 			return;
 		}
 		auto [scroll_info] = registry.get<Scroll_Information>(e.id());
-		set_dirty(e, scroll_info.enabled != enabled, DIRTY_SCROLLING);
 		set_touch_enabled(scroll_info.container_touch_handle, enabled);
 		scroll_info.enabled = enabled;
 	}
@@ -1989,7 +2074,6 @@ namespace Engine {
 			return;
 		}
 		auto [scroll_info] = registry.get<Scroll_Information>(e.id());
-		set_dirty(scroll_info.container_handle, scroll_info.swallow_scroll != swallows, DIRTY_TOUCHING);
 		scroll_info.swallow_scroll = swallows;
 	}
 
@@ -2052,13 +2136,12 @@ namespace Engine {
 		Handle found_entity = Handle::make_invalid_handle();
 		travel_down(
 			parent,
-			[&found, &name, &found_entity](const Handle&, const Handle& child) {
+			[&found, &name, &found_entity](const Handle&, const Handle& child, bool&, bool& break_all) {
 				const auto& [tree_info] = registry.read<Tree_Information>(child.id());
 				if (tree_info.name == name) {
 					found_entity = child;
-					found = true;
+					break_all = true;
 				}
-				return found;
 			},
 			TRAVEL_TYPE::TRAVEL_BFS
 		);
@@ -2073,13 +2156,12 @@ namespace Engine {
 		Handle found_entity = Handle::make_invalid_handle();
 		travel_down(
 			parent,
-			[&found, &tag, &found_entity](const Handle&, const Handle& child) {
+			[&found, &tag, &found_entity](const Handle&, const Handle& child, bool&, bool& break_all) {
 				const auto& [tree_info] = registry.read<Tree_Information>(child.id());
 				if (tree_info.tag == tag) {
 					found_entity = child;
-					found = true;
+					break_all = true;
 				}
-				return found;
 			},
 			TRAVEL_TYPE::TRAVEL_BFS
 		);
@@ -2215,19 +2297,31 @@ namespace Engine {
 		touch_info.canceling_touch_enabled = enabled;
 	}
 
-	Handle find_topmost_node_at(const glm::vec2& world_position, Handle under) {
+	Handle find_topmost_node_at(
+		const glm::vec2& world_position, const Handle& under, const std::function<bool(const Handle&)>& skip
+	) {
 		Handle found = Handle::make_invalid_handle();
 		travel_down(
 			under,
-			[&found, &world_position, &under](const Handle&, const Handle& child) {
+			[&found, &world_position, &under, &skip](const Handle&, const Handle& child, bool& break_chain, bool&) {
 				if (child.id() == under.id())
-					return false;
+					return;
+				const auto& [transform, rect] = registry.read<World_Transform_2D, Rect>(child.id());
+				if (!transform.is_visible || (skip != nullptr && skip(child)) ||
+					!Math::point_in_aabb(rect.global_min, rect.global_max, world_position)) {
+					break_chain = true;
+					return;
+				}
+			},
+			TRAVEL_TYPE::TRAVEL_DFS, true,
+			[&found, &world_position, &under](const Handle&, const Handle& child, bool&, bool& break_all) {
+				if (child.id() == under.id())
+					return;
 				if (is_world_position_in_entity_rect(child, world_position)) {
 					found = child;
+					break_all = true;
 				}
-				return !found.is_invalid();
-			},
-			TRAVEL_TYPE::TRAVEL_DFS, true
+			}
 		);
 		return found;
 	}

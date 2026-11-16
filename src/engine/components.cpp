@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <engine/components.h>
+#include <engine/utils.h>
 #include <math_custom.h>
 #include <string_view>
 #include <vulkan/draws/vk_draw_font_2D.h>
@@ -185,8 +186,9 @@ namespace Engine {
 			vertical_align == LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER ? 0.f : vertical_padding;
 		glm::vec2 padding = {final_horizontal_padding, final_vertical_padding};
 		glm::vec2 remain_size = text_size - padding;
+		std::string full_path = Utils::get_full_font_path(font_path);
 		auto text_helper =
-			Vulkan::Draw_Font_2D::gen_text_info_from(font_path, text, (int)horizontal_align, font_size, stroke_size);
+			Vulkan::Draw_Font_2D::gen_text_info_from(full_path, text, (int)horizontal_align, font_size, stroke_size);
 		glm::vec2 inner_size = text_helper.get_size();
 		if (inner_size.x <= remain_size.x && inner_size.y <= remain_size.y) {
 			render_text = text;
@@ -194,8 +196,8 @@ namespace Engine {
 			fit_transform(text_size, inner_size, padding);
 			return;
 		}
-		auto measure = [this](std::string_view value) {
-			return Vulkan::Draw_Font_2D::get_renderer_text_size(value, font_path, font_size, stroke_size);
+		auto measure = [this, &full_path](std::string_view value) {
+			return Vulkan::Draw_Font_2D::get_renderer_text_size(value, full_path, font_size, stroke_size);
 		};
 		// widths add up char by char, so every word is measured once and nothing is concatenated to measure.
 		const float space_width = measure(" ").x;
@@ -273,7 +275,7 @@ namespace Engine {
 			render_text += lines[i];
 		}
 		text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
-			font_path, render_text, (int)horizontal_align, font_size, stroke_size
+			full_path, render_text, (int)horizontal_align, font_size, stroke_size
 		);
 		fit_transform(text_size, text_helper.get_size(), padding);
 		switch (fit_mode) {
@@ -447,6 +449,30 @@ namespace Engine {
 				}
 			}
 		}
+	}
+
+	void Rect::clean_global_min_max() {
+		global_min = glm::vec2{::Const::MAX_FLOAT};
+		global_max = glm::vec2{-::Const::MAX_FLOAT};
+	}
+
+	void Rect::update_transformed_rect(const std::array<glm::vec2, 4>& i_transformed_rect) {
+		transformed_rect = i_transformed_rect;
+		min = glm::vec2{::Const::MAX_FLOAT};
+		max = glm::vec2{-::Const::MAX_FLOAT};
+		for (const auto& point : transformed_rect) {
+			min.x = std::min(min.x, point.x);
+			min.y = std::min(min.y, point.y);
+			max.x = std::max(max.x, point.x);
+			max.y = std::max(max.y, point.y);
+		}
+	}
+
+	void Rect::update_global_min_max(const glm::vec2& child_global_min, const glm::vec2& child_global_max) {
+		global_min.x = std::min(global_min.x, child_global_min.x);
+		global_min.y = std::min(global_min.y, child_global_min.y);
+		global_max.x = std::max(global_max.x, child_global_max.x);
+		global_max.y = std::max(global_max.y, child_global_max.y);
 	}
 
 	bool Rect::is_clipped_by(const Rect& parent_rect) const {

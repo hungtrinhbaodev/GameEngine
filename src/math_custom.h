@@ -49,4 +49,6 @@ namespace Math {
 		const std::array<glm::vec2, 4>& child_rect, const std::array<glm::vec2, 4>& parent_rect
 	);
 
+	bool point_in_aabb(const glm::vec2& min, const glm::vec2& max, const glm::vec2& point);
+
 } // namespace Math

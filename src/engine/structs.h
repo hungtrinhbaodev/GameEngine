@@ -92,10 +92,10 @@ namespace Engine {
 	 * as GLFW defined.
 	 */
 	struct Handled_Touches_Information {
+		Handle id = Handle::make_invalid_handle();
 		glm::vec2 touch_world_position{0.f};
 		TOUCH_STATE touch_state = TOUCH_STATE::TOUCH_INIT;
 		bool remove_next_frame = false;
-		std::vector<Handle> entities;
 		/**
 		 * #define GLFW_MOUSE_BUTTON_1         0
 			#define GLFW_MOUSE_BUTTON_2         1

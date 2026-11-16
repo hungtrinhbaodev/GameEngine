@@ -1,5 +1,4 @@
 #include <chrono>
-#include <filesystem>
 #include <stdexcept>
 #include <thread>
 
@@ -24,10 +23,6 @@ namespace {
 int main(int argc, char** argv) {
 	bool perf = argc > 1 && std::string(argv[1]) == "--perf";
 	bool self_test = perf || (argc > 1 && std::string(argv[1]) == "--self-test");
-	// TODO(engine finding 41): the label fit code loads fonts relative to the working directory. Run from the
-	// executable's folder so opening build-editor/editor from Finder (cwd = home) still finds res/.
-	std::error_code cwd_error;
-	std::filesystem::current_path(Utils::get_root_path(), cwd_error);
 	if (!glfwInit()) {
 		throw std::runtime_error("fail to init glfw!");
 	}

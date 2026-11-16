@@ -11,15 +11,6 @@ namespace Engine {
 
 	void handle_touches_logic();
 
-	bool is_touch_entity_handling(const Handle& e);
-
-	/**
-	 * @Note: sometime user call touch enabled = false
-	 * even the touch is in state move or start, in this
-	 * case we force discard tracking that entities!
-	 */
-	void discard_handling_touches_entities(const std::vector<Handle>& discard_entities);
-
 	const std::vector<Handled_Touches_Information>& get_handled_touches();
 
 } // namespace Engine

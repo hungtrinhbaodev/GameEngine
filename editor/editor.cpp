@@ -79,9 +79,6 @@ namespace Editor {
 			const glm::vec2 window = Engine::get_window_size();
 			const Handle& root = Engine::get_root();
 			// the clear colour is the page background: no full-window rect (GPU, see --perf).
-			// TODO(engine finding 40): the engine root has a grey full-window background (init_root), which hides
-			// the clear colour and costs a full-window layer. The editor turns it off.
-			Engine::set_layout_background_enabled(root, false);
 			Engine::set_clear_screen_color(PAGE_BG);
 			state.page = Engine::create_layout();
 			Engine::set_content_size(state.page, window);

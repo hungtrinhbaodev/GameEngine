@@ -17,7 +17,7 @@ namespace Engine {
 		void sort_entities(std::vector<Handle>& list, const std::function<bool(const Handle&, const Handle&)>& fn);
 
 		std::vector<Handle> find_entites_satify_from(
-			std::vector<Handle>& list, const std::function<bool(const Handle& e)>& with_filter
+			const std::vector<Handle>& list, const std::function<bool(const Handle& e)>& with_filter
 		);
 
 		/**
@@ -26,12 +26,14 @@ namespace Engine {
 		 * tuple[1]: break searching.
 		 */
 		std::vector<Handle> find_entites_satify_from(
-			std::vector<Handle>& list, const std::function<std::tuple<bool, bool>(const Handle& e)>& with_filter
+			const std::vector<Handle>& list, const std::function<std::tuple<bool, bool>(const Handle& e)>& with_filter
 		);
 
 		glm::vec2 fit_container_position_with(
 			const glm::vec2& parent_size, const glm::vec2& container_size, const glm::vec2& position
 		);
+
+		std::string get_full_font_path(const std::string& path);
 
 	} // namespace Utils
 

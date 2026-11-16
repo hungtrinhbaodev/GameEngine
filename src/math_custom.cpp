@@ -114,6 +114,10 @@ namespace Math {
 	}
 
 	bool point_in_rect(const std::array<glm::vec2, 4>& transformed_rect, const glm::vec2& point) {
+		float dx = glm::distance(transformed_rect[0], transformed_rect[1]);
+		float dy = glm::distance(transformed_rect[0], transformed_rect[3]);
+		if (dx <= 0 || dy <= 0)
+			return false;
 		for (int i = 0; i < transformed_rect.size(); i++) {
 			int current = i;
 			int next = (current + 1) % transformed_rect.size();
@@ -154,6 +158,10 @@ namespace Math {
 		if (full_in)
 			return Const::COLLISION_STATE::COLLISION_STATE_FULL_IN;
 		return Const::COLLISION_STATE::COLLISION_STATE_INTERSECT;
+	}
+
+	bool point_in_aabb(const glm::vec2& min, const glm::vec2& max, const glm::vec2& point) {
+		return point.x > min.x && point.x < max.x && point.y > min.y && point.y < max.y;
 	}
 
 } // namespace Math

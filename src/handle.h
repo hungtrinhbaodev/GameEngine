@@ -25,4 +25,10 @@ struct Handle {
 	inline uint32_t generation() const { return (uint32_t)(handle >> 32); }
 
 	inline bool is_invalid() const { return id() == ::Const::MAX_UINT32; }
+
+	inline bool operator==(const Handle& other) const {
+		return id() == other.id() && generation() == other.generation();
+	}
+
+	inline bool operator!=(const Handle& other) const { return !(*this == other); }
 };
