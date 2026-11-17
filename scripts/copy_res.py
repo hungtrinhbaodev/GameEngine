@@ -76,6 +76,11 @@ def sync_resources(src_dir, dst_dir):
         os.makedirs(dst_root, exist_ok=True)
 
         for file in files:
+            # [Claude 2026-11-17] font caches are generated per build folder at runtime; never copy them from
+            # src, or an old-format .bin_cached overwrites the new one while the new .font_meta stays (sizes match).
+            if file.endswith(CACHE_EXTENSIONS):
+                continue
+
             src_file = os.path.join(root, file)
             dst_file = os.path.join(dst_root, file)
 

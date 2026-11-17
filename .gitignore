@@ -5,3 +5,6 @@ build/*
 res/shader/glslc
 vendor/ktx/*
 docs/gltf_parser_guide.mdbuild-editor/*
+# [Claude 2026-11-17] generated font caches
+*.bin_cached
+*.font_meta

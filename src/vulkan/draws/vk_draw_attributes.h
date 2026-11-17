@@ -16,7 +16,7 @@ namespace Vulkan {
 	};
 
 	struct Font_Helper {
-		std::vector<std::string> lines{};
+		std::vector<std::u32string> lines{};
 		std::vector<glm::vec2> start_line_positions{};
 		float width = 0;
 		float height = 0;
@@ -229,7 +229,7 @@ namespace Vulkan {
 
 	struct Label_2D_Description : public Draw_2D_Scale_Able_Description {
 		std::string path = "";
-		std::string text = "";
+		std::u32string text = U"";
 		int font_size = 12;
 		/**
 		 * @Note: row align type:
@@ -245,7 +245,7 @@ namespace Vulkan {
 	class Font_2D : public Draw_2D_Scale_Aable {
 	  private:
 		std::string path = "";
-		std::string text = "";
+		std::u32string text = U"";
 		int font_size = 12;
 		int align = 0;
 		float width = 0.f;
@@ -261,7 +261,7 @@ namespace Vulkan {
 		~Font_2D();
 
 		void set_font_path(const std::string& path);
-		void set_text(const std::string& text);
+		void set_text(const std::u32string& text);
 		void set_font_size(int font_size);
 		void set_align(int align);
 		void set_width(float width);
@@ -272,7 +272,7 @@ namespace Vulkan {
 		float get_width();
 		float get_height();
 		std::string get_font_path() const;
-		std::string get_text() const;
+		std::u32string get_text() const;
 		int get_font_size() const;
 		int get_align() const;
 		float get_stroke_size() const;

@@ -31,25 +31,25 @@ namespace Vulkan {
 
 		void destroy();
 
-		void break_lines(std::string_view text, std::vector<std::string>& lines);
+		void break_lines(std::u32string_view text, std::vector<std::u32string>& lines);
 
 		glm::vec2 get_renderer_text_size(
-			std::string_view text, const std::string& font_path, int font_size, float stroke_size
+			std::u32string_view text, const std::string& font_path, int font_size, float stroke_size
 		);
 
-		glm::vec2 get_text_size(std::string_view text, const Font& font, int font_size, float stroke_size);
+		glm::vec2 get_text_size(std::u32string_view text, const Font& font, int font_size, float storke_size);
 
 		std::vector<glm::vec2> get_char_position_at(
-			std::string_view line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size
+			std::u32string_view line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size
 		);
 
 		void make_lines_render_info(
 			const Font& font, int align, int font_size, std::vector<glm::vec2>& start_line_positions, float& width,
-			float& height, const std::vector<std::string>& lines, float stroke_size
+			float& height, const std::vector<std::u32string>& lines, float stroke_size
 		);
 
 		Font_Helper gen_text_info_from(
-			const std::string& font_path, std::string_view text, int align, int font_size, float stroke_size
+			const std::string& font_path, std::u32string_view text, int align, int font_size, float stroke_size
 		);
 
 	} // namespace Draw_Font_2D

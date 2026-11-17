@@ -156,6 +156,13 @@ namespace Test {
 
 	bool is_running_job();
 
+	// [Claude 2026-11-17] Vietnamese / Unicode label checks (tests/test_unicode.cpp), job "repro-unicode".
+	void repro_unicode_checks();
+
+	// [Claude 2026-11-17] Vietnamese label scene + screenshot, job "unicode-view".
+	void build_unicode_scene();
+	void start_unicode_view(GLFWwindow* window);
+
 	/**
 	 * @Note: call once per frame before Engine::process_frame.
 	 */

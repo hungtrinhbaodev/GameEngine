@@ -183,6 +183,7 @@ namespace Vulkan {
 		}
 	}
 
+	// [Claude BEGIN 2026-10-23] Model_3D setters.
 	void Model_3D::set_model_path(const std::string& i_model_path) {
 		assert_handle();
 		set_dirty(path != i_model_path);
@@ -216,6 +217,7 @@ namespace Vulkan {
 		set_dirty(scene_name != i_scene_name);
 		scene_name = i_scene_name;
 	}
+	// [Claude END]
 
 	void Model_3D::set_blend_animation_duration(float blend_duration) {
 		assert_handle();
@@ -268,6 +270,7 @@ namespace Vulkan {
 		}
 	}
 
+	// [Claude BEGIN 2026-10-23] Model_3D getters.
 	std::string Model_3D::get_model_path() const {
 		assert_handle();
 		return path;
@@ -297,6 +300,7 @@ namespace Vulkan {
 		assert_handle();
 		return scene_name;
 	}
+	// [Claude END]
 
 	glm::mat4 Model_3D::get_transform() const {
 		assert_handle();
@@ -366,6 +370,7 @@ namespace Vulkan {
 
 	Draw_2D::~Draw_2D() {}
 
+	// [Claude BEGIN 2026-10-23] Draw_2D setters / getters / description.
 	void Draw_2D::set_position(const glm::vec2& i_position) {
 		assert_handle();
 		set_dirty(position != i_position);
@@ -407,6 +412,7 @@ namespace Vulkan {
 		description.anchor = anchor;
 		return description;
 	}
+	// [Claude END]
 
 	Draw_2D_Scale_Aable::Draw_2D_Scale_Aable() {}
 
@@ -464,7 +470,7 @@ namespace Vulkan {
 		path = i_path;
 	}
 
-	void Font_2D::set_text(const std::string& i_text) {
+	void Font_2D::set_text(const std::u32string& i_text) {
 		assert_handle();
 		set_dirty(text != i_text);
 		text_dirty |= (text != i_text);
@@ -510,7 +516,7 @@ namespace Vulkan {
 		return path;
 	}
 
-	std::string Font_2D::get_text() const {
+	std::u32string Font_2D::get_text() const {
 		assert_handle();
 		return text;
 	}
@@ -547,6 +553,7 @@ namespace Vulkan {
 		return height;
 	};
 
+	// [Claude 2026-10-23]
 	Label_2D_Description Font_2D::get_description() const {
 		Label_2D_Description description{};
 		static_cast<Draw_2D_Attributes_Description&>(description) = Draw_2D::get_description();
@@ -688,6 +695,7 @@ namespace Vulkan {
 		return {Draw_2D::get_description(), width, height, border_radius, border_width, border_color};
 	}
 
+	// [Claude BEGIN 2026-10-25] Triangle_2D attributes.
 	Triangle_2D::Triangle_2D() {}
 
 	Triangle_2D::Triangle_2D(const Handle& handle, const Triangle_2D_Description& description)
@@ -735,6 +743,7 @@ namespace Vulkan {
 	Triangle_2D_Description Triangle_2D::get_description() const {
 		return {Draw_Atributes::get_description(), first, second, third};
 	}
+	// [Claude END]
 
 	Clipping_2D::Clipping_2D() {}
 

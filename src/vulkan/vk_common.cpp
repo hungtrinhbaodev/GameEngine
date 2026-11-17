@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <math_custom.h>
 #include <stdexcept>
+#include <utf8_helper.h>
 #include <vulkan/vk_common.h>
 #include <vulkan/vk_utils.h>
 
@@ -213,23 +214,23 @@ namespace Vulkan {
 		return a.total_size() > b.total_size();
 	}
 
-	char Font::to_char_index(char value) const {
-		uint32_t char_index = (uint32_t)(value - start_char);
-		if (char_index >= rects.size()) {
-			char_index = (uint32_t)('*' - start_char);
-		}
-		return char_index;
+	int Font::to_char_index(char32_t value) const {
+		auto found = char_to_rect_indices.find(value);
+		if (found != char_to_rect_indices.end())
+			return found->second;
+		auto fallback = char_to_rect_indices.find(U'?');
+		return fallback != char_to_rect_indices.end() ? fallback->second : 0;
 	}
 
-	glm::vec2 Font::get_char_bounding_box(char value, int font_size, float stroke_size) const {
-		uint32_t char_index = to_char_index(value);
+	glm::vec2 Font::get_char_bounding_box(char32_t value, int font_size, float stroke_size) const {
+		int char_index = to_char_index(value);
 		const auto& rect = rects[char_index];
 		float stroke = claim_stroke(font_size, stroke_size) * sfd_padding;
 		return {rect.bounding_width + 2 * stroke, line_height + 2 * stroke};
 	}
 
-	glm::vec2 Font::get_char_local_offset(char value, int font_size, float stroke_size) const {
-		uint32_t char_index = to_char_index(value);
+	glm::vec2 Font::get_char_local_offset(char32_t value, int font_size, float stroke_size) const {
+		int char_index = to_char_index(value);
 		const auto& rect = rects[char_index];
 		float stroke = claim_stroke(font_size, stroke_size) * sfd_padding;
 		return {rect.offset_x + stroke, rect.offset_y + stroke + font_desent};
@@ -240,8 +241,8 @@ namespace Vulkan {
 		return (float)font_size / render_font_size;
 	}
 
-	uint32_t Font::get_char_rect_offset(char value) const {
-		uint32_t char_index = to_char_index(value);
+	uint32_t Font::get_char_rect_offset(char32_t value) const {
+		int char_index = to_char_index(value);
 		return rect_storage_offset + char_index;
 	}
 

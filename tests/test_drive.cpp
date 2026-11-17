@@ -779,6 +779,26 @@ namespace Test {
 		});
 	}
 
+	// [Claude BEGIN 2026-11-17] `./ui_test unicode-view`: Vietnamese label scene (test_unicode.cpp) + screenshot.
+	void start_unicode_view(GLFWwindow* window) {
+		drive_window = window;
+		steps.clear();
+		step_index = 0;
+		wait_left = 0;
+		passed = failed = shot_index = 0;
+		failures.clear();
+		glfwShowWindow(window);
+		glfwFocusWindow(window);
+		then(0, []() { build_unicode_scene(); });
+		then(10, nullptr);
+		screenshot("unicode_view");
+		then(0, []() {
+			clear_scene();
+			Log::info("[drive] summary:", passed, "passed,", failed, "failed");
+		});
+	}
+	// [Claude END]
+
 	void start_drive(GLFWwindow* window) {
 		drive_window = window;
 		steps.clear();

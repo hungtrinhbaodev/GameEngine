@@ -3,6 +3,7 @@
 #include <geometry_structs.h>
 #include <log.h>
 #include <sparse_set.h>
+#include <utf8_helper.h>
 #include <vulkan/draws/vk_draw_font_2D.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_descriptor.h>
@@ -71,9 +72,9 @@ namespace Vulkan {
 		};
 
 		struct Text_Data {
-			std::string text = "";
+			std::u32string text = U"";
 			int align = 0;
-			std::vector<std::string> lines;
+			std::vector<std::u32string> lines;
 			std::vector<glm::vec2> start_line_positions;
 			float width = 0;
 			float height = 0;
@@ -89,7 +90,7 @@ namespace Vulkan {
 				float char_scale = font.get_char_scale(attributes.get_font_size());
 				glm::vec2 origin = -glm::vec2(width / char_scale, height / char_scale) * attributes.get_anchor();
 				for (int i = 0; i < lines.size(); i++) {
-					const std::string& line = lines[i];
+					const std::u32string& line = lines[i];
 					const glm::vec2& start_line_position = start_line_positions[i];
 					std::vector<glm::vec2> positions = get_char_position_at(
 						line, start_line_position + origin, font, attributes.get_font_size(),
@@ -131,7 +132,8 @@ namespace Vulkan {
 				storage_id = ::Const::MAX_UINT32;
 				storage_texture_id = ::Const::MAX_UINT32;
 				stroke_size = ::Const::MAX_UINT32;
-				text = "";
+				text = U"";
+				lines.clear();
 				text_anchor = {0.f, 0.f};
 				for (const auto& draw_instance : draw_instances) {
 					ssbo.remove_data(draw_instance.instance_storage_id);
@@ -144,7 +146,8 @@ namespace Vulkan {
 				std::vector<Draw_Instance_Information>& draw_instances, uint32_t vertex_id
 			) {
 				uint32_t i_font_id = load_font(attributes.get_font_path());
-				if (attributes.get_text() == "" || text != attributes.get_text() || font_id != i_font_id) {
+				std::u32string i_text = attributes.get_text();
+				if (i_text == U"" || text != i_text || font_id != i_font_id) {
 					clear(ssbo, draw_instances);
 					make(attributes, ssbo, static_buffer, draw_instances, vertex_id);
 					return;
@@ -165,7 +168,7 @@ namespace Vulkan {
 				Storage_Data storage =
 					make_storage_data(font, texture_storage_range.offset_as<Texture_Storage_Data>(), attributes);
 				ssbo.update_data(storage_id, &storage);
-				text = attributes.get_text();
+				text = i_text;
 				align = attributes.get_align();
 				text_anchor = attributes.get_anchor();
 			}
@@ -174,15 +177,16 @@ namespace Vulkan {
 				const Font_2D& attributes, SSBO_Buffer& ssbo, Static_Buffer& static_buffer,
 				std::vector<Draw_Instance_Information>& draw_instances, uint32_t vertex_id
 			) {
-				if (attributes.get_text() == "") {
-					text = "";
+				std::u32string i_text = attributes.get_text();
+				if (i_text == U"") {
+					text = i_text;
 					for (const auto& draw_instance : draw_instances) {
 						ssbo.remove_data(draw_instance.instance_storage_id);
 					}
 					draw_instances.clear();
 					return;
 				}
-				text = attributes.get_text();
+				text = i_text;
 				align = attributes.get_align();
 				text_anchor = attributes.get_anchor();
 				stroke_size = attributes.get_stroke_size();
@@ -296,7 +300,7 @@ namespace Vulkan {
 			return sizeof(Instance_Data);
 		}
 
-		void break_lines(std::string_view text, std::vector<std::string>& lines) {
+		void break_lines(std::u32string_view text, std::vector<std::u32string>& lines) {
 			lines.clear();
 			size_t start = 0;
 			while (start < text.size()) {
@@ -311,7 +315,7 @@ namespace Vulkan {
 		}
 
 		glm::vec2 get_renderer_text_size(
-			std::string_view text, const std::string& font_path, int font_size, float stroke_size
+			std::u32string_view text, const std::string& font_path, int font_size, float stroke_size
 		) {
 			uint32_t font_id = load_font(font_path);
 			const auto& font = view_font(font_id);
@@ -319,18 +323,18 @@ namespace Vulkan {
 			return text_size * font.get_char_scale(font_size);
 		}
 
-		glm::vec2 get_text_size(std::string_view text, const Font& font, int font_size, float stroke_size) {
-			glm::vec2 line_size{0.f, 0.f};
+		glm::vec2 get_text_size(std::u32string_view text, const Font& font, int font_size, float storke_size) {
+			glm::vec2 line_size(0.f, 0.f);
 			for (int i = 0; i < text.size(); i++) {
-				glm::vec2 char_bound_box = font.get_char_bounding_box(text[i], font_size, stroke_size);
-				line_size.x += char_bound_box.x;
-				line_size.y = std::max(line_size.y, char_bound_box.y);
+				glm::vec2 char_bonding_box = font.get_char_bounding_box(text[i], font_size, storke_size);
+				line_size.x += char_bonding_box.x;
+				line_size.y = std::max(line_size.y, char_bonding_box.y);
 			}
 			return line_size;
 		}
 
 		std::vector<glm::vec2> get_char_position_at(
-			std::string_view line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size
+			std::u32string_view line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size
 		) {
 			std::vector<glm::vec2> char_positions(line.size());
 			float start_x = 0;
@@ -347,17 +351,17 @@ namespace Vulkan {
 
 		void make_lines_render_info(
 			const Font& font, int align, int font_size, std::vector<glm::vec2>& start_line_positions, float& width,
-			float& height, const std::vector<std::string>& lines, float stroke_size
+			float& height, const std::vector<std::u32string>& lines, float stroke_size
 		) {
 			start_line_positions.resize(lines.size());
 			float max_width_line = 0;
-			for (const std::string& line : lines) {
+			for (const std::u32string& line : lines) {
 				auto size = get_text_size(line, font, font_size, stroke_size);
 				max_width_line = std::max(size.x, max_width_line);
 			}
 			float total_height = 0;
 			for (int i = lines.size() - 1; i > -1; i--) {
-				const std::string& line = lines[i];
+				const std::u32string& line = lines[i];
 				glm::vec2 line_size = get_text_size(line, font, font_size, stroke_size);
 				float line_x = 0;
 				switch (align) {
@@ -383,7 +387,7 @@ namespace Vulkan {
 		}
 
 		Font_Helper gen_text_info_from(
-			const std::string& font_path, std::string_view text, int align, int font_size, float stroke_size
+			const std::string& font_path, std::u32string_view text, int align, int font_size, float stroke_size
 		) {
 			Font_Helper text_helper{};
 			uint32_t font_id = load_font(font_path);

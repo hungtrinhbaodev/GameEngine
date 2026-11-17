@@ -4,6 +4,7 @@
 #include <limits>
 #include <math_custom.h>
 #include <profiler.h>
+#include <utf8_helper.h> // [Claude 2026-11-17] profiling label text is built as UTF-8, converted at set_text
 #include <utils.h>
 #include <vulkan/vk_command_pool.h>
 #include <vulkan/vk_consts.h>
@@ -35,11 +36,13 @@ namespace Vulkan {
 		Handle handl_label_fps;
 		Handle handle_label_draw_call;
 		Handle handle_label_number_instance;
+		// [Claude 2026-10-25] GPU time / CPU time / GPU memory label handles (next 3 lines).
 		Handle handle_label_gpu_time;
 		Handle handle_label_cpu_time;
 		Handle handle_label_gpu_memory;
 		Handle handle_label_animation_update;
 
+		// [Claude BEGIN 2026-10-25] GPU / CPU frame timing state.
 		/**
 		 * GPU frame time: 2 timestamps per frame in flight (begin and end of the frame command buffer),
 		 * read back after the frame fence so it never waits on the GPU.
@@ -62,6 +65,7 @@ namespace Vulkan {
 		double cpu_wait_ms = 0.0;
 		double cpu_total_ms = 0.0;
 		uint32_t cpu_samples = 0;
+		// [Claude END]
 
 		void init() {
 			Label_2D_Description description{};
@@ -74,6 +78,7 @@ namespace Vulkan {
 			handl_label_fps = create_label(description);
 			handle_label_draw_call = create_label(description);
 			handle_label_number_instance = create_label(description);
+			// [Claude 2026-10-25] the gpu / cpu / memory labels below + init_gpu_timestamps().
 			handle_label_gpu_time = create_label(description);
 			handle_label_cpu_time = create_label(description);
 			handle_label_gpu_memory = create_label(description);
@@ -81,11 +86,13 @@ namespace Vulkan {
 			init_gpu_timestamps();
 		}
 
+		// [Claude BEGIN 2026-10-25] GPU timestamps, CPU frame time (minus fence / acquire wait), GPU memory text,
+		// labels.
 		void init_gpu_timestamps();
 		void record_frame_begin(VkCommandBuffer command_buffer, uint32_t frame_index);
 		void record_frame_end(VkCommandBuffer command_buffer, uint32_t frame_index);
 		void read_frame_timestamps(uint32_t frame_index);
-		std::string make_gpu_memory_text() const;
+		std::u32string make_gpu_memory_text() const; // [Claude 2026-11-17] was std::string
 		void destroy();
 
 		void start_cpu_frame() {
@@ -102,25 +109,29 @@ namespace Vulkan {
 			cpu_samples++;
 		}
 
-		static std::string format_ms(double total_ms, uint32_t samples) {
+		// [Claude 2026-11-17] returns char32_t text; snprintf can only write char, so convert once at the end.
+		static std::u32string format_ms(double total_ms, uint32_t samples) {
 			if (samples == 0) {
-				return "n/a";
+				return U"n/a";
 			}
 			char text[32];
 			snprintf(text, sizeof(text), "%.2f ms", total_ms / samples);
-			return text;
+			return Helper::utf8_to_u32(text);
 		}
 
 		void update_gpu_labels() {
+			// [Claude BEGIN 2026-11-17] all label text is char32_t (Vulkan side only takes std::u32string).
 			modify_label(handle_label_gpu_time)
-				.set_text("GPU: " + (is_timestamp_supported ? format_ms(gpu_total_ms, gpu_samples) : "n/a"));
-			modify_label(handle_label_cpu_time).set_text("CPU: " + format_ms(cpu_total_ms, cpu_samples));
-			modify_label(handle_label_gpu_memory).set_text("GPU memory: " + make_gpu_memory_text());
+				.set_text(U"GPU: " + (is_timestamp_supported ? format_ms(gpu_total_ms, gpu_samples) : U"n/a"));
+			modify_label(handle_label_cpu_time).set_text(U"CPU: " + format_ms(cpu_total_ms, cpu_samples));
+			modify_label(handle_label_gpu_memory).set_text(U"GPU memory: " + make_gpu_memory_text());
+			// [Claude END]
 			gpu_total_ms = 0.0;
 			gpu_samples = 0;
 			cpu_total_ms = 0.0;
 			cpu_samples = 0;
 		}
+		// [Claude END]
 
 		void reload_labels() {
 			glm::vec2 start_position = {7.f, 6.f};
@@ -132,15 +143,17 @@ namespace Vulkan {
 			for (auto& label_handle : labels) {
 				auto& label = modify_label(label_handle);
 				label.set_position(start_position);
+				auto height = label.get_height();
 				start_position.y += pad + label.get_height();
 			}
 		}
 
 		void update_draw_call_labels() {
 			auto& label_draw_call = modify_label(handle_label_draw_call);
-			label_draw_call.set_text("Draw calls: " + std::to_string(draw_calls));
+			// [Claude 2026-11-17] char32_t text with Helper::to_u32string (this line and the instance label below).
+			label_draw_call.set_text(U"Draw calls: " + Helper::to_u32string(draw_calls));
 			auto& label_number_instance = modify_label(handle_label_number_instance);
-			label_number_instance.set_text("Instances drawed: " + std::to_string(number_instance_draw));
+			label_number_instance.set_text(U"Instances drawed: " + Helper::to_u32string(number_instance_draw));
 			reload_labels();
 		}
 
@@ -148,15 +161,17 @@ namespace Vulkan {
 			if (frame_count % 20 == 0) {
 				auto& label = modify_label(handl_label_fps);
 				double fps = fps_total_duration == 0 ? 0.f : double(fps_frame_count) / fps_total_duration;
-				label.set_text("Frame rate: " + std::to_string(fps));
+				label.set_text(U"Frame rate: " + Helper::to_u32string(fps)); // [Claude 2026-11-17]
 				fps_frame_count = 0;
 				fps_total_duration = 0.f;
-				update_gpu_labels();
+				update_gpu_labels(); // [Claude 2026-10-25]
 				auto& label_animation = modify_label(handle_label_animation_update);
+				// [Claude 2026-11-17] char32_t text with Helper::to_u32string.
 				label_animation.set_text(
-					"Animations: " +
-					std::to_string(Profiler::get_scope_time(Const::SCOPE_CALCULATE_ANIMATIONS) * 1000).substr(0, 6) +
-					" ms"
+					U"Animations: " +
+					Helper::to_u32string(Profiler::get_scope_time(Const::SCOPE_CALCULATE_ANIMATIONS) * 1000)
+						.substr(0, 6) +
+					U" ms"
 				);
 			} else {
 				fps_frame_count++;
@@ -236,6 +251,7 @@ namespace Vulkan {
 
 	glm::vec4 clear_color = {0.5f, 0.5f, 0.5f, 1.f};
 
+	// [Claude BEGIN 2026-10-25] Profiling: GPU timestamp query pool, frame timestamps, GPU memory budget text.
 	void Profiling::init_gpu_timestamps() {
 		VkPhysicalDeviceProperties properties{};
 		vkGetPhysicalDeviceProperties(physical_device, &properties);
@@ -301,15 +317,16 @@ namespace Vulkan {
 		gpu_samples++;
 	}
 
-	std::string Profiling::make_gpu_memory_text() const {
+	// [Claude 2026-11-17] returns std::u32string now (was std::string); snprintf result converted at the end.
+	std::u32string Profiling::make_gpu_memory_text() const {
 		if (!is_memory_budget_enabled()) {
-			return "n/a";
+			return U"n/a";
 		}
 		auto get_memory_properties_2 = (PFN_vkGetPhysicalDeviceMemoryProperties2)vkGetInstanceProcAddr(
 			instance, "vkGetPhysicalDeviceMemoryProperties2"
 		);
 		if (get_memory_properties_2 == nullptr) {
-			return "n/a";
+			return U"n/a";
 		}
 		VkPhysicalDeviceMemoryBudgetPropertiesEXT budget{};
 		budget.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT;
@@ -329,7 +346,7 @@ namespace Vulkan {
 		const double mb = 1024.0 * 1024.0;
 		char text[64];
 		snprintf(text, sizeof(text), "%.1f / %.0f MB", used / mb, available / mb);
-		return text;
+		return Helper::utf8_to_u32(text);
 	}
 
 	void Profiling::destroy() {
@@ -338,6 +355,7 @@ namespace Vulkan {
 			timestamp_query_pool = VK_NULL_HANDLE;
 		}
 	}
+	// [Claude END]
 
 	Pipeline_Config make_default_pipeline_config() {
 		Pipeline_Config pipeline_config{};
@@ -471,7 +489,7 @@ namespace Vulkan {
 	}
 
 	void draw_frame(float dt) {
-		profiling.start_cpu_frame();
+		profiling.start_cpu_frame(); // [Claude 2026-10-25]
 		/**
 		 * @Note: static buffer using for all frame
 		 * so when start every frame we need confirm
@@ -487,12 +505,12 @@ namespace Vulkan {
 		VkSemaphore finish_render_semaphore = render_finish_semaphores[current_frame];
 
 		uint32_t image_index;
-		profiling.start_cpu_wait();
+		profiling.start_cpu_wait(); // [Claude 2026-10-25]
 		vkWaitForFences(device, 1, &draw_fence, VK_TRUE, UINT64_MAX);
 		VkResult result =
 			vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, draw_semaphore, VK_NULL_HANDLE, &image_index);
-		profiling.end_cpu_wait();
-		profiling.read_frame_timestamps(current_frame);
+		profiling.end_cpu_wait();						// [Claude 2026-10-25]
+		profiling.read_frame_timestamps(current_frame); // [Claude 2026-10-25]
 		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 			on_window_resize();
 			return;
@@ -506,7 +524,7 @@ namespace Vulkan {
 
 		VkCommandBufferBeginInfo begin_info = Structs::make_command_begin_info();
 		vkBeginCommandBuffer(command_buffer, &begin_info);
-		profiling.record_frame_begin(command_buffer, current_frame);
+		profiling.record_frame_begin(command_buffer, current_frame); // [Claude 2026-10-25]
 		{
 			/**
 			 * Setup static buffer using for all frame in flight.
@@ -547,9 +565,9 @@ namespace Vulkan {
 			}
 			vkCmdEndRenderPass(command_buffer);
 		}
-		profiling.record_frame_end(command_buffer, current_frame);
+		profiling.record_frame_end(command_buffer, current_frame); // [Claude 2026-10-25]
 		vkEndCommandBuffer(command_buffer);
-		profiling.end_cpu_frame();
+		profiling.end_cpu_frame(); // [Claude 2026-10-25]
 		VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 		VkSubmitInfo submit_info =
 			Structs::make_submit_info(&command_buffer, 1, 1, &draw_semaphore, &wait_stage, 1, &finish_render_semaphore);
@@ -573,7 +591,7 @@ namespace Vulkan {
 		// Descrtroy all 2D draw component.
 		destroy_draw();
 
-		// Destroy profiling GPU timestamp query pool
+		// Destroy profiling GPU timestamp query pool [Claude 2026-10-25]
 		profiling.destroy();
 
 		// Destroy font system

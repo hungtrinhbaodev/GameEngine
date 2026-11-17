@@ -66,6 +66,7 @@ run_case repro-scroll repro-scroll
 run_case repro-touch repro-touch
 run_case repro-reentry repro-reentry
 run_case repro-api repro-api
+run_case repro-unicode repro-unicode # [Claude 2026-11-17] Vietnamese / Unicode label checks
 # memory errors (use after free, dangling component refs) only show up reliably under AddressSanitizer.
 # build-asan is configured with -fsanitize=address; it is rebuilt here when present.
 if [ -d "$ROOT/build-asan" ]; then

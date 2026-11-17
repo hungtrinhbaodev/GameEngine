@@ -63,38 +63,24 @@ namespace Vulkan {
 	};
 
 	struct Resource_Synchronize_Information {
-
 		std::array<bool, Const::MAX_FRAMES_IN_FLIGHT> blocked{true};
-
 		void release_frame(uint32_t frame_index);
-
 		bool can_remove();
 	};
 
 	struct Buffer_Range {
-
 		uint32_t offset = 0;
-
 		uint32_t align = 0;
-
 		uint32_t size = 0;
-
 		uint32_t stride = 1;
 
 		template <typename T> inline uint32_t size_as() const { return size / sizeof(T); }
-
 		template <typename T> inline uint32_t offset_as() const { return (offset + align) / sizeof(T); }
-
 		uint32_t total_size() const;
-
 		bool is_suitable_with(uint32_t size, uint32_t element_stride = 1) const;
-
 		Buffer_Range fit_with(uint32_t size, uint32_t element_stride = 1);
-
 		uint32_t inner_offset() const;
-
 		uint32_t inner_size() const;
-
 		inline friend std::ostream& operator<<(std::ostream& os, const Buffer_Range& range) {
 			os << "Buffer_Range: {offset: " << range.offset << " align: " << range.align << ", size: " << range.size
 			   << "}";
@@ -103,21 +89,13 @@ namespace Vulkan {
 	};
 
 	struct Texture_View {
-
 		std::string file = "";
-
 		Image image;
-
 		float width;
-
 		float height;
-
 		Const::TEXTURE_STORAGE_MODE storage_mode = Const::TEXTURE_STORAGE_MODE::BUCKET;
-
 		int bucket_index;
-
 		int slot_index;
-
 		glm::vec2 tex_scale() const;
 	};
 
@@ -140,11 +118,11 @@ namespace Vulkan {
 		uint32_t texture_id = 0;
 		uint32_t rect_storage_id = 0;
 		uint32_t rect_storage_offset = 0;
-		char to_char_index(char value) const;
-		glm::vec2 get_char_bounding_box(char value, int font_size, float stroke_size) const;
-		glm::vec2 get_char_local_offset(char value, int font_size, float stroke_size) const;
+		int to_char_index(char32_t value) const;
+		glm::vec2 get_char_bounding_box(char32_t value, int font_size, float stroke_size) const;
+		glm::vec2 get_char_local_offset(char32_t value, int font_size, float stroke_size) const;
 		float get_char_scale(int font_size) const;
-		uint32_t get_char_rect_offset(char value) const;
+		uint32_t get_char_rect_offset(char32_t value) const;
 		float claim_stroke(int font_size, float stroke_size) const;
 	};
 

@@ -6,6 +6,7 @@
 #include <files.h>
 #include <math_custom.h>
 #include <tuple>
+#include <utf8_helper.h>
 #include <vulkan/draws/vk_draw_font_2D.h>
 #include <vulkan/vk_draw.h>
 
@@ -302,8 +303,8 @@ namespace Engine {
 
 	void update_label_renderer(const Handle& e) {
 		Registry& registry = get_registry();
-		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
-		auto [c_handle, c_size] = registry.get<Renderer_Handles, Size>(e.id());
+		auto [c_handle, c_size, label_renderer] =
+			registry.get<Renderer_Handles, Size, Label_Renderer_Information>(e.id());
 		auto& handles = c_handle.value;
 		set_dirty(e, true, DIRTY_TRANSFORM);
 		if (handles.size() <= 0) {
@@ -315,11 +316,12 @@ namespace Engine {
 		auto& label = Vulkan::modify_label(handles[0]);
 		std::string font_path = Utils::get_full_font_path(label_renderer.font_path);
 		label.set_font_path(font_path);
-		label.set_text(label_renderer.text);
 		label.set_font_size(label_renderer.font_size);
 		label.set_stroke_color(label_renderer.stroke_color);
 		label.set_stroke_size(label_renderer.stroke_size);
 		if (label_renderer.fit_mode == LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO) {
+			label_renderer.render_text = Helper::utf8_to_u32_nfc(label_renderer.text);
+			label.set_text(label_renderer.render_text);
 			glm::vec2 size = {label.get_width(), label.get_height()};
 			set_dirty(e, c_size.value != size, DIRTY_RELATIVE_SIZE);
 			c_size.value = size;
@@ -547,6 +549,7 @@ namespace Engine {
 		if (label_renderer.fit_mode != LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO) {
 			label_renderer.update_inner_text_by(c_size.value, transform);
 			auto inner_transform = transform.transform(label_renderer.inner_label_transform);
+			// [Claude, 2026-11-11] draw the wrapped / ellipsis text, not the raw text.
 			label.set_text(label_renderer.render_text);
 			update_label_transform(label, inner_transform);
 			if (label_renderer.clipping_enabled) {
@@ -569,7 +572,8 @@ namespace Engine {
 		}
 		auto [number_valid_handle, clipping_handle_ancestors] =
 			validate_clipping_ancestors(clipping_ancestors.get_clipping_ancestors_info());
-		// always upload: when clipping turns off, the label must drop its own clip and keep only ancestors.
+		// [Claude 2026-11-11] always upload: when clipping turns off, the label must drop its own clip and keep only
+		// ancestors.
 		label.set_number_clipping(number_valid_handle);
 		label.set_clipping_ancestors(clipping_handle_ancestors);
 	}

@@ -18,6 +18,7 @@ namespace Vulkan {
 		const inline bool IS_ENABLE_VALIDATION_LAYERS = false;
 #endif // _DEBUG
 
+		// [Claude 2026-10-25] instance API version switch (the Windows value was later set to 1.1 by the user).
 #if !defined(_WIN32)
 		const inline uint32_t VULKAN_API_VERSION = VK_API_VERSION_1_1;
 #else

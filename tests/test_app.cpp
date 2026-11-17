@@ -130,7 +130,7 @@ namespace Test {
 				const auto& [info] = Engine::get_registry().read<Engine::Label_Renderer_Information>(label.id());
 				glm::vec2 inner = info.inner_label_transform.position;
 				glm::vec2 text = Vulkan::Draw_Font_2D::get_renderer_text_size(
-					"Hi", info.font_path, info.font_size, info.stroke_size
+					U"Hi", info.font_path, info.font_size, info.stroke_size // [Claude 2026-11-17] char32_t for Vulkan API
 				);
 				glm::vec2 want = (glm::vec2{300.f, 120.f} - text) * 0.5f;
 				api_expect(

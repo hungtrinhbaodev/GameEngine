@@ -3,6 +3,7 @@
 #include <engine/utils.h>
 #include <math_custom.h>
 #include <string_view>
+#include <utf8_helper.h>
 #include <vulkan/draws/vk_draw_font_2D.h>
 
 namespace Engine {
@@ -180,6 +181,18 @@ namespace Engine {
 			}
 			inner_label_transform.position = label_position;
 		};
+		/**
+		 * @Note: [Claude BEGIN, written by Claude (Claude Code) on 2026-11-11] label wrap / ellipsis / clip
+		 * for fit modes other than AUTO. Writes render_text (what is drawn), keeps `text` untouched.
+		 * 1. text fits inside size - padding -> draw as is, no clip.
+		 * 2. split into words (views into `text`, '\n' = space); a word wider than the box is cut with a
+		 *    binary search on the longest prefix that fits (at least 1 char, so it always ends).
+		 * 3. greedy fill lines with a running width (no re-measuring of whole lines).
+		 * 4. ELLIPSIS: stop at max_lines and trim the last line until "..." fits.
+		 * 5. measure render_text, place it with fit_transform, clip for CLIP or when it still overflows.
+		 * Later edits by the user inside this block: full_path / Utils::get_full_font_path (finding 41)
+		 * and the LABEL_RENDER_FIT_* enum names.
+		 */
 		float final_horizontal_padding =
 			horizontal_align == LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_CENTER ? 0.f : horizontal_padding;
 		float final_vertical_padding =
@@ -187,34 +200,36 @@ namespace Engine {
 		glm::vec2 padding = {final_horizontal_padding, final_vertical_padding};
 		glm::vec2 remain_size = text_size - padding;
 		std::string full_path = Utils::get_full_font_path(font_path);
-		auto text_helper =
-			Vulkan::Draw_Font_2D::gen_text_info_from(full_path, text, (int)horizontal_align, font_size, stroke_size);
+		std::u32string converted_text = Helper::utf8_to_u32_nfc(text);
+		auto text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
+			full_path, converted_text, (int)horizontal_align, font_size, stroke_size
+		);
 		glm::vec2 inner_size = text_helper.get_size();
 		if (inner_size.x <= remain_size.x && inner_size.y <= remain_size.y) {
-			render_text = text;
+			render_text = converted_text;
 			clipping_enabled = false;
 			fit_transform(text_size, inner_size, padding);
 			return;
 		}
-		auto measure = [this, &full_path](std::string_view value) {
+		auto measure = [this, &full_path](std::u32string_view value) {
 			return Vulkan::Draw_Font_2D::get_renderer_text_size(value, full_path, font_size, stroke_size);
 		};
 		// widths add up char by char, so every word is measured once and nothing is concatenated to measure.
-		const float space_width = measure(" ").x;
-		const float line_height = measure(" ").y;
-		const std::string_view ellipsis = "...";
+		const float space_width = measure(U" ").x;
+		const float line_height = measure(U" ").y;
+		const std::u32string ellipsis = U"...";
 		const float ellipsis_width = measure(ellipsis).x;
 		int max_lines = line_height > 0.f ? std::max(1, (int)(remain_size.y / line_height)) : 1;
 
 		// words are views into `text` ('\n' is treated like a space); a word wider than the box is cut by chars.
-		std::vector<std::string_view> words;
-		std::string_view source = text;
+		std::vector<std::u32string_view> words;
+		std::u32string_view source = converted_text;
 		size_t start = 0;
 		while (start < source.size()) {
-			size_t end = source.find_first_of(" \n", start);
-			if (end == std::string_view::npos)
+			size_t end = source.find_first_of(U" \n", start);
+			if (end == std::u32string_view::npos)
 				end = source.size();
-			std::string_view word = source.substr(start, end - start);
+			std::u32string_view word = source.substr(start, end - start);
 			start = end + 1;
 			if (word.empty())
 				continue;
@@ -223,7 +238,7 @@ namespace Engine {
 				continue;
 			}
 			// binary search the longest prefix of the rest that fits the width (at least 1 char, so it always ends).
-			std::string_view rest = word;
+			std::u32string_view rest = word;
 			while (!rest.empty()) {
 				size_t low = 1, high = rest.size();
 				while (low < high) {
@@ -240,10 +255,10 @@ namespace Engine {
 		}
 
 		// greedy fill: keep a running width per line instead of re-measuring line + " " + word.
-		std::vector<std::string> lines;
+		std::vector<std::u32string> lines;
 		std::vector<float> line_widths;
 		bool truncated = false;
-		for (std::string_view word : words) {
+		for (std::u32string_view word : words) {
 			float word_width = measure(word).x;
 			if (!lines.empty() && line_widths.back() + space_width + word_width <= remain_size.x) {
 				lines.back() += ' ';
@@ -259,10 +274,10 @@ namespace Engine {
 			line_widths.push_back(word_width);
 		}
 		if (truncated && !lines.empty()) {
-			std::string& last_line = lines.back();
+			std::u32string& last_line = lines.back();
 			float last_width = line_widths.back();
 			while (!last_line.empty() && last_width + ellipsis_width > remain_size.x) {
-				last_width -= measure(std::string_view(last_line).substr(last_line.size() - 1)).x;
+				last_width -= measure(std::u32string_view(last_line).substr(last_line.size() - 1)).x;
 				last_line.pop_back();
 			}
 			last_line += ellipsis;
@@ -288,6 +303,7 @@ namespace Engine {
 				break;
 			}
 		}
+		// [Claude END] label wrap / ellipsis / clip
 	}
 
 	void Nine_Scale_Information::update_piece_transforms(

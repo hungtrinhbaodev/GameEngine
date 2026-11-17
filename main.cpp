@@ -16,6 +16,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <engine/engine.h>
+#include <parser/font_parser.h>
 #include <profiler.h>
 #include <test_ui.h>
 #include <vulkan/vk_draw.h>
@@ -142,8 +143,8 @@ std::vector<Handle> rectangles{};
 
 std::vector<Handle> triangles{};
 
-std::vector<std::string> label_texts = {
-	"Hello!", "Frame rate: 60", "toi la hung!\nhaha\n12323-~yy", "", "A", "Line 1\nLine 2\nLine 3",
+std::vector<std::u32string> label_texts = {
+	U"Hello!", U"Frame rate: 60", U"toi la hung!\nhaha\n12323-~yy", U"", U"A", U"Line 1\nLine 2\nLine 3",
 };
 
 std::vector<glm::vec2> anchors_2D = {
@@ -399,11 +400,11 @@ void build_debug_scene() {
 	};
 	struct Debug_Object {
 		Debug_Object_Type type;
-		std::string text = "";
+		std::u32string text = U"";
 	};
-	const std::string text_25 = "toi la hung!\nhaha\n12323-~yy";
-	const std::string text_18 = "Line 1\nLine 2\nLine 3";
-	const std::string text_14 = "Frame rate: 60";
+	const std::u32string text_25 = U"toi la hung!\nhaha\n12323-~yy";
+	const std::u32string text_18 = U"Line 1\nLine 2\nLine 3";
+	const std::u32string text_14 = U"Frame rate: 60";
 	// Same order as sorted_draws in debug/draw_batching.json. The last label in the json (21 glyphs)
 	// is the fps label created by vk_core (draw index 0, so it is always sorted last).
 	std::vector<Debug_Object> objects = {
@@ -418,10 +419,10 @@ void build_debug_scene() {
 		{DEBUG_CESIUMMAN},
 		{DEBUG_LABEL, text_14},
 		{DEBUG_LABEL, text_25},
-		{DEBUG_LABEL, "A"},
-		{DEBUG_LABEL, "Hello!"},
+		{DEBUG_LABEL, U"A"},
+		{DEBUG_LABEL, U"Hello!"},
 		{DEBUG_LABEL, text_14},
-		{DEBUG_LABEL, "A"},
+		{DEBUG_LABEL, U"A"},
 		{DEBUG_CESIUMMAN},
 		{DEBUG_FOX},
 	};
@@ -797,7 +798,17 @@ void on_key(GLFWwindow* window, int key, int scancode, int action, int mods) {
 				}
 				case GLFW_KEY_N: {
 					// Vulkan::show_debug();
+					bool is_supported = Parser::is_font_support_language(
+						Parser::get_full_font_path("res/fonts/BeVietnamPro-Regular.ttf"),
+						Parser::FONT_LANGUAGE::LANGUAGE_VIETNAMESE
+					);
+					bool is_supported2 = Parser::is_font_support_language(
+						Parser::get_full_font_path("res/fonts/anonymous_pro_bold.ttf"),
+						Parser::FONT_LANGUAGE::LANGUAGE_VIETNAMESE
+					);
 					Profiler::view_scope(Parser::SCOPE_LOAD_FONT);
+					Profiler::view_scope(Parser::SCOPE_CHECK_FONT_SUPPORTED);
+					Log::info("What is font supported vietnam", is_supported, is_supported2);
 					break;
 				}
 				case GLFW_KEY_B: {

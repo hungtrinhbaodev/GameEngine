@@ -395,6 +395,81 @@ Most of these are already in tasks/editor_todo.txt section 1 (draw layer); here 
     API: set_viewport_3D(rect) (viewport + scissor), later render-to-texture (editor_todo section 5).
     Model picking (ray vs bounding box) is already in editor_todo section 1.
 
+===== RESPONSIVE (spec 2026-11-16, after the edit box) =====
+Goal: one scene works from a small window to full screen (and later phone / tablet) without the app
+moving nodes by hand. Today: size_percent, position_percent, size_pinning and anchor already follow the
+parent, and the root follows the window (Vulkan resize callback -> set_content_size(root, window size)).
+What is missing is everything around that: knowing the window changed, design size, limits, and layouts
+that reflow. Order = build order; 42-45 are the core, 46-51 make real screens easy.
+
+[]: 42. Window resize event.
+    Why: breakpoints (hide the side panel under 900 px, portrait vs landscape layout, 1 vs 3 columns) need
+    to run app code when the size changes. Today the app has to poll get_window_size every frame.
+    API: void set_window_resize_caller(std::function<void(glm::vec2 new_size)>)
+    Rules: fire once per frame (a drag-resize sends many GLFW events), after the root size is updated and
+    before the relative size pass, so nodes changed in the caller resolve in the same frame. Fire once on
+    the first frame too, so the app builds the right layout at startup.
+
+[]: 43. Design resolution + scale policy (Cocos setDesignResolutionSize equivalent).
+    Why: game UI is drawn for one size (say 1920 x 1080) and must scale to any window; percent sizes alone
+    do not scale fonts, borders, radius or images.
+    API: set_design_resolution(glm::vec2 size, RESOLUTION_POLICY policy)
+         enum RESOLUTION_POLICY { NONE, SHOW_ALL, NO_BORDER, FIXED_WIDTH, FIXED_HEIGHT }
+         glm::vec2 get_design_scale(), glm::vec2 get_visible_size(), glm::vec2 get_visible_origin()
+    NONE = today (1 unit = 1 window unit). The root keeps the design size and gets the scale; touch and
+    cursor positions are converted into design units (get_cursor_world_position, touch callers).
+
+[]: 44. Window units vs pixels (Retina / HiDPI).
+    Why: on a Retina Mac the framebuffer is 2x the window size (the drive screenshots are 2400 x 1440).
+    The app needs to know which unit get_window_size returns and the scale, so 1 px borders and text stay
+    sharp and the font atlas size can follow the scale.
+    API: glm::vec2 get_content_scale() (glfwGetWindowContentScale), glm::vec2 get_framebuffer_size();
+         doc on get_window_size: window units or pixels. Content scale changes (moving the window to
+         another monitor) also fire 42.
+
+[]: 45. Min / max size for relative sizes.
+    Why: "side panel = 25 % of the window but never under 220 px", "button grows with the row but stops at
+    320 px". Without a clamp the app needs 42 + manual sizes for every such node.
+    API: set_min_size(e, glm::vec2), set_max_size(e, glm::vec2) (0 / -1 = no limit), applied after percent /
+         pinning resolve, before children resolve against it.
+
+[]: 46. Row / column / grid in the engine (item 6, today only "Handled" in the test kit).
+    Why: the main tool of responsive UI: when the width changes the children reflow by themselves.
+    API: item 6 + set_child_grow(e, weight) (share of free space), set_layout_wrap(e, bool) (row wraps to
+         the next line), set_layout_align(e, START | CENTER | END | STRETCH), set_layout_columns(e, n).
+    Rules: run in the relative size pass; children with size percent / pinning inside a row use the row's
+    content box; a scroll layout with a kind gets its inner size from the children (47).
+
+[]: 47. Scroll layout inner size from the content.
+    Why: a list that reflows on resize changes height; today set_inner_container_size must be called by hand
+    after every change, or the scroll range is wrong.
+    API: set_inner_container_auto_size(e, bool) (inner size = children bounds + padding), and percent sizes
+         of children resolve against the scroll view's visible width.
+
+[]: 48. Aspect ratio lock.
+    Why: thumbnails, a 16:9 game view inside the editor canvas, square avatars: size from the parent on one
+    axis, the other axis from the ratio.
+    API: set_size_aspect(e, float ratio, ASPECT_MODE { WIDTH_DRIVES, HEIGHT_DRIVES, FIT_INSIDE })
+
+[]: 49. Labels follow their node width.
+    Why: a label with size percent / pinning must wrap and ellipsis at the resolved width, every resize.
+    LABEL_RENDER_FIT_AUTO / CLIP / ELLIPSIS exist; please confirm they use the resolved width from percent /
+    pinning (not only a custom size), and add an optional min font size for shrink-to-fit.
+
+[]: 50. Window size limits.
+    Why: under some size no layout works (editor panels overlap); the app should stop the window there.
+    API: set_window_min_size(glm::vec2), set_window_max_size(glm::vec2) (glfwSetWindowSizeLimits), and
+         set_window_aspect_ratio optional (glfwSetWindowAspectRatio).
+
+[]: 51. Safe area (later, phones).
+    Why: notch / home bar on iOS and Android; listed so 43 leaves room for it.
+    API: glm::vec4 get_safe_area_insets(), and pinning that can be relative to the safe area.
+
+Tests I will add when they land: the drive resizes the window through a few sizes (glfwSetWindowSize,
+including a drag-like burst of sizes in one frame) and checks pinned / percent nodes, min / max clamps, row
+reflow and wrap, scroll range, label wrap width, one resize event per frame, and touch positions in design
+units; a fuzz op that resizes the window at random frames.
+
 ===== NOTES =====
 - When an item lands, tell me and I will switch the tests / scenes to it and add checks for it
   (drive scenario + fuzz op), so the harness stops reading components for that case.

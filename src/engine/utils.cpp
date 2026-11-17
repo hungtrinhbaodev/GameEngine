@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <engine/utils.h>
 #include <files.h>
+#include <parser/font_parser.h>
 #include <utils.h>
 
 namespace Engine {
@@ -64,11 +65,7 @@ namespace Engine {
 		}
 
 		std::string get_full_font_path(const std::string& path) {
-			std::string full_path = "";
-			if (::Files::is_file_exists(::Utils::get_root_path() + path)) {
-				full_path = ::Utils::get_root_path() + path;
-			}
-			return full_path;
+			return Parser::get_full_font_path(path);
 		}
 	} // namespace Utils
 } // namespace Engine

@@ -1,4 +1,4 @@
-#include <cstring>
+#include <cstring> // [Claude 2026-10-25] strcmp for the extension check
 #include <set>
 
 #include <log.h>
@@ -8,6 +8,7 @@
 
 namespace Vulkan {
 
+	// [Claude BEGIN 2026-10-25] optional VK_EXT_memory_budget support.
 	bool memory_budget_enabled = false;
 
 	bool is_device_extension_supported(VkPhysicalDevice physical_device, const char* extension_name) {
@@ -26,6 +27,7 @@ namespace Vulkan {
 	bool is_memory_budget_enabled() {
 		return memory_budget_enabled;
 	}
+	// [Claude END]
 
 	void init_device(VkDevice& device, VkSurfaceKHR surface, VkPhysicalDevice physical_device) {
 
@@ -53,6 +55,7 @@ namespace Vulkan {
 
 		std::vector<const char*> device_extensions =
 			Utils::query_physical_device_support_required_extensions(physical_device);
+		// [Claude 2026-10-25] enable VK_EXT_memory_budget when the device has it (next 4 lines).
 		memory_budget_enabled = Const::VULKAN_API_VERSION >= VK_API_VERSION_1_1 &&
 								is_device_extension_supported(physical_device, VK_EXT_MEMORY_BUDGET_EXTENSION_NAME);
 		if (memory_budget_enabled) {

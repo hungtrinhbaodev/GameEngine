@@ -105,8 +105,9 @@ namespace Engine {
 	struct Label_Renderer_Information {
 		std::string font_path = "";
 		std::string text = "";
-		// what is actually drawn when use_custom_size is on: text after wrap / ellipsis. `text` stays untouched.
-		std::string render_text = "";
+		// [Claude, 2026-11-11] what is actually drawn when use_custom_size is on: text after wrap / ellipsis.
+		// `text` stays untouched. Filled by update_inner_text_by in components.cpp.
+		std::u32string render_text = U"";
 		int font_size = 8;
 		glm::vec3 stroke_color = {1.f, 1.f, 1.f};
 		float stroke_size = 0.f;

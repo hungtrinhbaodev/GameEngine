@@ -54,14 +54,23 @@ int main(int argc, char** argv) {
 		Engine::process_frame(0.f);
 		Test::handle_key(GLFW_KEY_K, 0);
 		auto_quit = true;
+	} else if (auto_job == "repro-unicode") { // [Claude 2026-11-17] tests/test_unicode.cpp
+		Test::clear_scene();
+		Engine::process_frame(0.f);
+		Test::repro_unicode_checks();
+		auto_quit = true;
 	} else if (auto_job == "repro-reentry") {
 		Test::clear_scene();
 		Engine::process_frame(0.f);
 		Test::handle_key(GLFW_KEY_J, 0);
 		auto_quit = true;
 	}
-	bool driving = auto_job == "drive" || auto_job == "perf" || auto_job == "label-view" || auto_job == "label-wrap";
-	if (auto_job == "drive") {
+	bool driving = auto_job == "drive" || auto_job == "perf" || auto_job == "label-view" || auto_job == "label-wrap" ||
+				   auto_job == "unicode-view"; // [Claude 2026-11-17] unicode-view
+	if (auto_job == "unicode-view") { // [Claude 2026-11-17] tests/test_unicode.cpp scene + screenshot
+		Test::start_unicode_view(window);
+		auto_quit = true;
+	} else if (auto_job == "drive") {
 		Test::start_drive(window);
 		auto_quit = true;
 	} else if (auto_job == "label-view") {

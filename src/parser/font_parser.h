@@ -2,6 +2,7 @@
 #include <files.h>
 #include <iostream>
 #include <map>
+#include <set>
 #include <utils.h>
 
 namespace Parser {
@@ -15,6 +16,16 @@ namespace Parser {
 	const std::string SCOPE_FIND_SUITABLE_ATLAS = "FIND_SUITABLE_ATLAS";
 
 	const std::string SCOPE_MERGE_ATLAS = "MERGE_ATLAS";
+
+	const std::string SCOPE_CHECK_FONT_SUPPORTED = "CHECK_FONT_SUPPORTED";
+
+	const int NUMBER_LANGUE = 3;
+
+	enum FONT_LANGUAGE {
+		LANGUAGE_DEFAULT_PUNCTUATION,
+		LANGUAGE_ENGLISH,
+		LANGUAGE_VIETNAMESE
+	};
 
 	struct Char_Rect {
 		float tex_coord_x = 0.f, tex_coord_y = 0.f;
@@ -33,6 +44,8 @@ namespace Parser {
 	struct Font {
 		std::vector<Char_Rect> rects;
 		std::vector<uint8_t> atlas;
+		std::unordered_map<char32_t, int> char_to_rect_indices;
+		std::set<FONT_LANGUAGE> supported_language;
 		char start_char = 0;
 		int max_char_height = 0;
 		int size_atlas = 0;
@@ -48,7 +61,8 @@ namespace Parser {
 			   << ", size_atlas: " << font.size_atlas << ", min_font_size: " << font.min_font_size
 			   << ", max_font_size: " << font.max_font_size << ", line_height: " << font.line_height
 			   << ", max_stroke_size: " << font.max_stroke_size << ", sfd_padding: " << font.sfd_padding
-			   << ", rects size: " << font.rects.size() << ", rects last: " << font.rects.back()
+			   << ", rects size: " << font.rects.size()
+			   << ", rects last: " << (font.rects.size() > 0 ? font.rects.back() : Char_Rect{})
 			   << ", atlas: " << font.atlas.size() << "}";
 			return os;
 		}
@@ -57,6 +71,10 @@ namespace Parser {
 	Font parse_font(std::string file_path);
 
 	Font parse_sdf_font(const std::string& file_path);
+
+	std::string get_full_font_path(const std::string& path);
+
+	bool is_font_support_language(const std::string& file_path, FONT_LANGUAGE language);
 
 	void test(const std::string& file_path);
 
