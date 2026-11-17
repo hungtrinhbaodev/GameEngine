@@ -1,0 +1,94 @@
+EDIT BOX TODO (ui_api_need item 29, single-line first, Vietnamese from day one)
+[Claude 2026-11-17] written from our chat. Mark a step [Done] when its "Done when" holds.
+Who: "you" = engine / Vulkan code you write. "me" = tests, editor, reviews (only after PLEASE CODE).
+
+===== RULES WE AGREED =====
+- Engine API + stored text = UTF-8 std::string. Vulkan side (Label_2D_Description::text, Font_2D::set_text,
+  layout) = std::u32string only. Convert once at the boundary with Helper::utf8_to_u32_nfc. No std::string
+  overloads on the Vulkan side, so a forgotten conversion is a compile error.
+- Every index that crosses the boundary (caret, anchor, max length, char x) is a CODE POINT index, never a byte.
+- Edit box text model = std::u32string kept in NFC. Backspace removes exactly one code point
+  (Telex tools like OpenKey / EVKey send Backspace + the new letter).
+
+===== STEPS =====
+Step | What | Who | Done when
+
+[Done]: 0. UTF-8 labels (29h)
+  What: get_text_size, make_lines_render_info, get_char_position_at and the wrap code in components.cpp decode
+        with Helper::utf8_to_u32_nfc and loop over char32_t. Instance count = number of code points, not bytes.
+        Font bakes ENGLISH + VIETNAMESE + PUNCTUATION per code point (char_to_rect_indices), cache v-bumped,
+        missing glyph -> '?'.
+  Who:  you (Vulkan/engine); tests by me.
+  Done when: repro-unicode passes (55 checks), unicode-view screenshot shows stacked marks, NFD == NFC.
+        -> done in 33adb23, suite 19/19.
+
+[]: 1. Engine owns keyboard input (29a)
+  What: Engine::init registers glfwSetKeyCallback + glfwSetCharCallback (GLFW allows one per window).
+        The focused edit box gets keys / chars first; everything not consumed goes to the app via
+        set_key_caller(fn(int key, int action, int mods)). Char callback gives char32_t code points.
+        Started: Key_Board_Information in components.h, edit_box.h / eidt_box.cpp stubs
+        (file name typo: eidt_box.cpp -> edit_box.cpp).
+        Also needed for tests: public inject functions like the touch ones, e.g.
+        Engine::handle_key(key, action, mods) / Engine::handle_char(char32_t), so ui_test can type without GLFW.
+  Who:  you (engine). Me: move main.cpp, tests/test_main.cpp and the editor off their own glfwSetKeyCallback.
+  Done when: test keys (C, X, E, ...) and editor shortcuts still work through set_key_caller;
+        run_all 19/19 + editor self-test 25/25.
+
+[]: 2. Keyboard focus (29b)
+  What: set_focus(e) (invalid handle = none), get_focus(), set_focusable / is_focusable (edit box true by default),
+        set_focus_caller(e, fn(Handle, bool focused)).
+        TOUCH_BEGAN on a focusable node focuses it; BEGAN anywhere else clears focus BEFORE dispatch
+        (a button click still blurs). clean_up / set_visible(false) of the focused node or an ancestor clears focus.
+        Tab / Shift+Tab later.
+  Who:  you (engine).
+  Done when: click focuses, click outside blurs, focus caller fires once per change, clean_up while focused
+        leaves get_focus() invalid (no stale handle).
+
+[]: 3. Edit box node + text model (29c)
+  What: create_edit_box() = layout (background, border, clip on) + inner label + caret child.
+        set_edit_box_text(e, utf8) / get_edit_box_text(e) -> utf8; placeholder (shown when empty and not focused),
+        max length in code points, font / size / color / padding setters, changed caller (every edit),
+        submit caller (Enter). Model: u32string text (NFC), caret index, anchor index.
+        Keys: printable char inserts at caret (re-NFC so a combining mark typed after its base merges);
+        Backspace / Delete one code point; Left / Right; Home / End (+ Cmd+Left / Cmd+Right on macOS);
+        Enter = submit; Esc = blur without submit; GLFW_REPEAT acts like PRESS.
+  Who:  you (engine).
+  Done when: typing "hello" stores "hello"; Telex style input (Backspace + new letter) ends as NFC "Việt";
+        max length counts code points; Enter fires submit exactly once; Esc blurs.
+
+[]: 4. Caret + scrolling (29d)
+  What: float get_label_char_x(label, index) (gap before char index, index == length = end) and
+        int get_label_char_index_at(label, local_x) (nearest gap), both code-point indices, built on
+        Draw_Font_2D::get_char_position_at so they follow align / padding / scale.
+        Caret = 2 px layout child, line height tall, blink 0.5 s on / 0.5 s off, solid + blink reset on every edit
+        (needs a per-frame tick inside process_frame). Text wider than the box: offset the inner label so the
+        caret stays inside the padding. Optional: IBEAM cursor on hover.
+  Who:  you (engine / Vulkan).
+  Done when: caret x == get_label_char_x(caret) after every edit; clicking between "ệ" and "t" puts the caret there;
+        long text scrolls and the caret never leaves the box.
+
+[]: 5. Selection + clipboard (29e, 29f)
+  What: Shift+arrows, drag to select, double-click = word, Cmd/Ctrl+A = all; selection rect behind the text;
+        typing / Backspace replaces the selection. Cmd/Ctrl+C / X / V via glfwGetClipboardString /
+        glfwSetClipboardString (UTF-8; NFC on paste; strip newlines in single-line).
+  Who:  you (engine).
+  Done when: copy -> paste round-trips Vietnamese text unchanged; selection rect matches char x of anchor / caret.
+
+[]: 6. Modes (29g, later)
+  What: password ('*' per code point, copy off), numeric only, read-only, multi-line (Enter = newline,
+        Up / Down by line, reuse the label wrap code).
+  Who:  you (engine).
+  Done when: each mode has a repro check.
+
+[]: 7. Tests + editor
+  What: ui_test job "repro-edit-box" + editor self-test: focus by click / blur by click outside, type "hello"
+        through the char path, Backspace, Left x2 + insert, Home / End, Enter submits once, Esc blurs,
+        max length, caret x == get_label_char_x after each step, clean_up while focused, Vietnamese input
+        (NFD + Telex sequences), pool leak check. Editor: rename the selected node in the inspector
+        (stand-in item 29 in the editor).
+  Who:  me, after each of steps 1-4 lands (PLEASE CODE).
+  Done when: run_all + editor self-test green, findings file updated.
+
+===== OPEN QUESTIONS =====
+- macOS built-in Vietnamese Telex: GLFW has no IME preedit, so text may only appear on commit. Test by hand.
+- CJK IME candidate window = separate, bigger task (not planned).

@@ -147,15 +147,16 @@ namespace Engine {
 		bool swallow_touches = true;
 		TOUCH_STATE touch_state = TOUCH_STATE::TOUCH_INIT;
 		glm::vec2 touch_world_position{0.f};
-		std::function<
-			void(Handle e, TOUCH_STATE touch_state, glm::vec2 touch_world_position, int touch_type, int touch_mods)>
+		std::function<void(
+			Handle e, TOUCH_STATE touch_state, glm::vec2 touch_world_position, MOUSE_BUTTON touch_type, int touch_mods
+		)>
 			caller = nullptr;
-		std::function<void(Handle e, glm::vec2 touch_world_position, int touch_type, int touch_mods)> click_caller =
-			nullptr;
+		std::function<void(Handle e, glm::vec2 touch_world_position, MOUSE_BUTTON touch_type, int touch_mods)>
+			click_caller = nullptr;
 		bool claim_touch = false;
-		int touch_type = -1;
-		int touch_mods = -1;
 		bool canceling_touch_enabled = false;
+		MOUSE_BUTTON touch_type = MOUSE_BUTTON::MOUSE_BUTTON_LEFT;
+		int touch_mods = -1;
 	};
 
 	struct Nine_Scale_Information {
@@ -216,5 +217,10 @@ namespace Engine {
 			os << "}";
 			return os;
 		}
+	};
+
+	struct Key_Board_Information {
+		bool enabled = false;
+		std::function<void(const Handle& e, KEY key, KEY_ACTION action, int mods, bool& swallowed)> caller = nullptr;
 	};
 } // namespace Engine

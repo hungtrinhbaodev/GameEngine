@@ -546,7 +546,22 @@ Reading:
     sorted by z order. Runs after every fuzz frame and before every drive step; hidden draws (unused
     nine-scale pieces) are skipped.
 
-===== LAST RUN (2026-11-17, Vietnamese / Unicode checks added) =====
+===== LAST RUN (2026-11-17, input enums: MOUSE_BUTTON / KEY_MODIFIER in touch + click callers) =====
+UI suite 19 of 19 PASS, plus repro-reentry and repro-api under ASan (build-asan rebuilt with input_glfw.cpp).
+Engine change: structs.h input enums (KEY, KEY_ACTION, MOUSE_BUTTON, KEY_MODIFIER) with our own values,
+engine/input_glfw.h converters; spawn_touch converts GLFW button / mods; touch + click callers get MOUSE_BUTTON.
+- [Done] api check 22 failed after the change ("real button (2)"): it compared the engine button with
+  GLFW_MOUSE_BUTTON_RIGHT (1). Now compares with Engine::MOUSE_BUTTON_RIGHT, and sends Shift | Super | 0x100
+  to check the mods come back as KEY_MOD_SHIFT | KEY_MOD_SUPER with the unknown bit dropped.
+- [Done] tests/test_app.cpp (18), test_ui_kit.cpp (1), test_scenes.cpp (1): callers take Engine::MOUSE_BUTTON.
+  They compiled with int too (plain enum -> int), so the old code hid the type change.
+Open (not in tests/):
+- [] editor/editor_inspector.cpp:95 tests engine mods with GLFW_MOD_SHIFT: right only because both are 1;
+  use Engine::KEY_MOD_SHIFT.
+- [] editor/*.cpp (8 callers) and root main.cpp (3) still take the button as int.
+- [] after adding new .cpp files, re-run `cmake <build dir>` (GLOB): build-editor and build-asan needed it today.
+
+===== PREVIOUS RUN (2026-11-17, Vietnamese / Unicode checks added) =====
 UI suite 19 of 19 PASS (repro-unicode 55 of 55 after the duplicate-bake fix, from a fresh font bake).
 New: tests/test_unicode.cpp, job `./ui_test repro-unicode` (in run_all.sh). Groups: helper (utf8_helper
 decode / encode / NFC), atlas (Be Vietnam Pro), label (auto fit), wrap (CLIP / ELLIPSIS), cache (fresh bake vs
@@ -570,7 +585,7 @@ Passing (now covered by a test):
 - cache: map, rects, atlas bytes, languages and metrics identical between fresh bake and cache.
 Earlier today: tests/test_app.cpp label-default passes U"Hi" to get_renderer_text_size (u32string_view).
 
-===== PREVIOUS RUN (2026-11-16, touch targets owned by the engine) =====
+===== OLDER RUN (2026-11-16, touch targets owned by the engine) =====
 UI suite 18 of 18 PASS (repro-reentry + asan failed on case 5 first: a click-only node disabled mid-touch
 still got its click because discard_handling_touches_entities became a no-op; fixed by calling
 remove_entities_from_touch_listener from both listener paths). ./editor --self-test 25 of 25 PASS.
@@ -598,7 +613,7 @@ Rerun after dead-code cleanup + scroll tree walk: 18 of 18 PASS.
 - way 2 skips touching_caller for a disabled node: a touch-caller node disabled mid-touch gets no ENDED /
   CANCEL any more (old code sent one ENDED). No test covers this.
 
-===== OLDER RUN (2026-11-12, editor round 2) =====
+===== OLDEST KEPT RUN (2026-11-12, editor round 2) =====
 UI suite 19 of 19 PASS. ./editor --self-test 25 of 25 PASS (Debug, and Release from /tmp with the cwd stand-in).
 Done today: 37 (scroll touch toggle), 38 (to_my_position_space anchor), #26 shader path.
 Open: 39 (find_topmost_node_at parent / invisible), 40 (root grey background hides the clear colour), 41 (label

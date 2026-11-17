@@ -1,3 +1,5 @@
+// [Claude 2026-11-17] touch / click callers take Engine::MOUSE_BUTTON for the button (was int); spawn_touch still
+// gets GLFW numbers because it plays the GLFW side and converts them itself.
 #include <engine/components.h>
 #include <log.h>
 #include <test_ui.h>
@@ -551,7 +553,7 @@ namespace Test {
 			// click the cell to cycle short / medium / two-line text and watch it re-layout.
 			auto step = std::make_shared<int>(0);
 			Engine::set_touch_enabled(cell, true);
-			Engine::set_click_caller(cell, [label, step](Handle, glm::vec2, int, int) {
+			Engine::set_click_caller(cell, [label, step](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) {
 				if (!Engine::is_valid(label))
 					return;
 				*step = (*step + 1) % 3;

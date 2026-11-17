@@ -1,6 +1,7 @@
 #include <consts.h>
 #include <engine/components.h>
 #include <engine/engine.h>
+#include <engine/input_glfw.h>
 #include <engine/structs.h>
 #include <engine/touch_handler.h>
 #include <engine/utils.h>
@@ -25,8 +26,8 @@ namespace Engine {
 		touch_info.id = handle;
 		touch_info.touch_state = TOUCH_STATE::TOUCH_INIT;
 		touch_info.touch_world_position = touch_world_position;
-		touch_info.touch_type = button;
-		touch_info.touch_mods = mods;
+		touch_info.touch_type = glfw_to_mouse_button(button);
+		touch_info.touch_mods = glfw_to_key_mods(mods);
 		handling_touches.insert(handle.id(), touch_info);
 		return handle.id();
 	}

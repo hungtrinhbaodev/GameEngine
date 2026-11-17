@@ -38,6 +38,8 @@ namespace Engine {
 
 	const uint64_t DIRTY_GLOBAL_AABB = (1 << 7);
 
+	const uint64_t DIRTY_KEY_BOARD_LISTENER = (1 << 8);
+
 	// Main caller functions.
 	void init(GLFWwindow* window);
 
@@ -143,9 +145,11 @@ namespace Engine {
 
 	bool is_swallow_touches(const Handle& e);
 
-	void set_touch_caller(const Handle& e, const std::function<void(Handle, TOUCH_STATE, glm::vec2, int, int)> caller);
+	void set_touch_caller(
+		const Handle& e, const std::function<void(Handle, TOUCH_STATE, glm::vec2, MOUSE_BUTTON, int)> caller
+	);
 
-	void set_click_caller(const Handle& e, const std::function<void(Handle, glm::vec2, int, int)> caller);
+	void set_click_caller(const Handle& e, const std::function<void(Handle, glm::vec2, MOUSE_BUTTON, int)> caller);
 
 	void set_nine_scale_enabled(const Handle& e, bool enabled);
 
@@ -332,5 +336,14 @@ namespace Engine {
 	POSITION_TYPE get_position_type(const Handle& e);
 
 	DESCRIPTION_TYPE get_description_type(const Handle& e);
+
+	void set_key_input_enabled(const Handle& e, bool enabled);
+
+	bool is_key_input_enabled(const Handle& e);
+
+	void set_key_input_callback(
+		const Handle& e,
+		const std::function<void(const Handle& e, KEY key, KEY_ACTION action, int mods, bool& swallowed)>& caller
+	);
 
 } // namespace Engine

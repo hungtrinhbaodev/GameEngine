@@ -1,6 +1,7 @@
 #include <core.h>
 #include <engine/components.h>
 #include <engine/engine.h>
+#include <engine/key_handler.h>
 #include <engine/scroll_handler.h>
 #include <engine/systems.h>
 #include <engine/touch_handler.h>
@@ -66,6 +67,12 @@ namespace Engine {
 		}
 	};
 
+	struct Focus_Target_Information {
+		Handle last_focus = Handle::make_invalid_handle();
+		Handle current_focus = Handle::make_invalid_handle();
+		bool is_focus_dirty = false;
+	};
+
 	const float RATE_CANCEL_MOVE = 0.5f;
 
 	Registry registry{};
@@ -81,6 +88,10 @@ namespace Engine {
 	glm::vec2 cursor_world_position = {0.f, 0.f};
 
 	Sparse_Set<Touch_Target_Information> touch_id_to_entities{};
+
+	Focus_Target_Information focus_info{};
+
+	std::vector<Handle> key_listener_entities{};
 
 	std::string get_entity_description_name(const Handle& e) {
 		if (!registry.has<Description>(e.id())) {
@@ -257,6 +268,7 @@ namespace Engine {
 		registry.erase<World_Transform_2D>(e.id());
 		registry.erase<Draw_Order>(e.id());
 		registry.erase<Rect>(e.id());
+		registry.erase<Key_Board_Information>(e.id());
 	}
 
 	void remove_layout(const Handle& e) {
@@ -530,6 +542,32 @@ namespace Engine {
 		handle_update_tree_draw_order(prcessing_entities);
 	}
 
+	void update_key_listener_entites(const std::vector<Handle>& entities) {
+		for (const auto& e : entities) {
+			if (!registry.has<Key_Board_Information>(e.id())) {
+				continue;
+			}
+			const auto& [key_info] = registry.read<Key_Board_Information>(e.id());
+			if (!key_info.enabled) {
+				Utils::remove_entities_from(key_listener_entities, e);
+			} else {
+				Utils::insert_entities_to(key_listener_entities, e);
+			}
+		}
+		key_listener_entities = Utils::find_entites_satify_from(key_listener_entities, [](const Handle& e) {
+			if (!registry.has<Key_Board_Information>(e.id())) {
+				return false;
+			}
+			const auto& [key_info] = registry.read<Key_Board_Information>(e.id());
+			return is_valid(e) && key_info.enabled;
+		});
+		Utils::sort_entities(key_listener_entities, [](const Handle& a, const Handle& b) {
+			const auto& [draw_order_a] = registry.read<Draw_Order>(a.id());
+			const auto& [draw_order_b] = registry.read<Draw_Order>(b.id());
+			return draw_order_a.value < draw_order_b.value;
+		});
+	}
+
 	bool is_touch_entity_handling(const Handle& e) {
 		if (!registry.has<Touching_Information>(e.id()) || !is_valid(e)) {
 			return false;
@@ -725,6 +763,7 @@ namespace Engine {
 		registry.add(entity.id(), World_Transform_2D{});
 		registry.add(entity.id(), Draw_Order{});
 		registry.add(entity.id(), Rect{});
+		registry.add(entity.id(), Key_Board_Information{});
 		return entity;
 	}
 
@@ -738,6 +777,7 @@ namespace Engine {
 		});
 		init_touch_handler(window);
 		init_scroll_handler(window);
+		init_key_handler(window);
 		init_root();
 	}
 
@@ -786,6 +826,12 @@ namespace Engine {
 		processing_dirty_entities = make_processing_dirty_entities(DIRTY_GLOBAL_AABB, TRAVEL_NODE_MODE::TRAVEL_UP);
 		std::reverse(processing_dirty_entities.begin(), processing_dirty_entities.end());
 		handle_dirty_compute_global_aabb(processing_dirty_entities);
+
+		processing_dirty_entities =
+			make_processing_dirty_entities(DIRTY_KEY_BOARD_LISTENER, TRAVEL_NODE_MODE::TRAVEL_NONE);
+		if (processing_dirty_entities.size() > 0) {
+			update_key_listener_entites(processing_dirty_entities);
+		}
 
 		dirty_entities.clear();
 		Vulkan::draw_frame(dt);
@@ -870,8 +916,8 @@ namespace Engine {
 		set_layout_clipping_enabled(scroll_layout, true);
 		set_touch_caller(
 			touch_container,
-			[](Handle touch_container, TOUCH_STATE touch_state, glm::vec2 world_position, int button, int) {
-				if (button != GLFW_MOUSE_BUTTON_LEFT)
+			[](Handle touch_container, TOUCH_STATE touch_state, glm::vec2 world_position, MOUSE_BUTTON button, int) {
+				if (button != MOUSE_BUTTON::MOUSE_BUTTON_LEFT)
 					return;
 				const auto& [tree_info] = registry.read<Tree_Information>(touch_container.id());
 				auto [scroll_info] = registry.get<Scroll_Information>(tree_info.parent.id());
@@ -1010,7 +1056,7 @@ namespace Engine {
 		tree_info.parent = e_parent;
 		tree_info.valid_child = parent_tree_info.valid_child;
 		if (tree_info.valid_child) {
-			uint64_t all_dirty = DIRTY_TRANSFORM | DIRTY_RENDERER | DIRTY_CLIPPING | DIRTY_GLOBAL_AABB;
+			uint64_t all_dirty = DIRTY_TRANSFORM | DIRTY_RENDERER | DIRTY_CLIPPING | DIRTY_KEY_BOARD_LISTENER;
 			travel_down(e_child, [&all_dirty](const Handle& parent, const Handle& child, bool&, bool& break_all) {
 				if (!registry.has<Tree_Information>(parent.id()) ||
 					!registry.has_all<Tree_Information, Dirty_Flag>(child.id())) {
@@ -1378,7 +1424,9 @@ namespace Engine {
 		return touch_info.swallow_touches;
 	}
 
-	void set_touch_caller(const Handle& e, const std::function<void(Handle, TOUCH_STATE, glm::vec2, int, int)> caller) {
+	void set_touch_caller(
+		const Handle& e, const std::function<void(Handle, TOUCH_STATE, glm::vec2, MOUSE_BUTTON, int)> caller
+	) {
 		assert_handle(e);
 		if (!registry.has<Touching_Information>(e.id())) {
 			return;
@@ -1387,7 +1435,7 @@ namespace Engine {
 		touch_info.caller = caller;
 	}
 
-	void set_click_caller(const Handle& e, const std::function<void(Handle, glm::vec2, int, int)> caller) {
+	void set_click_caller(const Handle& e, const std::function<void(Handle, glm::vec2, MOUSE_BUTTON, int)> caller) {
 		assert_handle(e);
 		if (!registry.has<Touching_Information>(e.id())) {
 			return;
@@ -2358,6 +2406,37 @@ namespace Engine {
 			return description.value;
 		}
 		return DESCRIPTION_TYPE::NONE;
+	}
+
+	void set_key_input_enabled(const Handle& e, bool enabled) {
+		assert_handle(e);
+		if (!registry.has<Key_Board_Information>(e.id())) {
+			return;
+		}
+		auto [key_info] = registry.get<Key_Board_Information>(e.id());
+		set_dirty(e, key_info.enabled != enabled, DIRTY_KEY_BOARD_LISTENER);
+		key_info.enabled = enabled;
+	}
+
+	bool is_key_input_enabled(const Handle& e) {
+		assert_handle(e);
+		if (!registry.has<Key_Board_Information>(e.id())) {
+			return false;
+		}
+		const auto& [key_info] = registry.read<Key_Board_Information>(e.id());
+		return key_info.enabled;
+	}
+
+	void set_key_input_callback(
+		const Handle& e,
+		const std::function<void(const Handle& e, KEY key, KEY_ACTION action, int mods, bool& swallowed)>& caller
+	) {
+		assert_handle(e);
+		if (!registry.has<Key_Board_Information>(e.id())) {
+			return;
+		}
+		auto [key_info] = registry.get<Key_Board_Information>(e.id());
+		key_info.caller = caller;
 	}
 
 } // namespace Engine

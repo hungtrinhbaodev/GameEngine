@@ -1,3 +1,5 @@
+// [Claude 2026-11-17] touch / click callers take Engine::MOUSE_BUTTON for the button (was int); spawn_touch still
+// gets GLFW numbers because it plays the GLFW side and converts them itself.
 #include <chrono>
 #include <engine/components.h>
 #include <typeinfo>
@@ -352,7 +354,7 @@ namespace Test {
 				Engine::set_anchor(button, {0.5f, 0.5f});
 				Engine::set_position(button, reentry_point);
 				Engine::set_touch_enabled(button, true);
-				Engine::set_click_caller(button, [clicks](Handle, glm::vec2, int, int) { (*clicks)++; });
+				Engine::set_click_caller(button, [clicks](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) { (*clicks)++; });
 				Engine::add_child(root, button);
 				Engine::process_frame(0.f);
 				uint32_t id = Engine::spawn_touch(reentry_point, GLFW_MOUSE_BUTTON_LEFT, 0);
@@ -410,12 +412,12 @@ namespace Test {
 				auto claimed = std::make_shared<bool>(false);
 				Engine::set_touch_caller(
 					scroll_stub,
-					[scroll_states](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
+					[scroll_states](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
 						scroll_states->push_back(state);
 					}
 				);
 				Engine::set_touch_caller(
-					cell, [cell_states, claimed, cell](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
+					cell, [cell_states, claimed, cell](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
 						cell_states->push_back(state);
 						if (state == Engine::TOUCH_STATE::TOUCH_MOVE && !*claimed) {
 							*claimed = true;
@@ -649,7 +651,7 @@ namespace Test {
 				Engine::process_frame(0.f);
 
 				auto states = std::make_shared<std::vector<Engine::TOUCH_STATE>>();
-				Engine::set_touch_caller(e, [states](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
+				Engine::set_touch_caller(e, [states](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
 					states->push_back(state);
 				});
 
@@ -690,26 +692,31 @@ namespace Test {
 				Engine::add_child(root, e);
 				Engine::process_frame(0.f);
 
-				auto seen_button = std::make_shared<int>(-1);
+				// [Claude 2026-11-17] BEGIN GLFW numbers in, engine enums out (glfw_to_mouse_button / glfw_to_key_mods).
+				auto seen_button = std::make_shared<Engine::MOUSE_BUTTON>(Engine::MOUSE_BUTTON_UNKNOWN);
 				auto seen_mods = std::make_shared<int>(-1);
 				Engine::set_touch_caller(
-					e, [seen_button, seen_mods](Handle, Engine::TOUCH_STATE state, glm::vec2, int button, int mods) {
+					e,
+					[seen_button,
+					 seen_mods](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON button, int mods) {
 						if (state == Engine::TOUCH_STATE::TOUCH_BEGAN) {
 							*seen_button = button;
 							*seen_mods = mods;
 						}
 					}
 				);
-				uint32_t id = Engine::spawn_touch({710.f, 710.f}, GLFW_MOUSE_BUTTON_RIGHT, GLFW_MOD_SHIFT);
+				uint32_t id =
+					Engine::spawn_touch({710.f, 710.f}, GLFW_MOUSE_BUTTON_RIGHT, GLFW_MOD_SHIFT | GLFW_MOD_SUPER | 0x100);
 				Engine::process_frame(0.f);
 				api_expect(
-					"22", *seen_button == GLFW_MOUSE_BUTTON_RIGHT,
-					"the touch caller receives the real button (" + std::to_string(*seen_button) + ")"
+					"22", *seen_button == Engine::MOUSE_BUTTON_RIGHT,
+					"the touch caller receives the real button (" + std::to_string((int)*seen_button) + ")"
 				);
 				api_expect(
-					"22", *seen_mods == GLFW_MOD_SHIFT,
-					"the touch caller receives the modifier flags (" + std::to_string(*seen_mods) + ")"
+					"22", *seen_mods == (Engine::KEY_MOD_SHIFT | Engine::KEY_MOD_SUPER),
+					"the touch caller receives the modifier flags, unknown bits dropped (" + std::to_string(*seen_mods) + ")"
 				);
+				// [Claude 2026-11-17] END
 				Engine::release_touch(id, {710.f, 710.f});
 				Engine::process_frame(0.f);
 				Engine::process_frame(0.f);
@@ -828,11 +835,11 @@ namespace Test {
 				Engine::add_child(root, b);
 				Handle a = make_touch_layer();
 				Engine::add_child(root, a);
-				Engine::set_touch_caller(b, [b_calls](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
+				Engine::set_touch_caller(b, [b_calls](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
 					b_calls->push_back(state);
 				});
 				Engine::set_touch_caller(
-					a, [a_calls, percent, percent_holder](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
+					a, [a_calls, percent, percent_holder](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
 						a_calls->push_back(state);
 						// make the size dirty, then query it: the resolver refills the engine scratch list.
 						Engine::set_content_size(percent_holder, {200.f + a_calls->size(), 200.f});
@@ -866,9 +873,9 @@ namespace Test {
 				Engine::set_position(other, {5.f, 5.f});
 				Engine::set_touch_enabled(other, true);
 				Engine::add_child(root, other);
-				Engine::set_click_caller(other, [other_clicks](Handle, glm::vec2, int, int) { (*other_clicks)++; });
-				Engine::set_click_caller(self, [](Handle, glm::vec2, int, int) {});
-				Engine::set_touch_caller(self, [](Handle e, Engine::TOUCH_STATE state, glm::vec2, int, int) {
+				Engine::set_click_caller(other, [other_clicks](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) { (*other_clicks)++; });
+				Engine::set_click_caller(self, [](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) {});
+				Engine::set_touch_caller(self, [](Handle e, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
 					if (state == Engine::TOUCH_STATE::TOUCH_ENDED)
 						Engine::clean_up(e); // nothing captured is used after this line
 				});
@@ -890,10 +897,10 @@ namespace Test {
 				Engine::add_child(root, below);
 				Handle top = make_touch_layer();
 				Engine::add_child(root, top);
-				Engine::set_touch_caller(below, [below_calls](Handle, Engine::TOUCH_STATE, glm::vec2, int, int) {
+				Engine::set_touch_caller(below, [below_calls](Handle, Engine::TOUCH_STATE, glm::vec2, Engine::MOUSE_BUTTON, int) {
 					(*below_calls)++;
 				});
-				Engine::set_touch_caller(top, [below](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
+				Engine::set_touch_caller(top, [below](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
 					if (state == Engine::TOUCH_STATE::TOUCH_BEGAN && Engine::is_valid(below))
 						Engine::clean_up(below);
 				});
@@ -914,17 +921,17 @@ namespace Test {
 				auto fresh = std::make_shared<Handle>(Handle::make_invalid_handle());
 				Handle below = make_touch_layer();
 				Engine::add_child(root, below);
-				Engine::set_touch_caller(below, [](Handle, Engine::TOUCH_STATE, glm::vec2, int, int) {});
+				Engine::set_touch_caller(below, [](Handle, Engine::TOUCH_STATE, glm::vec2, Engine::MOUSE_BUTTON, int) {});
 				Handle top = make_touch_layer();
 				Engine::add_child(root, top);
 				Engine::set_touch_caller(
-					top, [below, fresh, fresh_calls](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
+					top, [below, fresh, fresh_calls](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
 						if (state != Engine::TOUCH_STATE::TOUCH_ENDED || !Engine::is_valid(below))
 							return;
 						Engine::clean_up(below);
 						*fresh = make_touch_layer();
 						Engine::set_touch_caller(
-							*fresh, [fresh_calls](Handle, Engine::TOUCH_STATE s, glm::vec2, int, int) {
+							*fresh, [fresh_calls](Handle, Engine::TOUCH_STATE s, glm::vec2, Engine::MOUSE_BUTTON, int) {
 								fresh_calls->push_back(s);
 							}
 						);
@@ -950,15 +957,15 @@ namespace Test {
 				auto both_clicks = std::make_shared<int>(0);
 				Handle click_only = make_touch_layer();
 				Engine::add_child(root, click_only);
-				Engine::set_click_caller(click_only, [disabled_clicks](Handle, glm::vec2, int, int) { (*disabled_clicks)++; });
+				Engine::set_click_caller(click_only, [disabled_clicks](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) { (*disabled_clicks)++; });
 				// same, but with a touch caller too (the other path through the disabled branch).
 				Handle both = make_touch_layer();
 				Engine::add_child(root, both);
-				Engine::set_touch_caller(both, [](Handle, Engine::TOUCH_STATE, glm::vec2, int, int) {});
-				Engine::set_click_caller(both, [both_clicks](Handle, glm::vec2, int, int) { (*both_clicks)++; });
+				Engine::set_touch_caller(both, [](Handle, Engine::TOUCH_STATE, glm::vec2, Engine::MOUSE_BUTTON, int) {});
+				Engine::set_click_caller(both, [both_clicks](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) { (*both_clicks)++; });
 				Handle top = make_touch_layer();
 				Engine::add_child(root, top);
-				Engine::set_touch_caller(top, [click_only, both](Handle, Engine::TOUCH_STATE state, glm::vec2, int, int) {
+				Engine::set_touch_caller(top, [click_only, both](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
 					if (state == Engine::TOUCH_STATE::TOUCH_BEGAN) {
 						Engine::set_touch_enabled(click_only, false);
 						Engine::set_touch_enabled(both, false);

@@ -1,3 +1,5 @@
+// [Claude 2026-11-17] touch / click callers take Engine::MOUSE_BUTTON for the button (was int); spawn_touch still
+// gets GLFW numbers because it plays the GLFW side and converts them itself.
 #include <cmath>
 #include <cstdio>
 #include <engine/components.h>
@@ -133,7 +135,7 @@ namespace Test {
 	void set_touch_action(const Handle& e, const Touch_Action& action) {
 		Engine::set_touch_enabled(e, true);
 		Engine::set_touch_caller(
-			e, [action](Handle h, Engine::TOUCH_STATE touch_state, glm::vec2 world_position, int, int) {
+			e, [action](Handle h, Engine::TOUCH_STATE touch_state, glm::vec2 world_position, Engine::MOUSE_BUTTON, int) {
 				try {
 					action(h, touch_state, world_position);
 				} catch (const std::exception& exception) {
