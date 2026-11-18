@@ -586,7 +586,8 @@ void create_layout() {
 	Engine::set_color(label, random_color());
 	Engine::set_label_stroke_size(label, 2.f);
 	Engine::set_label_stroke_color(label, random_color());
-	Engine::set_position(label, {30.f, 50.f});
+	// Engine::set_position(label, {30.f, 50.f});
+	Engine::set_anchor(label, {0.f, 0.f});
 	Engine::set_touch_enabled(label, true);
 	Engine::set_z_order(label, 1);
 	Engine::set_scale(label, {1.25f, 1.25f});
@@ -628,7 +629,7 @@ void create_layout() {
 	Engine::add_child(layout, layout2);
 	Engine::add_child(Engine::get_root(), node);
 	Engine::add_child(node, layout);
-	Engine::add_child(layout, label);
+	Engine::add_child(Engine::get_root(), label);
 	Engine::add_child(layout2, layout3);
 	Engine::add_child(Engine::get_root(), image);
 

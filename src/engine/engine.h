@@ -40,6 +40,8 @@ namespace Engine {
 
 	const uint64_t DIRTY_KEY_BOARD_LISTENER = (1 << 8);
 
+	const uint64_t DIRTY_INNER_RENDERER_COMPUTE = (1 << 9);
+
 	// Main caller functions.
 	void init(GLFWwindow* window);
 
@@ -50,6 +52,10 @@ namespace Engine {
 	glm::vec2 get_window_size();
 
 	Registry& get_registry();
+
+	void handle_changing_focus_target();
+
+	Handle get_focused_entitiy();
 
 	// Create/Remove/Handle objects.
 
@@ -341,9 +347,23 @@ namespace Engine {
 
 	bool is_key_input_enabled(const Handle& e);
 
-	void set_key_input_callback(
+	void set_char_input_enabled(const Handle& e, bool enabled);
+
+	bool is_char_input_enabled(const Handle& e);
+
+	void set_key_input_caller(
 		const Handle& e,
 		const std::function<void(const Handle& e, KEY key, KEY_ACTION action, int mods, bool& swallowed)>& caller
 	);
+
+	void set_char_input_caller(
+		const Handle& e, const std::function<void(const Handle& e, char32_t code_point, bool& swallowed)>& caller
+	);
+
+	void set_key_focus(const Handle& e);
+
+	void set_focus_enter_caller(const Handle& e, const std::function<void(const Handle& e)>& enter_caller);
+
+	void set_focus_exit_caller(const Handle& e, const std::function<void(const Handle& e)>& exit_caller);
 
 } // namespace Engine

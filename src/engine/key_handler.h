@@ -8,10 +8,10 @@ namespace Engine {
 
 	const std::vector<Handled_Key_Information>& get_keys_input_info();
 
-	void clean_keys_input();
+	void cleanup_keys_input();
 
 	const std::vector<char32_t>& get_chars_input();
 
-	void clean_chars_input();
+	void cleanup_chars_input();
 
 } // namespace Engine

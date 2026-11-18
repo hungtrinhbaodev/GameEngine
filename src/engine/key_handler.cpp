@@ -28,7 +28,7 @@ namespace Engine {
 		return handled_keys;
 	}
 
-	void clean_keys_input() {
+	void cleanup_keys_input() {
 		handled_keys.clear();
 	}
 
@@ -36,7 +36,7 @@ namespace Engine {
 		return handled_chars;
 	}
 
-	void clean_chars_input() {
+	void cleanup_chars_input() {
 		handled_chars.clear();
 	}
 

@@ -163,6 +163,9 @@ namespace Test {
 	void build_unicode_scene();
 	void start_unicode_view(GLFWwindow* window);
 
+	// [Claude 2026-11-18] Focus / keyboard / char input checks (tests/test_key_input.cpp), job "repro-key".
+	void repro_key_input_checks();
+
 	/**
 	 * @Note: call once per frame before Engine::process_frame.
 	 */
@@ -194,6 +197,7 @@ namespace Test {
 
 	void start_label_view(GLFWwindow* window);
 	void start_label_wrap(GLFWwindow* window);
+	void start_label_grow(GLFWwindow* window); // [Claude 2026-11-18] WIDTH_SHOW_ALL / HEIGHT_SHOW_ALL review
 
 	/**
 	 * @Note: call once per frame; returns false when the script is finished.

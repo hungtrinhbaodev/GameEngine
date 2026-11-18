@@ -49,7 +49,9 @@ namespace Engine {
 	enum LABEL_RENDER_FIT_MODE {
 		LABEL_RENDER_FIT_AUTO,
 		LABEL_RENDER_FIT_CLIP,
-		LABEL_RENDER_FIT_ELLIPSIS
+		LABEL_RENDER_FIT_ELLIPSIS,
+		LABEL_RENDER_FIT_WIDTH_SHOW_ALL,
+		LABEL_RENDER_FIT_HEIGHT_SHOW_ALL
 	};
 
 	enum IMAGE_RENDER_FIT_MODE {
@@ -76,6 +78,11 @@ namespace Engine {
 		SIZE_TYPE_PINNING_RELATIVE
 	};
 
+	enum SIDE_FIX_MODE {
+		SIZE_FIX_WIDTH,
+		SIZE_FIX_HEIGHT
+	};
+
 	enum DESCRIPTION_TYPE {
 		NONE,
 		NODE_2D,
@@ -85,6 +92,7 @@ namespace Engine {
 		SCROLL_LAYOUT,
 		INNER_CONTAINER,
 		SCROLL_LISTENER_CONTAINER,
+		EDIT_BOX,
 	};
 
 	// [Claude 2026-11-17] BEGIN input enums: the engine API speaks these, not backend numbers, so swapping the window
@@ -267,10 +275,6 @@ namespace Engine {
 	};
 	// [Claude 2026-11-17] END input enums
 
-	/**
-	 * @Note: defiend will be same
-	 * as GLFW defined.
-	 */
 	struct Handled_Touches_Information {
 		Handle id = Handle::make_invalid_handle();
 		glm::vec2 touch_world_position{0.f};

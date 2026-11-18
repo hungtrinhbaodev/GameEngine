@@ -87,14 +87,11 @@ namespace Vulkan {
 
 			std::vector<Storage_Char_Data> make_char_storages_data(const Font& font, const Font_2D& attributes) {
 				std::vector<Storage_Char_Data> char_storages;
-				float char_scale = font.get_char_scale(attributes.get_font_size());
-				glm::vec2 origin = -glm::vec2(width / char_scale, height / char_scale) * attributes.get_anchor();
 				for (int i = 0; i < lines.size(); i++) {
 					const std::u32string& line = lines[i];
 					const glm::vec2& start_line_position = start_line_positions[i];
 					std::vector<glm::vec2> positions = get_char_position_at(
-						line, start_line_position + origin, font, attributes.get_font_size(),
-						attributes.get_stroke_size()
+						line, start_line_position, font, attributes.get_font_size(), attributes.get_stroke_size()
 					);
 					for (int j = 0; j < positions.size(); j++) {
 						glm::vec2 position = positions[j];
@@ -158,8 +155,8 @@ namespace Vulkan {
 					stroke_size != attributes.get_stroke_size()) {
 					stroke_size = attributes.get_stroke_size();
 					make_lines_render_info(
-						font, attributes.get_align(), attributes.get_font_size(), start_line_positions, width, height,
-						lines, attributes.get_stroke_size()
+						font, attributes.get_align(), attributes.get_font_size(), attributes.get_anchor(),
+						start_line_positions, width, height, lines, attributes.get_stroke_size()
 					);
 					std::vector<Storage_Char_Data> char_storages = make_char_storages_data(font, attributes);
 					ssbo.update_data(storage_char_id, char_storages.data());
@@ -194,8 +191,8 @@ namespace Vulkan {
 				const Font& font = view_font(font_id);
 				break_lines(text, lines);
 				make_lines_render_info(
-					font, attributes.get_align(), attributes.get_font_size(), start_line_positions, width, height,
-					lines, attributes.get_stroke_size()
+					font, attributes.get_align(), attributes.get_font_size(), attributes.get_anchor(),
+					start_line_positions, width, height, lines, attributes.get_stroke_size()
 				);
 				const Texture_View& sdf_texture_view = view_font_sdf_texture(font_id);
 				Texture_Storage_Data texture_storage{sdf_texture_view.bucket_index, sdf_texture_view.slot_index};
@@ -350,8 +347,9 @@ namespace Vulkan {
 		}
 
 		void make_lines_render_info(
-			const Font& font, int align, int font_size, std::vector<glm::vec2>& start_line_positions, float& width,
-			float& height, const std::vector<std::u32string>& lines, float stroke_size
+			const Font& font, int align, int font_size, const glm::vec2& anchor,
+			std::vector<glm::vec2>& start_line_positions, float& width, float& height,
+			const std::vector<std::u32string>& lines, float stroke_size
 		) {
 			start_line_positions.resize(lines.size());
 			float max_width_line = 0;
@@ -384,17 +382,22 @@ namespace Vulkan {
 			float char_scale = font.get_char_scale(font_size);
 			width = max_width_line * char_scale;
 			height = total_height * char_scale;
+			glm::vec2 origin = -glm::vec2(width / char_scale, height / char_scale) * anchor;
+			for (auto& start_line_position : start_line_positions) {
+				start_line_position += origin;
+			}
 		}
 
 		Font_Helper gen_text_info_from(
-			const std::string& font_path, std::u32string_view text, int align, int font_size, float stroke_size
+			const std::string& font_path, std::u32string_view text, int align, int font_size, float stroke_size,
+			const glm::vec2& anchor
 		) {
 			Font_Helper text_helper{};
 			uint32_t font_id = load_font(font_path);
 			const Font& font = view_font(font_id);
 			break_lines(text, text_helper.lines);
 			make_lines_render_info(
-				font, align, font_size, text_helper.start_line_positions, text_helper.width, text_helper.height,
+				font, align, font_size, anchor, text_helper.start_line_positions, text_helper.width, text_helper.height,
 				text_helper.lines, stroke_size
 			);
 			return text_helper;

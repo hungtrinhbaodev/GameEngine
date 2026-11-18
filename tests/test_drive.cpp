@@ -7,6 +7,7 @@
 #include <log.h>
 #include <math_custom.h>
 #include <test_ui.h>
+#include <utf8_helper.h>
 #include <vulkan/vk_draw.h>
 
 /**
@@ -736,6 +737,44 @@ namespace Test {
 		click_label("Overflow: wrap");
 		then(10, nullptr);
 		screenshot("label_overflow_wrap");
+		then(0, []() {
+			clear_scene();
+			Log::info("[drive] summary:", passed, "passed,", failed, "failed");
+		});
+	}
+
+	// label-grow: build the label lab (new WIDTH_SHOW_ALL / HEIGHT_SHOW_ALL fit modes, 2026-11-18, now built
+	// unconditionally - no button to click, see build_label_scene). Logs each grow-mode label's resolved
+	// Size + render_text so a dropped word, a collapsed-to-zero size, or a mis-applied padding shows up in
+	// the log, not just the screenshot.
+	void start_label_grow(GLFWwindow* window) {
+		drive_window = window;
+		steps.clear();
+		step_index = 0;
+		wait_left = 0;
+		passed = failed = shot_index = 0;
+		failures.clear();
+		glfwShowWindow(window);
+		glfwFocusWindow(window);
+		then(0, []() { build_label_scene(); });
+		then(10, []() {
+			Registry& registry = Engine::get_registry();
+			registry.each<Engine::Label_Renderer_Information>(
+				[&registry](uint32_t e, Engine::Label_Renderer_Information& info) {
+					bool is_grow_mode =
+						info.fit_mode == Engine::LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL ||
+						info.fit_mode == Engine::LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL;
+					if (!is_grow_mode || !in_tree(e))
+						return;
+					glm::vec2 size = std::get<0>(registry.read<Engine::Size>(e)).value;
+					Log::info(
+						"[label] grow node", e, "fit", (int)info.fit_mode, "| size", size, "| render_text",
+						Helper::u32_to_utf8(info.render_text)
+					);
+				}
+			);
+		});
+		screenshot("label_grow");
 		then(0, []() {
 			clear_scene();
 			Log::info("[drive] summary:", passed, "passed,", failed, "failed");

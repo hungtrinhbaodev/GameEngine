@@ -269,6 +269,7 @@ namespace Engine {
 		registry.erase<Draw_Order>(e.id());
 		registry.erase<Rect>(e.id());
 		registry.erase<Key_Board_Information>(e.id());
+		registry.erase<Focus_Caller_Information>(e.id());
 	}
 
 	void remove_layout(const Handle& e) {
@@ -535,11 +536,11 @@ namespace Engine {
 	}
 
 	void update_tree_changing_z_order() {
-		std::vector<Handle> prcessing_entities{};
-		travel_down(root, [&prcessing_entities](const Handle&, const Handle& child, bool&, bool&) {
-			prcessing_entities.push_back(child);
+		std::vector<Handle> processing_entities{};
+		travel_down(root, [&processing_entities](const Handle&, const Handle& child, bool&, bool&) {
+			processing_entities.push_back(child);
 		});
-		handle_update_tree_draw_order(prcessing_entities);
+		handle_update_tree_draw_order(processing_entities);
 	}
 
 	void update_key_listener_entites(const std::vector<Handle>& entities) {
@@ -548,7 +549,7 @@ namespace Engine {
 				continue;
 			}
 			const auto& [key_info] = registry.read<Key_Board_Information>(e.id());
-			if (!key_info.enabled) {
+			if (!key_info.has_lisenter() || !is_valid(e)) {
 				Utils::remove_entities_from(key_listener_entities, e);
 			} else {
 				Utils::insert_entities_to(key_listener_entities, e);
@@ -559,7 +560,7 @@ namespace Engine {
 				return false;
 			}
 			const auto& [key_info] = registry.read<Key_Board_Information>(e.id());
-			return is_valid(e) && key_info.enabled;
+			return is_valid(e) && key_info.has_lisenter();
 		});
 		Utils::sort_entities(key_listener_entities, [](const Handle& a, const Handle& b) {
 			const auto& [draw_order_a] = registry.read<Draw_Order>(a.id());
@@ -764,6 +765,7 @@ namespace Engine {
 		registry.add(entity.id(), Draw_Order{});
 		registry.add(entity.id(), Rect{});
 		registry.add(entity.id(), Key_Board_Information{});
+		registry.add(entity.id(), Focus_Caller_Information{});
 		return entity;
 	}
 
@@ -795,6 +797,10 @@ namespace Engine {
 			processing_dirty_entities = find_entities_listen_scroll_at(get_world_scrolling_position());
 			handle_entites_scrolling(processing_dirty_entities);
 		}
+
+		handle_entities_key_inputed(key_listener_entities, get_keys_input_info(), get_chars_input());
+		cleanup_chars_input();
+		cleanup_keys_input();
 
 		process_clean_up_entities();
 
@@ -856,6 +862,33 @@ namespace Engine {
 		}
 		const auto& [tree_info] = registry.read<Tree_Information>(e.id());
 		return tree_info.valid_child && entity_generator.validate_handle(e);
+	}
+
+	void handle_changing_focus_target() {
+		if (focus_info.is_focus_dirty) {
+			if (is_valid(focus_info.last_focus)) {
+				if (is_valid(focus_info.current_focus)) {
+					const auto& [focus_caller_info] =
+						registry.read<Focus_Caller_Information>(focus_info.current_focus.id());
+					if (focus_caller_info.enter_caller != nullptr) {
+						focus_caller_info.enter_caller(focus_info.current_focus);
+					}
+				}
+				if (registry.has<Focus_Caller_Information>(focus_info.last_focus.id())) {
+					const auto& [focus_caller_info] =
+						registry.read<Focus_Caller_Information>(focus_info.last_focus.id());
+					if (focus_caller_info.exit_caller != nullptr) {
+						focus_caller_info.exit_caller(focus_info.last_focus);
+					}
+				}
+			}
+			focus_info.last_focus = Handle::make_invalid_handle();
+			focus_info.is_focus_dirty = false;
+		}
+	}
+
+	Handle get_focused_entitiy() {
+		return focus_info.current_focus;
 	}
 
 	Handle create_node() {
@@ -1124,6 +1157,7 @@ namespace Engine {
 		for (const auto& e : removed_children) {
 			remove_entity_from_dirty_list(e);
 		}
+		update_key_listener_entites(removed_children);
 	}
 
 	void clean_up(const Handle& e) {
@@ -1536,33 +1570,31 @@ namespace Engine {
 
 	glm::vec2 get_content_size(const Handle& e) {
 		assert_handle(e);
-		if (!registry.has<Size>(e.id()))
+		if (!registry.has_all<Size, Description>(e.id()))
 			return {1.f, 1.f};
-		if (registry.has<Description>(e.id())) {
-			const auto& [description] = registry.read<Description>(e.id());
-			switch (description.value) {
-				/**
-				 * @Note: with type need calculate size
-				 * by render we call update once when dirty
-				 * to user have size to use.
-				 */
-				case DESCRIPTION_TYPE::IMAGE_2D: {
-					if (is_dirty(e, DIRTY_RENDERER)) {
-						update_image_renderer(e);
-						set_dirty(e, false, DIRTY_RENDERER);
-					}
-					break;
+		const auto& [description] = registry.read<Description>(e.id());
+		switch (description.value) {
+			/**
+			 * @Note: with type need calculate size
+			 * by render we call update once when dirty
+			 * to user have size to use.
+			 */
+			case DESCRIPTION_TYPE::IMAGE_2D: {
+				if (is_dirty(e, DIRTY_RENDERER)) {
+					update_image_renderer(e);
+					set_dirty(e, false, DIRTY_RENDERER);
 				}
-				case DESCRIPTION_TYPE::LABEL_2D: {
-					if (is_dirty(e, DIRTY_RENDERER)) {
-						update_label_renderer(e);
-						set_dirty(e, false, DIRTY_RENDERER);
-					}
-					break;
+				break;
+			}
+			case DESCRIPTION_TYPE::LABEL_2D: {
+				if (is_dirty(e, DIRTY_RENDERER)) {
+					update_label_renderer(e);
+					set_dirty(e, false, DIRTY_RENDERER);
 				}
-				default: {
-					break;
-				}
+				break;
+			}
+			default: {
+				break;
 			}
 		}
 		if (has_node_ancestor_dirty(e, DIRTY_RELATIVE_SIZE)) {
@@ -2414,8 +2446,8 @@ namespace Engine {
 			return;
 		}
 		auto [key_info] = registry.get<Key_Board_Information>(e.id());
-		set_dirty(e, key_info.enabled != enabled, DIRTY_KEY_BOARD_LISTENER);
-		key_info.enabled = enabled;
+		set_dirty(e, key_info.key_input_enabled != enabled, DIRTY_KEY_BOARD_LISTENER);
+		key_info.key_input_enabled = enabled;
 	}
 
 	bool is_key_input_enabled(const Handle& e) {
@@ -2424,10 +2456,29 @@ namespace Engine {
 			return false;
 		}
 		const auto& [key_info] = registry.read<Key_Board_Information>(e.id());
-		return key_info.enabled;
+		return key_info.key_input_enabled;
 	}
 
-	void set_key_input_callback(
+	void set_char_input_enabled(const Handle& e, bool enabled) {
+		assert_handle(e);
+		if (!registry.has<Key_Board_Information>(e.id())) {
+			return;
+		}
+		auto [key_info] = registry.get<Key_Board_Information>(e.id());
+		set_dirty(e, key_info.char_input_enabled != enabled, DIRTY_KEY_BOARD_LISTENER);
+		key_info.char_input_enabled = enabled;
+	}
+
+	bool is_char_input_enabled(const Handle& e) {
+		assert_handle(e);
+		if (!registry.has<Key_Board_Information>(e.id())) {
+			return false;
+		}
+		const auto& [key_info] = registry.read<Key_Board_Information>(e.id());
+		return key_info.char_input_enabled;
+	}
+
+	void set_key_input_caller(
 		const Handle& e,
 		const std::function<void(const Handle& e, KEY key, KEY_ACTION action, int mods, bool& swallowed)>& caller
 	) {
@@ -2436,7 +2487,44 @@ namespace Engine {
 			return;
 		}
 		auto [key_info] = registry.get<Key_Board_Information>(e.id());
-		key_info.caller = caller;
+		key_info.key_input_caller = caller;
+	}
+
+	void set_char_input_caller(
+		const Handle& e, const std::function<void(const Handle& e, char32_t code_point, bool& swallowed)>& caller
+	) {
+		assert_handle(e);
+		if (!registry.has<Key_Board_Information>(e.id())) {
+			return;
+		}
+		auto [key_info] = registry.get<Key_Board_Information>(e.id());
+		key_info.char_input_caller = caller;
+	}
+
+	void set_key_focus(const Handle& e) {
+		assert_handle(e);
+		if (!is_valid(e)) {
+			return;
+		}
+		focus_info.last_focus = focus_info.current_focus;
+		focus_info.current_focus = e;
+		focus_info.is_focus_dirty = true;
+	}
+
+	void set_focus_enter_caller(const Handle& e, const std::function<void(const Handle& e)>& enter_caller) {
+		if (!registry.has<Focus_Caller_Information>(e.id())) {
+			return;
+		}
+		auto [focus_caller_info] = registry.get<Focus_Caller_Information>(e.id());
+		focus_caller_info.enter_caller = enter_caller;
+	}
+
+	void set_focus_exit_caller(const Handle& e, const std::function<void(const Handle& e)>& exit_caller) {
+		if (!registry.has<Focus_Caller_Information>(e.id())) {
+			return;
+		}
+		auto [focus_caller_info] = registry.get<Focus_Caller_Information>(e.id());
+		focus_caller_info.exit_caller = exit_caller;
 	}
 
 } // namespace Engine

@@ -67,7 +67,6 @@ namespace Engine {
 		bool enabled = false;
 		float left = -::Const::MAX_FLOAT, right = -::Const::MAX_FLOAT, top = -::Const::MAX_FLOAT,
 			  bottom = -::Const::MAX_FLOAT;
-
 		bool is_changing(const Size_Pinning_Data& pinning) const;
 		void update(const Size_Pinning_Data& pinning);
 		Size_Pinning_Data get_size_pinning() const;
@@ -85,7 +84,6 @@ namespace Engine {
 
 	struct Dirty_Flag {
 		uint64_t value = 0;
-
 		void add_flag(uint64_t flag);
 		void clean_flag(uint64_t flag);
 		bool is_dirty_at(uint64_t flag) const;
@@ -120,7 +118,10 @@ namespace Engine {
 		float vertical_padding = 0.f;
 
 		Transform_2D inner_label_transform;
-		void update_inner_text_by(const glm::vec2& text_size, const World_Transform_2D& world_transform);
+		glm::vec2 fit_size{0.f};
+
+		void update_inner_text_by(const glm::vec2& text_size, const glm::vec2& anchor);
+		void copy_attribute_to_inner_label_transform(const World_Transform_2D& world_transform);
 	};
 
 	struct Clipping_Ancestor_Information {
@@ -220,7 +221,27 @@ namespace Engine {
 	};
 
 	struct Key_Board_Information {
-		bool enabled = false;
-		std::function<void(const Handle& e, KEY key, KEY_ACTION action, int mods, bool& swallowed)> caller = nullptr;
+		bool key_input_enabled = false;
+		std::function<void(const Handle& e, KEY key, KEY_ACTION action, int mods, bool& swallowed)> key_input_caller =
+			nullptr;
+		bool char_input_enabled = false;
+		std::function<void(const Handle& e, char32_t code_point, bool& swallowed)> char_input_caller = nullptr;
+
+		bool has_lisenter() const;
+		bool can_handle_key_input() const;
+		bool can_handle_char_input() const;
+	};
+
+	struct Focus_Caller_Information {
+		std::function<void(const Handle& e)> enter_caller = nullptr;
+		std::function<void(const Handle& e)> exit_caller = nullptr;
+	};
+
+	struct Edit_Box_Information {
+		Handle scroll_layout = Handle::make_invalid_handle();
+		Handle inner_label = Handle::make_invalid_handle();
+		SIDE_FIX_MODE size_fit_mode = SIDE_FIX_MODE::SIZE_FIX_WIDTH;
+		std::string text_content = "";
+		std::u32string text_render = U"";
 	};
 } // namespace Engine

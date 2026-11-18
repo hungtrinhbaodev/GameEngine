@@ -59,6 +59,11 @@ int main(int argc, char** argv) {
 		Engine::process_frame(0.f);
 		Test::repro_unicode_checks();
 		auto_quit = true;
+	} else if (auto_job == "repro-key") { // [Claude 2026-11-18] tests/test_key_input.cpp
+		Test::clear_scene();
+		Engine::process_frame(0.f);
+		Test::repro_key_input_checks();
+		auto_quit = true;
 	} else if (auto_job == "repro-reentry") {
 		Test::clear_scene();
 		Engine::process_frame(0.f);
@@ -66,6 +71,7 @@ int main(int argc, char** argv) {
 		auto_quit = true;
 	}
 	bool driving = auto_job == "drive" || auto_job == "perf" || auto_job == "label-view" || auto_job == "label-wrap" ||
+				   auto_job == "label-grow" ||
 				   auto_job == "unicode-view"; // [Claude 2026-11-17] unicode-view
 	if (auto_job == "unicode-view") { // [Claude 2026-11-17] tests/test_unicode.cpp scene + screenshot
 		Test::start_unicode_view(window);
@@ -78,6 +84,9 @@ int main(int argc, char** argv) {
 		auto_quit = true;
 	} else if (auto_job == "label-wrap") {
 		Test::start_label_wrap(window);
+		auto_quit = true;
+	} else if (auto_job == "label-grow") {
+		Test::start_label_grow(window);
 		auto_quit = true;
 	} else if (auto_job == "perf") {
 		Test::start_perf(window);

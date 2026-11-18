@@ -1,4 +1,5 @@
 #pragma once
+#include <geometry_structs.h>
 #include <string_view>
 #include <vulkan/vk_draw.h>
 
@@ -44,12 +45,14 @@ namespace Vulkan {
 		);
 
 		void make_lines_render_info(
-			const Font& font, int align, int font_size, std::vector<glm::vec2>& start_line_positions, float& width,
-			float& height, const std::vector<std::u32string>& lines, float stroke_size
+			const Font& font, int align, int font_size, const glm::vec2& anchor,
+			std::vector<glm::vec2>& start_line_positions, float& width, float& height,
+			const std::vector<std::u32string>& lines, float stroke_size
 		);
 
 		Font_Helper gen_text_info_from(
-			const std::string& font_path, std::u32string_view text, int align, int font_size, float stroke_size
+			const std::string& font_path, std::u32string_view text, int align, int font_size, float stroke_size,
+			const glm::vec2& anchor
 		);
 
 	} // namespace Draw_Font_2D

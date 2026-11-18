@@ -247,7 +247,7 @@ namespace Engine {
 		 * clipping to the handle render can have the ancestor
 		 * clipping information!
 		 */
-		set_dirty(e, true, DIRTY_TRANSFORM | DIRTY_CLIPPING);
+		set_dirty(e, true, DIRTY_TRANSFORM | DIRTY_CLIPPING | DIRTY_RELATIVE_SIZE);
 		if (handles.size() <= 0) {
 			Vulkan::Texture_2D_Description description{};
 			description.path = Vulkan::get_default_image_path();
@@ -270,7 +270,6 @@ namespace Engine {
 			}
 			image_renderer.texture_changing = false;
 			nine_scale.is_manual_update_inner_size = false;
-			set_dirty(e, true, DIRTY_RELATIVE_SIZE);
 			return;
 		}
 		texture.set_texture_path(image_renderer.image_path);
@@ -292,10 +291,6 @@ namespace Engine {
 			if (image_renderer.texture_changing && !nine_scale.is_manual_update_inner_size) {
 				nine_scale.renderer_size = inner_size.value;
 			}
-		}
-		if (image_renderer.fit_mode == IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_AUTO) {
-			set_dirty(e, c_size.value != inner_size.value, DIRTY_RELATIVE_SIZE);
-			c_size.value = inner_size.value;
 		}
 		image_renderer.texture_changing = false;
 		nine_scale.is_manual_update_inner_size = false;
@@ -327,6 +322,7 @@ namespace Engine {
 			c_size.value = size;
 		} else {
 			label.set_align((int)label_renderer.horizontal_align);
+			set_dirty(e, true, DIRTY_RELATIVE_SIZE);
 		}
 	}
 
@@ -476,9 +472,6 @@ namespace Engine {
 		} else {
 			inner_size = image_inner_size.value;
 		}
-		if (image_renderer.fit_mode == IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_AUTO) {
-			c_size.value = inner_size;
-		}
 		auto [scale, is_clipping] = get_fit_mode_scale_ratio(inner_size, c_size.value);
 		image_renderer.update_transform_inner_image(c_size.value, scale, transform);
 		clipping_ancestors.update_self_clipping(is_clipping ? e_child : Handle::make_invalid_handle());
@@ -498,7 +491,6 @@ namespace Engine {
 				nine_scale.renderer_size, inner_world_transform, {texture.get_width(), texture.get_height()},
 				image_renderer.image_rect
 			);
-			inner_size = nine_scale.renderer_size;
 			for (int i = 0; i < nice_scale_handles.size() && i < nine_scale.pieces_transforms.size(); i++) {
 				auto& piece_texture = Vulkan::modify_texture(nice_scale_handles[i]);
 				const auto& piece_transform = nine_scale.pieces_transforms[i];
@@ -509,7 +501,6 @@ namespace Engine {
 				update_texture_attributes(piece_texture, piece_transform);
 			}
 		} else {
-			inner_size = image_inner_size.value;
 			for (const auto& handle : nice_scale_handles) {
 				auto& piece_texture = Vulkan::modify_texture(handle);
 				piece_texture.set_visible(false);
@@ -547,7 +538,7 @@ namespace Engine {
 		const auto& handles = c_handles.value;
 		auto& label = Vulkan::modify_label(handles[0]);
 		if (label_renderer.fit_mode != LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO) {
-			label_renderer.update_inner_text_by(c_size.value, transform);
+			label_renderer.copy_attribute_to_inner_label_transform(transform);
 			auto inner_transform = transform.transform(label_renderer.inner_label_transform);
 			// [Claude, 2026-11-11] draw the wrapped / ellipsis text, not the raw text.
 			label.set_text(label_renderer.render_text);
@@ -564,9 +555,7 @@ namespace Engine {
 			if (label_renderer.clipping_enabled) {
 				clipping_ancestors.update_self_clipping(e_child);
 			}
-			c_inner_size.value = glm::vec2(label.get_width(), label.get_height());
 		} else {
-			c_inner_size.value = c_size.value;
 			clipping_ancestors.update_self_clipping(Handle::make_invalid_handle());
 			update_label_transform(label, transform);
 		}
@@ -661,17 +650,69 @@ namespace Engine {
 		}
 	}
 
-	void update_touch_transform_area(const Handle& e) {
+	void update_inner_renderer_label_change_size(const Handle& e) {
 		Registry& registry = get_registry();
-		if (!registry.has_all<Touching_Information, Size, World_Transform_2D>(e.id()))
-			return;
-		auto [touch_info] = registry.get<Touching_Information>(e.id());
-		if (!touch_info.enabled)
-			return;
-		const auto& [c_size, world_transform] = registry.read<Size, World_Transform_2D>(e.id());
+		auto [label_renderer, c_size, c_inner_size] =
+			registry.get<Label_Renderer_Information, Size, Inner_Renderer_Size>(e.id());
+		if (label_renderer.fit_mode != LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO) {
+			const auto& [c_handles, transform] = registry.read<Renderer_Handles, Transform_2D>(e.id());
+			const auto& handles = c_handles.value;
+			label_renderer.update_inner_text_by(c_size.value, transform.anchor);
+			auto& label = Vulkan::modify_label(handles[0]);
+			label.set_text(label_renderer.render_text);
+			switch (label_renderer.fit_mode) {
+				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL:
+				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL: {
+					c_inner_size.value = label_renderer.fit_size;
+					c_size.value = label_renderer.fit_size;
+					break;
+				}
+				default: {
+					c_inner_size.value = glm::vec2(label.get_width(), label.get_height());
+					break;
+				}
+			}
+		}
 	}
 
-	std::vector<Handle> handle_enities_touched(const std::vector<Handle>& dirty_entities) {
+	void update_inner_renderer_image_change_size(const Handle& e) {
+		Registry& registry = get_registry();
+		const auto& [image_inner_size] = registry.read<Inner_Renderer_Size>(e.id());
+		auto [nine_scale, c_size, image_renderer] =
+			registry.get<Nine_Scale_Information, Size, Image_Renderer_Information>(e.id());
+		glm::vec2 inner_size{0.f, 0.f};
+		if (nine_scale.enabled) {
+			inner_size = nine_scale.renderer_size;
+		} else {
+			inner_size = image_inner_size.value;
+		}
+		if (image_renderer.fit_mode == IMAGE_RENDER_FIT_MODE::IMAGE_RENDER_FIT_AUTO) {
+			c_size.value = inner_size;
+		}
+	}
+
+	void update_inner_renderer_change_size(const Handle& e) {
+		Registry& registry = get_registry();
+		if (!registry.has<Description>(e.id())) {
+			return;
+		}
+		const auto& [description] = registry.read<Description>(e.id());
+		switch (description.value) {
+			case DESCRIPTION_TYPE::LABEL_2D: {
+				update_inner_renderer_label_change_size(e);
+				break;
+			}
+			case DESCRIPTION_TYPE::IMAGE_2D: {
+				update_inner_renderer_image_change_size(e);
+				break;
+			}
+			default: {
+				break;
+			}
+		}
+	}
+
+	std::vector<Handle> handle_enities_touched(const std::vector<Handle>& touched_entities) {
 		Registry& registry = get_registry();
 		std::vector<Handle> discard_touch_entities;
 		Handle claimed_entity = Handle::make_invalid_handle();
@@ -698,8 +739,8 @@ namespace Engine {
 				}
 			}
 		};
-		for (int i = 0; i < dirty_entities.size(); i++) {
-			const auto& e = dirty_entities[i];
+		for (int i = 0; i < touched_entities.size(); i++) {
+			const auto& e = touched_entities[i];
 			if (!is_valid(e) || !registry.has_all<Touching_Information>(e.id())) {
 				discard_touch_entities.push_back(e);
 				continue;
@@ -715,22 +756,24 @@ namespace Engine {
 				discard_touch_entities.push_back(e);
 			}
 			touching_caller(e);
+			handle_changing_focus_target();
 			if (touch_info.claim_touch) {
 				claimed_entity = e;
 				break;
 			}
 		}
 		if (is_valid(claimed_entity)) {
-			for (const auto& e : dirty_entities) {
+			for (const auto& e : touched_entities) {
 				if (e.id() != claimed_entity.id()) {
 					auto [touch_info] = registry.get<Touching_Information>(e.id());
 					touch_info.touch_state = TOUCH_STATE::TOUCH_CANCEL;
 					touching_caller(e);
+					handle_changing_focus_target();
 					discard_touch_entities.push_back(e);
 				}
 			}
 		}
-		for (const auto& e : dirty_entities) {
+		for (const auto& e : touched_entities) {
 			auto [touch_info] = registry.get<Touching_Information>(e.id());
 			touch_info.claim_touch = false;
 		}
@@ -746,8 +789,70 @@ namespace Engine {
 			if (!scroll_info.enabled || scroll_info.caller == nullptr)
 				continue;
 			scroll_info.caller(e, get_scroll_distance());
+			handle_changing_focus_target();
 		}
 		reset_scrolling();
+	}
+
+	void handle_entities_key_inputed(
+		const std::vector<Handle>& key_inputed_entities, const std::vector<Handled_Key_Information>& keys_handled,
+		const std::vector<char32_t>& chars_handled
+	) {
+		Registry& registry = get_registry();
+		auto execute_key_caller = [&registry](
+									  const Handle& e, const Handled_Key_Information& handled_key, bool& break_chain,
+									  const Handle& focused
+								  ) {
+			if (is_valid(e) && e != focused && registry.has<Key_Board_Information>(e.id())) {
+				const auto& [key_info] = registry.read<Key_Board_Information>(e.id());
+				if (key_info.can_handle_key_input()) {
+					key_info.key_input_caller(
+						e, handled_key.key, handled_key.key_action, handled_key.key_mods, break_chain
+					);
+					handle_changing_focus_target();
+				}
+			}
+		};
+		auto execute_input_char_caller =
+			[&registry](const Handle& e, char32_t code_point, bool& break_chain, const Handle& focused) {
+				if (is_valid(e) && e != focused && registry.has<Key_Board_Information>(e.id())) {
+					const auto& [key_info] = registry.read<Key_Board_Information>(e.id());
+					if (key_info.can_handle_char_input()) {
+						key_info.char_input_caller(e, code_point, break_chain);
+						handle_changing_focus_target();
+					}
+				}
+			};
+		Handle invalid_focus = Handle::make_invalid_handle();
+		for (const auto& code_point : chars_handled) {
+			Handle focused_entity = get_focused_entitiy();
+			bool break_chain = false;
+			execute_input_char_caller(focused_entity, code_point, break_chain, invalid_focus);
+			if (break_chain)
+				continue;
+			break_chain = false;
+			for (const Handle& e : key_inputed_entities) {
+				execute_input_char_caller(e, code_point, break_chain, focused_entity);
+				if (break_chain) {
+					break;
+				}
+			}
+		}
+		for (const auto& handled_key : keys_handled) {
+			Handle focused_entity = get_focused_entitiy();
+			bool break_chain = false;
+			execute_key_caller(focused_entity, handled_key, break_chain, invalid_focus);
+			if (break_chain) {
+				continue;
+			}
+			break_chain = false;
+			for (const Handle& e : key_inputed_entities) {
+				execute_key_caller(e, handled_key, break_chain, focused_entity);
+				if (break_chain) {
+					break;
+				}
+			}
+		}
 	}
 
 	void handle_dirty_z_order(const std::vector<Handle>& dirty_entities) {
@@ -791,7 +896,6 @@ namespace Engine {
 		for (const Handle& e : dirty_entities) {
 			if (!registry.has_all<Tree_Information, Size>(e.id()))
 				continue;
-
 			const auto& [tree_info] = registry.read<Tree_Information>(e.id());
 			auto [transform, c_size] = registry.get<Transform_2D, Size>(e.id());
 			const auto& parent = tree_info.parent;
@@ -827,6 +931,9 @@ namespace Engine {
 			set_dirty(e, transform.position != position || c_size.value != size, DIRTY_TRANSFORM);
 			transform.position = position;
 			c_size.value = size;
+		}
+		for (const auto& e : dirty_entities) {
+			update_inner_renderer_change_size(e);
 		}
 	}
 

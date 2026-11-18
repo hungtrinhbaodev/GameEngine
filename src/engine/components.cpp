@@ -144,11 +144,7 @@ namespace Engine {
 		inner_image_transform.opacity = world_transform.opacity;
 	}
 
-	void Label_Renderer_Information::update_inner_text_by(
-		const glm::vec2& text_size, const World_Transform_2D& world_transform
-	) {
-		inner_label_transform.color = world_transform.color;
-		inner_label_transform.opacity = world_transform.opacity;
+	void Label_Renderer_Information::update_inner_text_by(const glm::vec2& text_size, const glm::vec2& anchor) {
 		auto fit_transform = [this](const glm::vec2& text_size, const glm::vec2& inner_size, const glm::vec2& padding) {
 			glm::vec2 label_position = {0.f, 0.f};
 			switch (horizontal_align) {
@@ -202,13 +198,27 @@ namespace Engine {
 		std::string full_path = Utils::get_full_font_path(font_path);
 		std::u32string converted_text = Helper::utf8_to_u32_nfc(text);
 		auto text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
-			full_path, converted_text, (int)horizontal_align, font_size, stroke_size
+			full_path, converted_text, (int)horizontal_align, font_size, stroke_size, anchor
 		);
 		glm::vec2 inner_size = text_helper.get_size();
 		if (inner_size.x <= remain_size.x && inner_size.y <= remain_size.y) {
 			render_text = converted_text;
 			clipping_enabled = false;
 			fit_transform(text_size, inner_size, padding);
+			switch (fit_mode) {
+				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL: {
+					fit_size = glm::vec2{text_size.x, text_helper.height + padding.y};
+					break;
+				}
+				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL: {
+					fit_size = glm::vec2{text_helper.width + padding.x, text_size.y};
+					break;
+				}
+				default: {
+					fit_size = text_size;
+					break;
+				}
+			}
 			return;
 		}
 		auto measure = [this, &full_path](std::u32string_view value) {
@@ -223,6 +233,7 @@ namespace Engine {
 
 		// words are views into `text` ('\n' is treated like a space); a word wider than the box is cut by chars.
 		std::vector<std::u32string_view> words;
+		std::vector<float> words_width;
 		std::u32string_view source = converted_text;
 		size_t start = 0;
 		while (start < source.size()) {
@@ -253,49 +264,117 @@ namespace Engine {
 				rest.remove_prefix(low);
 			}
 		}
+		for (const auto& word : words) {
+			words_width.push_back(measure(word).x);
+		}
 
-		// greedy fill: keep a running width per line instead of re-measuring line + " " + word.
+		/**
+		 * @Note: this code can be reuse in ellipsis mode,
+		 * clipping mode, and fix width mode.
+		 */
 		std::vector<std::u32string> lines;
-		std::vector<float> line_widths;
-		bool truncated = false;
-		for (std::u32string_view word : words) {
-			float word_width = measure(word).x;
-			if (!lines.empty() && line_widths.back() + space_width + word_width <= remain_size.x) {
-				lines.back() += ' ';
-				lines.back() += word;
-				line_widths.back() += space_width + word_width;
-				continue;
-			}
-			if (fit_mode == LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_ELLIPSIS && (int)lines.size() >= max_lines) {
-				truncated = true;
+		switch (fit_mode) {
+			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_ELLIPSIS:
+			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL:
+			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_CLIP: {
+				// greedy fill: keep a running width per line instead of re-measuring line + " " + word.
+				bool truncated = false;
+				std::vector<float> line_widths;
+				for (int i = 0; i < words.size(); i++) {
+					std::u32string_view word = words[i];
+					float word_width = words_width[i];
+					if (!lines.empty() && line_widths.back() + space_width + word_width <= remain_size.x) {
+						lines.back() += ' ';
+						lines.back() += word;
+						line_widths.back() += space_width + word_width;
+						continue;
+					}
+					if (fit_mode == LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_ELLIPSIS &&
+						(int)lines.size() >= max_lines) {
+						truncated = true;
+						break;
+					}
+					lines.emplace_back(word);
+					line_widths.push_back(word_width);
+				}
+				if (truncated && !lines.empty()) {
+					std::u32string& last_line = lines.back();
+					float last_width = line_widths.back();
+					while (!last_line.empty() && last_width + ellipsis_width > remain_size.x) {
+						last_width -= measure(std::u32string_view(last_line).substr(last_line.size() - 1)).x;
+						last_line.pop_back();
+					}
+					last_line += ellipsis;
+				}
 				break;
 			}
-			lines.emplace_back(word);
-			line_widths.push_back(word_width);
-		}
-		if (truncated && !lines.empty()) {
-			std::u32string& last_line = lines.back();
-			float last_width = line_widths.back();
-			while (!last_line.empty() && last_width + ellipsis_width > remain_size.x) {
-				last_width -= measure(std::u32string_view(last_line).substr(last_line.size() - 1)).x;
-				last_line.pop_back();
+			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL: {
+				float total_width_all_word = 0.f;
+				for (int i = 0; i < words.size(); i++) {
+					total_width_all_word += words_width[i];
+					if (i < (int)words.size() - 1) {
+						total_width_all_word += space_width;
+					}
+				}
+				float size_line_width = std::max(total_width_all_word / max_lines, remain_size.x);
+				float current_line_width = 0.f;
+				for (int i = 0; i < words.size(); i++) {
+					const auto& word = words[i];
+					float word_width = words_width[i];
+					if (lines.empty() || current_line_width + space_width + word_width > size_line_width) {
+						lines.emplace_back(word);
+						current_line_width = word_width;
+					} else {
+						current_line_width += word_width + space_width;
+						lines.back() += U' ';
+						lines.back() += word;
+					}
+				}
+				break;
 			}
-			last_line += ellipsis;
+			default: {
+				break;
+			}
 		}
-
 		render_text.clear();
 		for (size_t i = 0; i < lines.size(); i++) {
 			if (i > 0)
-				render_text += '\n';
+				render_text += U'\n';
 			render_text += lines[i];
 		}
 		text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
-			full_path, render_text, (int)horizontal_align, font_size, stroke_size
+			full_path, render_text, (int)horizontal_align, font_size, stroke_size, anchor
 		);
 		fit_transform(text_size, text_helper.get_size(), padding);
 		switch (fit_mode) {
+			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_CLIP:
+			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_ELLIPSIS: {
+				fit_size = text_size;
+				break;
+			}
+			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL: {
+				fit_size = glm::vec2{text_size.x, text_helper.height + padding.y};
+				break;
+			}
+			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL: {
+				fit_size = glm::vec2{text_helper.width + padding.x, text_size.y};
+				break;
+			}
+			default: {
+				break;
+			}
+		}
+		switch (fit_mode) {
 			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_CLIP: {
 				clipping_enabled = true;
+				break;
+			}
+			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL: {
+				clipping_enabled = text_size.x > fit_size.x;
+				break;
+			}
+			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL: {
+				clipping_enabled = text_size.y > fit_size.y;
 				break;
 			}
 			default: {
@@ -304,6 +383,13 @@ namespace Engine {
 			}
 		}
 		// [Claude END] label wrap / ellipsis / clip
+	}
+
+	void Label_Renderer_Information::copy_attribute_to_inner_label_transform(
+		const World_Transform_2D& world_transform
+	) {
+		inner_label_transform.color = world_transform.color;
+		inner_label_transform.opacity = world_transform.opacity;
 	}
 
 	void Nine_Scale_Information::update_piece_transforms(
@@ -517,6 +603,18 @@ namespace Engine {
 				return CLIPPING_INTERECT;
 			}
 		}
+	}
+
+	bool Key_Board_Information::has_lisenter() const {
+		return key_input_enabled || char_input_enabled;
+	}
+
+	bool Key_Board_Information::can_handle_key_input() const {
+		return key_input_enabled && key_input_caller != nullptr;
+	}
+
+	bool Key_Board_Information::can_handle_char_input() const {
+		return char_input_enabled && char_input_caller != nullptr;
 	}
 
 } // namespace Engine

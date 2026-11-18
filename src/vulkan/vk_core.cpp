@@ -135,7 +135,7 @@ namespace Vulkan {
 
 		void reload_labels() {
 			glm::vec2 start_position = {7.f, 6.f};
-			float pad = 1.3f;
+			float pad = 0.f;
 			std::array<Handle, 7> labels = {
 				handl_label_fps,	   handle_label_draw_call,	handle_label_number_instance,  handle_label_gpu_time,
 				handle_label_cpu_time, handle_label_gpu_memory, handle_label_animation_update,
@@ -143,7 +143,6 @@ namespace Vulkan {
 			for (auto& label_handle : labels) {
 				auto& label = modify_label(label_handle);
 				label.set_position(start_position);
-				auto height = label.get_height();
 				start_position.y += pad + label.get_height();
 			}
 		}

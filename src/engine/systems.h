@@ -1,4 +1,5 @@
 #pragma once
+#include <engine/structs.h>
 #include <handle.h>
 
 namespace Engine {
@@ -13,9 +14,16 @@ namespace Engine {
 
 	void update_scroll_layout_renderer(const Handle& e);
 
-	std::vector<Handle> handle_enities_touched(const std::vector<Handle>& dirty_entities);
+	void update_label_renderer_transform(const Handle& e_child);
+
+	std::vector<Handle> handle_enities_touched(const std::vector<Handle>& touched_entities);
 
 	void handle_entites_scrolling(const std::vector<Handle>& scrolling_entities);
+
+	void handle_entities_key_inputed(
+		const std::vector<Handle>& key_inputed_entities, const std::vector<Handled_Key_Information>& keys_handled,
+		const std::vector<char32_t>& chars_handled
+	);
 
 	void handle_dirty_z_order(const std::vector<Handle>& dirty_entities);
 

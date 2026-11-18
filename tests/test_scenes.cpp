@@ -672,6 +672,44 @@ namespace Test {
 			}
 			Log::info("[label] wrap cases added (row 5)");
 		});
+		// grow / show-all: fixed width -> height grows to show every wrapped line; fixed height -> width grows
+		// to show the whole line. Neither one clips or truncates. Built unconditionally (not behind a button
+		// like the overflow cases above - the wrap-path crash and the stale-fit_size bugs are fixed and
+		// verified, so there's no more hang risk to gate on) and placed by explicit position, not make_cell's
+		// shared CELL-sized row/column grid: at 1200x720 (tests/test_main.cpp's window size) that grid already
+		// fills every column out to x=1150 and every row down to y=86, so a 5th make_cell row/column would
+		// slide off the right edge or below the bottom edge instead of actually being visible.
+		{
+			struct Grow_Case {
+				std::string caption;
+				std::string text;
+				Engine::LABEL_RENDER_FIT_MODE fit;
+			};
+			const std::string long_text = "This sentence is far too long to fit in one line of this small box at all";
+			const Grow_Case cases[4] = {
+				{"fix width, grow height", long_text, Engine::LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL},
+				{"fix height, grow width", long_text, Engine::LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL},
+				{"fix width, grow height (short)", "Hi", Engine::LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL},
+				{"fix height, grow width (short)", "Hi", Engine::LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL},
+			};
+			const glm::vec2 GROW_CELL{260.f, 50.f};
+			const float top = 56.f; // below row 4 (bottom edge at y=86) with room for the caption above it.
+			for (int i = 0; i < 4; i++) {
+				glm::vec2 position{20.f + i * (GROW_CELL.x + 30.f), top};
+				make_label(page, cases[i].caption, 11, MUTED, position + glm::vec2(0.f, 12.f), {0.f, 0.5f});
+				Handle cell = make_layout(page, position, GROW_CELL, {0.93f, 0.95f, 1.f}, 6.f, {0.f, 1.f});
+				Engine::set_layout_border_width(cell, 1.5f);
+				Engine::set_layout_border_color(cell, {0.55f, 0.62f, 0.8f});
+				Handle label = make_label(cell, cases[i].text, 14, INK, {0.f, 0.f}, {0.f, 0.f});
+				Engine::set_label_horizontal_align(label, H::LABEL_HORIZONTAL_ALIGN_LEFT);
+				Engine::set_label_vertical_align(label, V::LABEL_VERTICAL_ALIGN_TOP);
+				Engine::set_label_padding_horizontal(label, 10.f);
+				Engine::set_label_padding_vertical(label, 6.f);
+				Engine::set_label_render_fit_mode(label, cases[i].fit);
+				Engine::set_content_size(label, GROW_CELL);
+			}
+			Log::info("[label] grow / show-all cases added (bottom row)");
+		}
 		Log::info("[test] label scene built, nodes:", get_scene().nodes.size());
 	}
 
