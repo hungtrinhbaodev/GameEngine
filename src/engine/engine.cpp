@@ -866,14 +866,14 @@ namespace Engine {
 
 	void handle_changing_focus_target() {
 		if (focus_info.is_focus_dirty) {
-			if (is_valid(focus_info.last_focus)) {
-				if (is_valid(focus_info.current_focus)) {
-					const auto& [focus_caller_info] =
-						registry.read<Focus_Caller_Information>(focus_info.current_focus.id());
-					if (focus_caller_info.enter_caller != nullptr) {
-						focus_caller_info.enter_caller(focus_info.current_focus);
-					}
+			if (is_valid(focus_info.current_focus)) {
+				const auto& [focus_caller_info] =
+					registry.read<Focus_Caller_Information>(focus_info.current_focus.id());
+				if (focus_caller_info.enter_caller != nullptr) {
+					focus_caller_info.enter_caller(focus_info.current_focus);
 				}
+			}
+			if (is_valid(focus_info.last_focus)) {
 				if (registry.has<Focus_Caller_Information>(focus_info.last_focus.id())) {
 					const auto& [focus_caller_info] =
 						registry.read<Focus_Caller_Information>(focus_info.last_focus.id());

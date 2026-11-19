@@ -18,6 +18,8 @@
 #include <string>
 #include <test_ui.h>
 #include <utils.h>
+#include <engine/utils.h> // [Claude 2026-11-18] label-show-all: get_full_font_path for the multi-line measure
+#include <utf8_helper.h> // [Claude 2026-11-18] label-show-all check compares NFC code points
 
 namespace Engine {
 	uint32_t spawn_touch(const glm::vec2& touch_world_position, int button, int mods);
@@ -766,6 +768,130 @@ namespace Test {
 			} catch (const std::exception& exception) {
 				api_expect("font-parser", false, std::string("threw: ") + exception.what());
 			}
+
+			// [Claude 2026-11-18] BEGIN label-show-all: WIDTH_SHOW_ALL keeps the width and grows the height,
+			// HEIGHT_SHOW_ALL keeps the height and grows the width. Whatever is drawn (render_text) must fit the
+			// fixed side, the label size must keep the fixed side, no character may be lost, and the result must
+			// not keep changing frame after frame (fit_size is written back into the size).
+			try {
+				const std::string long_text = "This sentence is far too long to fit in one line of this small box at all";
+				struct Show_All_Case {
+					std::string name;
+					std::string text;
+					Engine::LABEL_RENDER_FIT_MODE fit;
+					bool centered;
+					glm::vec2 box{260.f, 50.f}; // same cell as the label scene's bottom row
+				};
+				const Show_All_Case cases[] = {
+					{"height-show-all long LEFT/TOP", long_text, Engine::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL, false},
+					{"height-show-all long CENTER", long_text, Engine::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL, true},
+					{"height-show-all short", "Hi", Engine::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL, false},
+					// one line of room (14 px font + 6 px pad in 24 px): the width has to grow past 260 to show it all.
+					{"height-show-all long, 1-line box", long_text, Engine::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL, false,
+					 {260.f, 24.f}},
+					// two lines of room: still wider than 260.
+					{"height-show-all long, 2-line box", long_text, Engine::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL, false,
+					 {260.f, 36.f}},
+					{"width-show-all long LEFT/TOP", long_text, Engine::LABEL_RENDER_FIT_WIDTH_SHOW_ALL, false},
+					{"width-show-all short", "Hi", Engine::LABEL_RENDER_FIT_WIDTH_SHOW_ALL, false},
+				};
+				const float pad_h = 10.f, pad_v = 6.f;
+				auto strip = [](const std::u32string& value) {
+					std::u32string out;
+					for (char32_t c : value)
+						if (c != U' ' && c != U'\n')
+							out += c;
+					return out;
+				};
+				for (const auto& test_case : cases) {
+					const std::string tag = "label-show-all";
+					const std::string name = test_case.name + ": ";
+					const glm::vec2 box = test_case.box;
+					Handle label = Engine::create_label();
+					Engine::set_label_font_path(label, FONT_PATH);
+					Engine::set_label_font_size(label, 14);
+					Engine::set_label_string(label, test_case.text);
+					auto h = test_case.centered ? Engine::LABEL_HORIZONTAL_ALIGN_CENTER : Engine::LABEL_HORIZONTAL_ALIGN_LEFT;
+					auto v = test_case.centered ? Engine::LABEL_VERTICAL_ALIGN_CENTER : Engine::LABEL_VERTICAL_ALIGN_TOP;
+					Engine::set_label_horizontal_align(label, h);
+					Engine::set_label_vertical_align(label, v);
+					Engine::set_label_padding_horizontal(label, pad_h);
+					Engine::set_label_padding_vertical(label, pad_v);
+					Engine::set_label_render_fit_mode(label, test_case.fit);
+					Engine::set_content_size(label, box);
+					Engine::add_child(root, label);
+					Engine::process_frame(0.f);
+
+					const auto& [info] = Engine::get_registry().read<Engine::Label_Renderer_Information>(label.id());
+					// padding is only applied off-center (update_inner_text_by), so the room is computed the same way.
+					glm::vec2 used_pad{test_case.centered ? 0.f : pad_h, test_case.centered ? 0.f : pad_v};
+					// multi-line measure, the same call update_inner_text_by uses (get_renderer_text_size is one line only).
+					auto helper = Vulkan::Draw_Font_2D::gen_text_info_from(
+						Engine::Utils::get_full_font_path(info.font_path), info.render_text, (int)h, info.font_size,
+						info.stroke_size, {0.f, 0.f}
+					);
+					glm::vec2 drawn = helper.get_size();
+					glm::vec2 size = Engine::get_content_size(label);
+					glm::vec2 fit = info.fit_size;
+					int lines = (int)helper.lines.size();
+					float widest_line = drawn.x;
+					std::string facts = " (lines " + std::to_string(lines) + ", drawn " + vec_text(drawn) + ", fit_size " +
+										vec_text(fit) + ", content size " + vec_text(size) + ")";
+
+					api_expect(
+						tag, strip(info.render_text) == strip(Helper::utf8_to_u32_nfc(test_case.text)),
+						name + "every character is drawn, nothing cut or ellipsized" + facts
+					);
+					if (test_case.fit == Engine::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL) {
+						api_expect(
+							tag, drawn.y + used_pad.y <= box.y + 0.5f,
+							name + "drawn text height + padding fits the fixed height " + std::to_string(box.y) + facts
+						);
+						api_expect(tag, std::abs(fit.y - box.y) <= 0.5f, name + "fit_size keeps the fixed height" + facts);
+						api_expect(tag, std::abs(size.y - box.y) <= 0.5f, name + "label size keeps the fixed height" + facts);
+						float one_line = Vulkan::Draw_Font_2D::get_renderer_text_size(
+							Helper::utf8_to_u32_nfc(test_case.text), info.font_path, info.font_size, info.stroke_size
+						).x;
+						int room = std::max(1, (int)((box.y - used_pad.y) / (float)info.font_size));
+						if (one_line / room > box.x - used_pad.x) {
+							api_expect(
+								tag, fit.x > box.x + 0.5f,
+								name + "text needs more than " + std::to_string(room) + " line(s) at the set width, so the width grows past " +
+									std::to_string(box.x) + facts
+							);
+						}
+						api_expect(
+							tag, fit.x + 0.5f >= widest_line + used_pad.x,
+							name + "width grew to the widest line + padding (" + std::to_string(widest_line) + ")" + facts
+						);
+					} else {
+						api_expect(
+							tag, widest_line + used_pad.x <= box.x + 0.5f,
+							name + "every line + padding fits the fixed width (" + std::to_string(widest_line) + ")" + facts
+						);
+						api_expect(tag, std::abs(fit.x - box.x) <= 0.5f, name + "fit_size keeps the fixed width" + facts);
+						api_expect(tag, std::abs(size.x - box.x) <= 0.5f, name + "label size keeps the fixed width" + facts);
+						api_expect(
+							tag, fit.y + 0.5f >= drawn.y + used_pad.y,
+							name + "height grew to the drawn text + padding" + facts
+						);
+					}
+					// stable: a few more frames (size dirty from the write-back) must not change the result.
+					std::u32string first_text = info.render_text;
+					for (int i = 0; i < 3; i++)
+						Engine::process_frame(0.f);
+					const auto& [again] = Engine::get_registry().read<Engine::Label_Renderer_Information>(label.id());
+					api_expect(
+						tag, again.render_text == first_text && nearly_equal(again.fit_size, fit, 0.5f),
+						name + "stable over 3 more frames (fit_size now " + vec_text(again.fit_size) + ")"
+					);
+					Engine::clean_up(label);
+					Engine::process_frame(0.f);
+				}
+			} catch (const std::exception& exception) {
+				api_expect("label-show-all", false, std::string("threw: ") + exception.what());
+			}
+			// [Claude 2026-11-18] END label-show-all
 
 			// ---- font-stroke: the SDF font's max_stroke_size/sfd_padding (used by Font::claim_stroke to
 			// clamp a requested stroke) must come out non-zero, otherwise every stroke request silently
