@@ -63,7 +63,7 @@ namespace Test {
 			Handle found = Handle::make_invalid_handle();
 			registry.each<Engine::Label_Renderer_Information>([&](uint32_t e,
 																  Engine::Label_Renderer_Information& info) {
-				if (found.is_invalid() && in_tree(e) && info.text.rfind(prefix, 0) == 0)
+				if (found.is_invalid() && in_tree(e) && Helper::u32_to_utf8(info.u32_text).find(prefix, 0) == 0)
 					found = handle_of(e);
 			});
 			return found;
@@ -794,19 +794,19 @@ namespace Test {
 		then(10, []() {
 			// what the engine computed for every custom-size label (align / padding / fit result).
 			Registry& registry = Engine::get_registry();
-			registry.each<Engine::Label_Renderer_Information>(
-				[&registry](uint32_t e, Engine::Label_Renderer_Information& info) {
-					if (info.fit_mode != Engine::LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO || !in_tree(e))
-						return;
-					glm::vec2 size = std::get<0>(registry.read<Engine::Size>(e)).value;
-					Log::info(
-						"[label] node", e, "text", info.text, "| h", (int)info.horizontal_align, "v",
-						(int)info.vertical_align, "fit", (int)info.fit_mode, "pad", info.horizontal_padding,
-						info.vertical_padding, "| size", size, "| inner pos", info.inner_label_transform.position,
-						"anchor", info.inner_label_transform.anchor, "| clip", info.clipping_enabled
-					);
-				}
-			);
+			registry.each<Engine::Label_Renderer_Information>([&registry](
+																  uint32_t e, Engine::Label_Renderer_Information& info
+															  ) {
+				if (info.fit_mode != Engine::LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO || !in_tree(e))
+					return;
+				glm::vec2 size = std::get<0>(registry.read<Engine::Size>(e)).value;
+				Log::info(
+					"[label] node", e, "text", Helper::u32_to_utf8(info.u32_text), "| h", (int)info.horizontal_align,
+					"v", (int)info.vertical_align, "fit", (int)info.fit_mode, "pad", info.horizontal_padding,
+					info.vertical_padding, "| size", size, "| inner pos", info.inner_label_transform.position, "anchor",
+					info.inner_label_transform.anchor, "| clip", info.clipping_enabled
+				);
+			});
 		});
 		screenshot("label_scene");
 		click_label("Overflow: no spaces");

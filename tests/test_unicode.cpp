@@ -39,19 +39,18 @@ namespace Test {
 		const std::u32string ENGLISH = U" !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`"
 									   U"abcdefghijklmnopqrstuvwxyz{|}~";
 		// all 146 Vietnamese letters (lower + upper), escaped so the file encoding cannot change them.
-		const std::u32string VIETNAMESE =
-			U"aàáảãạăằắẳẵặâầấẩẫậ"
-			U"eèéẻẽẹêềếểễệ"
-			U"iìíỉĩị"
-			U"oòóỏõọôồốổỗộơờớởỡợ"
-			U"uùúủũụưừứửữự"
-			U"yỳýỷỹỵđ"
-			U"AÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬ"
-			U"EÈÉẺẼẸÊỀẾỂỄỆ"
-			U"IÌÍỈĨỊ"
-			U"OÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢ"
-			U"UÙÚỦŨỤƯỪỨỬỮỰ"
-			U"YỲÝỶỸỴĐ";
+		const std::u32string VIETNAMESE = U"aàáảãạăằắẳẵặâầấẩẫậ"
+										  U"eèéẻẽẹêềếểễệ"
+										  U"iìíỉĩị"
+										  U"oòóỏõọôồốổỗộơờớởỡợ"
+										  U"uùúủũụưừứửữự"
+										  U"yỳýỷỹỵđ"
+										  U"AÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬ"
+										  U"EÈÉẺẼẸÊỀẾỂỄỆ"
+										  U"IÌÍỈĨỊ"
+										  U"OÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢ"
+										  U"UÙÚỦŨỤƯỪỨỬỮỰ"
+										  U"YỲÝỶỸỴĐ";
 
 		int unicode_failed = 0;
 
@@ -87,7 +86,8 @@ namespace Test {
 		}
 
 		glm::vec2 text_size(std::u32string_view text, int font_size = 20) {
-			return Vulkan::Draw_Font_2D::get_renderer_text_size(text, full_font_path(VN_FONT), font_size, 0.f);
+			uint32_t font_id = Vulkan::Draw_Font_2D::request_font_id(full_font_path(VN_FONT));
+			return Vulkan::Draw_Font_2D::get_renderer_text_size(text, font_id, font_size, 0.f);
 		}
 
 		std::vector<std::u32string> split_lines(const std::u32string& text) {
@@ -124,7 +124,14 @@ namespace Test {
 			expect(group, Helper::utf8_to_u32("\xC3\xAA") == U"ê", "C3 AA = U+00EA (e circumflex)");
 			expect(group, Helper::utf8_to_u32("\xF0\x9F\x98\x80") == U"\U0001F600", "4-byte sequence");
 			const std::u32string bad = U"�";
-			expect(group, Helper::utf8_to_u32("\xC3" "A") == bad + U"A", "cut 2-byte sequence keeps the next char");
+			expect(
+				group,
+				Helper::utf8_to_u32(
+					"\xC3"
+					"A"
+				) == bad + U"A",
+				"cut 2-byte sequence keeps the next char"
+			);
 			expect(group, Helper::utf8_to_u32("\xC1\x81") == bad + bad, "overlong 'A' rejected");
 			expect(group, Helper::utf8_to_u32("\xED\xA0\x80") == bad + bad + bad, "surrogate rejected");
 			expect(
@@ -132,7 +139,14 @@ namespace Test {
 				"code point above U+10FFFF rejected"
 			);
 			expect(group, Helper::utf8_to_u32("ab\xE1\xBA") == U"ab" + bad, "sequence cut at the end");
-			expect(group, Helper::utf8_to_u32("\xAA" "b") == bad + U"b", "stray continuation byte");
+			expect(
+				group,
+				Helper::utf8_to_u32(
+					"\xAA"
+					"b"
+				) == bad + U"b",
+				"stray continuation byte"
+			);
 
 			expect(
 				group, Helper::nfc_vietnamese(TIENG_VIET_NFD) == TIENG_VIET,
@@ -168,7 +182,9 @@ namespace Test {
 					bad_index += c;
 			}
 			expect(group, VIETNAMESE.size() == 146, "test pattern has 146 Vietnamese letters");
-			expect(group, missing.empty(), "every English + Vietnamese code point has a rect, missing: " + show(missing));
+			expect(
+				group, missing.empty(), "every English + Vietnamese code point has a rect, missing: " + show(missing)
+			);
 			expect(group, bad_index.empty(), "every mapped index is inside rects, bad: " + show(bad_index));
 			expect(
 				group, font.rects.size() == font.char_to_rect_indices.size(),
@@ -225,11 +241,14 @@ namespace Test {
 			Engine::process_frame(0.f);
 
 			expect(group, Engine::get_label_string(nfc_label) == nfc_utf8, "get_label_string returns the UTF-8 set");
-			expect(group, Engine::get_label_string(nfd_label) == nfd_utf8, "get_label_string keeps the input as set (NFD)");
+			expect(
+				group, Engine::get_label_string(nfd_label) == nfd_utf8, "get_label_string keeps the input as set (NFD)"
+			);
 			std::u32string drawn = vulkan_text_of(nfc_label);
 			expect(
 				group, drawn == TIENG_VIET,
-				"Vulkan label text is 10 code points (not 14 bytes): got " + std::to_string(drawn.size()) + " " + show(drawn)
+				"Vulkan label text is 10 code points (not 14 bytes): got " + std::to_string(drawn.size()) + " " +
+					show(drawn)
 			);
 			std::u32string drawn_nfd = vulkan_text_of(nfd_label);
 			expect(group, drawn_nfd == TIENG_VIET, "decomposed input is drawn as NFC: " + show(drawn_nfd));
@@ -289,8 +308,8 @@ namespace Test {
 				float width = text_size(lines[i]).x;
 				expect(
 					group, width <= box_width + 0.5f,
-					"line " + std::to_string(i) + " width " + std::to_string(width) + " <= " + std::to_string(box_width) +
-						": " + show(lines[i])
+					"line " + std::to_string(i) + " width " + std::to_string(width) +
+						" <= " + std::to_string(box_width) + ": " + show(lines[i])
 				);
 			}
 			expect(
@@ -317,10 +336,14 @@ namespace Test {
 			std::u32string ellipsis =
 				wrap(sentence, Engine::LABEL_RENDER_FIT_ELLIPSIS, {box_width, line_height * 2.f + 1.f}, ellipsis_label);
 			auto ellipsis_lines = split_lines(ellipsis);
-			expect(group, ellipsis_lines.size() <= 2, "ELLIPSIS keeps at most 2 lines: " + std::to_string(ellipsis_lines.size()));
+			expect(
+				group, ellipsis_lines.size() <= 2,
+				"ELLIPSIS keeps at most 2 lines: " + std::to_string(ellipsis_lines.size())
+			);
 			const std::u32string& last = ellipsis_lines.back();
 			expect(
-				group, last.size() >= 3 && last.compare(last.size() - 3, 3, U"...") == 0, "last line ends with ...: " + show(last)
+				group, last.size() >= 3 && last.compare(last.size() - 3, 3, U"...") == 0,
+				"last line ends with ...: " + show(last)
 			);
 			expect(group, text_size(last).x <= box_width + 0.5f, "last line with ... fits the width");
 
@@ -381,7 +404,8 @@ namespace Test {
 		}
 	} // namespace
 
-	// [Claude BEGIN 2026-11-17] scene for `./ui_test unicode-view` (screenshot to check the Vietnamese rendering by eye).
+	// [Claude BEGIN 2026-11-17] scene for `./ui_test unicode-view` (screenshot to check the Vietnamese rendering by
+	// eye).
 	namespace {
 		const glm::vec3 VIEW_INK{0.13f, 0.15f, 0.19f};
 		const glm::vec3 VIEW_NOTE{0.45f, 0.48f, 0.55f};
@@ -430,9 +454,13 @@ namespace Test {
 
 		// every letter once (stacked marks on capitals are the tallest glyphs: check nothing is cut at the top).
 		y -= 52.f;
-		view_label(page, "aàáảãạ ăằắẳẵặ âầấẩẫậ eèéẻẽẹ êềếểễệ iìíỉĩị oòóỏõọ ôồốổỗộ ơờớởỡợ uùúủũụ ưừứửữự yỳýỷỹỵ đ", 20, {20.f, y});
+		view_label(
+			page, "aàáảãạ ăằắẳẵặ âầấẩẫậ eèéẻẽẹ êềếểễệ iìíỉĩị oòóỏõọ ôồốổỗộ ơờớởỡợ uùúủũụ ưừứửữự yỳýỷỹỵ đ", 20, {20.f, y}
+		);
 		y -= 32.f;
-		view_label(page, "AÀÁẢÃẠ ĂẰẮẲẴẶ ÂẦẤẨẪẬ EÈÉẺẼẸ ÊỀẾỂỄỆ IÌÍỈĨỊ OÒÓỎÕỌ ÔỒỐỔỖỘ ƠỜỚỞỠỢ UÙÚỦŨỤ ƯỪỨỬỮỰ YỲÝỶỸỴ Đ", 20, {20.f, y});
+		view_label(
+			page, "AÀÁẢÃẠ ĂẰẮẲẴẶ ÂẦẤẨẪẬ EÈÉẺẼẸ ÊỀẾỂỄỆ IÌÍỈĨỊ OÒÓỎÕỌ ÔỒỐỔỖỘ ƠỜỚỞỠỢ UÙÚỦŨỤ ƯỪỨỬỮỰ YỲÝỶỸỴ Đ", 20, {20.f, y}
+		);
 
 		// decomposed input must look exactly like the line above it; stroke must follow the marks.
 		y -= 40.f;
@@ -449,7 +477,9 @@ namespace Test {
 		const std::string paragraph =
 			"Tiếng Việt là ngôn ngữ chính thức của Việt Nam. Chữ Quốc ngữ dùng bảng chữ cái Latinh "
 			"với các dấu thanh: sắc, huyền, hỏi, ngã, nặng.";
-		view_box(page, "CLIP, wrap (360 x 150)", paragraph, {20.f, 20.f}, {360.f, 150.f}, Engine::LABEL_RENDER_FIT_CLIP, 20);
+		view_box(
+			page, "CLIP, wrap (360 x 150)", paragraph, {20.f, 20.f}, {360.f, 150.f}, Engine::LABEL_RENDER_FIT_CLIP, 20
+		);
 		view_box(
 			page, "ELLIPSIS, 2 lines (360 x 64)", paragraph, {410.f, 106.f}, {360.f, 64.f},
 			Engine::LABEL_RENDER_FIT_ELLIPSIS, 20

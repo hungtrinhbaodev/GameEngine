@@ -456,8 +456,9 @@ namespace Vulkan {
 
 	void Font_2D::reload_text_size() {
 		if (text_dirty) {
+			uint32_t font_id = Draw_Font_2D::request_font_id(path);
 			auto text_helper =
-				Draw_Font_2D::gen_text_info_from(path, text, align, font_size, stroke_size, get_anchor());
+				Draw_Font_2D::gen_text_info_from(font_id, text, align, font_size, stroke_size, get_anchor());
 			width = text_helper.width;
 			height = text_helper.height;
 			text_dirty = false;

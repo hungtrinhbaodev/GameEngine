@@ -121,6 +121,7 @@ namespace Vulkan {
 		int to_char_index(char32_t value) const;
 		glm::vec2 get_char_bounding_box(char32_t value, int font_size, float stroke_size) const;
 		glm::vec2 get_char_local_offset(char32_t value, int font_size, float stroke_size) const;
+		float get_line_vertical_offset(int font_size, float stroke_size) const;
 		float get_char_scale(int font_size) const;
 		uint32_t get_char_rect_offset(char32_t value) const;
 		float claim_stroke(int font_size, float stroke_size) const;

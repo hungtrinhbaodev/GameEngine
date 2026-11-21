@@ -90,7 +90,7 @@ namespace Vulkan {
 				for (int i = 0; i < lines.size(); i++) {
 					const std::u32string& line = lines[i];
 					const glm::vec2& start_line_position = start_line_positions[i];
-					std::vector<glm::vec2> positions = get_char_position_at(
+					std::vector<glm::vec2> positions = get_char_positions_at(
 						line, start_line_position, font, attributes.get_font_size(), attributes.get_stroke_size()
 					);
 					for (int j = 0; j < positions.size(); j++) {
@@ -311,10 +311,11 @@ namespace Vulkan {
 			}
 		}
 
-		glm::vec2 get_renderer_text_size(
-			std::u32string_view text, const std::string& font_path, int font_size, float stroke_size
-		) {
-			uint32_t font_id = load_font(font_path);
+		uint32_t request_font_id(const std::string& font_path) {
+			return load_font(font_path);
+		}
+
+		glm::vec2 get_renderer_text_size(std::u32string_view text, uint32_t font_id, int font_size, float stroke_size) {
 			const auto& font = view_font(font_id);
 			auto text_size = get_text_size(text, font, font_size, stroke_size);
 			return text_size * font.get_char_scale(font_size);
@@ -330,20 +331,35 @@ namespace Vulkan {
 			return line_size;
 		}
 
-		std::vector<glm::vec2> get_char_position_at(
-			std::u32string_view line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size
+		std::vector<glm::vec2> get_char_renderer_positions_at(
+			std::u32string_view line, glm::vec2 start_line_position, uint32_t font_id, int font_size, float stroke_size,
+			bool use_char_offset
+		) {
+			const auto& font = view_font(font_id);
+			auto positions =
+				get_char_positions_at(line, start_line_position, font, font_size, stroke_size, use_char_offset);
+			float font_scale = font.get_char_scale(font_size);
+			for (auto& position : positions) {
+				position *= font_scale;
+			}
+			return positions;
+		}
+
+		std::vector<glm::vec2> get_char_positions_at(
+			std::u32string_view line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size,
+			bool use_char_offset
 		) {
 			std::vector<glm::vec2> char_positions(line.size());
 			float start_x = 0;
 			for (int i = 0; i < line.size(); i++) {
 				char_positions[i] = start_line_position;
 				glm::vec local_offset = font.get_char_local_offset(line[i], font_size, stroke_size);
-				char_positions[i].x += start_x + local_offset.x;
-				char_positions[i].y += local_offset.y;
+				char_positions[i].x += start_x + (use_char_offset ? local_offset.x : 0.f);
+				char_positions[i].y += (use_char_offset ? local_offset.y : 0.f);
 				glm::vec2 char_bound_box = font.get_char_bounding_box(line[i], font_size, stroke_size);
 				start_x += char_bound_box.x;
 			}
-			return char_positions;
+			return std::move(char_positions);
 		}
 
 		void make_lines_render_info(
@@ -380,20 +396,27 @@ namespace Vulkan {
 				total_height += line_size.y;
 			}
 			float char_scale = font.get_char_scale(font_size);
-			width = max_width_line * char_scale;
-			height = total_height * char_scale;
-			glm::vec2 origin = -glm::vec2(width / char_scale, height / char_scale) * anchor;
+			glm::vec2 origin = -glm::vec2(max_width_line, total_height) * anchor;
 			for (auto& start_line_position : start_line_positions) {
 				start_line_position += origin;
 			}
+			width = max_width_line * char_scale;
+			height = total_height * char_scale;
 		}
 
 		Font_Helper gen_text_info_from(
 			const std::string& font_path, std::u32string_view text, int align, int font_size, float stroke_size,
 			const glm::vec2& anchor
 		) {
-			Font_Helper text_helper{};
 			uint32_t font_id = load_font(font_path);
+			return gen_text_info_from(font_id, text, align, font_size, stroke_size, anchor);
+		}
+
+		Font_Helper gen_text_info_from(
+			uint32_t font_id, std::u32string_view text, int align, int font_size, float stroke_size,
+			const glm::vec2& anchor
+		) {
+			Font_Helper text_helper{};
 			const Font& font = view_font(font_id);
 			break_lines(text, text_helper.lines);
 			make_lines_render_info(
@@ -401,6 +424,21 @@ namespace Vulkan {
 				text_helper.lines, stroke_size
 			);
 			return text_helper;
+		}
+
+		glm::vec2 get_char_render_bounding_box(char32_t value, uint32_t font_id, int font_size, float stroke_size) {
+			const Font& font = view_font(font_id);
+			return font.get_char_bounding_box(value, font_size, stroke_size) * font.get_char_scale(font_size);
+		}
+
+		float get_base_line_vertical_renderer_offset(uint32_t font_id, int font_size, int stroke_size) {
+			const Font& font = view_font(font_id);
+			return font.get_line_vertical_offset(font_size, stroke_size) * font.get_char_scale(font_size);
+		}
+
+		float get_renderer_line_height(uint32_t font_id, int font_size, int stroke_size) {
+			const Font& font = view_font(font_id);
+			return (font.line_height + font.claim_stroke(font_size, stroke_size)) * font.get_char_scale(font_size);
 		}
 
 		void draw(

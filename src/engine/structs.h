@@ -95,6 +95,11 @@ namespace Engine {
 		EDIT_BOX,
 	};
 
+	enum EDIT_BOX_STATE {
+		EDIT_BOX_STATE_IDLE,
+		EDIT_BOX_STATE_FOCUSED
+	};
+
 	// [Claude 2026-11-17] BEGIN input enums: the engine API speaks these, not backend numbers, so swapping the window
 	// backend only needs its own converter file. Convert with engine/input_glfw.h (glfw_to_key, glfw_to_key_action,
 	// glfw_to_mouse_button, glfw_to_key_mods); a new backend adds e.g. input_android.h with android_to_key.

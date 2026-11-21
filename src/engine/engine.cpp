@@ -12,6 +12,7 @@
 #include <queue>
 #include <sparse_set.h>
 #include <stack>
+#include <utf8_helper.h>
 #include <vulkan/draws/vk_draw_texture_2D.h>
 #include <vulkan/vk_core.h>
 #include <vulkan/vk_draw.h>
@@ -503,21 +504,23 @@ namespace Engine {
 		return std::move(processing_traveled_entities);
 	}
 
+	void resolve_dirty_renderer(const Handle& e) {
+		if (!is_valid(e))
+			return;
+		auto traveled_enities = make_processing_dirty_entities(DIRTY_RENDERER, TRAVEL_NODE_MODE::TRAVEL_UP);
+		handle_dirty_renderer(traveled_enities);
+	}
+
 	void resolve_relative_size(const Handle& e) {
-		if (!registry.has<Tree_Information>(e.id()))
+		if (!is_valid(e))
 			return;
-		const auto& [tree_info] = registry.read<Tree_Information>(e.id());
-		if (!tree_info.valid_child)
-			return;
+		resolve_dirty_renderer(e);
 		auto traveled_enities = make_processing_dirty_entities(DIRTY_RELATIVE_SIZE, TRAVEL_NODE_MODE::TRAVEL_ALL);
 		handle_dirty_relative_size(traveled_enities);
 	}
 
 	void resolve_relative_position(const Handle& e) {
-		if (!registry.has<Tree_Information>(e.id()))
-			return;
-		const auto& [tree_info] = registry.read<Tree_Information>(e.id());
-		if (!tree_info.valid_child)
+		if (!is_valid(e))
 			return;
 		resolve_relative_size(e);
 		auto traveled_enities = make_processing_dirty_entities(DIRTY_RELATIVE_POSITION, TRAVEL_NODE_MODE::TRAVEL_ALL);
@@ -525,10 +528,7 @@ namespace Engine {
 	}
 
 	void resolve_transform(const Handle& e) {
-		if (!registry.has<Tree_Information>(e.id()))
-			return;
-		const auto& [tree_info] = registry.read<Tree_Information>(e.id());
-		if (!tree_info.valid_child)
+		if (!is_valid(e))
 			return;
 		resolve_relative_position(e);
 		auto traveled_enities = make_processing_dirty_entities(DIRTY_TRANSFORM, TRAVEL_NODE_MODE::TRAVEL_ALL);
@@ -536,11 +536,16 @@ namespace Engine {
 	}
 
 	void update_tree_changing_z_order() {
-		std::vector<Handle> processing_entities{};
-		travel_down(root, [&processing_entities](const Handle&, const Handle& child, bool&, bool&) {
-			processing_entities.push_back(child);
-		});
-		handle_update_tree_draw_order(processing_entities);
+		auto processing_dirty_entities =
+			make_processing_dirty_entities(DIRTY_DRAW_ORDER, TRAVEL_NODE_MODE::TRAVEL_NONE);
+		handle_dirty_z_order(processing_dirty_entities);
+		if (processing_dirty_entities.size() > 0) {
+			std::vector<Handle> processing_entities{};
+			travel_down(root, [&processing_entities](const Handle&, const Handle& child, bool&, bool&) {
+				processing_entities.push_back(child);
+			});
+			handle_update_tree_draw_order(processing_entities);
+		}
 	}
 
 	void update_key_listener_entites(const std::vector<Handle>& entities) {
@@ -804,14 +809,10 @@ namespace Engine {
 
 		process_clean_up_entities();
 
-		processing_dirty_entities = make_processing_dirty_entities(DIRTY_DRAW_ORDER, TRAVEL_NODE_MODE::TRAVEL_NONE);
-		handle_dirty_z_order(processing_dirty_entities);
-		if (processing_dirty_entities.size() > 0) {
-			update_tree_changing_z_order();
-		}
-
 		processing_dirty_entities = make_processing_dirty_entities(DIRTY_RENDERER, TRAVEL_NODE_MODE::TRAVEL_NONE);
 		handle_dirty_renderer(processing_dirty_entities);
+
+		update_tree_changing_z_order();
 
 		processing_dirty_entities = make_processing_dirty_entities(
 			DIRTY_RELATIVE_SIZE, TRAVEL_NODE_MODE::TRAVEL_DOWN, PICKED_NODE_MODE::PICKED_ALL
@@ -1356,7 +1357,7 @@ namespace Engine {
 		return transform.is_visible;
 	}
 
-	void set_z_order(const Handle& e, uint32_t z_order) {
+	void set_z_order(const Handle& e, int z_order) {
 		assert_handle(e);
 		if (!registry.has_all<Transform_2D, Description>(e.id()))
 			return;
@@ -1562,7 +1563,6 @@ namespace Engine {
 		if (!registry.has_all<Size, Description>(e.id()))
 			return;
 		clean_size_components(e);
-		const auto& [description] = registry.read<Description>(e.id());
 		auto [c_size] = registry.get<Size>(e.id());
 		set_dirty(e, c_size.value != size, DIRTY_TRANSFORM | DIRTY_RELATIVE_SIZE | DIRTY_RELATIVE_POSITION);
 		c_size.value = size;
@@ -1572,32 +1572,7 @@ namespace Engine {
 		assert_handle(e);
 		if (!registry.has_all<Size, Description>(e.id()))
 			return {1.f, 1.f};
-		const auto& [description] = registry.read<Description>(e.id());
-		switch (description.value) {
-			/**
-			 * @Note: with type need calculate size
-			 * by render we call update once when dirty
-			 * to user have size to use.
-			 */
-			case DESCRIPTION_TYPE::IMAGE_2D: {
-				if (is_dirty(e, DIRTY_RENDERER)) {
-					update_image_renderer(e);
-					set_dirty(e, false, DIRTY_RENDERER);
-				}
-				break;
-			}
-			case DESCRIPTION_TYPE::LABEL_2D: {
-				if (is_dirty(e, DIRTY_RENDERER)) {
-					update_label_renderer(e);
-					set_dirty(e, false, DIRTY_RENDERER);
-				}
-				break;
-			}
-			default: {
-				break;
-			}
-		}
-		if (has_node_ancestor_dirty(e, DIRTY_RELATIVE_SIZE)) {
+		if (has_node_ancestor_dirty(e, DIRTY_RELATIVE_SIZE | DIRTY_RENDERER)) {
 			resolve_relative_size(e);
 		}
 		const auto& [c_size] = registry.read<Size>(e.id());
@@ -1703,12 +1678,10 @@ namespace Engine {
 		return world_transfrom.position;
 	}
 
-	glm::vec2 to_my_position_space(
-		const Handle& e, const glm::vec2& world_position, const glm::vec2& fallback_position
-	) {
+	glm::vec2 to_my_position_space(const Handle& e, const glm::vec2& world_position, const glm::vec2& fallback) {
 		assert_handle(e);
 		if (!registry.has<World_Transform_2D>(e.id()) || !is_valid(e)) {
-			return fallback_position;
+			return fallback;
 		}
 		if (has_node_ancestor_dirty(e, DIRTY_TRANSFORM | DIRTY_RELATIVE_SIZE | DIRTY_RELATIVE_POSITION)) {
 			resolve_transform(e);
@@ -1716,10 +1689,75 @@ namespace Engine {
 		auto world_transfrom = get_relative_world_transform(e);
 		if (std::abs(world_transfrom.scale.x) <= ::Const::EPSILON ||
 			std::abs(world_transfrom.scale.y) <= ::Const::EPSILON) {
-			return fallback_position;
+			return fallback;
 		}
 		return Math::rotate(-world_transfrom.rotation, world_position - world_transfrom.position) *
 			   glm::vec2(1.f / world_transfrom.scale.x, 1.f / world_transfrom.scale.y);
+	}
+
+	glm::vec2 to_world_position_space(const Handle& e, const glm::vec2& local_position, const glm::vec2& fallback) {
+		assert_handle(e);
+		if (!registry.has<World_Transform_2D>(e.id()) || !is_valid(e)) {
+			return fallback;
+		}
+		if (has_node_ancestor_dirty(e, DIRTY_TRANSFORM | DIRTY_RELATIVE_SIZE | DIRTY_RELATIVE_POSITION)) {
+			resolve_transform(e);
+		}
+		auto world_transfrom = get_relative_world_transform(e);
+		return world_transfrom.position +
+			   Math::rotate(world_transfrom.rotation, local_position * world_transfrom.scale);
+	}
+
+	glm::vec2 to_my_scale_space(const Handle& e, const glm::vec2& world_scale, const glm::vec2& fallback) {
+		assert_handle(e);
+		if (!registry.has<World_Transform_2D>(e.id()) || !is_valid(e)) {
+			return fallback;
+		}
+		if (has_node_ancestor_dirty(e, DIRTY_TRANSFORM | DIRTY_RELATIVE_SIZE | DIRTY_RELATIVE_POSITION)) {
+			resolve_transform(e);
+		}
+		auto world_transfrom = get_relative_world_transform(e);
+		if (std::abs(world_transfrom.scale.x) <= ::Const::EPSILON ||
+			std::abs(world_transfrom.scale.y) <= ::Const::EPSILON) {
+			return fallback;
+		}
+		return world_scale / world_transfrom.scale;
+	}
+
+	glm::vec2 to_world_scale_space(const Handle& e, const glm::vec2& local_scale, const glm::vec2& fallback) {
+		assert_handle(e);
+		if (!registry.has<World_Transform_2D>(e.id()) || !is_valid(e)) {
+			return fallback;
+		}
+		if (has_node_ancestor_dirty(e, DIRTY_TRANSFORM | DIRTY_RELATIVE_SIZE | DIRTY_RELATIVE_POSITION)) {
+			resolve_transform(e);
+		}
+		auto world_transfrom = get_relative_world_transform(e);
+		return local_scale * world_transfrom.scale;
+	}
+
+	float to_my_rotation_space(const Handle& e, float world_rotation, float fallback) {
+		assert_handle(e);
+		if (!registry.has<World_Transform_2D>(e.id()) || !is_valid(e)) {
+			return fallback;
+		}
+		if (has_node_ancestor_dirty(e, DIRTY_TRANSFORM | DIRTY_RELATIVE_SIZE | DIRTY_RELATIVE_POSITION)) {
+			resolve_transform(e);
+		}
+		auto world_transfrom = get_relative_world_transform(e);
+		return world_rotation - world_transfrom.rotation;
+	}
+
+	float to_world_scale_space(const Handle& e, float local_rotation, float fallback) {
+		assert_handle(e);
+		if (!registry.has<World_Transform_2D>(e.id()) || !is_valid(e)) {
+			return fallback;
+		}
+		if (has_node_ancestor_dirty(e, DIRTY_TRANSFORM | DIRTY_RELATIVE_SIZE | DIRTY_RELATIVE_POSITION)) {
+			resolve_transform(e);
+		}
+		auto world_transfrom = get_relative_world_transform(e);
+		return local_rotation + world_transfrom.rotation;
 	}
 
 	std::array<glm::vec2, 4> get_world_rect(const Handle& e) {
@@ -1969,7 +2007,7 @@ namespace Engine {
 		}
 		auto [label_renderer] = registry.get<Label_Renderer_Information>(e.id());
 		set_dirty(e, label_renderer.text != text, DIRTY_RENDERER);
-		label_renderer.text = text;
+		label_renderer.update_text(text);
 	}
 
 	std::string get_label_string(const Handle& e) {
@@ -1979,6 +2017,15 @@ namespace Engine {
 		}
 		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
 		return label_renderer.text;
+	}
+
+	std::u32string get_label_u32_string(const Handle& e) {
+		assert_handle(e);
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
+			return U"";
+		}
+		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
+		return label_renderer.u32_text;
 	}
 
 	void set_label_stroke_size(const Handle& e, float stroke_size) {
@@ -2017,6 +2064,143 @@ namespace Engine {
 		}
 		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
 		return label_renderer.stroke_color;
+	}
+
+	void log_label_hidden_info(const Handle& e) {
+		assert_handle(e);
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
+			return;
+		}
+		update_label_renderer(e);
+		resolve_transform(e);
+		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
+		for (int i = 0; i < label_renderer.u32_text.size(); i++) {
+			const auto& u32 = label_renderer.u32_text[i];
+			int rect_index = label_renderer.u32_to_rect_index[i];
+			if (rect_index < 0)
+				continue;
+			const auto& rect = label_renderer.render_char_rects[rect_index];
+			Log::info("Char information", (char)u32, rect.first, rect.second);
+		}
+	}
+
+	int find_label_character_index(
+		const Handle& e, const glm::vec2& world_position, bool using_nearest_offset, float fallback_max_nearest_distance
+	) {
+		assert_handle(e);
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
+			return -1;
+		}
+		if (is_dirty(e, DIRTY_RENDERER)) {
+			update_label_renderer(e);
+			set_dirty(e, false, DIRTY_RENDERER);
+		}
+		if (has_node_ancestor_dirty(e, DIRTY_TRANSFORM | DIRTY_RELATIVE_SIZE)) {
+			resolve_transform(e);
+		}
+		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
+		glm::vec2 local_position = to_my_position_space(e, world_position);
+		int u32_char_text_index = -1;
+		for (int i = 0; i < label_renderer.render_char_rects.size(); i++) {
+			const auto& rect = label_renderer.render_char_rects[i];
+			if (Math::point_in_aabb(rect.first, rect.second, local_position)) {
+				u32_char_text_index = label_renderer.find_u32_index_by_rect_index(i);
+				break;
+			}
+		}
+		if (u32_char_text_index < 0 && fallback_max_nearest_distance > 0.f) {
+			float nearest_distance = ::Const::MAX_FLOAT;
+			for (int i = 0; i < label_renderer.render_char_rects.size(); i++) {
+				int u32_index = label_renderer.find_u32_index_by_rect_index(i);
+				if (u32_index < 0) {
+					continue;
+				}
+				const auto& rect = label_renderer.render_char_rects[i];
+				glm::vec2 origin = (rect.first + rect.second) * 0.5f;
+				float distance = glm::distance(origin, local_position);
+				if (distance > fallback_max_nearest_distance)
+					continue;
+				if (distance < nearest_distance) {
+					u32_char_text_index = u32_index;
+					nearest_distance = distance;
+				}
+			}
+		}
+		if (u32_char_text_index >= 0) {
+			int char_index = label_renderer.find_utf8_index_by_u32_index(u32_char_text_index);
+			if (!using_nearest_offset) {
+				return char_index;
+			}
+			int rect_index = label_renderer.find_rect_index_by_u32_index(u32_char_text_index);
+			const auto& char_rect = label_renderer.render_char_rects[rect_index];
+			float distance_to_min = std::abs(local_position.x - char_rect.first.x);
+			float distance_to_max = std::abs(local_position.x - char_rect.second.x);
+			if (distance_to_min < distance_to_max) {
+				return char_index;
+			}
+			int u32_nearest_index = u32_char_text_index + 1;
+			while (u32_nearest_index < label_renderer.u32_to_rect_index.size() &&
+				   label_renderer.u32_to_rect_index[u32_nearest_index] == -1) {
+				u32_nearest_index++;
+			}
+			u32_nearest_index = std::min(u32_nearest_index, (int)label_renderer.u32_to_rect_index.size() - 1);
+			int nearest_char_index = label_renderer.find_utf8_index_by_u32_index(u32_nearest_index);
+			return nearest_char_index;
+		}
+		return u32_char_text_index;
+	}
+
+	glm::vec2 get_label_character_world_position(const Handle& e, int char_index, const glm::vec2& fallback) {
+		assert_handle(e);
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
+			return fallback;
+		}
+		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
+		int rect_index = label_renderer.find_rect_index_by_char_index(char_index);
+		if (rect_index < 0) {
+			return fallback;
+		}
+		const auto& rect = label_renderer.render_char_rects[rect_index];
+		return to_world_position_space(e, rect.first);
+	}
+
+	std::vector<Geometry::Common_Render_Rect> find_label_rects_by_char_index_range(
+		const Handle& e, int start_char_index, int end_char_index
+	) {
+		assert_handle(e);
+		if (!registry.has_all<Label_Renderer_Information, World_Transform_2D>(e.id())) {
+			return {};
+		}
+		const auto& [label_renderer, transform] = registry.read<Label_Renderer_Information, World_Transform_2D>(e.id());
+		auto char_rects = label_renderer.find_rects_char_by_range(start_char_index, end_char_index);
+		std::vector<Geometry::Common_Render_Rect> common_rects{};
+		for (const auto& char_rect : char_rects) {
+			glm::vec2 min = char_rect.first;
+			glm::vec2 max = char_rect.second;
+			float width = max.x - min.x;
+			float height = max.y - min.y;
+			glm::vec2 world_position = to_world_position_space(e, min);
+			common_rects.push_back({width, height, world_position, transform.scale, {0.f, 0.f}, transform.rotation});
+		}
+		return common_rects;
+	}
+
+	float get_label_base_line_vertical_offset(const Handle& e) {
+		assert_handle(e);
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
+			return 0.f;
+		}
+		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
+		return label_renderer.get_base_line_vertical_offset();
+	}
+
+	float get_label_line_height(const Handle& e) {
+		assert_handle(e);
+		if (!registry.has<Label_Renderer_Information>(e.id())) {
+			return 0.f;
+		}
+		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
+		return label_renderer.get_line_height();
 	}
 
 	void set_scroll_enabled(const Handle& e, bool enabled) {

@@ -166,6 +166,14 @@ namespace Test {
 	// [Claude 2026-11-18] Focus / keyboard / char input checks (tests/test_key_input.cpp), job "repro-key".
 	void repro_key_input_checks();
 
+	// [Claude 2026-11-19] Engine::find_label_character_index checks (tests/test_char_detect.cpp), job
+	// "repro-char-detect".
+	void repro_char_detect_checks();
+
+	// [Claude 2026-11-20] idle-scene dirty-flag settle checks (tests/test_dirty_settle.cpp), job
+	// "repro-dirty".
+	void repro_dirty_settle_checks();
+
 	/**
 	 * @Note: call once per frame before Engine::process_frame.
 	 */

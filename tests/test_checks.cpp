@@ -617,7 +617,7 @@ namespace Test {
 						text += std::to_string(c.id()) + " ";
 					return text + "]";
 				};
-				for (const auto& renderer_handle : get_renderer_handles(Handle(e, 0))) {
+				for (const auto& renderer_handle : get_current_renderer_handles(Handle(e, 0))) {
 					if (!is_draw_handle_alive(renderer_handle))
 						continue;
 					// modify_ is the only accessor; reading here only re-marks the draw for upload.
@@ -720,7 +720,7 @@ namespace Test {
 					continue;
 				}
 			}
-			for (const auto& renderer_handle : get_renderer_handles(Handle(e, 0))) {
+			for (const auto& renderer_handle : get_current_renderer_handles(Handle(e, 0))) {
 				if (!is_draw_handle_alive(renderer_handle))
 					continue;
 				const auto& draw_attributes = Vulkan::modify_draw_attributes(renderer_handle);

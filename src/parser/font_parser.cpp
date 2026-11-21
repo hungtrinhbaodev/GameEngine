@@ -139,6 +139,14 @@ namespace Parser {
 		return supported_languages;
 	}
 
+	void update_vertical_caret_offset(Font& font) {
+		float vertical_offset = 0;
+		for (const auto& rect : font.rects) {
+			vertical_offset += rect.offset_y;
+		}
+		font.caret_vertical_offset = vertical_offset / std::max((int)font.rects.size(), 1);
+	}
+
 	std::u32string find_font_supported_chars(const std::set<FONT_LANGUAGE>& supported_language) {
 		std::u32string patterns = U"";
 		std::set<char32_t> appeared;
@@ -276,6 +284,7 @@ namespace Parser {
 		void* dst = font.atlas.data();
 		void* src = bytes.data() + offset;
 		memcpy(dst, src, atlas_size);
+		update_vertical_caret_offset(font);
 		Profiler::end_scope(SCOPE_LOAD_FONT);
 		return font;
 	}
@@ -468,6 +477,7 @@ namespace Parser {
 			rect.bounding_width = advance_width * scale;
 			font.rects.push_back(rect);
 		}
+		update_vertical_caret_offset(font);
 		Font_SFD_Meta_Data_Cache meta_data = get_meta_data_from(file_path);
 		auto meta_data_path = get_meta_data_path_from(file_path);
 		std::vector<char> meta_data_bytes(sizeof(Font_SFD_Meta_Data_Cache));

@@ -34,14 +34,20 @@ namespace Vulkan {
 
 		void break_lines(std::u32string_view text, std::vector<std::u32string>& lines);
 
-		glm::vec2 get_renderer_text_size(
-			std::u32string_view text, const std::string& font_path, int font_size, float stroke_size
-		);
+		uint32_t request_font_id(const std::string& font_path);
+
+		glm::vec2 get_renderer_text_size(std::u32string_view text, uint32_t font_id, int font_size, float stroke_size);
 
 		glm::vec2 get_text_size(std::u32string_view text, const Font& font, int font_size, float storke_size);
 
-		std::vector<glm::vec2> get_char_position_at(
-			std::u32string_view line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size
+		std::vector<glm::vec2> get_char_renderer_positions_at(
+			std::u32string_view line, glm::vec2 start_line_position, uint32_t font_id, int font_size, float stroke_size,
+			bool use_char_offset = true
+		);
+
+		std::vector<glm::vec2> get_char_positions_at(
+			std::u32string_view line, glm::vec2 start_line_position, const Font& font, int font_size, float stroke_size,
+			bool use_char_offset = true
 		);
 
 		void make_lines_render_info(
@@ -54,6 +60,17 @@ namespace Vulkan {
 			const std::string& font_path, std::u32string_view text, int align, int font_size, float stroke_size,
 			const glm::vec2& anchor
 		);
+
+		Font_Helper gen_text_info_from(
+			uint32_t font_id, std::u32string_view text, int align, int font_size, float stroke_size,
+			const glm::vec2& anchor
+		);
+
+		glm::vec2 get_char_render_bounding_box(char32_t value, uint32_t font_id, int font_size, float stroke_size);
+
+		float get_base_line_vertical_renderer_offset(uint32_t font_id, int font_size, int stroke_size);
+
+		float get_renderer_line_height(uint32_t font_id, int font_size, int stroke_size);
 
 	} // namespace Draw_Font_2D
 

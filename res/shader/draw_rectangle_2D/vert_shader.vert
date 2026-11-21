@@ -60,7 +60,8 @@ vec2 flipped_position(vec2 norm_position) {
 
 vec2 get_translate_anchor(Instance_Data data, vec2 origin_anchor) {
     vec2 translate_anchor = (origin_anchor - data.anchor) * data.size;
-    vec2 rectangle_position = data.translation + rotate(data.rotation, translate_anchor);
+    vec2 snapped_translation = round(data.translation);
+    vec2 rectangle_position = snapped_translation + rotate(data.rotation, translate_anchor);
     return rectangle_position;
 }
 

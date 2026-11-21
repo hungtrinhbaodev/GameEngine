@@ -56,6 +56,7 @@ namespace Parser {
 		float font_desent = 0.f;
 		float max_stroke_size = 0.f;
 		float sfd_padding = 0.f;
+		float caret_vertical_offset = 0.f;
 		inline friend std::ostream& operator<<(std::ostream& os, const Font& font) {
 			os << "{Font: start_char: " << (int)font.start_char << ", max_char_height: " << font.max_char_height
 			   << ", size_atlas: " << font.size_atlas << ", min_font_size: " << font.min_font_size

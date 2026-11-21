@@ -131,7 +131,7 @@ namespace Engine {
 
 	bool is_visible(const Handle& e);
 
-	void set_z_order(const Handle& e, uint32_t z_order);
+	void set_z_order(const Handle& e, int z_order);
 
 	uint32_t get_z_order(const Handle& e);
 
@@ -175,6 +175,12 @@ namespace Engine {
 
 	void set_content_size(const Handle& e, const glm::vec2& size);
 
+	/**
+	 * @Note: if your node in some mode that depend on renderer
+	 * config like label or image, when you want to get size don't
+	 * use your size that set to entity but call this function to
+	 * it can recompute all and bring you the final size.
+	 */
 	glm::vec2 get_content_size(const Handle& e);
 
 	glm::vec2 get_inner_renderer_size(const Handle& e);
@@ -194,8 +200,22 @@ namespace Engine {
 	glm::vec2 get_world_position(const Handle& e);
 
 	glm::vec2 to_my_position_space(
-		const Handle& e, const glm::vec2& world_position, const glm::vec2& fallback_position = {0.f, 0.f}
+		const Handle& e, const glm::vec2& world_position, const glm::vec2& fallback = {0.f, 0.f}
 	);
+
+	glm::vec2 to_world_position_space(
+		const Handle& e, const glm::vec2& local_position, const glm::vec2& fallback = {0.f, 0.f}
+	);
+
+	glm::vec2 to_my_scale_space(const Handle& e, const glm::vec2& world_scale, const glm::vec2& fallback = {1.f, 1.f});
+
+	glm::vec2 to_world_scale_space(
+		const Handle& e, const glm::vec2& local_scale, const glm::vec2& fallback = {1.f, 1.f}
+	);
+
+	float to_my_rotation_space(const Handle& e, float world_rotation, float fallback = 0.f);
+
+	float to_world_scale_space(const Handle& e, float local_rotation, float fallback = 0.f);
 
 	std::array<glm::vec2, 4> get_world_rect(const Handle& e);
 
@@ -249,6 +269,8 @@ namespace Engine {
 
 	std::string get_label_string(const Handle& e);
 
+	std::u32string get_label_u32_string(const Handle& e);
+
 	void set_label_stroke_size(const Handle& e, float stroke_size);
 
 	float get_label_stroke_size(const Handle& e);
@@ -256,6 +278,25 @@ namespace Engine {
 	void set_label_stroke_color(const Handle& e, const glm::vec3& color);
 
 	glm::vec3 get_label_stroke_color(const Handle& e);
+
+	void log_label_hidden_info(const Handle& e);
+
+	int find_label_character_index(
+		const Handle& e, const glm::vec2& world_position, bool using_nearest_offset = false,
+		float fallback_max_nearest_distance = 0.f
+	);
+
+	glm::vec2 get_label_character_world_position(
+		const Handle& e, int char_index, const glm::vec2& fallback = {0.f, 0.f}
+	);
+
+	std::vector<Geometry::Common_Render_Rect> find_label_rects_by_char_index_range(
+		const Handle& e, int start_char_index, int end_char_index
+	);
+
+	float get_label_base_line_vertical_offset(const Handle& e);
+
+	float get_label_line_height(const Handle& e);
 
 	void set_scroll_enabled(const Handle& e, bool enabled);
 

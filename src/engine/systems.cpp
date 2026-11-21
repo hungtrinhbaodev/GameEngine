@@ -12,7 +12,7 @@
 
 namespace Engine {
 
-	std::vector<Handle> get_renderer_handles(const Handle& e) {
+	std::vector<Handle> get_current_renderer_handles(const Handle& e) {
 		Registry& registry = get_registry();
 		if (!registry.has_all<Description, Renderer_Handles>(e.id())) {
 			return {};
@@ -42,6 +42,38 @@ namespace Engine {
 				return {};
 			}
 		}
+	}
+
+	std::vector<Handle> get_all_renderer_handles(const Handle& e) {
+		Registry& registry = get_registry();
+		if (!registry.has_all<Description, Renderer_Handles>(e.id())) {
+			return {};
+		}
+		const auto& [description] = registry.read<Description>(e.id());
+		const auto& [handles] = registry.read<Renderer_Handles>(e.id());
+		std::vector<Handle> all_renderer{};
+		switch (description.value) {
+			case DESCRIPTION_TYPE::IMAGE_2D: {
+				const auto& [nine_scale_handles] = registry.read<Nine_Scale_Renderer_Handles>(e.id());
+				all_renderer = nine_scale_handles.value;
+				if (handles.value.size() > 0) {
+					all_renderer.push_back(handles.value[0]);
+				}
+				break;
+			}
+			case DESCRIPTION_TYPE::INNER_CONTAINER:
+			case DESCRIPTION_TYPE::SCROLL_LAYOUT:
+			case DESCRIPTION_TYPE::LAYOUT_2D:
+			case DESCRIPTION_TYPE::LABEL_2D: {
+				if (handles.value.size() > 0) {
+					all_renderer.push_back(handles.value[0]);
+				}
+			}
+			default: {
+				break;
+			}
+		}
+		return all_renderer;
 	}
 
 	/**
@@ -201,7 +233,7 @@ namespace Engine {
 		}
 		const auto& [clipping_ancestors] = registry.read<Clipping_Ancestor_Information>(e.id());
 		CLIPPING_STATE clipping_state = get_clipping_state_by_ancestors(e);
-		auto renderers = get_renderer_handles(e);
+		auto renderers = get_current_renderer_handles(e);
 		switch (clipping_state) {
 			case CLIPPING_STATE::CLIPPING_FULL_IN: {
 				auto [number_valid_handle, clipping_handle_ancestors] =
@@ -298,10 +330,9 @@ namespace Engine {
 
 	void update_label_renderer(const Handle& e) {
 		Registry& registry = get_registry();
-		auto [c_handle, c_size, label_renderer] =
-			registry.get<Renderer_Handles, Size, Label_Renderer_Information>(e.id());
+		auto [c_handle, label_renderer, transform, c_inner_size] =
+			registry.get<Renderer_Handles, Label_Renderer_Information, Transform_2D, Inner_Renderer_Size>(e.id());
 		auto& handles = c_handle.value;
-		set_dirty(e, true, DIRTY_TRANSFORM);
 		if (handles.size() <= 0) {
 			Vulkan::Label_2D_Description description;
 			description.is_visible = false;
@@ -310,20 +341,18 @@ namespace Engine {
 		}
 		auto& label = Vulkan::modify_label(handles[0]);
 		std::string font_path = Utils::get_full_font_path(label_renderer.font_path);
+		label_renderer.font_id = Vulkan::Draw_Font_2D::request_font_id(font_path);
 		label.set_font_path(font_path);
 		label.set_font_size(label_renderer.font_size);
 		label.set_stroke_color(label_renderer.stroke_color);
 		label.set_stroke_size(label_renderer.stroke_size);
+		label.set_align((int)label_renderer.horizontal_align);
 		if (label_renderer.fit_mode == LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO) {
-			label_renderer.render_text = Helper::utf8_to_u32_nfc(label_renderer.text);
+			label_renderer.render_text = label_renderer.u32_text;
 			label.set_text(label_renderer.render_text);
-			glm::vec2 size = {label.get_width(), label.get_height()};
-			set_dirty(e, c_size.value != size, DIRTY_RELATIVE_SIZE);
-			c_size.value = size;
-		} else {
-			label.set_align((int)label_renderer.horizontal_align);
-			set_dirty(e, true, DIRTY_RELATIVE_SIZE);
+			c_inner_size.value = {label.get_width(), label.get_height()};
 		}
+		set_dirty(e, true, DIRTY_TRANSFORM | DIRTY_RELATIVE_SIZE);
 	}
 
 	void update_scroll_layout_renderer(const Handle& e) {
@@ -359,7 +388,7 @@ namespace Engine {
 				break;
 			}
 		}
-		auto renderer_handles = get_renderer_handles(e);
+		auto renderer_handles = get_current_renderer_handles(e);
 		const auto& [draw_order] = registry.read<Draw_Order>(e.id());
 		for (const auto& handle : renderer_handles) {
 			auto& draw_attributes = Vulkan::modify_draw_attributes(handle);
@@ -521,11 +550,10 @@ namespace Engine {
 
 	void update_label_renderer_transform(const Handle& e_child) {
 		Registry& registry = get_registry();
-		const auto& [transform, c_handles] = registry.read<World_Transform_2D, Renderer_Handles>(e_child.id());
-		auto [label_renderer, clipping_ancestors, c_size, c_inner_size] =
-			registry.get<Label_Renderer_Information, Clipping_Ancestor_Information, Size, Inner_Renderer_Size>(
-				e_child.id()
-			);
+		const auto& [transform, c_handles, c_size] =
+			registry.read<World_Transform_2D, Renderer_Handles, Size>(e_child.id());
+		auto [label_renderer, clipping_ancestors] =
+			registry.get<Label_Renderer_Information, Clipping_Ancestor_Information>(e_child.id());
 		auto update_label_transform = [](Vulkan::Font_2D& label, const World_Transform_2D& transform) {
 			label.set_anchor(transform.anchor);
 			label.set_color(transform.color);
@@ -538,7 +566,7 @@ namespace Engine {
 		const auto& handles = c_handles.value;
 		auto& label = Vulkan::modify_label(handles[0]);
 		if (label_renderer.fit_mode != LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO) {
-			label_renderer.copy_attribute_to_inner_label_transform(transform);
+			label_renderer.copy_attribute_to_inner_label_transform(transform, c_size.value);
 			auto inner_transform = transform.transform(label_renderer.inner_label_transform);
 			// [Claude, 2026-11-11] draw the wrapped / ellipsis text, not the raw text.
 			label.set_text(label_renderer.render_text);
@@ -573,7 +601,7 @@ namespace Engine {
 			return;
 		}
 		const auto& [description] = registry.read<Description>(e_child.id());
-		auto renderer_handles = get_renderer_handles(e_child);
+		auto renderer_handles = get_current_renderer_handles(e_child);
 		if (renderer_handles.size() <= 0) {
 			return;
 		}
@@ -654,10 +682,10 @@ namespace Engine {
 		Registry& registry = get_registry();
 		auto [label_renderer, c_size, c_inner_size] =
 			registry.get<Label_Renderer_Information, Size, Inner_Renderer_Size>(e.id());
+		const auto& [c_handles, transform] = registry.read<Renderer_Handles, Transform_2D>(e.id());
 		if (label_renderer.fit_mode != LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO) {
-			const auto& [c_handles, transform] = registry.read<Renderer_Handles, Transform_2D>(e.id());
 			const auto& handles = c_handles.value;
-			label_renderer.update_inner_text_by(c_size.value, transform.anchor);
+			label_renderer.update_inner_text_by(c_size.value);
 			auto& label = Vulkan::modify_label(handles[0]);
 			label.set_text(label_renderer.render_text);
 			switch (label_renderer.fit_mode) {
@@ -672,7 +700,10 @@ namespace Engine {
 					break;
 				}
 			}
+		} else {
+			c_size.value = c_inner_size.value;
 		}
+		label_renderer.update_renderer_char_rects(transform.anchor, c_size.value);
 	}
 
 	void update_inner_renderer_image_change_size(const Handle& e) {
@@ -877,7 +908,7 @@ namespace Engine {
 			const auto& e = dirty_entities[i];
 			auto [draw_order] = registry.get<Draw_Order>(e.id());
 			draw_order.value = i;
-			auto renderer_handles = get_renderer_handles(e);
+			auto renderer_handles = get_current_renderer_handles(e);
 			for (auto& handle : renderer_handles) {
 				auto& draw_attributes = Vulkan::modify_draw_attributes(handle);
 				draw_attributes.set_draw_index(draw_order.value);
@@ -1008,13 +1039,25 @@ namespace Engine {
 	void handle_removed_children(const std::vector<Handle>& removed_children) {
 		Registry& registry = get_registry();
 		for (const Handle& e : removed_children) {
-			auto renderer_handles = get_renderer_handles(e);
+			auto renderer_handles = get_current_renderer_handles(e);
 			for (const auto& renderer_handle : renderer_handles) {
 				auto& draw_attributes = Vulkan::modify_draw_attributes(renderer_handle);
 				draw_attributes.set_visible(false);
 			}
-			auto [tree_info] = registry.get<Tree_Information>(e.id());
+			auto [tree_info, clipping_ancestors] =
+				registry.get<Tree_Information, Clipping_Ancestor_Information>(e.id());
 			tree_info.valid_child = false;
+			clipping_ancestors.clean_up();
+			auto renderers = get_all_renderer_handles(e);
+			auto [number_valid_handle, clipping_handle_ancestors] =
+				validate_clipping_ancestors(clipping_ancestors.get_clipping_ancestors_info());
+			for (const auto& handle : renderers) {
+				if (handle.is_invalid())
+					continue;
+				auto& draw_attributes = Vulkan::modify_draw_attributes(handle);
+				draw_attributes.set_number_clipping(number_valid_handle);
+				draw_attributes.set_clipping_ancestors(clipping_handle_ancestors);
+			}
 		}
 	}
 

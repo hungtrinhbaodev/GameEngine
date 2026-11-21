@@ -28,6 +28,15 @@ namespace Geometry {
 		inline bool operator!=(const Texture_Rect_2D& other) { return !(*this == other); }
 	};
 
+	struct Common_Render_Rect {
+		float width = 0.f;
+		float height = 0.f;
+		glm::vec2 position{0.f};
+		glm::vec2 scale{1.f};
+		glm::vec2 anchor{0.f};
+		float rotation = 0.f;
+	};
+
 	struct Vertex_2D {
 		glm::vec2 position{0.f, 0.f};
 		inline friend std::ostream& operator<<(std::ostream& os, const Vertex_2D& vertex) {

@@ -69,6 +69,16 @@ int main(int argc, char** argv) {
 		Engine::process_frame(0.f);
 		Test::handle_key(GLFW_KEY_J, 0);
 		auto_quit = true;
+	} else if (auto_job == "repro-char-detect") { // [Claude 2026-11-19] tests/test_char_detect.cpp
+		Test::clear_scene();
+		Engine::process_frame(0.f);
+		Test::repro_char_detect_checks();
+		auto_quit = true;
+	} else if (auto_job == "repro-dirty") { // [Claude 2026-11-20] tests/test_dirty_settle.cpp
+		Test::clear_scene();
+		Engine::process_frame(0.f);
+		Test::repro_dirty_settle_checks();
+		auto_quit = true;
 	}
 	bool driving = auto_job == "drive" || auto_job == "perf" || auto_job == "label-view" || auto_job == "label-wrap" ||
 				   auto_job == "label-grow" ||

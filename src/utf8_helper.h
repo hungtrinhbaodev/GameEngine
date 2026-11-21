@@ -306,10 +306,10 @@ namespace Helper {
 	inline char32_t compose_vietnamese(char32_t base, char32_t mark) {
 		const auto* begin = std::begin(Detail::VIETNAMESE_COMPOSITIONS);
 		const auto* end = std::end(Detail::VIETNAMESE_COMPOSITIONS);
-		const auto* it = std::lower_bound(
-			begin, end, Detail::Composition{base, mark, 0},
-			[](const auto& a, const auto& b) { return a.base != b.base ? a.base < b.base : a.mark < b.mark; }
-		);
+		const auto* it =
+			std::lower_bound(begin, end, Detail::Composition{base, mark, 0}, [](const auto& a, const auto& b) {
+				return a.base != b.base ? a.base < b.base : a.mark < b.mark;
+			});
 		if (it == end || it->base != base || it->mark != mark) {
 			return 0;
 		}
@@ -380,6 +380,150 @@ namespace Helper {
 			}
 		}
 		return count;
+	}
+
+	/**
+	 * @Note: decode UTF-8 to u32, composing Vietnamese marks into precomposed letters (same as
+	 * utf8_to_u32_nfc), but also returning, for every output u32 character, the byte offset and byte
+	 * length of the span in `s` it came from - so a caller holding only an index into the composed
+	 * output (e.g. from a click / caret) can still recover the exact raw UTF-8 bytes that character
+	 * came from, even though composing merges multiple source code points and is not otherwise
+	 * invertible. `byte_start` / `byte_len` are cleared and sized to match the returned string exactly.
+	 */
+	inline std::u32string utf8_to_u32_nfc_mapped(
+		std::string_view s, std::vector<size_t>& byte_start, std::vector<size_t>& byte_len
+	) {
+		static const char32_t MIN_FOR_LEN[5] = {0, 0, 0x80, 0x800, 0x10000};
+
+		// pass 1: decode, keeping each decoded code point's own byte span.
+		std::u32string decoded;
+		std::vector<size_t> decoded_start, decoded_len;
+		decoded.reserve(s.size());
+		decoded_start.reserve(s.size());
+		decoded_len.reserve(s.size());
+		{
+			size_t i = 0;
+			while (i < s.size()) {
+				size_t start = i;
+				unsigned char c = (unsigned char)s[i];
+				char32_t cp = 0;
+				int len = 0;
+				if (c < 0x80) {
+					cp = c;
+					len = 1;
+				} else if ((c >> 5) == 0x6) {
+					cp = c & 0x1F;
+					len = 2;
+				} else if ((c >> 4) == 0xE) {
+					cp = c & 0x0F;
+					len = 3;
+				} else if ((c >> 3) == 0x1E) {
+					cp = c & 0x07;
+					len = 4;
+				} else {
+					decoded.push_back(REPLACEMENT_CHAR);
+					decoded_start.push_back(start);
+					decoded_len.push_back(1);
+					i++;
+					continue;
+				}
+				if (i + len > s.size()) {
+					decoded.push_back(REPLACEMENT_CHAR);
+					decoded_start.push_back(start);
+					decoded_len.push_back(s.size() - i);
+					break;
+				}
+				bool ok = true;
+				for (int k = 1; k < len; k++) {
+					unsigned char cc = (unsigned char)s[i + k];
+					if (!is_utf8_continuation_byte(cc)) {
+						ok = false;
+						break;
+					}
+					cp = (cp << 6) | (cc & 0x3F);
+				}
+				if (!ok || cp < MIN_FOR_LEN[len] || cp > MAX_CODE_POINT || is_surrogate(cp)) {
+					decoded.push_back(REPLACEMENT_CHAR);
+					decoded_start.push_back(start);
+					decoded_len.push_back(1);
+					i++;
+					continue;
+				}
+				decoded.push_back(cp);
+				decoded_start.push_back(start);
+				decoded_len.push_back(len);
+				i += len;
+			}
+		}
+
+		// pass 2: compose Vietnamese marks (same clustering as nfc_vietnamese), carrying spans through.
+		std::u32string out;
+		byte_start.clear();
+		byte_len.clear();
+		out.reserve(decoded.size());
+		byte_start.reserve(decoded.size());
+		byte_len.reserve(decoded.size());
+
+		std::vector<size_t> order;
+		std::u32string rest;
+		std::vector<size_t> rest_start, rest_len;
+		size_t i = 0;
+		while (i < decoded.size()) {
+			size_t starter_start = decoded_start[i];
+			size_t starter_len = decoded_len[i];
+			char32_t starter = decoded[i++];
+
+			size_t marks_begin = i;
+			while (i < decoded.size() && Detail::vietnamese_mark_class(decoded[i]) > 0) {
+				i++;
+			}
+			size_t marks_end = i; // [marks_begin, marks_end) in `decoded`, still in source order.
+
+			if (marks_begin == marks_end) {
+				out.push_back(starter);
+				byte_start.push_back(starter_start);
+				byte_len.push_back(starter_len);
+				continue;
+			}
+
+			order.resize(marks_end - marks_begin);
+			for (size_t k = 0; k < order.size(); k++) {
+				order[k] = marks_begin + k;
+			}
+			std::stable_sort(order.begin(), order.end(), [&decoded](size_t a, size_t b) {
+				return Detail::vietnamese_mark_class(decoded[a]) < Detail::vietnamese_mark_class(decoded[b]);
+			});
+
+			rest.clear();
+			rest_start.clear();
+			rest_len.clear();
+			size_t merged_end = starter_start + starter_len;
+			int last_blocking_class = 0;
+			for (size_t idx : order) {
+				char32_t mark = decoded[idx];
+				int mark_class = Detail::vietnamese_mark_class(mark);
+				char32_t composed = last_blocking_class < mark_class ? compose_vietnamese(starter, mark) : 0;
+				if (composed != 0) {
+					starter = composed;
+					merged_end = std::max(merged_end, decoded_start[idx] + decoded_len[idx]);
+				} else {
+					rest.push_back(mark);
+					rest_start.push_back(decoded_start[idx]);
+					rest_len.push_back(decoded_len[idx]);
+					last_blocking_class = mark_class;
+				}
+			}
+
+			out.push_back(starter);
+			byte_start.push_back(starter_start);
+			byte_len.push_back(merged_end - starter_start);
+			out += rest;
+			for (size_t k = 0; k < rest.size(); k++) {
+				byte_start.push_back(rest_start[k]);
+				byte_len.push_back(rest_len[k]);
+			}
+		}
+		return out;
 	}
 
 } // namespace Helper

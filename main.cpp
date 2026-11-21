@@ -19,6 +19,7 @@
 #include <parser/font_parser.h>
 #include <profiler.h>
 #include <test_ui.h>
+#include <utf8_helper.h>
 #include <vulkan/vk_draw.h>
 
 #define VK_A 0x41
@@ -510,8 +511,13 @@ std::vector<Handle> layouts;
 std::vector<Handle> nodes;
 std::vector<Handle> images;
 Handle label;
+Handle label_layout;
+Handle caret;
 std::vector<Handle> engine_labels;
 glm::vec2 start_move_position = {0.f, 0.f};
+std::vector<Handle> background_label_inner_chars_chosen;
+bool is_log_hidden = false;
+int start_char_chosen_index = -1;
 
 void create_layout() {
 	auto screen_size = Engine::get_window_size();
@@ -579,33 +585,146 @@ void create_layout() {
 	// Engine::set_image_rect(image, {0.3f, 0.2f, 0.7f, 0.8f});
 	images.push_back(image);
 
+	label_layout = Engine::create_layout();
+	Engine::set_position(label_layout, {600.f, 320.f});
+	Engine::set_layout_background_enabled(label_layout, true);
+	Engine::set_layout_background_color(label_layout, random_color());
+	Engine::set_opacity(label_layout, 0.65f);
+	Engine::set_touch_enabled(label_layout, true);
+	Engine::set_scale(label_layout, {1.25f, 1.25f});
+	Engine::set_z_order(label_layout, 1);
+	// Engine::set_rotation(label_layout, 20.f);
+	Engine::set_touch_caller(
+		label_layout, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position, int, int) {
+			switch (touch_state) {
+				case Engine::TOUCH_STATE::TOUCH_BEGAN: {
+					start_move_position = world_position;
+					break;
+				}
+				case Engine::TOUCH_STATE::TOUCH_MOVE: {
+					glm::vec2 delta_position = world_position - start_move_position;
+					auto position = Engine::get_position(e);
+					Engine::set_position(e, position + delta_position);
+					start_move_position = world_position;
+					break;
+				}
+				default: {
+					start_move_position = {0.f, 0.f};
+					break;
+				}
+			}
+		}
+	);
+	layouts.push_back(label_layout);
+
+	caret = Engine::create_layout();
+	Engine::set_layout_background_enabled(caret, true);
+	Engine::set_layout_border_radius(caret, 0.001f);
+	Engine::set_layout_background_color(caret, {0.f, 0.f, 0.f});
+
 	label = Engine::create_label();
 	Engine::set_label_font_path(label, "");
-	Engine::set_label_font_size(label, 16);
-	Engine::set_label_string(label, "Game\n Engine!");
-	Engine::set_color(label, random_color());
-	Engine::set_label_stroke_size(label, 2.f);
-	Engine::set_label_stroke_color(label, random_color());
-	// Engine::set_position(label, {30.f, 50.f});
-	Engine::set_anchor(label, {0.f, 0.f});
+	Engine::set_label_font_size(label, 22);
+	// written as explicit \u escapes (not literal UTF-8 bytes in this file) so the exact Vietnamese code
+	// points survive regardless of editor/tool-call encoding - see tests/test_char_detect.cpp's
+	// "vietnamese" group, which hit exactly this problem once already.
+	Engine::set_label_string(
+		label, Helper::u32_to_utf8(
+				   U"Tôi là Hưng và đây là Game Engine\n của tôi, "
+				   U"cùng làm nhé!"
+			   )
+	);
+	Engine::set_color(label, {1.f, 1.f, 1.f});
+	// Engine::set_label_stroke_size(label, 0.5f);
+	// Engine::set_label_stroke_color(label, {0.f, 0.f, 0.f});
+	Engine::set_label_horizontal_align(label, Engine::LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_LEFT);
+	Engine::set_label_render_fit_mode(label, Engine::LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL);
+	Engine::set_content_size(label, {180.f, 0.f});
 	Engine::set_touch_enabled(label, true);
-	Engine::set_z_order(label, 1);
-	Engine::set_scale(label, {1.25f, 1.25f});
+	Engine::set_anchor(label, {0.5f, 0.5f});
+	Engine::set_label_padding_horizontal(label, 2.f);
+	Engine::set_label_padding_vertical(label, 5.f);
+	Engine::set_click_caller(label, [](Handle e, glm::vec2 world_position, int, int) {
+		auto texts = Engine::get_label_string(e);
+		auto size = Engine::get_content_size(e);
+		int char_index =
+			Engine::find_label_character_index(e, world_position, true, glm::distance(glm::vec2{0.f}, size * 0.5f));
+		glm::vec2 fallback_position = Engine::to_world_position_space(label_layout, {0.f, 0.f});
+		glm::vec2 char_world_position = Engine::get_label_character_world_position(e, char_index, fallback_position);
+		float base_line_height_offset = Engine::get_label_base_line_vertical_offset(e);
+		char_world_position.y += base_line_height_offset * 0.8f;
+		glm::vec2 local_position = Engine::to_my_position_space(label_layout, char_world_position);
+		local_position = glm::vec2{std::round(local_position.x), std::round(local_position.y)};
+		glm::vec2 caret_size = Engine::get_content_size(caret);
+		local_position.x -= caret_size.x * 0.5f;
+		float line_height = Engine::get_label_line_height(e);
+		Engine::set_content_size(caret, {1.5f, line_height * 0.8f});
+		Engine::set_position(caret, local_position);
+		// Log::info(
+		// 	"What is here do we click it!", char_world_position, local_position, char_index,
+		// 	(char)(char_index >= 0 ? texts[char_index] : U' ')
+		// );
+	});
 	Engine::set_touch_caller(label, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position, int, int) {
+		glm::vec2 label_size = Engine::get_content_size(e);
+		float max_nearest_distance = glm::distance(glm::vec2{0.f}, label_size * 0.5f);
 		switch (touch_state) {
 			case Engine::TOUCH_STATE::TOUCH_BEGAN: {
-				start_move_position = world_position;
+				start_char_chosen_index =
+					Engine::find_label_character_index(e, world_position, false, max_nearest_distance);
 				break;
 			}
 			case Engine::TOUCH_STATE::TOUCH_MOVE: {
-				glm::vec2 delta_position = world_position - start_move_position;
-				auto position = Engine::get_position(e);
-				Engine::set_position(e, position + delta_position);
-				start_move_position = world_position;
+				if (start_char_chosen_index < 0) {
+					break;
+				}
+				int end_char_chosen_index =
+					Engine::find_label_character_index(e, world_position, false, max_nearest_distance);
+				// Log::info("what is my TOUCH_MOVE end char", end_char_chosen_index);
+				if (end_char_chosen_index < 0) {
+					break;
+				}
+				int start = std::min(start_char_chosen_index, end_char_chosen_index);
+				int end = std::max(start_char_chosen_index, end_char_chosen_index);
+				auto char_rects = Engine::find_label_rects_by_char_index_range(e, start, end);
+				while (background_label_inner_chars_chosen.size() < char_rects.size()) {
+					auto layout = Engine::create_layout();
+					Engine::set_layout_background_enabled(layout, true);
+					Engine::set_layout_background_color(layout, {0.f, 0.f, 0.f});
+					Engine::set_opacity(layout, 0.85f);
+					Engine::set_z_order(layout, -1);
+					Engine::add_child(label_layout, layout);
+					background_label_inner_chars_chosen.push_back(layout);
+				}
+				for (int i = 0; i < background_label_inner_chars_chosen.size(); i++) {
+					const auto& layout = background_label_inner_chars_chosen[i];
+					if (i < char_rects.size()) {
+						const auto& char_rect = char_rects[i];
+						Engine::set_visible(layout, true);
+						Engine::set_content_size(layout, {char_rect.width, char_rect.height});
+						Engine::set_position(layout, Engine::to_my_position_space(label_layout, char_rect.position));
+						Engine::set_scale(layout, Engine::to_my_scale_space(label_layout, char_rect.scale));
+						Engine::set_rotation(layout, Engine::to_my_rotation_space(label_layout, char_rect.rotation));
+						Engine::set_anchor(layout, char_rect.anchor);
+					} else {
+						Engine::set_visible(layout, false);
+					}
+				}
+				// Log::info(
+				// 	"what is my TOUCH_MOVE end char", start, end, char_rects.size(),
+				// 	background_label_inner_chars_chosen.size()
+				// );
+				break;
+			}
+			case Engine::TOUCH_STATE::TOUCH_CANCEL:
+			case Engine::TOUCH_STATE::TOUCH_ENDED: {
+				start_char_chosen_index = -1;
+				for (const auto& rect : background_label_inner_chars_chosen) {
+					Engine::set_visible(rect, false);
+				}
 				break;
 			}
 			default: {
-				start_move_position = {0.f, 0.f};
 				break;
 			}
 		}
@@ -629,9 +748,11 @@ void create_layout() {
 	Engine::add_child(layout, layout2);
 	Engine::add_child(Engine::get_root(), node);
 	Engine::add_child(node, layout);
-	Engine::add_child(Engine::get_root(), label);
+	Engine::add_child(label_layout, label);
+	Engine::add_child(label_layout, caret);
 	Engine::add_child(layout2, layout3);
 	Engine::add_child(Engine::get_root(), image);
+	Engine::add_child(Engine::get_root(), label_layout);
 
 	Engine::set_layout_border_color(layout, {0.f, 0.2f, 0.2f});
 	Engine::set_layout_border_width(layout, 3.f);
@@ -650,8 +771,11 @@ void create_layout() {
 	Engine::add_child_to_container(scroll_layout, image_2);
 	// Engine::set_layout_scroll_touch_enabled(scroll_layout, false);
 	// Engine::add_child(Engine::get_root(), image_2);
-
-	Log::info("What is my container size", layout2.id(), layout3.id());
+	auto label_size = Engine::get_content_size(label);
+	Engine::set_content_size(label_layout, label_size);
+	Engine::set_position(label, label_size * Engine::get_anchor(label));
+	Engine::set_content_size(caret, glm::vec2{1.25f, 16.f});
+	Log::info("What is my container size", layout2.id(), layout3.id(), label.id(), Engine::get_content_size(label));
 }
 
 void update_layout(float sign = 1) {
@@ -676,17 +800,12 @@ void update_layout(float sign = 1) {
 	Engine::set_content_size(layouts[0], size);
 	if (label.is_invalid())
 		return;
-	scale = Engine::get_scale(label);
-	if (sign > 0) {
-		scale *= 1.01f;
-	} else {
-		scale /= 1.01f;
-	}
-	rotation = Engine::get_rotation(label);
-	rotation -= sign * 2.f;
-	Engine::set_scale(label, scale);
-	Engine::set_rotation(label, rotation);
-	// Log::info("What is my image size", Engine::get_content_size(images[1]), Engine::get_content_size(layouts[1]));
+	size = Engine::get_content_size(label);
+	size.x += sign * 4;
+	Engine::set_content_size(label, size);
+	size = Engine::get_content_size(label);
+	Engine::set_content_size(label_layout, size);
+	Engine::set_position(label, size * Engine::get_anchor(label));
 }
 
 void remove_layout() {

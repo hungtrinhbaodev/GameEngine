@@ -229,6 +229,11 @@ namespace Vulkan {
 		return {rect.bounding_width + 2 * stroke, line_height + 2 * stroke};
 	}
 
+	float Font::get_line_vertical_offset(int font_size, float stroke_size) const {
+		float stroke = claim_stroke(font_size, stroke_size) * sfd_padding;
+		return stroke + font_desent * 0.85f;
+	}
+
 	glm::vec2 Font::get_char_local_offset(char32_t value, int font_size, float stroke_size) const {
 		int char_index = to_char_index(value);
 		const auto& rect = rects[char_index];

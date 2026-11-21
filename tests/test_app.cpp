@@ -10,6 +10,7 @@
 #include <cmath>
 #include <engine/engine.h>
 #include <engine/touch_handler.h>
+#include <engine/utils.h> // [Claude 2026-11-18] label-show-all: get_full_font_path for the multi-line measure
 #include <glfw/glfw3.h>
 #include <glm/glm.hpp>
 #include <log.h>
@@ -17,9 +18,8 @@
 #include <parser/font_parser.h>
 #include <string>
 #include <test_ui.h>
-#include <utils.h>
-#include <engine/utils.h> // [Claude 2026-11-18] label-show-all: get_full_font_path for the multi-line measure
 #include <utf8_helper.h> // [Claude 2026-11-18] label-show-all check compares NFC code points
+#include <utils.h>
 
 namespace Engine {
 	uint32_t spawn_touch(const glm::vec2& touch_world_position, int button, int mods);
@@ -134,7 +134,7 @@ namespace Test {
 				const auto& [info] = Engine::get_registry().read<Engine::Label_Renderer_Information>(label.id());
 				glm::vec2 inner = info.inner_label_transform.position;
 				glm::vec2 text = Vulkan::Draw_Font_2D::get_renderer_text_size(
-					U"Hi", info.font_path, info.font_size, info.stroke_size // [Claude 2026-11-17] char32_t for Vulkan API
+					U"Hi", info.font_id, info.font_size, info.stroke_size // [Claude 2026-11-17] char32_t for Vulkan API
 				);
 				glm::vec2 want = (glm::vec2{300.f, 120.f} - text) * 0.5f;
 				api_expect(
@@ -356,7 +356,9 @@ namespace Test {
 				Engine::set_anchor(button, {0.5f, 0.5f});
 				Engine::set_position(button, reentry_point);
 				Engine::set_touch_enabled(button, true);
-				Engine::set_click_caller(button, [clicks](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) { (*clicks)++; });
+				Engine::set_click_caller(button, [clicks](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) {
+					(*clicks)++;
+				});
 				Engine::add_child(root, button);
 				Engine::process_frame(0.f);
 				uint32_t id = Engine::spawn_touch(reentry_point, GLFW_MOUSE_BUTTON_LEFT, 0);
@@ -419,7 +421,8 @@ namespace Test {
 					}
 				);
 				Engine::set_touch_caller(
-					cell, [cell_states, claimed, cell](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
+					cell, [cell_states, claimed,
+						   cell](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
 						cell_states->push_back(state);
 						if (state == Engine::TOUCH_STATE::TOUCH_MOVE && !*claimed) {
 							*claimed = true;
@@ -477,7 +480,8 @@ namespace Test {
 				api_expect(
 					"25", nearly_equal(back, {10.f, 20.f}, 0.05f),
 					"to_my_position_space with anchor (0.5, 0.5) still returns the child's position measured "
-					"from the parent's bottom-left (" + vec_text(back) + ")"
+					"from the parent's bottom-left (" +
+						vec_text(back) + ")"
 				);
 				Engine::clean_up(parent);
 				Engine::process_frame(0.f);
@@ -497,7 +501,8 @@ namespace Test {
 				std::string image_path = "res/AddonIcon5.png";
 				glm::vec2 queried = Engine::query_image_size(image_path);
 				api_expect(
-					"17", queried.x > 0.f && queried.y > 0.f, "an existing file returns a real size (" + vec_text(queried) + ")"
+					"17", queried.x > 0.f && queried.y > 0.f,
+					"an existing file returns a real size (" + vec_text(queried) + ")"
 				);
 
 				Handle image = Engine::create_image();
@@ -583,6 +588,40 @@ namespace Test {
 				api_expect("12", false, std::string("threw: ") + exception.what());
 			}
 
+			// ---- 28. [Claude 2026-11-21] get_content_size resolves the real size right after creation, with
+			// zero process_frame calls (the AUTO-fit path for IMAGE_2D and LABEL_2D; regression surface for the
+			// resolve_relative_size / resolve_dirty_renderer rework around DIRTY_RENDERER vs DIRTY_RELATIVE_SIZE).
+			try {
+				std::string path = "res/AddonIcon5.png";
+				glm::vec2 native = Engine::query_image_size(path);
+				Handle image = Engine::create_image();
+				Engine::set_image_path(image, path);
+				Engine::add_child(root, image);
+				glm::vec2 image_size = Engine::get_content_size(image);
+				api_expect(
+					"28", nearly_equal(image_size, native, 1.f),
+					"a fresh AUTO image's content size is the real texture size right after creation, zero frames (" +
+						vec_text(image_size) + " want " + vec_text(native) + ")"
+				);
+				Engine::clean_up(image);
+
+				Handle label = Engine::create_label();
+				Engine::set_label_font_path(label, FONT_PATH);
+				Engine::set_label_font_size(label, 16);
+				Engine::set_label_string(label, "Hi");
+				Engine::add_child(root, label);
+				glm::vec2 label_size = Engine::get_content_size(label);
+				api_expect(
+					"28", label_size.x > 0.f && label_size.y > 0.f,
+					"a fresh AUTO label's content size is non-zero right after creation, zero frames (" +
+						vec_text(label_size) + ")"
+				);
+				Engine::clean_up(label);
+				Engine::process_frame(0.f);
+			} catch (const std::exception& exception) {
+				api_expect("28", false, std::string("threw: ") + exception.what());
+			}
+
 			// ---- 19. find_topmost_node_at: works with no touch listener needed, honours z order.
 			try {
 				Handle a = Engine::create_layout();
@@ -614,15 +653,19 @@ namespace Test {
 				Engine::add_child(a, child);
 				Engine::process_frame(0.f);
 				top = Engine::find_topmost_node_at({850.f, 90.f});
-				api_expect("19", top.id() == child.id(),
-						   "a child over its parent wins (got id " + std::to_string(top.id()) + ", parent " +
-							   std::to_string(a.id()) + ", child " + std::to_string(child.id()) + ")");
+				api_expect(
+					"19", top.id() == child.id(),
+					"a child over its parent wins (got id " + std::to_string(top.id()) + ", parent " +
+						std::to_string(a.id()) + ", child " + std::to_string(child.id()) + ")"
+				);
 				// an invisible node is not hit: the next one below it is.
 				Engine::set_visible(a, false);
 				Engine::process_frame(0.f);
 				top = Engine::find_topmost_node_at({850.f, 90.f});
-				api_expect("19", top.id() == b.id(),
-						   "an invisible node (and its subtree) is skipped (got id " + std::to_string(top.id()) + ")");
+				api_expect(
+					"19", top.id() == b.id(),
+					"an invisible node (and its subtree) is skipped (got id " + std::to_string(top.id()) + ")"
+				);
 				Engine::clean_up(a);
 				Engine::clean_up(b);
 				Engine::process_frame(0.f);
@@ -653,9 +696,11 @@ namespace Test {
 				Engine::process_frame(0.f);
 
 				auto states = std::make_shared<std::vector<Engine::TOUCH_STATE>>();
-				Engine::set_touch_caller(e, [states](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
-					states->push_back(state);
-				});
+				Engine::set_touch_caller(
+					e, [states](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
+						states->push_back(state);
+					}
+				);
 
 				uint32_t id = Engine::spawn_touch({10.f, 10.f}, GLFW_MOUSE_BUTTON_LEFT, 0);
 				Engine::window_unique_touch_id = id;
@@ -694,7 +739,8 @@ namespace Test {
 				Engine::add_child(root, e);
 				Engine::process_frame(0.f);
 
-				// [Claude 2026-11-17] BEGIN GLFW numbers in, engine enums out (glfw_to_mouse_button / glfw_to_key_mods).
+				// [Claude 2026-11-17] BEGIN GLFW numbers in, engine enums out (glfw_to_mouse_button /
+				// glfw_to_key_mods).
 				auto seen_button = std::make_shared<Engine::MOUSE_BUTTON>(Engine::MOUSE_BUTTON_UNKNOWN);
 				auto seen_mods = std::make_shared<int>(-1);
 				Engine::set_touch_caller(
@@ -707,8 +753,9 @@ namespace Test {
 						}
 					}
 				);
-				uint32_t id =
-					Engine::spawn_touch({710.f, 710.f}, GLFW_MOUSE_BUTTON_RIGHT, GLFW_MOD_SHIFT | GLFW_MOD_SUPER | 0x100);
+				uint32_t id = Engine::spawn_touch(
+					{710.f, 710.f}, GLFW_MOUSE_BUTTON_RIGHT, GLFW_MOD_SHIFT | GLFW_MOD_SUPER | 0x100
+				);
 				Engine::process_frame(0.f);
 				api_expect(
 					"22", *seen_button == Engine::MOUSE_BUTTON_RIGHT,
@@ -716,7 +763,8 @@ namespace Test {
 				);
 				api_expect(
 					"22", *seen_mods == (Engine::KEY_MOD_SHIFT | Engine::KEY_MOD_SUPER),
-					"the touch caller receives the modifier flags, unknown bits dropped (" + std::to_string(*seen_mods) + ")"
+					"the touch caller receives the modifier flags, unknown bits dropped (" +
+						std::to_string(*seen_mods) + ")"
 				);
 				// [Claude 2026-11-17] END
 				Engine::release_touch(id, {710.f, 710.f});
@@ -739,15 +787,18 @@ namespace Test {
 					"95 printable ASCII glyphs (" + std::to_string(font.rects.size()) + ")"
 				);
 				api_expect(
-					"font-parser", font.start_char == 32, "start_char is space (" + std::to_string((int)font.start_char) + ")"
+					"font-parser", font.start_char == 32,
+					"start_char is space (" + std::to_string((int)font.start_char) + ")"
 				);
 				api_expect(
-					"font-parser", font.size_atlas > 0 && font.atlas.size() == (size_t)font.size_atlas * font.size_atlas,
+					"font-parser",
+					font.size_atlas > 0 && font.atlas.size() == (size_t)font.size_atlas * font.size_atlas,
 					"atlas buffer matches size_atlas x size_atlas (" + std::to_string(font.atlas.size()) + " vs " +
 						std::to_string(font.size_atlas) + "^2)"
 				);
 				api_expect(
-					"font-parser", font.line_height > 0.f, "line_height is positive (" + std::to_string(font.line_height) + ")"
+					"font-parser", font.line_height > 0.f,
+					"line_height is positive (" + std::to_string(font.line_height) + ")"
 				);
 				bool atlas_has_ink = false;
 				for (uint8_t v : font.atlas) {
@@ -762,7 +813,8 @@ namespace Test {
 				api_expect(
 					"font-parser", a_in_range && font.rects[a_index].bounding_width > 0.f,
 					"'A' has a positive advance width (" +
-						(a_in_range ? std::to_string(font.rects[a_index].bounding_width) : std::string("out of range")) +
+						(a_in_range ? std::to_string(font.rects[a_index].bounding_width)
+									: std::string("out of range")) +
 						")"
 				);
 			} catch (const std::exception& exception) {
@@ -774,7 +826,8 @@ namespace Test {
 			// fixed side, the label size must keep the fixed side, no character may be lost, and the result must
 			// not keep changing frame after frame (fit_size is written back into the size).
 			try {
-				const std::string long_text = "This sentence is far too long to fit in one line of this small box at all";
+				const std::string long_text =
+					"This sentence is far too long to fit in one line of this small box at all";
 				struct Show_All_Case {
 					std::string name;
 					std::string text;
@@ -787,10 +840,16 @@ namespace Test {
 					{"height-show-all long CENTER", long_text, Engine::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL, true},
 					{"height-show-all short", "Hi", Engine::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL, false},
 					// one line of room (14 px font + 6 px pad in 24 px): the width has to grow past 260 to show it all.
-					{"height-show-all long, 1-line box", long_text, Engine::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL, false,
+					{"height-show-all long, 1-line box",
+					 long_text,
+					 Engine::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL,
+					 false,
 					 {260.f, 24.f}},
 					// two lines of room: still wider than 260.
-					{"height-show-all long, 2-line box", long_text, Engine::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL, false,
+					{"height-show-all long, 2-line box",
+					 long_text,
+					 Engine::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL,
+					 false,
 					 {260.f, 36.f}},
 					{"width-show-all long LEFT/TOP", long_text, Engine::LABEL_RENDER_FIT_WIDTH_SHOW_ALL, false},
 					{"width-show-all short", "Hi", Engine::LABEL_RENDER_FIT_WIDTH_SHOW_ALL, false},
@@ -811,8 +870,10 @@ namespace Test {
 					Engine::set_label_font_path(label, FONT_PATH);
 					Engine::set_label_font_size(label, 14);
 					Engine::set_label_string(label, test_case.text);
-					auto h = test_case.centered ? Engine::LABEL_HORIZONTAL_ALIGN_CENTER : Engine::LABEL_HORIZONTAL_ALIGN_LEFT;
-					auto v = test_case.centered ? Engine::LABEL_VERTICAL_ALIGN_CENTER : Engine::LABEL_VERTICAL_ALIGN_TOP;
+					auto h = test_case.centered ? Engine::LABEL_HORIZONTAL_ALIGN_CENTER
+												: Engine::LABEL_HORIZONTAL_ALIGN_LEFT;
+					auto v =
+						test_case.centered ? Engine::LABEL_VERTICAL_ALIGN_CENTER : Engine::LABEL_VERTICAL_ALIGN_TOP;
 					Engine::set_label_horizontal_align(label, h);
 					Engine::set_label_vertical_align(label, v);
 					Engine::set_label_padding_horizontal(label, pad_h);
@@ -825,7 +886,8 @@ namespace Test {
 					const auto& [info] = Engine::get_registry().read<Engine::Label_Renderer_Information>(label.id());
 					// padding is only applied off-center (update_inner_text_by), so the room is computed the same way.
 					glm::vec2 used_pad{test_case.centered ? 0.f : pad_h, test_case.centered ? 0.f : pad_v};
-					// multi-line measure, the same call update_inner_text_by uses (get_renderer_text_size is one line only).
+					// multi-line measure, the same call update_inner_text_by uses (get_renderer_text_size is one line
+					// only).
 					auto helper = Vulkan::Draw_Font_2D::gen_text_info_from(
 						Engine::Utils::get_full_font_path(info.font_path), info.render_text, (int)h, info.font_size,
 						info.stroke_size, {0.f, 0.f}
@@ -835,8 +897,8 @@ namespace Test {
 					glm::vec2 fit = info.fit_size;
 					int lines = (int)helper.lines.size();
 					float widest_line = drawn.x;
-					std::string facts = " (lines " + std::to_string(lines) + ", drawn " + vec_text(drawn) + ", fit_size " +
-										vec_text(fit) + ", content size " + vec_text(size) + ")";
+					std::string facts = " (lines " + std::to_string(lines) + ", drawn " + vec_text(drawn) +
+										", fit_size " + vec_text(fit) + ", content size " + vec_text(size) + ")";
 
 					api_expect(
 						tag, strip(info.render_text) == strip(Helper::utf8_to_u32_nfc(test_case.text)),
@@ -847,30 +909,43 @@ namespace Test {
 							tag, drawn.y + used_pad.y <= box.y + 0.5f,
 							name + "drawn text height + padding fits the fixed height " + std::to_string(box.y) + facts
 						);
-						api_expect(tag, std::abs(fit.y - box.y) <= 0.5f, name + "fit_size keeps the fixed height" + facts);
-						api_expect(tag, std::abs(size.y - box.y) <= 0.5f, name + "label size keeps the fixed height" + facts);
-						float one_line = Vulkan::Draw_Font_2D::get_renderer_text_size(
-							Helper::utf8_to_u32_nfc(test_case.text), info.font_path, info.font_size, info.stroke_size
-						).x;
+						api_expect(
+							tag, std::abs(fit.y - box.y) <= 0.5f, name + "fit_size keeps the fixed height" + facts
+						);
+						api_expect(
+							tag, std::abs(size.y - box.y) <= 0.5f, name + "label size keeps the fixed height" + facts
+						);
+						float one_line =
+							Vulkan::Draw_Font_2D::get_renderer_text_size(
+								Helper::utf8_to_u32_nfc(test_case.text), info.font_id, info.font_size, info.stroke_size
+							)
+								.x;
 						int room = std::max(1, (int)((box.y - used_pad.y) / (float)info.font_size));
 						if (one_line / room > box.x - used_pad.x) {
 							api_expect(
 								tag, fit.x > box.x + 0.5f,
-								name + "text needs more than " + std::to_string(room) + " line(s) at the set width, so the width grows past " +
-									std::to_string(box.x) + facts
+								name + "text needs more than " + std::to_string(room) +
+									" line(s) at the set width, so the width grows past " + std::to_string(box.x) +
+									facts
 							);
 						}
 						api_expect(
 							tag, fit.x + 0.5f >= widest_line + used_pad.x,
-							name + "width grew to the widest line + padding (" + std::to_string(widest_line) + ")" + facts
+							name + "width grew to the widest line + padding (" + std::to_string(widest_line) + ")" +
+								facts
 						);
 					} else {
 						api_expect(
 							tag, widest_line + used_pad.x <= box.x + 0.5f,
-							name + "every line + padding fits the fixed width (" + std::to_string(widest_line) + ")" + facts
+							name + "every line + padding fits the fixed width (" + std::to_string(widest_line) + ")" +
+								facts
 						);
-						api_expect(tag, std::abs(fit.x - box.x) <= 0.5f, name + "fit_size keeps the fixed width" + facts);
-						api_expect(tag, std::abs(size.x - box.x) <= 0.5f, name + "label size keeps the fixed width" + facts);
+						api_expect(
+							tag, std::abs(fit.x - box.x) <= 0.5f, name + "fit_size keeps the fixed width" + facts
+						);
+						api_expect(
+							tag, std::abs(size.x - box.x) <= 0.5f, name + "label size keeps the fixed width" + facts
+						);
 						api_expect(
 							tag, fit.y + 0.5f >= drawn.y + used_pad.y,
 							name + "height grew to the drawn text + padding" + facts
@@ -961,11 +1036,14 @@ namespace Test {
 				Engine::add_child(root, b);
 				Handle a = make_touch_layer();
 				Engine::add_child(root, a);
-				Engine::set_touch_caller(b, [b_calls](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
-					b_calls->push_back(state);
-				});
 				Engine::set_touch_caller(
-					a, [a_calls, percent, percent_holder](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
+					b, [b_calls](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
+						b_calls->push_back(state);
+					}
+				);
+				Engine::set_touch_caller(
+					a, [a_calls, percent,
+						percent_holder](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
 						a_calls->push_back(state);
 						// make the size dirty, then query it: the resolver refills the engine scratch list.
 						Engine::set_content_size(percent_holder, {200.f + a_calls->size(), 200.f});
@@ -999,12 +1077,16 @@ namespace Test {
 				Engine::set_position(other, {5.f, 5.f});
 				Engine::set_touch_enabled(other, true);
 				Engine::add_child(root, other);
-				Engine::set_click_caller(other, [other_clicks](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) { (*other_clicks)++; });
-				Engine::set_click_caller(self, [](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) {});
-				Engine::set_touch_caller(self, [](Handle e, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
-					if (state == Engine::TOUCH_STATE::TOUCH_ENDED)
-						Engine::clean_up(e); // nothing captured is used after this line
+				Engine::set_click_caller(other, [other_clicks](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) {
+					(*other_clicks)++;
 				});
+				Engine::set_click_caller(self, [](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) {});
+				Engine::set_touch_caller(
+					self, [](Handle e, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
+						if (state == Engine::TOUCH_STATE::TOUCH_ENDED)
+							Engine::clean_up(e); // nothing captured is used after this line
+					}
+				);
 				Engine::process_frame(0.f);
 				if (reentry_click(2)) {
 					reentry_expect(2, !Engine::is_valid(self), "self destroyed inside its own caller");
@@ -1023,13 +1105,17 @@ namespace Test {
 				Engine::add_child(root, below);
 				Handle top = make_touch_layer();
 				Engine::add_child(root, top);
-				Engine::set_touch_caller(below, [below_calls](Handle, Engine::TOUCH_STATE, glm::vec2, Engine::MOUSE_BUTTON, int) {
-					(*below_calls)++;
-				});
-				Engine::set_touch_caller(top, [below](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
-					if (state == Engine::TOUCH_STATE::TOUCH_BEGAN && Engine::is_valid(below))
-						Engine::clean_up(below);
-				});
+				Engine::set_touch_caller(
+					below, [below_calls](Handle, Engine::TOUCH_STATE, glm::vec2, Engine::MOUSE_BUTTON, int) {
+						(*below_calls)++;
+					}
+				);
+				Engine::set_touch_caller(
+					top, [below](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
+						if (state == Engine::TOUCH_STATE::TOUCH_BEGAN && Engine::is_valid(below))
+							Engine::clean_up(below);
+					}
+				);
 				Engine::process_frame(0.f);
 				if (reentry_click(3)) {
 					reentry_expect(
@@ -1047,11 +1133,13 @@ namespace Test {
 				auto fresh = std::make_shared<Handle>(Handle::make_invalid_handle());
 				Handle below = make_touch_layer();
 				Engine::add_child(root, below);
-				Engine::set_touch_caller(below, [](Handle, Engine::TOUCH_STATE, glm::vec2, Engine::MOUSE_BUTTON, int) {});
+				Engine::set_touch_caller(below, [](Handle, Engine::TOUCH_STATE, glm::vec2, Engine::MOUSE_BUTTON, int) {
+				});
 				Handle top = make_touch_layer();
 				Engine::add_child(root, top);
 				Engine::set_touch_caller(
-					top, [below, fresh, fresh_calls](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
+					top, [below, fresh,
+						  fresh_calls](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
 						if (state != Engine::TOUCH_STATE::TOUCH_ENDED || !Engine::is_valid(below))
 							return;
 						Engine::clean_up(below);
@@ -1083,20 +1171,27 @@ namespace Test {
 				auto both_clicks = std::make_shared<int>(0);
 				Handle click_only = make_touch_layer();
 				Engine::add_child(root, click_only);
-				Engine::set_click_caller(click_only, [disabled_clicks](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) { (*disabled_clicks)++; });
+				Engine::set_click_caller(click_only, [disabled_clicks](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) {
+					(*disabled_clicks)++;
+				});
 				// same, but with a touch caller too (the other path through the disabled branch).
 				Handle both = make_touch_layer();
 				Engine::add_child(root, both);
-				Engine::set_touch_caller(both, [](Handle, Engine::TOUCH_STATE, glm::vec2, Engine::MOUSE_BUTTON, int) {});
-				Engine::set_click_caller(both, [both_clicks](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) { (*both_clicks)++; });
+				Engine::set_touch_caller(both, [](Handle, Engine::TOUCH_STATE, glm::vec2, Engine::MOUSE_BUTTON, int) {
+				});
+				Engine::set_click_caller(both, [both_clicks](Handle, glm::vec2, Engine::MOUSE_BUTTON, int) {
+					(*both_clicks)++;
+				});
 				Handle top = make_touch_layer();
 				Engine::add_child(root, top);
-				Engine::set_touch_caller(top, [click_only, both](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
-					if (state == Engine::TOUCH_STATE::TOUCH_BEGAN) {
-						Engine::set_touch_enabled(click_only, false);
-						Engine::set_touch_enabled(both, false);
+				Engine::set_touch_caller(
+					top, [click_only, both](Handle, Engine::TOUCH_STATE state, glm::vec2, Engine::MOUSE_BUTTON, int) {
+						if (state == Engine::TOUCH_STATE::TOUCH_BEGAN) {
+							Engine::set_touch_enabled(click_only, false);
+							Engine::set_touch_enabled(both, false);
+						}
 					}
-				});
+				);
 				Engine::process_frame(0.f);
 				if (reentry_click(5)) {
 					reentry_expect(5, true, "disabling a click-only node during the dispatch did not throw");

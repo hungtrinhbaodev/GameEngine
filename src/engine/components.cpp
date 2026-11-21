@@ -40,6 +40,12 @@ namespace Engine {
 		return value & flag;
 	}
 
+	void Clipping_Ancestor_Information::clean_up() {
+		self_clipping = Handle::make_invalid_handle();
+		number_clipping = 0;
+		clipping_ancestors = {};
+	}
+
 	void Clipping_Ancestor_Information::update_self_clipping(const Handle& e) {
 		self_clipping = e;
 	}
@@ -144,39 +150,33 @@ namespace Engine {
 		inner_image_transform.opacity = world_transform.opacity;
 	}
 
-	void Label_Renderer_Information::update_inner_text_by(const glm::vec2& text_size, const glm::vec2& anchor) {
-		auto fit_transform = [this](const glm::vec2& text_size, const glm::vec2& inner_size, const glm::vec2& padding) {
-			glm::vec2 label_position = {0.f, 0.f};
-			switch (horizontal_align) {
-				case LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_CENTER: {
-					label_position.x = (text_size.x - inner_size.x) / 2;
-					break;
-				}
-				case LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_LEFT: {
-					label_position.x = padding.x;
-					break;
-				}
-				default: {
-					label_position.x = text_size.x - padding.x - inner_size.x;
-					break;
-				}
+	glm::vec2 Label_Renderer_Information::get_padding_size() const {
+		float final_horizontal_padding =
+			horizontal_align == LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_CENTER ? 0.f : horizontal_padding;
+		float final_vertical_padding =
+			vertical_align == LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER ? 0.f : vertical_padding;
+		return {final_horizontal_padding, final_vertical_padding};
+	}
+
+	void Label_Renderer_Information::update_text(const std::string& i_text) {
+		text = i_text;
+		u32_to_utf8_bytes_start.clear();
+		u32_to_utf8_bytes_length.clear();
+		u32_text = Helper::utf8_to_u32_nfc_mapped(i_text, u32_to_utf8_bytes_start, u32_to_utf8_bytes_length);
+		utf8_to_u32_index.resize(text.size());
+		int count = 0;
+		for (int i = 0; i < u32_to_utf8_bytes_start.size(); i++) {
+			int start = (int)u32_to_utf8_bytes_start[i];
+			int length = (int)u32_to_utf8_bytes_length[i];
+			for (int j = start; j < start + length; j++) {
+				utf8_to_u32_index[count] = i;
+				count++;
 			}
-			switch (vertical_align) {
-				case LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER: {
-					label_position.y = (text_size.y - inner_size.y) / 2;
-					break;
-				}
-				case LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_BOTTOM: {
-					label_position.y = padding.y;
-					break;
-				}
-				default: {
-					label_position.y = text_size.y - padding.y - inner_size.y;
-					break;
-				}
-			}
-			inner_label_transform.position = label_position;
-		};
+		}
+	}
+
+	void Label_Renderer_Information::update_inner_text_by(const glm::vec2& text_size) {
+		glm::vec2 anchor{0.f};
 		/**
 		 * @Note: [Claude BEGIN, written by Claude (Claude Code) on 2026-11-11] label wrap / ellipsis / clip
 		 * for fit modes other than AUTO. Writes render_text (what is drawn), keeps `text` untouched.
@@ -189,22 +189,15 @@ namespace Engine {
 		 * Later edits by the user inside this block: full_path / Utils::get_full_font_path (finding 41)
 		 * and the LABEL_RENDER_FIT_* enum names.
 		 */
-		float final_horizontal_padding =
-			horizontal_align == LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_CENTER ? 0.f : horizontal_padding;
-		float final_vertical_padding =
-			vertical_align == LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER ? 0.f : vertical_padding;
-		glm::vec2 padding = {final_horizontal_padding, final_vertical_padding};
+		glm::vec2 padding = get_padding_size();
 		glm::vec2 remain_size = text_size - padding;
-		std::string full_path = Utils::get_full_font_path(font_path);
-		std::u32string converted_text = Helper::utf8_to_u32_nfc(text);
 		auto text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
-			full_path, converted_text, (int)horizontal_align, font_size, stroke_size, anchor
+			font_id, u32_text, (int)horizontal_align, font_size, stroke_size, anchor
 		);
 		glm::vec2 inner_size = text_helper.get_size();
 		if (inner_size.x <= remain_size.x && inner_size.y <= remain_size.y) {
-			render_text = converted_text;
+			render_text = u32_text;
 			clipping_enabled = false;
-			fit_transform(text_size, inner_size, padding);
 			switch (fit_mode) {
 				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL: {
 					fit_size = glm::vec2{text_size.x, text_helper.height + padding.y};
@@ -221,8 +214,8 @@ namespace Engine {
 			}
 			return;
 		}
-		auto measure = [this, &full_path](std::u32string_view value) {
-			return Vulkan::Draw_Font_2D::get_renderer_text_size(value, full_path, font_size, stroke_size);
+		auto measure = [this](std::u32string_view value) {
+			return Vulkan::Draw_Font_2D::get_renderer_text_size(value, font_id, font_size, stroke_size);
 		};
 		// widths add up char by char, so every word is measured once and nothing is concatenated to measure.
 		const float space_width = measure(U" ").x;
@@ -234,7 +227,7 @@ namespace Engine {
 		// words are views into `text` ('\n' is treated like a space); a word wider than the box is cut by chars.
 		std::vector<std::u32string_view> words;
 		std::vector<float> words_width;
-		std::u32string_view source = converted_text;
+		std::u32string_view source = u32_text;
 		size_t start = 0;
 		while (start < source.size()) {
 			size_t end = source.find_first_of(U" \n", start);
@@ -242,10 +235,17 @@ namespace Engine {
 				end = source.size();
 			std::u32string_view word = source.substr(start, end - start);
 			start = end + 1;
-			if (word.empty())
+			if (word.empty()) {
+				if (end != source.size()) {
+					words.push_back(source.substr(end, 1));
+				}
 				continue;
+			}
 			if (measure(word).x <= remain_size.x) {
 				words.push_back(word);
+				if (end != source.size()) {
+					words.push_back(source.substr(end, 1));
+				}
 				continue;
 			}
 			// binary search the longest prefix of the rest that fits the width (at least 1 char, so it always ends).
@@ -263,11 +263,13 @@ namespace Engine {
 				words.push_back(rest.substr(0, low));
 				rest.remove_prefix(low);
 			}
+			if (end != source.size()) {
+				words.push_back(source.substr(end, 1));
+			}
 		}
 		for (const auto& word : words) {
 			words_width.push_back(measure(word).x);
 		}
-
 		/**
 		 * @Note: this code can be reuse in ellipsis mode,
 		 * clipping mode, and fix width mode.
@@ -283,8 +285,12 @@ namespace Engine {
 				for (int i = 0; i < words.size(); i++) {
 					std::u32string_view word = words[i];
 					float word_width = words_width[i];
+					if (word == U"\n") {
+						lines.push_back(U"");
+						line_widths.push_back(0.f);
+						continue;
+					}
 					if (!lines.empty() && line_widths.back() + space_width + word_width <= remain_size.x) {
-						lines.back() += ' ';
 						lines.back() += word;
 						line_widths.back() += space_width + word_width;
 						continue;
@@ -321,12 +327,16 @@ namespace Engine {
 				for (int i = 0; i < words.size(); i++) {
 					const auto& word = words[i];
 					float word_width = words_width[i];
+					if (word == U"\n") {
+						lines.push_back(U"");
+						size_line_width = 0;
+						continue;
+					}
 					if (lines.empty() || current_line_width + space_width + word_width > size_line_width) {
 						lines.emplace_back(word);
 						current_line_width = word_width;
 					} else {
 						current_line_width += word_width + space_width;
-						lines.back() += U' ';
 						lines.back() += word;
 					}
 				}
@@ -343,9 +353,8 @@ namespace Engine {
 			render_text += lines[i];
 		}
 		text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
-			full_path, render_text, (int)horizontal_align, font_size, stroke_size, anchor
+			font_id, render_text, (int)horizontal_align, font_size, stroke_size, anchor
 		);
-		fit_transform(text_size, text_helper.get_size(), padding);
 		switch (fit_mode) {
 			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_CLIP:
 			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_ELLIPSIS: {
@@ -385,11 +394,207 @@ namespace Engine {
 		// [Claude END] label wrap / ellipsis / clip
 	}
 
+	void Label_Renderer_Information::update_renderer_char_rects(const glm::vec2& anchor, const glm::vec2& text_size) {
+		render_char_rects.clear();
+		number_line = 0;
+		u32_to_rect_index.clear();
+		rect_to_u32_index.clear();
+		rect_to_line_index.clear();
+		glm::vec2 inner_anchor = {0.f, 0.f};
+		auto text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
+			font_id, render_text, (int)horizontal_align, font_size, stroke_size, inner_anchor
+		);
+		number_line = text_helper.lines.size();
+		std::u32string flat_text = U"";
+		std::vector<glm::vec2> char_positions;
+		glm::vec2 padding = get_padding_size();
+		glm::vec2 origin = -anchor * text_size + padding;
+		for (int i = 0; i < text_helper.lines.size(); i++) {
+			const auto& line = text_helper.lines[i];
+			const auto& start_line_position = text_helper.start_line_positions[i];
+			char_positions = Vulkan::Draw_Font_2D::get_char_renderer_positions_at(
+				line, start_line_position, font_id, font_size, stroke_size, false
+			);
+			for (int j = 0; j < line.size(); j++) {
+				flat_text += line[j];
+				glm::vec2 char_position = char_positions[j];
+				glm::vec2 char_bounding_box =
+					Vulkan::Draw_Font_2D::get_char_render_bounding_box(line[j], font_id, font_size, stroke_size);
+				glm::vec2 min = origin + char_position;
+				glm::vec2 max = min + char_bounding_box;
+				render_char_rects.push_back({min, max});
+				rect_to_line_index.push_back(i);
+			}
+			flat_text += U'\n';
+			render_char_rects.push_back(
+				{{::Const::MAX_UINT32, ::Const::MAX_UINT32}, {-::Const::MAX_UINT32, -::Const::MAX_UINT32}}
+			);
+			rect_to_line_index.push_back(-1);
+		}
+		int j = 0;
+		u32_to_rect_index.resize(u32_text.size(), -1);
+		rect_to_u32_index.resize(render_char_rects.size(), -1);
+		for (int i = 0; i < u32_text.size(); i++) {
+			const auto& my_char = u32_text[i];
+			if (my_char == U'\n') {
+				continue;
+			}
+			while (j < flat_text.size()) {
+				const auto& other_char = flat_text[j];
+				if (my_char == other_char) {
+					break;
+				}
+				j++;
+			}
+			if (j < flat_text.size()) {
+				u32_to_rect_index[i] = j;
+				rect_to_u32_index[j] = i;
+				j++;
+			}
+		}
+	}
+
 	void Label_Renderer_Information::copy_attribute_to_inner_label_transform(
-		const World_Transform_2D& world_transform
+		const World_Transform_2D& world_transform, const glm::vec2& text_size
 	) {
 		inner_label_transform.color = world_transform.color;
 		inner_label_transform.opacity = world_transform.opacity;
+		auto fit_transform = [this](const glm::vec2& text_size, const glm::vec2& inner_size, const glm::vec2& padding) {
+			glm::vec2 label_position = {0.f, 0.f};
+			switch (horizontal_align) {
+				case LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_CENTER: {
+					label_position.x = (text_size.x - inner_size.x) / 2;
+					break;
+				}
+				case LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_LEFT: {
+					label_position.x = padding.x;
+					break;
+				}
+				default: {
+					label_position.x = text_size.x - padding.x - inner_size.x;
+					break;
+				}
+			}
+			switch (vertical_align) {
+				case LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER: {
+					label_position.y = (text_size.y - inner_size.y) / 2;
+					break;
+				}
+				case LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_BOTTOM: {
+					label_position.y = padding.y;
+					break;
+				}
+				default: {
+					label_position.y = text_size.y - padding.y - inner_size.y;
+					break;
+				}
+			}
+			inner_label_transform.position = label_position;
+		};
+		float final_horizontal_padding =
+			horizontal_align == LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_CENTER ? 0.f : horizontal_padding;
+		float final_vertical_padding =
+			vertical_align == LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER ? 0.f : vertical_padding;
+		glm::vec2 padding = {final_horizontal_padding, final_vertical_padding};
+		if (fit_mode != LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO) {
+			auto text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
+				font_id, render_text, (int)horizontal_align, font_size, stroke_size, inner_label_transform.anchor
+			);
+			fit_transform(text_size, text_helper.get_size(), padding);
+			inner_label_transform.position += -world_transform.anchor * text_size;
+		} else {
+			inner_label_transform.position = {0.f, 0.f};
+		}
+	}
+
+	int Label_Renderer_Information::find_u32_index_by_rect_index(int rect_index) const {
+		if (rect_index < 0 || rect_index >= rect_to_u32_index.size()) {
+			return -1;
+		}
+		return rect_to_u32_index[rect_index];
+	}
+
+	int Label_Renderer_Information::find_utf8_index_by_u32_index(int u32_index) const {
+		if (u32_index < 0 || u32_index >= u32_to_utf8_bytes_start.size()) {
+			return -1;
+		}
+		return u32_to_utf8_bytes_start[u32_index];
+	}
+
+	int Label_Renderer_Information::find_u32_index_by_utf8_index(int utf8_index) const {
+		if (utf8_index < 0 || utf8_index >= utf8_to_u32_index.size()) {
+			return -1;
+		}
+		return utf8_to_u32_index[utf8_index];
+	}
+
+	int Label_Renderer_Information::find_rect_index_by_u32_index(int u32_index) const {
+		if (u32_index < 0 || u32_index >= u32_to_rect_index.size()) {
+			return -1;
+		}
+		return u32_to_rect_index[u32_index];
+	}
+
+	int Label_Renderer_Information::find_rect_index_by_char_index(int char_index) const {
+		int u32_char_index = find_u32_index_by_utf8_index(char_index);
+		if (u32_char_index < 0) {
+			return -1;
+		}
+		return find_rect_index_by_u32_index(u32_char_index);
+	}
+
+	int Label_Renderer_Information::find_line_index_by_rect_index(int rect_index) const {
+		if (rect_index < 0 || rect_index >= rect_to_line_index.size()) {
+			return -1;
+		}
+		return rect_to_line_index[rect_index];
+	}
+
+	std::vector<std::pair<glm::vec2, glm::vec2>> Label_Renderer_Information::find_rects_char_by_range(
+		int start_char_index, int end_char_index
+	) const {
+		std::vector<std::pair<glm::vec2, glm::vec2>> rects;
+		start_char_index = std::max(0, start_char_index);
+		end_char_index = std::min(end_char_index, (int)utf8_to_u32_index.size() - 1);
+		end_char_index = std::max(start_char_index, end_char_index);
+		int start_rect_index = find_rect_index_by_char_index(start_char_index);
+		int end_rect_index = find_rect_index_by_char_index(end_char_index);
+		int current_line_index = -1;
+		int i = start_rect_index;
+		while (i <= end_rect_index) {
+			if (current_line_index < 0) {
+				current_line_index = find_line_index_by_rect_index(i);
+				if (current_line_index < 0) {
+					i++;
+					continue;
+				}
+			}
+			int j = i + 1;
+			while (j <= end_rect_index) {
+				int line_index = find_line_index_by_rect_index(j);
+				if (line_index != current_line_index || line_index < 0) {
+					break;
+				}
+				j++;
+			}
+			int start = i;
+			int end = j - 1;
+			const auto& rect_min = render_char_rects[start];
+			const auto& rect_max = render_char_rects[end];
+			// Log::info("What is my rect info", start, end, rect_min.first, rect_max.second);
+			rects.push_back({rect_min.first, rect_max.second});
+			i = j;
+			current_line_index = -1;
+		}
+		return rects;
+	}
+
+	float Label_Renderer_Information::get_base_line_vertical_offset() const {
+		return Vulkan::Draw_Font_2D::get_base_line_vertical_renderer_offset(font_id, font_size, stroke_size);
+	}
+
+	float Label_Renderer_Information::get_line_height() const {
+		return Vulkan::Draw_Font_2D::get_renderer_line_height(font_id, font_size, stroke_size);
 	}
 
 	void Nine_Scale_Information::update_piece_transforms(

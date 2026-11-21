@@ -28,7 +28,7 @@ namespace Engine {
 		glm::vec3 color{1.f, 1.f, 1.f};
 		glm::vec2 anchor{0.f, 0.f};
 		bool is_visible = true;
-		uint32_t z_order = 0;
+		int z_order = 0;
 	};
 
 	struct World_Transform_2D : Transform_2D {
@@ -102,7 +102,14 @@ namespace Engine {
 
 	struct Label_Renderer_Information {
 		std::string font_path = "";
+		std::vector<std::u32string> lines;
 		std::string text = "";
+		std::vector<size_t> u32_to_utf8_bytes_start;
+		std::vector<size_t> u32_to_utf8_bytes_length;
+		std::vector<int> utf8_to_u32_index;
+		std::u32string u32_text = U"";
+		uint32_t font_id = ::Const::MAX_UINT32;
+
 		// [Claude, 2026-11-11] what is actually drawn when use_custom_size is on: text after wrap / ellipsis.
 		// `text` stays untouched. Filled by update_inner_text_by in components.cpp.
 		std::u32string render_text = U"";
@@ -120,14 +127,39 @@ namespace Engine {
 		Transform_2D inner_label_transform;
 		glm::vec2 fit_size{0.f};
 
-		void update_inner_text_by(const glm::vec2& text_size, const glm::vec2& anchor);
-		void copy_attribute_to_inner_label_transform(const World_Transform_2D& world_transform);
+		int number_line = 0;
+		std::vector<int> u32_to_rect_index;
+		std::vector<int> rect_to_u32_index;
+		std::vector<int> rect_to_line_index;
+		std::vector<std::pair<glm::vec2, glm::vec2>> render_char_rects;
+
+		glm::vec2 get_padding_size() const;
+		void update_text(const std::string& text);
+		void update_inner_text_by(const glm::vec2& text_size);
+		void update_renderer_char_rects(const glm::vec2& anchor, const glm::vec2& text_size);
+		void copy_attribute_to_inner_label_transform(
+			const World_Transform_2D& world_transform, const glm::vec2& text_size
+		);
+
+		int find_u32_index_by_rect_index(int rect_index) const;
+		int find_utf8_index_by_u32_index(int u32_index) const;
+		int find_u32_index_by_utf8_index(int utf8_index) const;
+		int find_rect_index_by_u32_index(int u32_index) const;
+		int find_rect_index_by_char_index(int char_index) const;
+		int find_line_index_by_rect_index(int rect_index) const;
+		std::vector<std::pair<glm::vec2, glm::vec2>> find_rects_char_by_range(
+			int start_char_index, int end_char_index
+		) const;
+
+		float get_base_line_vertical_offset() const;
+		float get_line_height() const;
 	};
 
 	struct Clipping_Ancestor_Information {
 		int number_clipping = 0;
 		std::array<Handle, ::Const::MAX_DEPTH_CLIPPING> clipping_ancestors;
 		Handle self_clipping = Handle::make_invalid_handle();
+		void clean_up();
 		void update_self_clipping(const Handle& e);
 		void merge_with(
 			const Clipping_Ancestor_Information& parent_clipping_ancestor, bool is_parent_clipping,
@@ -240,8 +272,12 @@ namespace Engine {
 	struct Edit_Box_Information {
 		Handle scroll_layout = Handle::make_invalid_handle();
 		Handle inner_label = Handle::make_invalid_handle();
+		std::vector<Handle> background_ranges;
+		Handle caret = Handle::make_invalid_handle();
 		SIDE_FIX_MODE size_fit_mode = SIDE_FIX_MODE::SIZE_FIX_WIDTH;
+		int caret_location = -1;
+		EDIT_BOX_STATE edit_box_state = EDIT_BOX_STATE::EDIT_BOX_STATE_IDLE;
+		std::string text_place_holder = "";
 		std::string text_content = "";
-		std::u32string text_render = U"";
 	};
 } // namespace Engine
