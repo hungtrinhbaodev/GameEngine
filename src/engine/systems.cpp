@@ -347,11 +347,6 @@ namespace Engine {
 		label.set_stroke_color(label_renderer.stroke_color);
 		label.set_stroke_size(label_renderer.stroke_size);
 		label.set_align((int)label_renderer.horizontal_align);
-		if (label_renderer.fit_mode == LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO) {
-			label_renderer.render_text = label_renderer.u32_text;
-			label.set_text(label_renderer.render_text);
-			c_inner_size.value = {label.get_width(), label.get_height()};
-		}
 		set_dirty(e, true, DIRTY_TRANSFORM | DIRTY_RELATIVE_SIZE);
 	}
 
@@ -683,27 +678,12 @@ namespace Engine {
 		auto [label_renderer, c_size, c_inner_size] =
 			registry.get<Label_Renderer_Information, Size, Inner_Renderer_Size>(e.id());
 		const auto& [c_handles, transform] = registry.read<Renderer_Handles, Transform_2D>(e.id());
-		if (label_renderer.fit_mode != LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO) {
-			const auto& handles = c_handles.value;
-			label_renderer.update_inner_text_by(c_size.value);
-			auto& label = Vulkan::modify_label(handles[0]);
-			label.set_text(label_renderer.render_text);
-			switch (label_renderer.fit_mode) {
-				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL:
-				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL: {
-					c_inner_size.value = label_renderer.fit_size;
-					c_size.value = label_renderer.fit_size;
-					break;
-				}
-				default: {
-					c_inner_size.value = glm::vec2(label.get_width(), label.get_height());
-					break;
-				}
-			}
-		} else {
-			c_size.value = c_inner_size.value;
-		}
-		label_renderer.update_renderer_char_rects(transform.anchor, c_size.value);
+		const auto& handles = c_handles.value;
+		label_renderer.update_inner_text_by(c_size.value, transform.anchor);
+		auto& label = Vulkan::modify_label(handles[0]);
+		label.set_text(label_renderer.render_text);
+		c_inner_size.value = glm::vec2(label.get_width(), label.get_height());
+		c_size.value = label_renderer.fit_size;
 	}
 
 	void update_inner_renderer_image_change_size(const Handle& e) {

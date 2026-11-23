@@ -546,7 +546,21 @@ Reading:
     sorted by z order. Runs after every fuzz frame and before every drive step; hidden draws (unused
     nine-scale pieces) are skipped.
 
-===== LAST RUN (2026-11-18, after pull 48705b5: label grow-to-fit modes, focus / key input WIP) =====
+===== LAST RUN (2026-11-23, after b385641 + local label char-rect work: font-id API, wrap rework) =====
+UI suite 20 of 22 PASS (new: repro-key, repro-char-detect, repro-dirty in run_all). ASan repro-reentry PASS.
+- [] CRASH repro-api + repro-dirty: EXC_BAD_ACCESS address 0 in Label_Renderer_Information::update_inner_text_by,
+  components.cpp:472 `lines_to_text_indices[i][j]`. HEIGHT_SHOW_ALL case (~line 400): when a word starts a new
+  line it does `lines.emplace_back(word); lines_to_text_indices.push_back({});` but never calls
+  append_word_indices_to_line(i), so that line's index list is shorter than the line (empty for a one-word
+  label like "Hi") and [j] reads past the end. repro-api dies right after "height-show-all long CENTER" (next
+  case = "Hi"); repro-dirty dies building a scene with a HEIGHT_SHOW_ALL label.
+  Fix: call append_word_indices_to_line(i) after starting the new line (as the CLIP / WIDTH branch does);
+  consider an assert that lines_to_text_indices[i].size() == text_helper.lines[i].size().
+- [] same branch: a "\n" word sets size_line_width = 0, so every word after a newline gets its own line.
+  Probably meant to keep the target width.
+Everything else (repros, stress, drive 55/55, 8 fuzz seeds) PASS.
+
+===== PREVIOUS RUN (2026-11-18, after pull 48705b5: label grow-to-fit modes, focus / key input WIP) =====
 UI suite 19 of 20 PASS; editor self-test 25 of 25 PASS. repro-reentry + repro-key clean under ASan.
 - [] repro-key FAIL | focus | a's enter caller never fires on the very first focus (handle_changing_focus_target
   gates enter/exit on is_valid(last_focus)). Test marks it "expected to FAIL until fixed".
@@ -562,7 +576,7 @@ fields + values, file cell names and canvas label all draw. The only hidden text
 profiling labels (bottom-left): status bar messages shorter than ~270 px ("Added Label_4", "Deleted ...")
 and the lower FileSystem cell names sit fully under them.
 
-===== PREVIOUS RUN (2026-11-17, input enums: MOUSE_BUTTON / KEY_MODIFIER in touch + click callers) =====
+===== OLDER RUN (2026-11-17, input enums: MOUSE_BUTTON / KEY_MODIFIER in touch + click callers) =====
 UI suite 19 of 19 PASS, plus repro-reentry and repro-api under ASan (build-asan rebuilt with input_glfw.cpp).
 Engine change: structs.h input enums (KEY, KEY_ACTION, MOUSE_BUTTON, KEY_MODIFIER) with our own values,
 engine/input_glfw.h converters; spawn_touch converts GLFW button / mods; touch + click callers get MOUSE_BUTTON.
@@ -577,7 +591,7 @@ Open (not in tests/):
 - [] editor/*.cpp (8 callers) and root main.cpp (3) still take the button as int.
 - [] after adding new .cpp files, re-run `cmake <build dir>` (GLOB): build-editor and build-asan needed it today.
 
-===== OLDER RUN (2026-11-17, Vietnamese / Unicode checks added) =====
+===== OLDEST KEPT RUN (2026-11-17, Vietnamese / Unicode checks added) =====
 UI suite 19 of 19 PASS (repro-unicode 55 of 55 after the duplicate-bake fix, from a fresh font bake).
 New: tests/test_unicode.cpp, job `./ui_test repro-unicode` (in run_all.sh). Groups: helper (utf8_helper
 decode / encode / NFC), atlas (Be Vietnam Pro), label (auto fit), wrap (CLIP / ELLIPSIS), cache (fresh bake vs
@@ -601,7 +615,7 @@ Passing (now covered by a test):
 - cache: map, rects, atlas bytes, languages and metrics identical between fresh bake and cache.
 Earlier today: tests/test_app.cpp label-default passes U"Hi" to get_renderer_text_size (u32string_view).
 
-===== OLDEST KEPT RUN (2026-11-16, touch targets owned by the engine) =====
+===== (2026-11-16, touch targets owned by the engine) =====
 UI suite 18 of 18 PASS (repro-reentry + asan failed on case 5 first: a click-only node disabled mid-touch
 still got its click because discard_handling_touches_entities became a no-op; fixed by calling
 remove_entities_from_touch_listener from both listener paths). ./editor --self-test 25 of 25 PASS.

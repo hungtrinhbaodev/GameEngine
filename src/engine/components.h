@@ -121,6 +121,7 @@ namespace Engine {
 		LABEL_HORIZONTAL_ALIGN horizontal_align = LABEL_HORIZONTAL_ALIGN::LABEL_HORIZONTAL_ALIGN_CENTER;
 		LABEL_VERTICAL_ALIGN vertical_align = LABEL_VERTICAL_ALIGN::LABEL_VERTICAL_ALIGN_CENTER;
 		LABEL_RENDER_FIT_MODE fit_mode = LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO;
+		LABEL_RENDER_STRING_TYPE strig_renderer_type = LABEL_RENDER_STRING_TYPE::LABEL_RENDER_STRING_TYPE_RAW;
 		float horizontal_padding = 0.f;
 		float vertical_padding = 0.f;
 
@@ -135,7 +136,7 @@ namespace Engine {
 
 		glm::vec2 get_padding_size() const;
 		void update_text(const std::string& text);
-		void update_inner_text_by(const glm::vec2& text_size);
+		void update_inner_text_by(const glm::vec2& text_size, const glm::vec2& text_anchor);
 		void update_renderer_char_rects(const glm::vec2& anchor, const glm::vec2& text_size);
 		void copy_attribute_to_inner_label_transform(
 			const World_Transform_2D& world_transform, const glm::vec2& text_size

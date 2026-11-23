@@ -20,6 +20,8 @@ namespace Engine {
 
 	uint32_t window_unique_touch_id = ::Const::MAX_UINT32;
 
+	GLFWwindow* touches_handler_window = nullptr;
+
 	uint32_t spawn_touch(const glm::vec2& touch_world_position, int button, int mods) {
 		Handle handle = handle_generator.gen_handle();
 		Handled_Touches_Information touch_info{};
@@ -41,6 +43,8 @@ namespace Engine {
 	}
 
 	void on_mouse_button(GLFWwindow* window, int button, int action, int mods) {
+		if (touches_handler_window != window)
+			return;
 		switch (button) {
 			case GLFW_MOUSE_BUTTON_LEFT: {
 				// spawn new touch id handle this.
@@ -79,6 +83,8 @@ namespace Engine {
 	}
 
 	void on_cursor_touch_position(GLFWwindow* window, double x, double y) {
+		if (touches_handler_window != window)
+			return;
 		if (!handling_touches.has(window_unique_touch_id))
 			return;
 		auto& touch_info = handling_touches.modify(window_unique_touch_id);
@@ -97,6 +103,7 @@ namespace Engine {
 	}
 
 	void init_touch_handler(GLFWwindow* window) {
+		touches_handler_window = window;
 		glfwSetMouseButtonCallback(window, on_mouse_button);
 	}
 
@@ -112,7 +119,7 @@ namespace Engine {
 				}
 				case TOUCH_STATE::TOUCH_PENDING_RELEASE: {
 					touch_info.touch_state = TOUCH_STATE::TOUCH_BEGAN;
-					touch_info.remove_next_frame = false;
+					touch_info.remove_next_frame = true;
 					break;
 				}
 				case TOUCH_STATE::TOUCH_BEGAN: {
@@ -126,7 +133,7 @@ namespace Engine {
 				}
 				case TOUCH_STATE::TOUCH_CANCEL:
 				case TOUCH_STATE::TOUCH_ENDED: {
-					touch_info.touch_state = TOUCH_STATE::TOUCH_ENDED;
+					touch_info.touch_state = touch_info.touch_state;
 					removed_touch_ids.push_back(touch_id);
 					break;
 				}

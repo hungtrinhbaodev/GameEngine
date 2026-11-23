@@ -2084,6 +2084,10 @@ namespace Engine {
 		}
 	}
 
+	/**
+	 * @TODO: find line of touch first after that
+	 * find the character in line.
+	 */
 	int find_label_character_index(
 		const Handle& e, const glm::vec2& world_position, bool using_nearest_offset, float fallback_max_nearest_distance
 	) {
@@ -2143,6 +2147,9 @@ namespace Engine {
 				   label_renderer.u32_to_rect_index[u32_nearest_index] == -1) {
 				u32_nearest_index++;
 			}
+			if (u32_nearest_index >= label_renderer.u32_to_utf8_bytes_start.size()) {
+				return label_renderer.utf8_to_u32_index.size();
+			}
 			u32_nearest_index = std::min(u32_nearest_index, (int)label_renderer.u32_to_rect_index.size() - 1);
 			int nearest_char_index = label_renderer.find_utf8_index_by_u32_index(u32_nearest_index);
 			return nearest_char_index;
@@ -2156,6 +2163,15 @@ namespace Engine {
 			return fallback;
 		}
 		const auto& [label_renderer] = registry.read<Label_Renderer_Information>(e.id());
+		/**
+		 * @Note: execute edge case that the pointer
+		 * point to last chacter in string
+		 */
+		if (char_index >= label_renderer.utf8_to_u32_index.size()) {
+			int rect_index = label_renderer.find_rect_index_by_char_index(char_index - 1);
+			const auto& rect = label_renderer.render_char_rects[rect_index];
+			return to_world_position_space(e, glm::vec2{rect.second.x, rect.first.y});
+		}
 		int rect_index = label_renderer.find_rect_index_by_char_index(char_index);
 		if (rect_index < 0) {
 			return fallback;

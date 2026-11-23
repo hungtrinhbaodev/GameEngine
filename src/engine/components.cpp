@@ -175,8 +175,13 @@ namespace Engine {
 		}
 	}
 
-	void Label_Renderer_Information::update_inner_text_by(const glm::vec2& text_size) {
-		glm::vec2 anchor{0.f};
+	/**
+	 * TODO: treat \n of user is the last character of line
+	 * retain the logic bounding box using flat add 2 lines
+	 * rects and start and number character in line to this
+	 * structure.
+	 */
+	void Label_Renderer_Information::update_inner_text_by(const glm::vec2& text_size, const glm::vec2& text_anchor) {
 		/**
 		 * @Note: [Claude BEGIN, written by Claude (Claude Code) on 2026-11-11] label wrap / ellipsis / clip
 		 * for fit modes other than AUTO. Writes render_text (what is drawn), keeps `text` untouched.
@@ -189,22 +194,18 @@ namespace Engine {
 		 * Later edits by the user inside this block: full_path / Utils::get_full_font_path (finding 41)
 		 * and the LABEL_RENDER_FIT_* enum names.
 		 */
-		glm::vec2 padding = get_padding_size();
-		glm::vec2 remain_size = text_size - padding;
-		auto text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
-			font_id, u32_text, (int)horizontal_align, font_size, stroke_size, anchor
-		);
-		glm::vec2 inner_size = text_helper.get_size();
-		if (inner_size.x <= remain_size.x && inner_size.y <= remain_size.y) {
-			render_text = u32_text;
-			clipping_enabled = false;
+		auto update_fit_size = [this, &text_size](const glm::vec2& inner_size, const glm::vec2& padding) {
 			switch (fit_mode) {
 				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL: {
-					fit_size = glm::vec2{text_size.x, text_helper.height + padding.y};
+					fit_size = glm::vec2{text_size.x, inner_size.y + padding.y};
 					break;
 				}
 				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL: {
-					fit_size = glm::vec2{text_helper.width + padding.x, text_size.y};
+					fit_size = glm::vec2{inner_size.x + padding.x, text_size.y};
+					break;
+				}
+				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO: {
+					fit_size = inner_size;
 					break;
 				}
 				default: {
@@ -212,189 +213,274 @@ namespace Engine {
 					break;
 				}
 			}
-			return;
-		}
-		auto measure = [this](std::u32string_view value) {
-			return Vulkan::Draw_Font_2D::get_renderer_text_size(value, font_id, font_size, stroke_size);
 		};
-		// widths add up char by char, so every word is measured once and nothing is concatenated to measure.
-		const float space_width = measure(U" ").x;
-		const float line_height = measure(U" ").y;
-		const std::u32string ellipsis = U"...";
-		const float ellipsis_width = measure(ellipsis).x;
-		int max_lines = line_height > 0.f ? std::max(1, (int)(remain_size.y / line_height)) : 1;
-
-		// words are views into `text` ('\n' is treated like a space); a word wider than the box is cut by chars.
-		std::vector<std::u32string_view> words;
-		std::vector<float> words_width;
-		std::u32string_view source = u32_text;
-		size_t start = 0;
-		while (start < source.size()) {
-			size_t end = source.find_first_of(U" \n", start);
-			if (end == std::u32string_view::npos)
-				end = source.size();
-			std::u32string_view word = source.substr(start, end - start);
-			start = end + 1;
-			if (word.empty()) {
-				if (end != source.size()) {
-					words.push_back(source.substr(end, 1));
-				}
-				continue;
-			}
-			if (measure(word).x <= remain_size.x) {
-				words.push_back(word);
-				if (end != source.size()) {
-					words.push_back(source.substr(end, 1));
-				}
-				continue;
-			}
-			// binary search the longest prefix of the rest that fits the width (at least 1 char, so it always ends).
-			std::u32string_view rest = word;
-			while (!rest.empty()) {
-				size_t low = 1, high = rest.size();
-				while (low < high) {
-					size_t mid = (low + high + 1) / 2;
-					if (measure(rest.substr(0, mid)).x <= remain_size.x) {
-						low = mid;
-					} else {
-						high = mid - 1;
-					}
-				}
-				words.push_back(rest.substr(0, low));
-				rest.remove_prefix(low);
-			}
-			if (end != source.size()) {
-				words.push_back(source.substr(end, 1));
-			}
-		}
-		for (const auto& word : words) {
-			words_width.push_back(measure(word).x);
-		}
-		/**
-		 * @Note: this code can be reuse in ellipsis mode,
-		 * clipping mode, and fix width mode.
-		 */
-		std::vector<std::u32string> lines;
-		switch (fit_mode) {
-			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_ELLIPSIS:
-			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL:
-			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_CLIP: {
-				// greedy fill: keep a running width per line instead of re-measuring line + " " + word.
-				bool truncated = false;
-				std::vector<float> line_widths;
-				for (int i = 0; i < words.size(); i++) {
-					std::u32string_view word = words[i];
-					float word_width = words_width[i];
-					if (word == U"\n") {
-						lines.push_back(U"");
-						line_widths.push_back(0.f);
-						continue;
-					}
-					if (!lines.empty() && line_widths.back() + space_width + word_width <= remain_size.x) {
-						lines.back() += word;
-						line_widths.back() += space_width + word_width;
-						continue;
-					}
-					if (fit_mode == LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_ELLIPSIS &&
-						(int)lines.size() >= max_lines) {
-						truncated = true;
-						break;
-					}
-					lines.emplace_back(word);
-					line_widths.push_back(word_width);
-				}
-				if (truncated && !lines.empty()) {
-					std::u32string& last_line = lines.back();
-					float last_width = line_widths.back();
-					while (!last_line.empty() && last_width + ellipsis_width > remain_size.x) {
-						last_width -= measure(std::u32string_view(last_line).substr(last_line.size() - 1)).x;
-						last_line.pop_back();
-					}
-					last_line += ellipsis;
-				}
-				break;
-			}
-			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL: {
-				float total_width_all_word = 0.f;
-				for (int i = 0; i < words.size(); i++) {
-					total_width_all_word += words_width[i];
-					if (i < (int)words.size() - 1) {
-						total_width_all_word += space_width;
-					}
-				}
-				float size_line_width = std::max(total_width_all_word / max_lines, remain_size.x);
-				float current_line_width = 0.f;
-				for (int i = 0; i < words.size(); i++) {
-					const auto& word = words[i];
-					float word_width = words_width[i];
-					if (word == U"\n") {
-						lines.push_back(U"");
-						size_line_width = 0;
-						continue;
-					}
-					if (lines.empty() || current_line_width + space_width + word_width > size_line_width) {
-						lines.emplace_back(word);
-						current_line_width = word_width;
-					} else {
-						current_line_width += word_width + space_width;
-						lines.back() += word;
-					}
-				}
-				break;
-			}
-			default: {
-				break;
-			}
-		}
-		render_text.clear();
-		for (size_t i = 0; i < lines.size(); i++) {
-			if (i > 0)
-				render_text += U'\n';
-			render_text += lines[i];
-		}
-		text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
-			font_id, render_text, (int)horizontal_align, font_size, stroke_size, anchor
+		std::vector<std::vector<int>> lines_to_text_indices;
+		glm::vec2 anchor{0.f};
+		glm::vec2 padding = get_padding_size();
+		auto text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
+			font_id, u32_text, (int)horizontal_align, font_size, stroke_size, anchor
 		);
-		switch (fit_mode) {
-			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_CLIP:
-			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_ELLIPSIS: {
-				fit_size = text_size;
-				break;
+		if (fit_mode == LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_AUTO) {
+			render_text = u32_text;
+			clipping_enabled = false;
+			lines_to_text_indices.resize(text_helper.lines.size());
+			int u32_index_count = 0;
+			for (int i = 0; i < lines_to_text_indices.size(); i++) {
+				for (int j = 0; j < text_helper.lines[i].size(); j++) {
+					const auto& my_char = text_helper.lines[i][j];
+					while (u32_index_count < u32_text.size()) {
+						const auto& other_char = u32_text[u32_index_count];
+						if (my_char == other_char) {
+							break;
+						}
+						u32_index_count++;
+					}
+					lines_to_text_indices[i].push_back(u32_index_count);
+					u32_index_count++;
+				}
 			}
-			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL: {
-				fit_size = glm::vec2{text_size.x, text_helper.height + padding.y};
-				break;
+			update_fit_size(text_helper.get_size(), padding);
+		} else {
+			glm::vec2 remain_size = text_size - padding;
+			std::vector<int> character_text_indices;
+			std::vector<std::vector<int>> character_in_word_indices;
+			auto push_word_char_indices =
+				[this, &character_in_word_indices](int start_word_index, int number_char_formed_word) {
+					std::vector<int> word_indices{};
+					int start = start_word_index;
+					int end = start_word_index + number_char_formed_word;
+					for (int i = start; i < end; i++) {
+						if (i >= u32_text.size()) {
+							word_indices.push_back(-1);
+							continue;
+						}
+						word_indices.push_back(i);
+					}
+					character_in_word_indices.push_back(word_indices);
+				};
+			auto measure = [this](std::u32string_view value) {
+				return Vulkan::Draw_Font_2D::get_renderer_text_size(value, font_id, font_size, stroke_size);
+			};
+			// widths add up char by char, so every word is measured once and nothing is concatenated to measure.
+			const float space_width = measure(U" ").x;
+			const float line_height = measure(U" ").y;
+			const std::u32string ellipsis = U"...";
+			const float ellipsis_width = measure(ellipsis).x;
+			int max_lines = line_height > 0.f ? std::max(1, (int)(remain_size.y / line_height)) : 1;
+			// words are views into `text` ('\n' is treated like a space); a word wider than the box is cut by
+			// chars.
+			std::vector<std::u32string_view> words;
+			std::vector<float> word_widths;
+			std::u32string_view source = u32_text;
+			size_t start = 0;
+			while (start < source.size()) {
+				size_t end = source.find_first_of(U" \n", start);
+				if (end == std::u32string_view::npos)
+					end = source.size();
+				std::u32string_view word = source.substr(start, end - start);
+				int start_line_index = start;
+				start = end + 1;
+				if (word.empty()) {
+					if (end != source.size()) {
+						words.push_back(source.substr(end, 1));
+						push_word_char_indices(end, 1);
+					}
+					continue;
+				}
+				if (measure(word).x <= remain_size.x) {
+					words.push_back(word);
+					push_word_char_indices(start_line_index, word.size());
+					if (end != source.size()) {
+						words.push_back(source.substr(end, 1));
+						push_word_char_indices(end, 1);
+					}
+					continue;
+				}
+				// binary search the longest prefix of the rest that fits the width (at least 1 char, so it always
+				// ends).
+				std::u32string_view rest = word;
+				while (!rest.empty()) {
+					size_t low = 1, high = rest.size();
+					while (low < high) {
+						size_t mid = (low + high + 1) / 2;
+						if (measure(rest.substr(0, mid)).x <= remain_size.x) {
+							low = mid;
+						} else {
+							high = mid - 1;
+						}
+					}
+					words.push_back(rest.substr(0, low));
+					push_word_char_indices(start_line_index, low);
+					start_line_index += low;
+					rest.remove_prefix(low);
+				}
+				if (end != source.size()) {
+					words.push_back(source.substr(end, 1));
+					push_word_char_indices(end, 1);
+				}
 			}
-			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL: {
-				fit_size = glm::vec2{text_helper.width + padding.x, text_size.y};
-				break;
+			for (const auto& word : words) {
+				word_widths.push_back(measure(word).x);
 			}
-			default: {
-				break;
+			std::vector<std::u32string> lines;
+			auto append_word_indices_to_line = [this, &character_in_word_indices,
+												&lines_to_text_indices](int word_index) {
+				auto& line_indices = lines_to_text_indices.back();
+				for (int i = 0; i < character_in_word_indices[word_index].size(); i++) {
+					line_indices.push_back(character_in_word_indices[word_index][i]);
+				}
+			};
+			switch (fit_mode) {
+				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_ELLIPSIS:
+				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL:
+				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_CLIP: {
+					// greedy fill: keep a running width per line instead of re-measuring line + " " + word.
+					bool truncated = false;
+					std::vector<float> line_widths;
+					for (int i = 0; i < words.size(); i++) {
+						std::u32string_view word = words[i];
+						float word_width = word_widths[i];
+						if (word == U"\n") {
+							lines.push_back(U"");
+							line_widths.push_back(0.f);
+							lines_to_text_indices.push_back({});
+							continue;
+						}
+						if (!lines.empty() && line_widths.back() + space_width + word_width <= remain_size.x) {
+							lines.back() += word;
+							line_widths.back() += space_width + word_width;
+							append_word_indices_to_line(i);
+							continue;
+						}
+						if (fit_mode == LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_ELLIPSIS &&
+							(int)lines.size() >= max_lines) {
+							truncated = true;
+							break;
+						}
+						lines.emplace_back(word);
+						line_widths.push_back(word_width);
+						lines_to_text_indices.push_back({});
+						append_word_indices_to_line(i);
+					}
+					if (truncated && !lines.empty()) {
+						std::u32string& last_line = lines.back();
+						auto& last_line_indices = lines_to_text_indices.back();
+						float last_width = line_widths.back();
+						while (!last_line.empty() && last_width + ellipsis_width > remain_size.x) {
+							last_width -= measure(std::u32string_view(last_line).substr(last_line.size() - 1)).x;
+							last_line.pop_back();
+							last_line_indices.pop_back();
+						}
+						last_line += ellipsis;
+						for (int i = 0; i < ellipsis.size(); i++) {
+							last_line_indices.push_back(-1);
+						}
+					}
+					break;
+				}
+				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL: {
+					float total_width_all_word = 0.f;
+					for (int i = 0; i < words.size(); i++) {
+						total_width_all_word += word_widths[i];
+						if (i < (int)words.size() - 1) {
+							total_width_all_word += space_width;
+						}
+					}
+					float size_line_width = std::max(total_width_all_word / max_lines, remain_size.x);
+					float current_line_width = 0.f;
+					for (int i = 0; i < words.size(); i++) {
+						const auto& word = words[i];
+						float word_width = word_widths[i];
+						if (word == U"\n") {
+							lines.push_back(U"");
+							size_line_width = 0.f;
+							lines_to_text_indices.push_back({});
+							continue;
+						}
+						if (lines.empty() || current_line_width + space_width + word_width > size_line_width) {
+							lines.emplace_back(word);
+							lines_to_text_indices.push_back({});
+							current_line_width = word_width;
+						} else {
+							current_line_width += word_width + space_width;
+							append_word_indices_to_line(i);
+							lines.back() += word;
+						}
+					}
+					break;
+				}
+				default: {
+					break;
+				}
 			}
-		}
-		switch (fit_mode) {
-			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_CLIP: {
-				clipping_enabled = true;
-				break;
+			render_text.clear();
+			for (size_t i = 0; i < lines.size(); i++) {
+				if (i > 0)
+					render_text += U'\n';
+				render_text += lines[i];
 			}
-			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL: {
-				clipping_enabled = text_size.x > fit_size.x;
-				break;
-			}
-			case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL: {
-				clipping_enabled = text_size.y > fit_size.y;
-				break;
-			}
-			default: {
-				clipping_enabled = text_helper.width > remain_size.x || text_helper.height > remain_size.y;
-				break;
+			text_helper = Vulkan::Draw_Font_2D::gen_text_info_from(
+				font_id, render_text, (int)horizontal_align, font_size, stroke_size, anchor
+			);
+			update_fit_size(text_helper.get_size(), padding);
+			switch (fit_mode) {
+				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_CLIP: {
+					clipping_enabled = true;
+					break;
+				}
+				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_WIDTH_SHOW_ALL: {
+					clipping_enabled = text_size.x > fit_size.x;
+					break;
+				}
+				case LABEL_RENDER_FIT_MODE::LABEL_RENDER_FIT_HEIGHT_SHOW_ALL: {
+					clipping_enabled = text_size.y > fit_size.y;
+					break;
+				}
+				default: {
+					clipping_enabled = text_helper.width > remain_size.x || text_helper.height > remain_size.y;
+					break;
+				}
 			}
 		}
 		// [Claude END] label wrap / ellipsis / clip
+		render_char_rects.clear();
+		number_line = 0;
+		u32_to_rect_index.clear();
+		rect_to_u32_index.clear();
+		rect_to_line_index.clear();
+		number_line = text_helper.lines.size();
+		u32_to_rect_index.resize(u32_text.size(), -1);
+		std::vector<glm::vec2> char_positions;
+		glm::vec2 origin = -text_anchor * fit_size + padding;
+		for (int i = 0; i < text_helper.lines.size(); i++) {
+			const auto& line = text_helper.lines[i];
+			if (line.size() <= 0)
+				continue;
+			const auto& start_line_position = text_helper.start_line_positions[i];
+			char_positions = Vulkan::Draw_Font_2D::get_char_renderer_positions_at(
+				line, start_line_position, font_id, font_size, stroke_size, false
+			);
+			for (int j = 0; j < line.size(); j++) {
+				glm::vec2 char_position = char_positions[j];
+				glm::vec2 char_bounding_box =
+					Vulkan::Draw_Font_2D::get_char_render_bounding_box(line[j], font_id, font_size, stroke_size);
+				glm::vec2 min = origin + char_position;
+				glm::vec2 max = min + char_bounding_box;
+				render_char_rects.push_back({min, max});
+				rect_to_line_index.push_back(i);
+				int current_rect_index = (int)render_char_rects.size() - 1;
+				int current_char_index = lines_to_text_indices[i][j];
+				if (current_char_index >= 0) {
+					u32_to_rect_index[current_char_index] = current_rect_index;
+				}
+				rect_to_u32_index.push_back(current_char_index);
+			}
+		}
 	}
 
-	void Label_Renderer_Information::update_renderer_char_rects(const glm::vec2& anchor, const glm::vec2& text_size) {
+	void Label_Renderer_Information::update_renderer_char_rects(
+		const glm::vec2& text_anchor, const glm::vec2& text_size
+	) {
 		render_char_rects.clear();
 		number_line = 0;
 		u32_to_rect_index.clear();
@@ -408,7 +494,7 @@ namespace Engine {
 		std::u32string flat_text = U"";
 		std::vector<glm::vec2> char_positions;
 		glm::vec2 padding = get_padding_size();
-		glm::vec2 origin = -anchor * text_size + padding;
+		glm::vec2 origin = -text_anchor * text_size + padding;
 		for (int i = 0; i < text_helper.lines.size(); i++) {
 			const auto& line = text_helper.lines[i];
 			const auto& start_line_position = text_helper.start_line_positions[i];

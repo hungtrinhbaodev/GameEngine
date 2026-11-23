@@ -665,70 +665,78 @@ void create_layout() {
 		// 	(char)(char_index >= 0 ? texts[char_index] : U' ')
 		// );
 	});
-	Engine::set_touch_caller(label, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position, int, int) {
-		glm::vec2 label_size = Engine::get_content_size(e);
-		float max_nearest_distance = glm::distance(glm::vec2{0.f}, label_size * 0.5f);
-		switch (touch_state) {
-			case Engine::TOUCH_STATE::TOUCH_BEGAN: {
-				start_char_chosen_index =
-					Engine::find_label_character_index(e, world_position, false, max_nearest_distance);
-				break;
-			}
-			case Engine::TOUCH_STATE::TOUCH_MOVE: {
-				if (start_char_chosen_index < 0) {
+	Engine::set_touch_caller(
+		label, [](Handle e, Engine::TOUCH_STATE touch_state, glm::vec2 world_position, Engine::MOUSE_BUTTON touch_type,
+				  int mods) {
+			glm::vec2 label_size = Engine::get_content_size(e);
+			float max_nearest_distance = glm::distance(glm::vec2{0.f}, label_size * 0.5f);
+			if (touch_type != Engine::MOUSE_BUTTON::MOUSE_BUTTON_LEFT)
+				return;
+			switch (touch_state) {
+				case Engine::TOUCH_STATE::TOUCH_BEGAN: {
+					start_char_chosen_index =
+						Engine::find_label_character_index(e, world_position, false, max_nearest_distance);
 					break;
 				}
-				int end_char_chosen_index =
-					Engine::find_label_character_index(e, world_position, false, max_nearest_distance);
-				// Log::info("what is my TOUCH_MOVE end char", end_char_chosen_index);
-				if (end_char_chosen_index < 0) {
-					break;
-				}
-				int start = std::min(start_char_chosen_index, end_char_chosen_index);
-				int end = std::max(start_char_chosen_index, end_char_chosen_index);
-				auto char_rects = Engine::find_label_rects_by_char_index_range(e, start, end);
-				while (background_label_inner_chars_chosen.size() < char_rects.size()) {
-					auto layout = Engine::create_layout();
-					Engine::set_layout_background_enabled(layout, true);
-					Engine::set_layout_background_color(layout, {0.f, 0.f, 0.f});
-					Engine::set_opacity(layout, 0.85f);
-					Engine::set_z_order(layout, -1);
-					Engine::add_child(label_layout, layout);
-					background_label_inner_chars_chosen.push_back(layout);
-				}
-				for (int i = 0; i < background_label_inner_chars_chosen.size(); i++) {
-					const auto& layout = background_label_inner_chars_chosen[i];
-					if (i < char_rects.size()) {
-						const auto& char_rect = char_rects[i];
-						Engine::set_visible(layout, true);
-						Engine::set_content_size(layout, {char_rect.width, char_rect.height});
-						Engine::set_position(layout, Engine::to_my_position_space(label_layout, char_rect.position));
-						Engine::set_scale(layout, Engine::to_my_scale_space(label_layout, char_rect.scale));
-						Engine::set_rotation(layout, Engine::to_my_rotation_space(label_layout, char_rect.rotation));
-						Engine::set_anchor(layout, char_rect.anchor);
-					} else {
-						Engine::set_visible(layout, false);
+				case Engine::TOUCH_STATE::TOUCH_MOVE: {
+					if (start_char_chosen_index < 0) {
+						break;
 					}
+					int end_char_chosen_index =
+						Engine::find_label_character_index(e, world_position, false, max_nearest_distance);
+					if (end_char_chosen_index < 0) {
+						break;
+					}
+					int start = std::min(start_char_chosen_index, end_char_chosen_index);
+					int end = std::max(start_char_chosen_index, end_char_chosen_index);
+					auto char_rects = Engine::find_label_rects_by_char_index_range(e, start, end);
+					while (background_label_inner_chars_chosen.size() < char_rects.size()) {
+						auto layout = Engine::create_layout();
+						Engine::set_layout_background_enabled(layout, true);
+						Engine::set_layout_background_color(layout, {0.f, 0.f, 0.f});
+						Engine::set_opacity(layout, 0.85f);
+						Engine::set_z_order(layout, -1);
+						Engine::add_child(label_layout, layout);
+						background_label_inner_chars_chosen.push_back(layout);
+					}
+					for (int i = 0; i < background_label_inner_chars_chosen.size(); i++) {
+						const auto& layout = background_label_inner_chars_chosen[i];
+						if (i < char_rects.size()) {
+							const auto& char_rect = char_rects[i];
+							Engine::set_visible(layout, true);
+							Engine::set_content_size(layout, {char_rect.width, char_rect.height});
+							Engine::set_position(
+								layout, Engine::to_my_position_space(label_layout, char_rect.position)
+							);
+							Engine::set_scale(layout, Engine::to_my_scale_space(label_layout, char_rect.scale));
+							Engine::set_rotation(
+								layout, Engine::to_my_rotation_space(label_layout, char_rect.rotation)
+							);
+							Engine::set_anchor(layout, char_rect.anchor);
+						} else {
+							Engine::set_visible(layout, false);
+						}
+					}
+					// Log::info(
+					// 	"what is my TOUCH_MOVE end char", start, end, char_rects.size(),
+					// 	background_label_inner_chars_chosen.size()
+					// );
+					break;
 				}
-				// Log::info(
-				// 	"what is my TOUCH_MOVE end char", start, end, char_rects.size(),
-				// 	background_label_inner_chars_chosen.size()
-				// );
-				break;
-			}
-			case Engine::TOUCH_STATE::TOUCH_CANCEL:
-			case Engine::TOUCH_STATE::TOUCH_ENDED: {
-				start_char_chosen_index = -1;
-				for (const auto& rect : background_label_inner_chars_chosen) {
-					Engine::set_visible(rect, false);
+				case Engine::TOUCH_STATE::TOUCH_CANCEL:
+				case Engine::TOUCH_STATE::TOUCH_ENDED: {
+					start_char_chosen_index = -1;
+					for (const auto& rect : background_label_inner_chars_chosen) {
+						Engine::set_visible(rect, false);
+					}
+					break;
 				}
-				break;
-			}
-			default: {
-				break;
+				default: {
+					break;
+				}
 			}
 		}
-	});
+	);
 	engine_labels.push_back(label);
 
 	Handle image_2 = Engine::create_image();
