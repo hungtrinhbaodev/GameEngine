@@ -548,7 +548,8 @@ Reading:
 
 ===== LAST RUN (2026-11-23, after b385641 + local label char-rect work: font-id API, wrap rework) =====
 UI suite 20 of 22 PASS (new: repro-key, repro-char-detect, repro-dirty in run_all). ASan repro-reentry PASS.
-- [] CRASH repro-api + repro-dirty: EXC_BAD_ACCESS address 0 in Label_Renderer_Information::update_inner_text_by,
+RECHECK after fix: 22 of 22 PASS; repro-api + repro-dirty also clean under ASan; editor self-test 25 of 25.
+- [Done] CRASH repro-api + repro-dirty: EXC_BAD_ACCESS address 0 in Label_Renderer_Information::update_inner_text_by,
   components.cpp:472 `lines_to_text_indices[i][j]`. HEIGHT_SHOW_ALL case (~line 400): when a word starts a new
   line it does `lines.emplace_back(word); lines_to_text_indices.push_back({});` but never calls
   append_word_indices_to_line(i), so that line's index list is shorter than the line (empty for a one-word
@@ -556,6 +557,7 @@ UI suite 20 of 22 PASS (new: repro-key, repro-char-detect, repro-dirty in run_al
   case = "Hi"); repro-dirty dies building a scene with a HEIGHT_SHOW_ALL label.
   Fix: call append_word_indices_to_line(i) after starting the new line (as the CLIP / WIDTH branch does);
   consider an assert that lines_to_text_indices[i].size() == text_helper.lines[i].size().
+  Fixed: append_word_indices_to_line(i) added when a word starts a new line (components.cpp ~403).
 - [] same branch: a "\n" word sets size_line_width = 0, so every word after a newline gets its own line.
   Probably meant to keep the target width.
 Everything else (repros, stress, drive 55/55, 8 fuzz seeds) PASS.

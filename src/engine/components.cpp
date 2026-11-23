@@ -400,6 +400,7 @@ namespace Engine {
 						if (lines.empty() || current_line_width + space_width + word_width > size_line_width) {
 							lines.emplace_back(word);
 							lines_to_text_indices.push_back({});
+							append_word_indices_to_line(i);
 							current_line_width = word_width;
 						} else {
 							current_line_width += word_width + space_width;
